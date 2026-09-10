@@ -13,6 +13,11 @@ export const RegisterService = {
         const api = new APIRequest("/super-admin/register/preview-student-csv", "post", data, setter, success, error);
         api.fetchData();
     },
+    validateStudentCsvRow(row, setter, success, error) {
+        const api = new APIRequest("/super-admin/register/validate-student-csv-row", "post", { row }, setter, success, error);
+        api.setHeaders({ "Content-Type": "application/json" });
+        api.fetchData();
+    },
     commitStudentCsv(rows, activate, setter, success, error) {
         const api = new APIRequest(
             "/super-admin/register/commit-student-csv",

@@ -1,4 +1,4 @@
-import { getProfilePic, readableDate, readableTime, toTitleCase } from "@/others/function";
+import { getProfilePic, readableDate, readableTime, showUserType, toTitleCase } from "@/others/function";
 import ProfilePic from "../other/profile-pic";
 import ListSkeleton from "../reload/list-skeleton";
 import { AlertCircle } from "lucide-react";
@@ -55,8 +55,11 @@ const Row = ({ data }) => {
                             {data.profile?.first_name} {data.profile?.last_name}
                         </div>
                         <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full mt-1 inline-block font-medium">
-                            {toTitleCase(data.role)}
+                            {showUserType(data)}
                         </span>
+                        <div className="text-xs text-gray-500 mt-1">
+                            Gate Pass No. {gp.gatepass_number}
+                        </div>
                     </div>
                 </div>
 

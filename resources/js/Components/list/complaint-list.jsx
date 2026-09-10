@@ -1,6 +1,6 @@
 import "./style.css";
 import ProfilePic from "../other/profile-pic";
-import { getProfilePic, readableDate, readableTime, toTitleCase } from "../../others/function";
+import { getProfilePic, readableDate, readableTime, showUserType, toTitleCase } from "../../others/function";
 import { useMemo, useState } from "react";
 import ListSkeleton from "../reload/list-skeleton";
 import ActionBtn from "../button/action-btn";
@@ -51,7 +51,7 @@ const ComplaintList = ({
     rowIndex: i,
     ...e,
     complainantText: e.user
-    ? `${e.user.profile?.first_name || ""} ${e.user.profile?.middle_name || ""} ${e.user.profile?.last_name || ""} ${toTitleCase(e.user.role || "")}`.trim()
+    ? `${e.user.profile?.first_name || ""} ${e.user.profile?.middle_name || ""} ${e.user.profile?.last_name || ""} ${showUserType(e.user) || ""}`.trim()
     : toTitleCase(e.complainant_name || ""),
   })) || [];
   
@@ -102,7 +102,7 @@ const ComplaintList = ({
               {`${obj.user.profile?.first_name ?? ""} ${obj.user.profile?.middle_name ?? ""} ${obj.user.profile?.last_name ?? ""}`}
             </h1>
             <p className="text-[0.7em]">
-              {toTitleCase(obj.user.role)}
+              {showUserType(obj.user)}
             </p>
           </div>
         </div>
@@ -161,13 +161,13 @@ const ComplaintList = ({
       field: "actions",
       type: "actions",
       headerName: "Action",
-      width: 280,
+      width: 420,
       align: 'start',
       headerAlign: 'start',
       renderCell: (params) => {
         const obj = params.row;
         return (
-            <div className="flex gap-2 items-center h-full">
+            <div className="flex flex-wrap gap-2 items-center py-1">
                 <ActionBtn
                 onClick={() => setId(obj.id, "c")}
                 className="bg-blue-600 text-white hover:bg-blue-700"
@@ -192,6 +192,15 @@ const ComplaintList = ({
                 </>
                 )}
 
+                {obj.complaint_status === "rejected" && type === "prefect" && !select && !select2 && (
+                <ActionBtn
+                    onClick={() => actionEvent("reinstate", obj.id)}
+                    className="bg-green-600 text-white hover:bg-green-700"
+                >
+                    Approve
+                </ActionBtn>
+                )}
+
                 {obj.complaint_status === "ongoing" && type === "prefect" && !select && (
                 <ActionBtn
                     onClick={() => setId(obj.id, "v", obj)}
@@ -209,12 +218,21 @@ const ComplaintList = ({
                 </ActionBtn>
                 )}
 
-                {obj.complainant_id === user?.id && ["pending", "ongoing"].includes(obj.complaint_status) && (
+                {obj.complainant_id === user?.id && obj.complaint_status === "pending" && (
                 <ActionBtn
                     onClick={() => actionEvent("revoke", obj.id)}
                     className="bg-gray-600 text-white hover:bg-gray-700"
                 >
                     Revoke
+                </ActionBtn>
+                )}
+
+                {type === "prefect" && !select && !select2 && !obj.archived_at && (
+                <ActionBtn
+                    onClick={() => actionEvent("archive", obj.id)}
+                    className="bg-amber-600 text-white hover:bg-amber-700"
+                >
+                    Archive
                 </ActionBtn>
                 )}
 
@@ -236,13 +254,14 @@ const ComplaintList = ({
     <>
       {list?.data ? (
         <Box sx={{ width: "100%", overflowX: "auto" }}>
-  <Box sx={{ minWidth: "1100px" }}>
+  <Box sx={{ minWidth: "1240px" }}>
   <DataGrid
     rows={rows}
     columns={columns}
     pagination
     disableSelectionOnClick
     hideFooterSelectedRowCount
+    getRowHeight={() => 'auto'}
     getRowId={(row) => row.id}
     initialState={{
       pagination: { paginationModel: { pageSize: 20, page: 0 } }

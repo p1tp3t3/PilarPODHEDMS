@@ -1,30 +1,33 @@
-import { Loader2 } from "lucide-react"
+import { Button, CircularProgress } from "@mui/material"
 
 const UploadFileBtn = ({ children, name, accept, change, loading = false }) => {
     return (
-        <div className="w-full grid">
-            <label
-                htmlFor={loading ? undefined : name}
-                className={`px-4 py-2 text-[0.9em] text-white rounded items-center flex justify-center gap-2 w-full ${
-                    loading ? "bg-blue-400 cursor-not-allowed" : "bg-blue-700 cursor-pointer"
-                }`}
-            >
-                {loading
-                    ? <>
-                        <Loader2 size={14} className="animate-spin" /> Uploading...
-                      </>
-                    : children}
-            </label>
+        <Button
+            component="label"
+            variant="contained"
+            fullWidth
+            disabled={loading}
+            disableElevation
+            startIcon={loading ? <CircularProgress size={14} color="inherit" /> : null}
+            sx={{
+                textTransform: 'none',
+                fontSize: '0.9em',
+                borderRadius: '0.375rem',
+                bgcolor: '#1d4ed8',
+                '&:hover': { bgcolor: '#1e40af' },
+            }}
+        >
+            {loading ? "Uploading..." : children}
             <input
                 type="file"
                 name={name}
                 accept={accept}
                 onChange={change}
                 disabled={loading}
-                className="hidden"
+                hidden
                 id={name}
             />
-        </div>
+        </Button>
     )
 }
 export default UploadFileBtn

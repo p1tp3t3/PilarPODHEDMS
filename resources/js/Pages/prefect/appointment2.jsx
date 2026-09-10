@@ -5,7 +5,7 @@ import AppointmentEventModal from "@/Components/modal/view/appointment-event-mod
 import { AppointmentService } from "@/others/services/appointment-service";
 import AppointmentModal from "@/Components/modal/submission-form/set-appointment-modal";
 import { useReload } from "@/context-provider/reload-provider";
-import { showWarningModal } from "@/others/function";
+import { showWarningModal, showOutputModal } from "@/others/function";
 import { Paper } from "@mui/material";
 
 const PrefectAppointment2 = (props) => {

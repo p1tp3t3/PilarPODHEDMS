@@ -41,4 +41,7 @@ class Referral extends Model
     public function referralReferredStudent() {
         return $this->hasMany(ReferralReferredStudent::class, 'referral_id', 'id');
     }
+    public function revisions() {
+        return $this->hasMany(ReferralRevision::class, 'referral_id', 'id')->latest('created_at');
+    }
 }

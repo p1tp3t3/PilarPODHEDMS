@@ -19,6 +19,7 @@ import {
 import { RegisterService } from "@/others/services/register-service";
 import UploadFileBtn from "@/Components/button/upload-file-btn";
 import Switch from "@/Components/button/switch-btn";
+import CheckBoxButton from "@/Components/input/checkbox";
 import { Validator } from "@/others/classes/validator";
 import UploadGuidelines from "@/Components/other/upload-guidelines";
 import TabSwitcher from "@/Components/other/tab-switcher";
@@ -45,7 +46,7 @@ const RegistrationForm = ({
   const newField = () => {
     switch (baseData.user_type) {
       case "student":
-        return { program: "", year_level: "", school_year: "", semester: "", enrolled_at: "" };
+        return { program: "", year_level: "", school_year_id: "", semester: "", enrolled_at: "" };
       case "faculty":
         return { program: "" };
       case "program_head":
@@ -219,15 +220,13 @@ const RegistrationForm = ({
 
           <UploadGuidelines type={data.user_type} program={selectionVal[2]} />
 
-          <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={agreedGuidelines}
-              onChange={(e) => setAgreedGuidelines(e.target.checked)}
-              className="mt-1"
-            />
-            I have read and understood the guidelines above.
-          </label>
+          <CheckBoxButton.CheckBox
+            id="agreed-guidelines"
+            name="agreed_guidelines"
+            label="I have read and understood the guidelines above."
+            checked={agreedGuidelines}
+            change={(e) => setAgreedGuidelines(e.target.checked)}
+          />
 
           {agreedGuidelines && (
             <UploadFileBtn

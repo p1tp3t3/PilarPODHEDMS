@@ -6,7 +6,8 @@ import { Chip, Paper } from "@mui/material"
 import { useState } from "react"
 import { ordinal } from "@/others/function"
 
-const ViolationStudents = ({ violation, students, occurrence_breakdown = [] }) => {
+const ViolationStudents = ({ user, violation, students, occurrence_breakdown = [] }) => {
+    const isSuperAdmin = user?.role === 'super_admin';
     const [tab, setTab] = useState("occurrences")
 
     const occurrenceCount = (occ) =>
@@ -42,7 +43,7 @@ const ViolationStudents = ({ violation, students, occurrence_breakdown = [] }) =
                 <TabSwitcher
                     tabs={[
                         { key: "occurrences", label: "Occurrences & Penalties" },
-                        { key: "students", label: "Students" },
+                        ...(isSuperAdmin ? [] : [{ key: "students", label: "Students" }]),
                     ]}
                     value={tab}
                     onChange={setTab}
@@ -94,7 +95,7 @@ const ViolationStudents = ({ violation, students, occurrence_breakdown = [] }) =
                     </Paper>
                 )}
 
-                {tab === "students" && <StudentViolationList list={students} />}
+                {tab === "students" && !isSuperAdmin && <StudentViolationList list={students} />}
             </div>
         </>
     )

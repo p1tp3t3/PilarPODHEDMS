@@ -15,11 +15,16 @@ class GatePassResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'gatepass_number' => $this->gatepass_number,
             'user_id' => $this->user_id,
             'reason' => $this->reason,
             'allow_to' => $this->allow_to,
             'confirmed_at' => $this->confirmed_at,
             'date_expiration' => $this->date_expiration,
+            'rejected_reason' => $this->rejected_reason,
+            'rejected_at' => $this->rejected_at,
+            'revoked_at' => $this->revoked_at,
+            'edited_at' => $this->edited_at,
             'created_at' => $this->created_at,
             'user' => $this->whenLoaded('user'),
         ];

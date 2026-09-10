@@ -8,10 +8,27 @@ import {
   readableDate,
   readableTime,
   showUserType,
+  toTitleCase,
 } from "../../others/function";
 import AuthContext from "@/context-provider/auth-provider";
 import ListSkeleton from "../reload/list-skeleton";
 import { Folder } from "lucide-react";
+
+const STATUS_STYLES = {
+  pending: "bg-yellow-100 text-yellow-700",
+  expired: "bg-gray-200 text-gray-700",
+  noted: "bg-green-100 text-green-700",
+  rejected: "bg-red-100 text-red-700",
+  revoked: "bg-gray-200 text-gray-700",
+};
+
+const statusFor = (e) => {
+  if (e.revoked_at) return "revoked";
+  if (e.rejected_at) return "rejected";
+  if (e.confirmed_at) return "noted";
+  if (new Date(e.date_to) < new Date()) return "expired";
+  return "pending";
+};
 
 const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
   const { usr } = useContext(AuthContext);
@@ -28,7 +45,13 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
       user: e.user,
       created_at: e.created_at,
       confirmed_at: e.confirmed_at,
+      rejected_at: e.rejected_at,
+      rejected_reason: e.rejected_reason,
+      revoked_at: e.revoked_at,
+      date_to: e.date_to,
       note: e.note,
+      archived_at: e.archived_at,
+      status: statusFor(e),
     }));
   }, [list]);
 
@@ -54,8 +77,16 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
                 src={getProfilePic(user.profile?.profile_picture, user.profile?.sex)}
               />
               <div className="flex flex-col text-[0.8em] justify-center leading-tight">
-                <b>{`${user.profile?.first_name ?? ""} ${user.profile?.middle_name ?? ""} ${user.profile?.last_name ?? ""}`}</b>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <b>{`${user.profile?.first_name ?? ""} ${user.profile?.middle_name ?? ""} ${user.profile?.last_name ?? ""}`}</b>
+                  <span className={`px-2 py-0.5 rounded-full text-[0.75em] font-medium ${STATUS_STYLES[params.row.status]}`}>
+                    {toTitleCase(params.row.status)}
+                  </span>
+                </div>
                 <span>{showUserType(user)}</span>
+                {params.row.rejected_reason && (
+                  <span className="text-gray-500">Reason: {params.row.rejected_reason}</span>
+                )}
               </div>
             </div>
           );
@@ -104,7 +135,7 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
               View
             </ActionBtn>
 
-            {!row.confirmed_at && usr.role === "sub_admin" && (
+            {(row.status === "pending" || row.status === "expired") && usr.role === "sub_admin" && (
               <>
                 <ActionBtn
                   className="bg-green-600 text-white hover:bg-green-700"
@@ -119,6 +150,15 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
                   Reject
                 </ActionBtn>
               </>
+            )}
+
+            {usr.role === "sub_admin" && !row.archived_at && (
+              <ActionBtn
+                className="bg-amber-600 text-white hover:bg-amber-700"
+                onClick={() => events(row.id, "archive")}
+              >
+                Archive
+              </ActionBtn>
             )}
           </div>
         );

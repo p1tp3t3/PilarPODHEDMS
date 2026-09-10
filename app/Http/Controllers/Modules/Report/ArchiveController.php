@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\Modules\Report;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Modules\Complaint\ComplaintController;
-use App\Http\Controllers\Modules\Referral\ReferralController;
 use App\Http\Requests\Archive\DestroyDocumentRequest;
 use App\Http\Requests\Archive\RecoverDocumentRequest;
 use App\Http\Resources\ArchivedDocumentResource;
@@ -12,9 +10,10 @@ use App\Mail\AbsentFormMail;
 use App\Models\Absence;
 use App\Models\Complaint;
 use App\Models\Referral;
+use App\Models\Report;
+use App\Models\SchoolYear;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
@@ -23,86 +22,132 @@ use Illuminate\Support\Str;
 
 class ArchiveController extends Controller
 {
+    /**
+     * One entry per archivable document type. destroy(), transfer(), and
+     * recoverDocument() all key off this instead of separate hand-written
+     * if/else chains, so every type is treated the same way by
+     * construction — adding a 6th type later means updating this table,
+     * not three different methods.
+     */
+    private static array $archivable = [
+        'complaint' => ['model' => Complaint::class],
+        'referral' => ['model' => Referral::class],
+        'absent form' => ['model' => Absence::class],
+    ];
+
+    /**
+     * Every archivable type (complaint/referral/absent form) has an
+     * associated document folder to clean up on disk.
+     */
+    private function folderFor(string $type, $record): ?string
+    {
+        return match ($type) {
+            'complaint' => storage_path("app/private/complaints/complaint-{$record->complaint_number}"),
+            'referral' => storage_path("app/private/referrals/referral-{$record->referral_number}"),
+            'absent form' => storage_path("app/private/absent-forms/absent-form-{$record->form_number}"),
+            default => null,
+        };
+    }
+
     public function index() {
         return Inertia::render('prefect/archive', [
             'user' => auth()->user(),
-            'document' => self::getDocuments()
+            'document' => self::getDocuments(),
+            'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
         ]);
     }
-    public function archive(Request $request) {
-        $getUpdatedList = self::iterateDocument($request, 'archive');
-        return response()->json($getUpdatedList);
+
+    /**
+     * Manually move one record into the archive, regardless of its
+     * current status — the per-row "Archive" action on each list page.
+     */
+    public function transfer(Request $request) {
+        $request->validate([
+            'type' => 'required|in:complaint,referral,absent form',
+            'id' => 'required|integer',
+        ]);
+
+        $model = self::$archivable[$request->type]['model'];
+        $doc = $model::find($request->id);
+
+        if (!$doc) {
+            return response()->json(['message' => 'Document not found.'], 404);
+        }
+
+        $doc->update(['archived_at' => archive_retention_date()]);
+
+        return response()->json(['message' => ucfirst($request->type) . ' archived successfully.']);
     }
+
+    /**
+     * Archive every not-yet-archived record (of one type, or all 5)
+     * created within a date range or a school year.
+     */
+    public function bulkArchive(Request $request) {
+        $request->validate([
+            'type' => 'required|in:complaint,referral,absent form,all',
+            'school_year' => 'nullable|string',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date',
+        ]);
+
+        if ($request->filled('school_year')) {
+            $resolved = Report::resolveSchoolYearDates(['school_year' => $request->school_year]);
+            $dateFrom = $resolved['date_from'] ?? null;
+            $dateTo = $resolved['date_to'] ?? null;
+        } else {
+            $dateFrom = $request->date_from;
+            $dateTo = $request->date_to;
+        }
+
+        if (!$dateFrom || !$dateTo) {
+            return response()->json(['message' => 'Please provide a valid date range or school year.'], 400);
+        }
+
+        $types = $request->type === 'all' ? array_keys(self::$archivable) : [$request->type];
+
+        $counts = [];
+        foreach ($types as $type) {
+            $model = self::$archivable[$type]['model'];
+            $counts[$type] = $model::whereBetween('created_at', [$dateFrom, $dateTo])
+                ->whereNull('archived_at')
+                ->update(['archived_at' => archive_retention_date()]);
+        }
+
+        return response()->json([
+            'message' => 'Bulk archive complete.',
+            'counts' => $counts,
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
+        ]);
+    }
+
     public function destroy(DestroyDocumentRequest $request) {
-        $id = $request->id;
-        $doc = null;
+        $model = self::$archivable[$request->type]['model'];
+        $doc = $model::find($request->id);
 
-        switch($request->type) {
-            case 'complaint':
-                $doc = Complaint::where('id', $id);
-                $docName = storage_path("app/private/complaints/complaint-{$doc->value('complaint_number')}");
-
-                if(File::exists($docName)) {
-                    File::deleteDirectory($docName);
-                }
-                $doc->delete();
-
-                return self::getDocuments();
-            case 'referral':
-                $doc = Referral::where('id', $id);
-                $docName = storage_path("app/private/referrals/referral-{$doc->value('referral_number')}");
-
-                if(File::exists($docName)) {
-                    File::deleteDirectory($docName);
-                }
-                $doc->delete();
-                return self::getDocuments();
-            case 'absent form':
-                $doc = Absence::where('id', $id);
-                $docName = storage_path("app/private/absent-forms/absent-form-{$doc->value('form_number')}");
-
-                if(File::exists($docName)) {
-                    File::deleteDirectory($docName);
-                }
-                $doc->delete();
-                return self::getDocuments();
+        if (!$doc) {
+            return response()->json(['message' => 'Document not found.'], 404);
         }
-    }
-    private function iterateDocument($request, $action) {
-        $getUpdatedList = null;
-        if($action == 'transfer') {
-            if($request->has('doc_list')) {
-                foreach($request->doc_list as $docId) {
-                    if($request->type == 'complaint') {
-                        $complaint = new ComplaintController();
-                        Complaint::where('case_number', $docId)->update(['archived_at' => now()]);
-                        $getUpdatedList = $complaint->allComplaints();
-                    }
-                    else if($request->type == 'referral') {
-                        $referral = new ReferralController();
-                        Referral::where('id', $docId)->update(['archived_at' => now()]);
-                        $getUpdatedList = $referral->getAllReferral();
-                    }
-                }
-            }else {
-                if($request->type == 'complaint') {
-                    $complaint = new ComplaintController();
-                    Complaint::where('case_number', $request->doc_id)->update(['archived_at' => now()]);
-                    $getUpdatedList = $complaint->allComplaints();
-                }
-                else if($request->type == 'referral') {
-                    $referral = new ReferralController();
-                    Referral::where('id', $request->doc_id)->update(['archived_at' => now()]);
-                    $getUpdatedList = $referral->getAllReferral();
-                }
-            }
-        }else if($action == 'archive') {
-            if($request->has('doc_list')) {
-
-            }
+        // archived_at isn't cast to Carbon on these models — it's a plain
+        // string from the DB, so it's parsed explicitly here.
+        $archivedAt = $doc->archived_at ? \Carbon\Carbon::parse($doc->archived_at) : null;
+        if (!$archivedAt || now()->lt($archivedAt)) {
+            return response()->json([
+                'message' => 'This record cannot be deleted until ' .
+                    ($archivedAt ? $archivedAt->format('F j, Y') : 'it is archived') . '.',
+            ], 403);
         }
-        return $getUpdatedList;
+
+        $folder = $this->folderFor($request->type, $doc);
+        if ($folder && File::exists($folder)) {
+            File::deleteDirectory($folder);
+        }
+        $doc->delete();
+
+        return self::getDocuments();
     }
+
     public function recoverDocument(RecoverDocumentRequest $request) {
         if($request->type == 'complaint') {
             // Safely get the latest case number
@@ -123,6 +168,7 @@ class ArchiveController extends Controller
             $webpushNotif = [
                 'title' => 'Complaint Recovered',
                 'body'  => 'Your complaint has been recovered from archive and is now ongoing.',
+                'icon'  => '',
                 'url'   => '/student/complaint/view/' . $complaint->id,
             ];
 
@@ -130,7 +176,7 @@ class ArchiveController extends Controller
                 [
                     'sender_id'   => auth()->user()->id,
                     'receiver_id' => $complaint->user->id,
-                    'type'        => 'complaint',
+                    'notif_type'  => 'complaint',
                     'content'     => json_encode([
                         'sender_id'   => auth()->user()->id,
                         'receiver_id' => $complaint->user->id,
@@ -141,7 +187,15 @@ class ArchiveController extends Controller
             );
 
         }if($request->type == 'referral') {
-
+            // "Recover" means "put it back in an active, actionable
+            // state" — mirrors exactly what complaint's recovery does,
+            // just without a case-number-style field to reassign.
+            Referral::where('id', $request->id)->update([
+                'archived_at' => NULL,
+                'rejected_reason' => NULL,
+                'revoked_at' => NULL,
+                'referral_status' => 'pending',
+            ]);
         }if($request->type == 'absent form') {
             Absence::where('id', $request->id)->update([
                 'archived_at' => NULL,
@@ -217,11 +271,19 @@ class ArchiveController extends Controller
         $filterType = request()->input('type', 'all');
         $search = strtolower(request()->input('search', ''));
 
+        $schoolYearRange = Report::resolveSchoolYearDates([
+            'school_year' => request()->input('school_year'),
+        ]);
+        $dateFrom = $schoolYearRange['date_from'] ?? null;
+        $dateTo = $schoolYearRange['date_to'] ?? null;
+
         // -----------------------
         // 1. COMPLAINT
         // -----------------------
         $complaint = Complaint::with([
                 'user.profile',
+                'user.program',
+                'user.enrollments',
                 'subject.profile',
                 'subject.program',
                 'subject.enrollments',
@@ -232,6 +294,7 @@ class ArchiveController extends Controller
                 'complaintSubject.user.teachingStaff.program'
             ])
             ->whereNotNull('archived_at')
+            ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
             ->get();
 
         $complaint->each(function ($item) {
@@ -251,6 +314,8 @@ class ArchiveController extends Controller
         // -----------------------
         $referral = Referral::with([
                 'user.profile',
+                'user.program',
+                'user.enrollments',
                 'referredStudent.profile',
                 'referredStudent.program',
                 'referredStudent.enrollments',
@@ -259,6 +324,7 @@ class ArchiveController extends Controller
                 'referralReferredStudent.user.enrollments'
             ])
             ->whereNotNull('archived_at')
+            ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
             ->get();
 
         $referral->each(function ($item) {
@@ -278,6 +344,7 @@ class ArchiveController extends Controller
         // -----------------------
         $absent = Absence::with(['user.profile', 'user.program', 'user.enrollments'])
             ->whereNotNull('archived_at')
+            ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
             ->get();
 
         $absent->each(function ($item) {
@@ -308,7 +375,7 @@ class ArchiveController extends Controller
         }
 
         // -----------------------
-        // 6. SEARCH FILTER
+        // 8. SEARCH FILTER
         // -----------------------
         if (!empty($search)) {
 
@@ -337,7 +404,7 @@ class ArchiveController extends Controller
                     }
                 }
 
-                /* 3️⃣ ABSENT FORM */
+                /* 3️⃣ ABSENT FORM — a direct student record */
                 if ($item->type === 'absent form' && isset($item->student)) {
                     $user = $item->student ?? null;
                     if ($user && self::matchStudentSearch($user, $search, $parts)) {
@@ -355,7 +422,7 @@ class ArchiveController extends Controller
         $paginated = $merged;
         if($type == 'paginate') {
             // -----------------------
-            // 6. PAGINATION
+            // 9. PAGINATION
             // -----------------------
             $page = request()->input('page', 1);
             $perPage = request()->input('per_page', 10);

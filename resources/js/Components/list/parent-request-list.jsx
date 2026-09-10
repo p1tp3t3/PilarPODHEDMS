@@ -56,8 +56,8 @@ const ParentRequestList = ({ list = null, paginate = true, event }) => {
       type: "actions",
       headerName: "Action",
       width: 250,
-      headerAlign: "start",
-      align: "start",
+      headerAlign: "left",
+      align: "left",
       renderCell: (params) => (
         <div className="flex gap-1">
             <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => event('v', params.row.id, params.row)}>

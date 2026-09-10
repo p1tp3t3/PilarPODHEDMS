@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\GatePass;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -21,7 +22,13 @@ class GatePassFactory extends Factory
         $confirmedAt = $isConfirmed ? Carbon::parse($createdAt)->addHours(rand(1, 6)) : null;
         $expiration = $isConfirmed ? (clone $confirmedAt)->addHours(rand(2, 8)) : null;
 
+        // Matches the real "{MMDDYY}{daily-seq}" format from
+        // GeneratesSequenceCode/GatePassController::gatepassRequest().
+        $prefix = Carbon::parse($createdAt)->format('mdy');
+        $sequence = GatePass::where('gatepass_number', 'like', "{$prefix}%")->count() + 1;
+
         return [
+            'gatepass_number' => $prefix . str_pad($sequence, 2, '0', STR_PAD_LEFT),
             'user_id' => $user?->id,
             'reason' => $this->faker->randomElement([
                 'Medical appointment',

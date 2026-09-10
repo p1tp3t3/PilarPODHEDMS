@@ -4,7 +4,6 @@ import "./style.css";
 import { useState } from "react";
 import { showOutputModal, toTitleCase } from "@/others/function";
 import background from '@/images/bg-pilar2.jpg'
-import OtpModal from "@/Components/modal/validation/show-otp-modal";
 import { FamilyService } from "@/others/services/family-service";
 import { ReloadProvider, useReload } from "@/context-provider/reload-provider";
 
@@ -15,8 +14,6 @@ const ParentRegistration = (props) => (
 );
 
 const ParentRegistrationInner = (props) => {
-    const [otp, openOtp] = useState(false);
-
     const [data, setData] = useState({
         first_name: "",
         middle_name: "",
@@ -50,62 +47,42 @@ const ParentRegistrationInner = (props) => {
         if (submitting) return; // avoid double submit
 
         setSubmitting(true);
-        openOtp(true)
+        loadRegister(true, "text-wait", "Your Details Are Processing.");
+        FamilyService.sendParentRegistration(
+            {
+                name: toTitleCase(data.first_name + ' ' + data.middle_name + ' ' + data.last_name),
+                email: data.email,
+                parent_details: {
+                    first_name: data.first_name,
+                    middle_name: data.middle_name,
+                    last_name: data.last_name,
+                    sex: data.sex,
+                    parent_role: data.parent_role,
+                    contact_number: data.contact_number,
+                    family_code: data.family_code,
+                    reason: data.reason,
+                    children: data.children,
+                },
+                reason: data.reason,
+            },
+            () => {
+                showOutputModal("A Confirmation Link Has Been Sent To Your Email. Please Click It To Submit Your Request For Admin Approval.", "s", () => {
+                    loadRegister(false)
+                    window.location.href = '/';
+                });
+            },
+            () => {
+                showOutputModal("There Was An Error While Processing Your Details. Please Try Again.", "e", () => {
+                    loadRegister(false)
+                    setSubmitting(false)
+                });
+            }
+        )
     };
-
-    const closeOtp = (c) => {
-        openOtp(c)
-        setSubmitting(false)
-    }
 
     return (
         <>
             <Head title="Pilar College Prefect of Discipline of the Higher Education Department" />
-            <OtpModal
-                close={otp}
-                type='parent_register'
-                isEnableOuterClose={false}
-                closeModal={closeOtp}
-                contact={{
-                    email: data.email,
-                }}
-                proceedEvent={(e) => {
-                    openOtp(false);
-                    loadRegister(true, "text-wait", "Your Details Are Processing.");
-                    FamilyService.sendParentRegistration(
-                        {
-                            name: toTitleCase(data.first_name + ' ' + data.middle_name + ' ' + data.last_name),
-                            email: data.email,
-                            parent_details: {
-                                first_name: data.first_name,
-                                middle_name: data.middle_name,
-                                last_name: data.last_name,
-                                sex: data.sex,
-                                parent_role: data.parent_role,
-                                contact_number: data.contact_number,
-                                family_code: data.family_code,
-                                reason: data.reason,
-                                children: data.children,
-                            },
-                            reason: data.reason,
-                            pin: e
-                        },
-                        () => {
-                            showOutputModal("Your Details Has Send To The Admin For Your Approval.", "s", () => {
-                                loadRegister(false)
-                                window.location.href = '/';
-                            });
-                        },
-                        () => {
-                            showOutputModal("There Was An Error While Processing Your Details. Please Try Again.", "e", () => {
-                                loadRegister(false)
-                                setSubmitting(false)
-                            });
-                        }
-                    )
-                }}
-                generatedPin={otp ? Math.floor(Math.random() * 900000) + 100000 : 0}
-            />
             <div className="w-full h-full">
                 <div className="flex w-full h-full">
                     <div className="hidden md:block w-full h-full sticky top-0">

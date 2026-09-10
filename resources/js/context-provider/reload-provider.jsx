@@ -30,7 +30,10 @@ export function ReloadProvider({ children }) {
         onCloseRef.current = fn
     }
 
-    const isReload = () => (reload ? "opacity-1 z-[200]" : "opacity-0 z-[-1]")
+    // Must outrank every form modal's z-[200] (UpModal, AlertModal, FadeModal) —
+    // otherwise the loading/success overlay renders behind a still-open modal
+    // instead of covering it, since same-z-index siblings stack by DOM order.
+    const isReload = () => (reload ? "opacity-1 z-[300]" : "opacity-0 z-[-1]")
 
     const handleClose = (e) => {
         if (onCloseRef.current) {

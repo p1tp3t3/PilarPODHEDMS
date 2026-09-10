@@ -12,7 +12,6 @@ use App\Models\User;
 use App\Models\Violation;
 use App\Models\ViolationPenalty;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -22,6 +21,17 @@ use Inertia\Inertia;
 
 class ViolationController extends Controller
 {
+    /**
+     * Super admin manages the violation/penalty catalog (system
+     * configuration) but a specific student's violation history is
+     * disciplinary data, not configuration — every per-student
+     * violation/risk view is off-limits to that role.
+     */
+    private static function isSuperAdmin(): bool
+    {
+        return auth()->user()->role === 'super_admin';
+    }
+
     /**
      * The reverse of studentViolationIndex() — given a violation type,
      * every student who has committed it (via a resolved complaint) plus
@@ -50,7 +60,9 @@ class ViolationController extends Controller
             ->values();
 
         // How many students currently sit at each occurrence count (1st,
-        // 2nd, 3rd... offense of this specific violation).
+        // 2nd, 3rd... offense of this specific violation) — aggregate
+        // counts only, no student identity, so this is safe to keep for
+        // every role including super_admin.
         $occurrenceBreakdown = $students
             ->groupBy('violation_count')
             ->map(fn ($group, $occurrence) => [
@@ -63,12 +75,18 @@ class ViolationController extends Controller
         return Inertia::render('itrc/maintenance/violation-students', [
             'user' => auth()->user(),
             'violation' => $violation,
-            'students' => $students,
+            // Super admin manages the violation/penalty catalog, not student
+            // disciplinary records — withhold the actual student roster.
+            'students' => auth()->user()->role === 'super_admin' ? [] : $students,
             'occurrence_breakdown' => $occurrenceBreakdown,
         ]);
     }
 
     public function studentViolationIndex($id) {
+        if (self::isSuperAdmin()) {
+            return redirect('/violation-management');
+        }
+
         $studentViolations = ComplaintSubjectViolation::with(['violation', 'complaint'])->whereHas('complaint', function($d) {
             $d->latest('offense_issued_at');
         })
@@ -85,12 +103,16 @@ class ViolationController extends Controller
 
         return Inertia::render('other/student-violation', [
             'user' => auth()->user(),
-            'student' => User::with('program')->where('id', $id)->first(),
+            'student' => User::with(['profile', 'program', 'enrollments.schoolYear'])->where('id', $id)->first(),
             'student_violations' => $studentViolations->get(),
             'violations' => $violationNames
         ]);
     }
     public function studentRiskIndex($id) {
+        if (self::isSuperAdmin()) {
+            return redirect('/violation-management');
+        }
+
         return Inertia::render('other/student-risk-prediction', [
             'user' => auth()->user(),
             'student' => User::with('program')->where('id',  $id)->first()
@@ -205,7 +227,7 @@ class ViolationController extends Controller
             $complaint->update([
                 'complaint_status' => 'resolved',
                 'offense_issued_at' => now(),
-                'archived_at' => now()->addYears(5),
+                'archived_at' => archive_retention_date(),
                 'incident_summary' => $summary,
             ]);
 
@@ -239,6 +261,10 @@ class ViolationController extends Controller
 
     public function getStudentIncident($studentId)
     {
+        if (self::isSuperAdmin()) {
+            return response()->json(['message' => 'Not authorized to view student violation data.'], 403);
+        }
+
         $incidents = ComplaintSubject::with([
         'complaint',
         'offenses.violation' // optional if you need violation data
@@ -267,6 +293,10 @@ return response()->json($incidents);
 
     public function getStudentViolation($studentId = null)
     {
+        if (self::isSuperAdmin()) {
+            return response()->json(['message' => 'Not authorized to view student violation data.'], 403);
+        }
+
         $incidents = ComplaintSubject::with([
                 'complaint',
                 'offenses.violation',
@@ -354,56 +384,74 @@ return response()->json($incidents);
 
     public function getStudentViolationOccurence($id)
     {
-        // Get all offenses committed by the student
+        if (self::isSuperAdmin()) {
+            return response()->json(['message' => 'Not authorized to view student violation data.'], 403);
+        }
+
+        // One row per INDIVIDUAL occurrence, not just a per-violation
+        // summary — the student profile needs the date and applicable
+        // penalty for each offense, not just the total count. Same
+        // chronological occurrence-numbering approach as
+        // GenerateReportJob::studentViolationOccurrences(): sort every
+        // recorded offense oldest-first, then number occurrences 1, 2, 3...
+        // per violation as they're encountered in that order.
         $records = ComplaintSubjectViolation::where('student_id', $id)
-            ->with('violation') // offense has violation_id
-            ->get();
+            ->whereNotNull('violation_id')
+            ->with(['violation', 'complaint'])
+            ->get()
+            ->sortBy(fn ($v) => $v->complaint?->offense_issued_at
+                ?? $v->complaint?->resolved_at
+                ?? $v->complaint?->confirmed_at
+                ?? $v->complaint?->created_at)
+            ->values();
 
         if ($records->isEmpty()) {
             return [];
         }
 
-        // Count occurrences by violation_id
-        $occurrenceCount = [];
+        $counts = [];
+        $byViolation = [];
 
         foreach ($records as $rec) {
-            $violationId = $rec->violation->id ?? null;
-            if (!$violationId) continue;
+            $violationId = $rec->violation_id;
+            $occurrenceNumber = ($counts[$violationId] ?? 0) + 1;
+            $counts[$violationId] = $occurrenceNumber;
 
-            if (!isset($occurrenceCount[$violationId])) {
-                $occurrenceCount[$violationId] = 0;
-            }
-            $occurrenceCount[$violationId]++;
-        }
-
-        $result = [];
-
-        foreach ($occurrenceCount as $violationId => $count) {
-
-            // Get the violation details (NEVER NULL NOW)
-            $violationData = Violation::find($violationId);
-
-            // Get penalty for this violation based on occurrence count
-            $penaltyRecord = ViolationPenalty::with(['violation', 'penalty'])
+            // The standing penalty at this occurrence count (the tier at or
+            // below it, since penalty ladders don't necessarily define every
+            // single occurrence number).
+            $penaltyRecord = ViolationPenalty::with('penalty')
                 ->where('violation_id', $violationId)
-                ->where('occurrence', '<=', $count)
+                ->where('occurrence', '<=', $occurrenceNumber)
                 ->orderBy('occurrence', 'desc')
                 ->first();
 
-            $result[] = [
-                'offense' => [
-                    'violation_id' => $violationId,
-                    'violation'    => $violationData,
-                    'occurrences'  => $count,
-                ],
-
-                'total_occurrence' => $count,
-
+            $byViolation[$violationId]['violation'] = $rec->violation;
+            $byViolation[$violationId]['occurrences'][] = [
+                'occurrence' => $occurrenceNumber,
+                'complaint_id' => $rec->complaint_id,
+                'date' => $rec->complaint?->offense_issued_at
+                    ?? $rec->complaint?->resolved_at
+                    ?? $rec->complaint?->confirmed_at
+                    ?? $rec->complaint?->created_at,
                 'penalty' => $penaltyRecord ? [
                     'occurrence_used' => $penaltyRecord->occurrence,
                     'penalty_id'      => $penaltyRecord->penalty_id,
                     'description'     => $penaltyRecord->penalty->description ?? null,
-                ] : null
+                ] : null,
+            ];
+        }
+
+        $result = [];
+        foreach ($byViolation as $violationId => $data) {
+            $result[] = [
+                'offense' => [
+                    'violation_id' => $violationId,
+                    'violation'    => $data['violation'],
+                    'occurrences'  => count($data['occurrences']),
+                ],
+                'total_occurrence' => count($data['occurrences']),
+                'occurrence_list'  => $data['occurrences'],
             ];
         }
 
@@ -413,22 +461,63 @@ return response()->json($incidents);
 
 
     public function getStudentBehaviourAnalysisResult($violation, $studentId) {
+        if (self::isSuperAdmin()) {
+            return response()->json(['message' => 'Not authorized to view student violation data.'], 403);
+        }
+
         $baseQuery = self::getModelInput($violation)
                         ->where('cs.student_id', $studentId)
                         ->groupBy('cs.student_id');
-        $studentData = $baseQuery->get()->toArray()[0];
-        $api = Http::withoutVerifying()->post("http://127.0.0.1:5032/python/model/predict", $studentData);
-        $data = $api->json();
+        $rows = $baseQuery->get();
+
+        // offense_issued_at is only set once a prefect formally issues the
+        // offense and is null for most complaints — ordering by it alone
+        // meant every row tied and came back in arbitrary (insertion) order.
+        // Fall back through the same complaint-lifecycle timestamps used
+        // elsewhere (getModelInput()'s SQL, the frontend's bestComplaintDate).
         $violationTimeline = ComplaintSubjectViolation::with(['violation', 'complaint.complaintSubject'])
                                                     ->where('violation_id', $violation)
                                                     ->where('student_id', $studentId)
                                                     ->orderByDesc(
-                                                        Complaint::select('offense_issued_at')
+                                                        Complaint::selectRaw('COALESCE(offense_issued_at, resolved_at, confirmed_at, created_at)')
                                                             ->whereColumn('complaint.id', 'complaint_subject_violation.complaint_id')
                                                             ->limit(1)
                                                     )
                                                     ->get()
                                                     ->toArray();
+
+        // A violation can appear in the student's selectable list from a
+        // still-pending/ongoing complaint (studentViolationIndex() doesn't
+        // filter by status), while getModelInput() only counts *resolved*
+        // occurrences — so this student can legitimately have zero rows
+        // here. Fail soft instead of crashing on an empty result.
+        if ($rows->isEmpty()) {
+            return [
+                'prediction' => 'Not Enough Data',
+                'binary' => 0,
+                'insights' => ['This student has no resolved complaints for this violation yet, so a prediction cannot be made.'],
+                'recommendations' => [],
+                'violation_timeline' => $violationTimeline,
+            ];
+        }
+
+        // DB::table()->get() rows are stdClass, not arrays — Collection::toArray()
+        // doesn't convert them, it just wraps the stdClass objects as-is. Cast to
+        // array explicitly rather than relying on json_encode() happening to
+        // serialize a stdClass the same way it would a real array.
+        $studentData = (array) $rows->first();
+        $api = Http::withoutVerifying()->post("http://127.0.0.1:5032/python/model/predict", $studentData);
+        $data = $api->json();
+
+        if (!$api->successful() || !is_array($data) || !array_key_exists('prediction', $data)) {
+            return [
+                'prediction' => 'Unavailable',
+                'binary' => 0,
+                'insights' => ['The prediction service is currently unavailable. Please try again later.'],
+                'recommendations' => [],
+                'violation_timeline' => $violationTimeline,
+            ];
+        }
 
         return [
             'prediction' => $data['prediction'] == 1 ? 'Likely to Commit Again' : 'Unlikely to Commit Again',
@@ -457,57 +546,29 @@ return response()->json($incidents);
                 cs.student_id,
                 o.violation_name AS violation_type,
 
-                GREATEST(COUNT(*) - 1, 0) AS past_repeat_same_violation_count,
+                COUNT(*) AS past_repeat_same_violation_count,
 
-                SUM(
-                    CASE
-                        WHEN c.offense_issued_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-                        THEN 1 ELSE 0
-                    END
-                ) AS recent_same_violation_count,
-                TIMESTAMPDIFF(MONTH, MAX(c.offense_issued_at), CURDATE()) AS months_since_last_same_violation,
-
-               (
-  SELECT COUNT(DISTINCT c4.id)
-  FROM complaint c4
-  JOIN complaint_subject cs4
-    ON cs4.complaint_id = c4.id
-  LEFT JOIN complaint_subject_violation cso4
-    ON cso4.complaint_id = c4.id
-   AND cso4.student_id = cs4.student_id
-  WHERE c4.complaint_status = 'resolved'
-    AND cs4.student_id = cs.student_id
-
-    -- only after the last time student committed the SAME violation (violation_id)
-    AND c4.offense_issued_at >
-      (
-        SELECT COALESCE(MAX(c_last.offense_issued_at), '1900-01-01')
-        FROM complaint c_last
-        JOIN complaint_subject cs_last
-          ON cs_last.complaint_id = c_last.id
-        JOIN complaint_subject_violation cso_last
-          ON cso_last.complaint_id = c_last.id
-         AND cso_last.student_id = cs_last.student_id
-        WHERE c_last.complaint_status = 'resolved'
-          AND cs_last.student_id = cs.student_id
-          AND cso_last.violation_id = cso.violation_id
-      )
-
-    AND (cso4.violation_id IS NULL OR cso4.violation_id = 0)
-) AS clean_streak_length,
-
-                (
-                    SELECT COUNT(*)
-                    FROM complaint c3
-                    JOIN complaint_subject cs3
-                        ON cs3.complaint_id = c3.id
-                    JOIN complaint_subject_violation cso3
-                        ON cso3.complaint_id = c3.id
-                    AND cso3.student_id = cs3.student_id
-                    WHERE c3.complaint_status = 'ongoing'
-                    AND cs3.student_id = cs.student_id
-                    AND cso3.violation_id = cso.violation_id
-                ) AS ongoing_same_violation_count
+                -- This feature is only meaningful once there is an actual
+                -- PAST occurrence to measure recency against. For a genuine
+                -- first offense (COUNT(*) = 1) it would otherwise be
+                -- trivially recent by construction, not because of any real
+                -- repeat pattern, which the model (trained mostly on real
+                -- repeat-offender rows, where this IS meaningful) was
+                -- learning as a false risk signal. Pin it to a neutral value
+                -- instead so a first offense is judged on
+                -- past_repeat_same_violation_count (1, i.e. this occurrence
+                -- only) and violation_type, not spurious recency.
+                CAST(CASE WHEN COUNT(*) = 1 THEN 0 ELSE
+                    SUM(
+                        CASE
+                            WHEN c.offense_issued_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+                            THEN 1 ELSE 0
+                        END
+                    )
+                END AS UNSIGNED) AS recent_same_violation_count,
+                CASE WHEN COUNT(*) = 1 THEN 120 ELSE
+                    TIMESTAMPDIFF(MONTH, MAX(COALESCE(c.offense_issued_at, c.resolved_at, c.confirmed_at, c.created_at)), CURDATE())
+                END AS months_since_last_same_violation
             ", [$recentDays]);
 
         return $query;

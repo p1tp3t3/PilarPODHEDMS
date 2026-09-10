@@ -11,7 +11,7 @@ class EducationBackground extends Model
 
     public $table = 'education_background';
     public $timestamps = false;
-    public $fillable = ['student_id', 'education_type', 'school_name', 'school_address', 'year_graduated', 'transferee'];
+    public $fillable = ['student_id', 'education_type', 'school_name', 'school_address', 'year_graduated', 'transferee', 'program', 'date_attended', 'year_level'];
 
     public function user() {
         return $this->belongsTo(User::class, 'student_id', 'id');

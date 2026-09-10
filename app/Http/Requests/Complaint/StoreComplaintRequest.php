@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Complaint;
 
+use App\Rules\EnrolledStudent;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreComplaintRequest extends FormRequest
@@ -19,7 +20,7 @@ class StoreComplaintRequest extends FormRequest
             'incident_id' => 'nullable|integer|exists:violation,id',
             'complaint_description' => 'required|string',
             'student_subjects' => 'required|array|min:1',
-            'student_subjects.*' => 'integer|exists:users,id',
+            'student_subjects.*' => ['integer', 'exists:users,id', new EnrolledStudent],
             'evidence' => 'nullable|array',
             'evidence.*' => 'file|max:10240',
         ];

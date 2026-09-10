@@ -1,29 +1,32 @@
-import { useState } from 'react'
-import './style.css'
+import { Button } from "@mui/material"
 
-const FormButton = ({ 
-  label, 
-  type = 'button', 
-  click = () => {}, 
-  enable = true, 
-  loading = false 
+const FormButton = ({
+  label,
+  type = 'button',
+  click = () => {},
+  enable = true,
+  loading = false
 }) => {
-  const isEnabled = enable && !loading
-  const en = isEnabled ? '' : 'opacity-50 cursor-not-allowed'
-  const enEvent = isEnabled ? {} : { disabled: true }
-
   return (
-    <button
-      className={`btn-71 shrink-0 grow-0 flex items-center justify-center gap-2 ${en} ${loading ? 'bg-gray-500' : ''}`}
-      onClick={click}
+    <Button
       type={type}
-      {...enEvent}
+      onClick={click}
+      disabled={!enable}
+      loading={loading}
+      variant="contained"
+      disableElevation
+      sx={{
+        borderRadius: '999px',
+        px: '3rem',
+        py: '0.55rem',
+        fontSize: '13px',
+        textTransform: 'uppercase',
+        bgcolor: 'rgb(0, 55, 156)',
+        '&:hover': { bgcolor: '#00277a' },
+      }}
     >
-      <div className='flex items-center justify-center gap-2'>
-        {label}
-        {loading && 
-        <div className="loader"></div>}</div>
-    </button>
+      {label}
+    </Button>
   )
 }
 

@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\Family;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -17,7 +19,8 @@ class FamilyMemberFactory extends Factory
     public function definition(): array
     {
         return [
-            
+            'family_id' => Family::factory(),
+            'member_id' => User::factory(),
         ];
     }
 }

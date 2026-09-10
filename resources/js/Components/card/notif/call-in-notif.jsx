@@ -1,11 +1,11 @@
-import { readableDate, readableTime } from "@/others/function"
+import { readableDate, readableTime, parseNotifContent } from "@/others/function"
 import NotificationWrapper from "@/wrapper/notif-wrapper"
 import { Phone } from "lucide-react"
 
 const CallInNotif = ({ obj }) => {
     const date = readableDate(obj.created_at),
           time = readableTime(obj.created_at),
-          content = JSON.parse(obj.content.replace(/'/g, '"')),
+          content = parseNotifContent(obj.content),
           isProgramHead = content.is_program_head != undefined ? content.is_program_head : false
           
     return (

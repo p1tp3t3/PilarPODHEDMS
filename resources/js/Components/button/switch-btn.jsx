@@ -1,37 +1,47 @@
-import { motion } from "framer-motion"
+import { Switch as MuiSwitch } from "@mui/material"
+
+// Every caller passes `effect` as a [offClass, onClass] pair of Tailwind
+// bg-* utility classes (e.g. ["bg-red-600", "bg-green-600"]) rather than raw
+// colors, so the MUI Switch underneath needs the same small class->hex
+// lookup used by ActionBtn for the same reason (MUI's own injected styles
+// otherwise outrank a plain className).
+const TAILWIND_COLORS = {
+    gray: { 300: '#d1d5db', 600: '#4b5563', 800: '#1f2937' },
+    red: { 600: '#dc2626' },
+    green: { 600: '#16a34a' },
+}
+
+const colorFromClass = (cls) => {
+    const match = cls?.match(/bg-([a-z]+)-(\d+)/)
+    return (match && TAILWIND_COLORS[match[1]]?.[match[2]]) || '#6b7280'
+}
 
 const Switch = ({
-    checked = false, 
-    onChange = () => {}, 
-    effect = ['bg-gray-600', 'bg-gray-800'], 
-    btnSize = [1.8, 3.1], 
-    circleSize = 1.3 
+    checked = false,
+    onChange = () => {},
+    effect = ['bg-gray-600', 'bg-gray-800'],
 }) => {
+    const offColor = colorFromClass(effect[0])
+    const onColor = colorFromClass(effect[1])
+
     return (
-        <label className="flex items-center cursor-pointer">
-            <div className="relative">
-                <input
-                    type="checkbox"
-                    className="sr-only"
-                    checked={checked}
-                    onChange={onChange}
-                />
-                <div className={`block ${checked ? effect[1] : effect[0]} rounded-full`}
-                    style={{
-                        height: `${btnSize[0]}rem`,
-                        width: `${btnSize[1]}rem`,
-                    }}></div>
-                <motion.div
-                    className="absolute left-1 top-1 bg-white rounded-full"
-                    style={{
-                        height: `${circleSize}rem`,
-                        width: `${circleSize}rem`,
-                    }}
-                    animate={{ x: checked ? '100%' : '0%' }}
-                    transition={{ duration: 0.2, ease: "easeInOut" }}
-                />
-            </div>
-        </label>
-    );
+        <MuiSwitch
+            checked={checked}
+            onChange={onChange}
+            sx={{
+                '& .MuiSwitch-track': {
+                    backgroundColor: offColor,
+                    opacity: 1,
+                },
+                '& .MuiSwitch-switchBase.Mui-checked': {
+                    color: '#fff',
+                },
+                '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                    backgroundColor: onColor,
+                    opacity: 1,
+                },
+            }}
+        />
+    )
 }
-export default Switch;
+export default Switch

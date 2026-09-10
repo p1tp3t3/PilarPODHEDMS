@@ -5,7 +5,7 @@ import FormTextfield from "@/Components/input/form-input"
 import ProfilePic from "@/Components/other/profile-pic"
 import FormButton from "@/Components/button/button"
 import { FamilyService } from "@/others/services/family-service"
-import { getProfilePic, includeObjAtt, showOutputModal, showWarningModal, toTitleCase } from "@/others/function"
+import { getProfilePic, includeObjAtt, showOutputModal, showWarningModal, toTitleCase, showUserType } from "@/others/function"
 import { Validator } from "@/others/classes/validator"
 import CheckBoxButton from "@/Components/input/checkbox"
 import TabSwitcher from "@/Components/other/tab-switcher"
@@ -409,7 +409,9 @@ const InfoRow = ({ label, value }) => {
 
 const SelectedUser = (props) => {
     const isStudent =
-        props.user.user_type == "student" ? `${props.user.program.name}` : toTitleCase(props.user.parent.parent_role)
+        props.user.role == "student"
+            ? `${props.user.program?.name ?? ''} ${props.user.enrollments?.[props.user.enrollments.length - 1]?.year_level ?? ''}`.trim()
+            : toTitleCase(props.user.parent?.parent_role ?? props.user.role)
 
     return (
         <div className="flex-shrink-0 grid relative w-[5rem]">

@@ -4,13 +4,7 @@ import { DataGrid, GridActionsCellItem, GridToolbarContainer, GridToolbarQuickFi
 import ProfilePic from "../other/profile-pic";
 import { getProfilePic, getYearLevel, toTitleCase } from "@/others/function";
 import { router } from "@inertiajs/react";
-
-// Example Action Button Component
-const ActionBtn = ({ children, className, onClick }) => (
-  <button className={`px-2 py-1 rounded ${className}`} onClick={onClick}>
-    {children}
-  </button>
-);
+import ActionBtn from "@/Components/button/action-btn";
 
 const StudentViolationList = ({ list = [] }) => {
   const rows = useMemo(
@@ -29,7 +23,7 @@ const StudentViolationList = ({ list = [] }) => {
         studentText: `${e.user?.profile?.first_name || ""} ${e.user?.profile?.middle_name || ""} ${
           e.user?.profile?.last_name || ""
         } ${toTitleCase(programName || "")}`.trim(), // ✅ for filter/sort
-        school_year: isStudent ? (latestEnrollment?.school_year ?? 'N / A') : 'N / A',
+        school_year: isStudent ? (latestEnrollment?.school_year?.year ?? 'N / A') : 'N / A',
         violation_count: e.violation_count,
         major_count: e.major_count,
         minor_count: e.minor_count,
@@ -87,8 +81,8 @@ const StudentViolationList = ({ list = [] }) => {
       type: "actions",
       headerName: "Action",
       width: 180,
-      headerAlign: "start",
-      align: "start",
+      headerAlign: "left",
+      align: "left",
       renderCell: (params) => {
         const obj = params.row;
         return (

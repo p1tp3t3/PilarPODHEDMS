@@ -7,7 +7,8 @@ import { SystemService } from "@/others/services/system-service";
 import { Broadcast } from "@/others/classes/broadcast-cofiguration";
 import { readableDate, readableTime, showOutputModal, showWarningModal } from "@/others/function";
 import TabSwitcher from "@/Components/other/tab-switcher";
-import { Table, TableHead, TableBody, TableRow, TableCell } from "@mui/material";
+import { DataGrid } from "@mui/x-data-grid";
+import Box from "@mui/material/Box";
 import { Database, Folder, Archive } from "lucide-react";
 
 const formatBytes = (bytes) => {
@@ -230,54 +231,64 @@ const BackupTab = ({ reload }) => {
 
             {tab === "history" && (
                 <div className="bg-white border border-gray-200 rounded-md px-5 py-4">
-                    <div className="overflow-x-auto">
-                        <Table sx={{ width: "100%", fontSize: "0.85em" }}>
-                            <TableHead>
-                                <TableRow sx={{ "& .MuiTableCell-root": { color: "#4b5563", fontWeight: 600 } }}>
-                                    <TableCell>Name</TableCell>
-                                    <TableCell>Type</TableCell>
-                                    <TableCell>Size</TableCell>
-                                    <TableCell>Created</TableCell>
-                                    <TableCell>Action</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {backups.length !== 0 ? (
-                                    backups.map((b, i) => (
-                                        <TableRow key={i}>
-                                            <TableCell sx={{ wordBreak: "break-all" }}>{b.name}</TableCell>
-                                            <TableCell>{backupTypeLabel[b.type] ?? b.type}</TableCell>
-                                            <TableCell>{formatBytes(b.size)}</TableCell>
-                                            <TableCell>
-                                                {readableDate(b.created_at)} ({readableTime(b.created_at)})
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex gap-2">
-                                                    <a href={`/maintenance/backups/${b.name}/download`}>
-                                                        <ActionBtn className="bg-green-600 hover:bg-green-700">
-                                                            Download
-                                                        </ActionBtn>
-                                                    </a>
-                                                    <ActionBtn
-                                                        className="bg-red-600 hover:bg-red-700"
-                                                        onClick={() => deleteBackup(b.name)}
-                                                    >
-                                                        Delete
+                    <Box sx={{ width: "100%", overflowX: "auto" }}>
+                        <Box sx={{ minWidth: "700px", height: 420 }}>
+                            <DataGrid
+                                rows={backups.map((b, i) => ({ id: i, ...b }))}
+                                columns={[
+                                    { field: "name", headerName: "Name", flex: 1, minWidth: 220 },
+                                    {
+                                        field: "type",
+                                        headerName: "Type",
+                                        width: 130,
+                                        renderCell: (params) => backupTypeLabel[params.value] ?? params.value,
+                                    },
+                                    {
+                                        field: "size",
+                                        headerName: "Size",
+                                        width: 110,
+                                        renderCell: (params) => formatBytes(params.value),
+                                    },
+                                    {
+                                        field: "created_at",
+                                        headerName: "Created",
+                                        width: 190,
+                                        renderCell: (params) => (
+                                            <span className="text-[0.85em]">
+                                                {readableDate(params.value)} ({readableTime(params.value)})
+                                            </span>
+                                        ),
+                                    },
+                                    {
+                                        field: "actions",
+                                        type: "actions",
+                                        headerName: "Action",
+                                        width: 220,
+                                        renderCell: (params) => (
+                                            <div className="flex gap-2">
+                                                <a href={`/maintenance/backups/${params.row.name}/download`}>
+                                                    <ActionBtn className="bg-green-600 hover:bg-green-700">
+                                                        Download
                                                     </ActionBtn>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : (
-                                    <TableRow>
-                                        <TableCell colSpan={5} align="center" sx={{ py: 3, color: "#6b7280" }}>
-                                            No Backups Yet
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
+                                                </a>
+                                                <ActionBtn
+                                                    className="bg-red-600 hover:bg-red-700"
+                                                    onClick={() => deleteBackup(params.row.name)}
+                                                >
+                                                    Delete
+                                                </ActionBtn>
+                                            </div>
+                                        ),
+                                    },
+                                ]}
+                                hideFooter
+                                disableRowSelectionOnClick
+                                getRowHeight={() => "auto"}
+                                showToolbar
+                                localeText={{ noRowsLabel: "No Backups Yet" }}
+                            />
+                        </Box>
+                    </Box>
                 </div>
             )}
         </div>

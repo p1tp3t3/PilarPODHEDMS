@@ -7,9 +7,10 @@ import { useReload } from "@/context-provider/reload-provider"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import { GatePassService } from "@/others/services/gatepass-service"
 import ViewGatePassModal from "@/Components/modal/view/view-gatepass-modal"
+import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
 import { router } from "@inertiajs/react"
 import { showOutputModal, showWarningModal } from "@/others/function"
-import { List, CheckCircle2, XCircle } from "lucide-react"
+import { List, CheckCircle2, XCircle, Ban, Undo2 } from "lucide-react"
 
 const PrefectGatePass = (props) => {
     const url = new URLSearchParams(window.location.search)
@@ -21,6 +22,7 @@ const PrefectGatePass = (props) => {
     const { loadRegister } = useReload()
     const [id, setGatePassId] = useState("")
     const [approved, setApprove] = useState(false)
+    const [rejectReason, openRejectReason] = useState(false)
 
     const [data, setData] = useState({
         reason: "",
@@ -28,9 +30,11 @@ const PrefectGatePass = (props) => {
     })
 
     const optionTab = [
-      { key: "req-current", label: "Current Requests", icon: List },
-      { key: "confirmed-users", label: "Accepted Users", icon: CheckCircle2 },
-      { key: "expired-users", label: "Expired Gate Pass", icon: XCircle },
+      { key: "req-current", label: "Pending", icon: List },
+      { key: "confirmed-users", label: "Approved", icon: CheckCircle2 },
+      { key: "expired-users", label: "Expired", icon: XCircle },
+      { key: "rejected-requests", label: "Rejected", icon: Ban },
+      { key: "revoked-requests", label: "Revoked", icon: Undo2 },
     ]
     const handleOption = (e) => {
         setLstOption(e)
@@ -54,10 +58,8 @@ const PrefectGatePass = (props) => {
                 setApprove(true)
                 break
             case "cancel":
-                action = "cancel"
-                confirmTxt = "Canceling the Gate Pass"
-                label = "Are You Sure You Want To Reject This Gate Pass Request?"
-                btn = "Reject Gate Pass Request"
+                setGatePassId(i)
+                openRejectReason(true)
                 break
             case "confirm-allow-to":
                 action = "confirm"
@@ -71,7 +73,7 @@ const PrefectGatePass = (props) => {
                 break
         }
 
-        if (action !== "" && (type === "confirm-allow-to" || type === "cancel")) {
+        if (action !== "" && type === "confirm-allow-to") {
             showWarningModal(label, btn, "Cancel", () => {
                 loadRegister(true, "text-wait", confirmTxt)
                 GatePassService.verify(
@@ -151,6 +153,28 @@ const PrefectGatePass = (props) => {
                 isEnableOuterClose={true}
             />
 
+            <SetReasonModal
+                close={rejectReason}
+                closeModal={openRejectReason}
+                pd={["px-10", "py-7"]}
+                isEnableOuterClose={true}
+                title="Reason to Reject this Gate Pass Request"
+                data={data}
+                setData={setData}
+                sendData={() => {
+                    loadRegister(true, "text-wait", "Rejecting Gate Pass Request Is Processing")
+                    GatePassService.verify(
+                        "cancel",
+                        id,
+                        { reason: data.reason },
+                        setGatePassRequestList,
+                        successDisapprove,
+                        errorDisapprove
+                    )
+                }}
+                warning={{ title: "Are You Sure You Want To Reject This Gate Pass Request?", btn: "Reject Gate Pass Request" }}
+            />
+
                 <div className="w-full py-4">
                     <div className="w-full grid gap-5 relative">
                         {/* Header */}
@@ -182,6 +206,7 @@ const PrefectGatePass = (props) => {
                                             type={props.user.user_type}
                                             style={true}
                                             view={setId}
+                                            events={setEvents}
                                         />
                                     )
                                     }
@@ -191,6 +216,25 @@ const PrefectGatePass = (props) => {
                                             list={gatepassRequestList}
                                             type={props.user.user_type}
                                             style={true}
+                                            view={setId}
+                                            events={setEvents}
+                                        />
+                                    )
+                                    }
+                                    {
+                                    url.get('status') == 'rejected-requests' && (
+                                        <GatePassRequestList
+                                            list={gatepassRequestList}
+                                            events={setEvents}
+                                            view={setId}
+                                        />
+                                    )
+                                    }
+                                    {
+                                    url.get('status') == 'revoked-requests' && (
+                                        <GatePassRequestList
+                                            list={gatepassRequestList}
+                                            events={setEvents}
                                             view={setId}
                                         />
                                     )

@@ -10,7 +10,7 @@ class Appointment extends Model
     use HasFactory;
 
     public $table = 'appointment',
-           $fillable = ['user_id', 'date_time_appoint', 'appointment_status', 'rejected_reason', 'confirmed_at', 'description'],
+           $fillable = ['user_id', 'date_time_appoint', 'appointment_status', 'rejected_reason', 'confirmed_at', 'description', 'archived_at'],
            $timestamps = false;
 
     protected $casts = [

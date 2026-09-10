@@ -25,8 +25,8 @@ const IssueViolationModal2 = (props) => {
   useEffect(() => {
     let list = [];
 
-    if (props.complaint?.complaint_subject?.length > 0) {
-      list = props.complaint.complaint_subject.map((sub) => ({
+    if (props.complaint?.complaintSubject?.length > 0) {
+      list = props.complaint.complaintSubject.map((sub) => ({
         student_id: sub.user.id,
         case_number: props.complaint.case_number,
         offenses: [
@@ -224,7 +224,7 @@ const IssueViolationModal2 = (props) => {
         <form onSubmit={handleSubmit} className="py-3 w-full">
           <div className="grid gap-5 w-full">
             {subjects.map((sub, i) => {
-              const subject = props.complaint?.complaint_subject?.[i]?.user;
+              const subject = props.complaint?.complaintSubject?.[i]?.user;
 
               return (
                 <div key={i} className="border-b border-gray-200 pb-5">
@@ -235,15 +235,15 @@ const IssueViolationModal2 = (props) => {
                         <ProfilePic
                           size={2}
                           src={getProfilePic(
-                            subject.profile_picture,
-                            subject.sex
+                            subject.profile?.profile_picture,
+                            subject.profile?.sex
                           )}
                         />
                         <div>
                           <div className="text-[0.9em] font-semibold">
-                            {`${subject.first_name} ${
-                              subject.middle_name ?? ""
-                            } ${subject.last_name}`}
+                            {`${subject.profile?.first_name} ${
+                              subject.profile?.middle_name ?? ""
+                            } ${subject.profile?.last_name}`}
                           </div>
                           <div className="text-[0.8em] text-gray-600">
                             {showUserType(subject)}

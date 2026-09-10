@@ -9,7 +9,7 @@ import IncidentRiskCard from "@/Components/card/incident-risk-card";
 import { useState } from "react";
 import PenaltyList from "@/Components/list/penalty-list";
 import { motion } from "framer-motion";
-import { FileText } from "lucide-react";
+import { FileText, DoorOpen, CalendarX } from "lucide-react";
 
 const StudentDashboard = (props) => {
   const [choose, setChoose] = useState("overview");
@@ -39,8 +39,8 @@ const StudentDashboard = (props) => {
         {/* === OVERVIEW TAB === */}
         {choose === "overview" && (
           <div className="w-full flex flex-col gap-6">
-            {/* === Complaint Summary === */}
-            <div className="w-full grid">
+            {/* === Complaint / Gate Pass / Absent Form Summary === */}
+            <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-5">
               <Link href="/complaint">
                 <QuantityCard
                   h="h-[9rem]"
@@ -48,6 +48,30 @@ const StudentDashboard = (props) => {
                   icon={FileText}
                   textColor="text-green-700"
                   label="Total Complaints"
+                  color={{
+                    bg: "bg-white hover:bg-black/5 transition-all",
+                  }}
+                />
+              </Link>
+              <Link href="/gatepass">
+                <QuantityCard
+                  h="h-[9rem]"
+                  num={props.gatepass}
+                  icon={DoorOpen}
+                  textColor="text-blue-700"
+                  label="Total Gate Passes"
+                  color={{
+                    bg: "bg-white hover:bg-black/5 transition-all",
+                  }}
+                />
+              </Link>
+              <Link href="/absent-form">
+                <QuantityCard
+                  h="h-[9rem]"
+                  num={props.absent_form}
+                  icon={CalendarX}
+                  textColor="text-amber-700"
+                  label="Total Absent Forms"
                   color={{
                     bg: "bg-white hover:bg-black/5 transition-all",
                   }}

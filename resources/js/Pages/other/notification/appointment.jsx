@@ -2,9 +2,10 @@ import SetAppointmentReasonModal from "@/Components/modal/submission-form/set-ap
 import { useReload } from "@/context-provider/reload-provider";
 import NotifDisplayLayout from "@/Layouts/notif-display-layout";
 import { AppointmentService } from "@/others/services/appointment-service";
-import { showOutputModal, showWarningModal } from "@/others/function";
+import { showOutputModal, showWarningModal, readableDate, readableTime, parseNotifContent } from "@/others/function";
 import { useState } from "react";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CalendarClock } from "lucide-react";
+import NotifDetailCard from "@/Components/other/notif-detail-card";
 
 const AppointmentNotification = (props) => {
   const [reasonModalOpen, setReasonModalOpen] = useState(false);
@@ -15,8 +16,7 @@ const AppointmentNotification = (props) => {
     reason: ''
   })
 
-  // Fix malformed JSON
-  const content = JSON.parse(data.content.replace(/'/g, '"'));
+  const content = parseNotifContent(data.content);
 
   const isAppointment = data.notif_type === "appointment";
   const isPending = content.accept === null;
@@ -33,7 +33,7 @@ const AppointmentNotification = (props) => {
   // FIXED TITLE LOGIC FOR BOTH SCHED & RESCHED
   // ----------------------------------------
   const getMessageTitle = () => {
-    const studentName = `${data.sender.first_name} ${data.sender.middle_name} ${data.sender.last_name}`;
+    const studentName = `${data.sender.profile?.first_name ?? ""} ${data.sender.profile?.middle_name ?? ""} ${data.sender.profile?.last_name ?? ""}`.replace(/\s+/g, " ").trim();
     const responded = content.accept !== null;
     const isAccepted = content.accept === true;
     const typeText =
@@ -222,32 +222,24 @@ const AppointmentNotification = (props) => {
         }}
       />
 
-        <div className="min-h-screen bg-gray-100 flex justify-center py-10 px-4">
-          <div className="bg-white shadow-lg rounded-xl w-full max-w-2xl p-8">
-
-            {/* TITLE */}
-            <h1 className="text-2xl font-bold mb-4 text-gray-800">
-              {getMessageTitle()}
-            </h1>
-
-            {/* DETAILS */}
-            <div className="border-t border-b py-5 mb-6">
-              <p className="mb-3 text-gray-700">
-                <span className="font-semibold">Date of Appointment:</span>{" "}
-                {content.date_appoint}
-              </p>
-              <p className="mb-3 text-gray-700">
-                <span className="font-semibold">Time:</span>{" "}
-                {content.time_appoint}
-              </p>
-              <p className="text-gray-700 italic">{content.reason}</p>
-            </div>
-
-            {/* ACTION BUTTONS FOR STUDENT */}
-            {isAppointment && isPending && receiver && (
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <NotifDetailCard
+          icon={CalendarClock}
+          tone={isPending ? "default" : content.accept ? "success" : "danger"}
+          title={getMessageTitle()}
+          timestamp={`${readableDate(data.created_at)} • ${readableTime(data.created_at)}`}
+          statusBadge={
+            !isPending
+              ? {
+                  label: content.accept ? "Accepted" : "Declined",
+                  tone: content.accept ? "success" : "danger",
+                }
+              : null
+          }
+          actions={
+            isAppointment && isPending && receiver ? (
+              <>
                 <button
-                  className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md"
+                  className="px-6 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 font-medium rounded-full transition-colors"
                   onClick={() => setReasonModalOpen(true)}
                 >
                   {content.type === "sched"
@@ -256,7 +248,7 @@ const AppointmentNotification = (props) => {
                 </button>
 
                 <button
-                  className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
+                  className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-full transition-colors"
                   onClick={() =>
                     handleResponse("accept", content.type, data.id)
                   }
@@ -265,34 +257,26 @@ const AppointmentNotification = (props) => {
                     ? "Accept Appointment"
                     : "Accept Reschedule"}
                 </button>
-              </div>
-            )}
-
-            {/* FINAL STATUS */}
-            {isAppointment && !isPending && (
-              <div className="text-center mt-8">
-                <div
-                  className={`inline-flex items-center gap-2 px-5 py-3 rounded-lg shadow-sm 
-                  ${content.accept 
-                    ? "bg-green-100 text-green-700 border border-green-300" 
-                    : "bg-red-100 text-red-700 border border-red-300"
-                  }`}
-                >
-                  {content.accept ? <CheckCircle2 size={20} /> : <XCircle size={20} />}
-
-                  <span className="font-semibold text-lg">
-                    {content.type === "sched"
-                      ? `Appointment ${content.accept ? "Accepted" : "Declined"}`
-                      : `Rescheduled Appointment ${
-                          content.accept ? "Accepted" : "Declined"
-                        }`}
-                  </span>
-                </div>
-              </div>
-
+              </>
+            ) : null
+          }
+        >
+          <div className="grid gap-3">
+            <div className="flex justify-between text-[0.92em]">
+              <span className="text-gray-500">Date of Appointment</span>
+              <span className="font-medium text-gray-800">{content.date_appoint}</span>
+            </div>
+            <div className="flex justify-between text-[0.92em]">
+              <span className="text-gray-500">Time</span>
+              <span className="font-medium text-gray-800">{content.time_appoint}</span>
+            </div>
+            {content.reason && (
+              <p className="text-gray-600 italic text-[0.9em] pt-2 border-t border-gray-50">
+                “{content.reason}”
+              </p>
             )}
           </div>
-        </div>
+        </NotifDetailCard>
     </>
   );
 }

@@ -36,7 +36,11 @@ class ComplaintFactory extends Factory
 
         $createdAt = $this->faker->dateTimeBetween('-1 year', 'now');
         $confirmedAt = Carbon::parse($createdAt)->addDays(rand(1, 5));
-        $status = $this->faker->randomElement(['pending', 'ongoing', 'ongoing', 'resolved', 'resolved', 'rejected']);
+        // Weighted toward "resolved" — that's the only status ML behavioural
+        // analysis and the violation-history views have anything to work
+        // with, so a low resolved share left most students with too little
+        // data to produce a meaningful/varied prediction.
+        $status = $this->faker->randomElement(['pending', 'ongoing', 'ongoing', 'resolved', 'resolved', 'resolved', 'resolved', 'rejected']);
 
         // Matches the real "{MMDDYY}{daily-seq}" format from
         // GeneratesSequenceCode/ComplaintController::generateComplaintNumber().
@@ -61,6 +65,33 @@ class ComplaintFactory extends Factory
             'archived_at' => in_array($status, ['resolved', 'rejected']) ? Carbon::parse($confirmedAt)->addYears(5) : null,
             'created_at' => $createdAt,
         ];
+    }
+
+    /**
+     * Force a fully-consistent resolved complaint — recomputes every date
+     * field that depends on the status instead of just overwriting
+     * `complaint_status` on top of whatever random status definition()
+     * already computed the other fields for (which would leave e.g.
+     * resolved_at null on a complaint marked resolved).
+     */
+    public function resolved(): static
+    {
+        return $this->state(function (array $attributes) {
+            $createdAt = $attributes['created_at'] ?? $this->faker->dateTimeBetween('-1 year', 'now');
+            $confirmedAt = Carbon::parse($createdAt)->addDays(rand(1, 5));
+
+            return [
+                'complaint_status' => 'resolved',
+                'case_number' => $this->faker->unique()->numberBetween(1000, 9999),
+                'incident_summary' => $this->faker->sentence(10),
+                'rejected_reason' => null,
+                'rejected_at' => null,
+                'confirmed_at' => $confirmedAt,
+                'resolved_at' => Carbon::parse($confirmedAt)->addDays(rand(1, 10)),
+                'archived_at' => Carbon::parse($confirmedAt)->addYears(5),
+                'created_at' => $createdAt,
+            ];
+        });
     }
 
     public function configure(): static

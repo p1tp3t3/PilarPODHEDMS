@@ -1,6 +1,7 @@
 import EditProfileModal from "@/Components/modal/submission-form/edit-profile-modal"
+import AccountSettingsForm from "@/Components/other/account-settings-form"
 import { change, getProfilePic, showOutputModal, showWarningModal, splitStr } from "@/others/function";
-import { useForm, router } from "@inertiajs/react";
+import { useForm } from "@inertiajs/react";
 import { useEffect, useState } from "react";
 import { useReload } from "@/context-provider/reload-provider";
 import { ProfileService } from "@/others/services/profile-service";
@@ -133,8 +134,19 @@ const StudentEditProfileForm = (props) => {
         if (isForceSetup) {
             // Don't hit the backend yet — cache the completed step and move
             // on to the password step, where both are saved together.
-            FormCache.save(PROFILE_CACHE_KEY, data).then(() => {
-                router.visit(`/settings/${profileData.username}`);
+            FormCache.save(PROFILE_CACHE_KEY, data).then((saved) => {
+                if (!saved) {
+                    showOutputModal(
+                        "Failed to save your profile information on this device (it may be low on storage — a large profile picture can trigger this). Please try again, or try without changing your profile picture.",
+                        "e",
+                        () => {}
+                    );
+                    return;
+                }
+                // Same page, same load — just swap which form is shown.
+                // Nothing is sent to the backend until the password step's
+                // own submit (AccountSetupController::complete).
+                props.setSetupStep?.('password');
             });
             return;
         }
@@ -175,6 +187,18 @@ const StudentEditProfileForm = (props) => {
             }
         );
     };
+
+    if (isForceSetup && props.setupStep === 'password') {
+        return (
+            <AccountSettingsForm
+                user={props.user}
+                targetAccount={props.otherUserProfile}
+                reload={loadRegister}
+                forceAccountSetup={true}
+                onBackToProfile={() => props.setSetupStep?.('profile')}
+            />
+        );
+    }
 
     return (
         <>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Modules\Appointment\AppointmentController;
 use App\Models\ActionLog;
+use App\Models\Absence;
 use App\Models\Appointment;
 use App\Models\Complaint;
 use App\Models\Enrollment;
@@ -35,13 +36,21 @@ class DashboardController extends Controller
             case 'teaching_staff':
                 return self::teachingStaffDashboard();
             case 'non_teaching_staff':
-            case 'guard':
-                return self::nonTeachingStaffDashboard();
+                // "Guard" and "Guidance" aren't separate roles — they're
+                // positions inside non_teaching_staff, each with their own
+                // dashboard.
+                return self::isGuidance() ? self::guidanceDashboard() : self::nonTeachingStaffDashboard();
             case 'parent':
                 return self::parentDashboard();
-            case 'guidance':
-                return self::guidanceDashboard();
         }
+    }
+
+    private function isGuidance() {
+        return \App\Models\NonTeachingStaff::where('user_id', auth()->id())->value('position') === 'Guidance';
+    }
+
+    private function isGuard() {
+        return \App\Models\NonTeachingStaff::where('user_id', auth()->id())->value('position') === 'Guard';
     }
 
 
@@ -120,7 +129,7 @@ class DashboardController extends Controller
         $appointment = new AppointmentController();
         $prefectProps = array_merge([
             'user' => auth()->user(),
-            'students' => User::with(['program', 'profile'])
+            'students' => User::with(['program', 'profile', 'enrollments'])
                               ->where('role', 'student')
                               ->whereDate('created_at', now()->toDateString())
                               ->latest('created_at')
@@ -158,10 +167,10 @@ class DashboardController extends Controller
 
         return Inertia::render('parent/dashboard', $parentProps);
     }
+    // Guidance's one real task is reviewing referrals from the prefect —
+    // rather than a separate landing page, send them straight there.
     public function guidanceDashboard() {
-        return Inertia::render('guidance/dashboard', [
-            'user' => auth()->user(),
-        ]);
+        return redirect('/guidance/referral');
     }
 
 
@@ -313,9 +322,14 @@ class DashboardController extends Controller
         $appointmentCount = Appointment::where('user_id', $id)->count();
         $appointment = new AppointmentController();
 
+        $gatepass = GatePass::where('user_id', $id)->count();
+        $absentForm = Absence::where('student_id', $id)->count();
+
         return [
             'complaint' => $complaint,
             'appointment' => $appointmentCount,
+            'gatepass' => $gatepass,
+            'absent_form' => $absentForm,
             'upcoming_appointment' =>  $appointment->getUpcomingAppointmentList($id)
 
         ];
@@ -377,7 +391,7 @@ class DashboardController extends Controller
         return [
             'complaint' => $complaint,
             'approved_gatepass' => GatePass::whereNotNull('confirmed_at')->count(),
-            'is_guard' => auth()->user()->role === 'guard',
+            'is_guard' => self::isGuard(),
         ];
     }
     public function getParentStatistics() {

@@ -23,18 +23,16 @@ class NotificationController extends Controller
     public function index() {
         $notif = new Notifications();
 
-        $notif = (isset($_GET['id'])) ? $notif->with(['sender', 'receiver'])->where('id', $_GET['id'])->first() : null;
-        $id = $notif != null ? $notif->receiver_id : 0;
-
-        //||(isset($_GET['id']) && $id != auth()->user()->user_id)
+        $notif = (isset($_GET['id'])) ? $notif->with(['sender.profile', 'receiver.profile'])->where('id', $_GET['id'])->first() : null;
+        $receiverId = $notif != null ? $notif->receiver_id : 0;
 
         if((isset($_GET['id']) && $notif == null)) {
             abort(404);
         }else {
-            if(empty($notif->read_since) && $id == auth()->user()->user_id) {
+            if(empty($notif->read_since) && $receiverId == auth()->id()) {
                 $data = [
                     'type' => 'select-one',
-                    'id' => $id
+                    'id' => $notif->id
                 ];
                 $data = new Request($data);
                 self::markAsRead($data);
@@ -46,11 +44,11 @@ class NotificationController extends Controller
 
         return Inertia::render($filePath, [
             'user' => auth()->user(),
-            'notification' => Notifications::where('receiver_id',  auth()->user()->user_id)
+            'notification' => Notifications::where('receiver_id',  auth()->id())
                               ->latest('created_at')
                               ->limit(10)
                               ->get(),
-            'size' => Notifications::where('receiver_id',  auth()->user()->user_id)->count(),
+            'size' => Notifications::where('receiver_id',  auth()->id())->count(),
             'notif' => $notif,
         ]);
     }
@@ -79,31 +77,36 @@ class NotificationController extends Controller
                 'content'      => 'c',
             ];
 
-            $prefect = User::where('user_type', 'prefect')
-                ->where('user_id', $data['sender_id'])
+            $prefect = User::where('role', 'sub_admin')
+                ->where('id', $data['sender_id'])
+                ->with('profile')
                 ->firstOrFail();
 
-            $student = User::where('user_type', 'student')
-                ->where('user_id', $data['receiver_id'])
-                ->with('program')
+            // A student can only be called in if they're an enrolled,
+            // activated account — not just any row with role='student'.
+            $student = User::where('role', 'student')
+                ->where('id', $data['receiver_id'])
+                ->where('activate', true)
+                ->whereHas('enrollment')
+                ->with(['profile', 'program'])
                 ->firstOrFail();
 
             /** Get Program Head if enabled **/
             $programHead = null;
-            if ($request->boolean('notify_program_head')) {
-                $programHead = User::with('programHead')
-                    ->whereHas('programHead', function ($q) use ($student) {
-                        $q->where('program_id', $student->program->id ?? null);
+            if ($request->boolean('notify_program_head') && $student->program) {
+                $programHead = User::where('role', 'teaching_staff')
+                    ->whereHas('teachingStaff', function ($q) use ($student) {
+                        $q->where('program_id', $student->program->id)
+                          ->where('position', 'program_head');
                     })
-                    ->where('user_type', 'program_head')
+                    ->with('profile')
                     ->first();
-                
             }
 
             /** EMAIL DATA */
             $emailNotifData = [
-                'prefect' => "$prefect->first_name $prefect->last_name",
-                'student' => "$student->first_name $student->last_name",
+                'prefect' => "{$prefect->profile?->first_name} {$prefect->profile?->last_name}",
+                'student' => "{$student->profile?->first_name} {$student->profile?->last_name}",
                 'reason'  => $request->call_in_reason,
             ];
 
@@ -125,17 +128,17 @@ class NotificationController extends Controller
 
             /** WebPush to student */
             send_web_push([
-                'title' => 'Hello ' . $student->first_name,
+                'title' => 'Hello ' . $student->profile?->first_name,
                 'body'  => 'You have been called in by the office of the prefect.',
                 'icon'  => '',
                 'url'   => "/notification/$id"
-            ], $student->user_id);
+            ], $student->id);
 
             /** WebPush to Program Head (if enabled) */
             if ($programHead && $request->boolean('notify_program_head')) {
                 $programHeadNotifId = Notifications::insertGetId([
-                    'sender_id' => auth()->user()->user_id,
-                    'receiver_id' => $programHead->user_id,
+                    'sender_id' => auth()->id(),
+                    'receiver_id' => $programHead->id,
                     'notif_type' => 'call_in',
                     'content' => 'c'
                 ]);
@@ -145,26 +148,26 @@ class NotificationController extends Controller
                         'id' => $programHeadNotifId,
                         'is_program_head' => true,
                         'sender_notif_message'    => 'You notify the program head about the called in a student.',
-                        'receiver_notif_message'  => "This is to formally inform your office about your student {$student->first_name} {$student->middle_name} {$student->last_name} who is being called in by the office of the prefect. Please inform your student to visit to the office due to confidential reasons."
+                        'receiver_notif_message'  => "This is to formally inform your office about your student {$student->profile?->first_name} {$student->profile?->middle_name} {$student->profile?->last_name} who is being called in by the office of the prefect. Please inform your student to visit to the office due to confidential reasons."
                     ])
                 ]);
 
                 send_web_push([
                     'title' => 'Student Call-In Notice',
-                    'body'  => "{$student->first_name} {$student->last_name} has been called in by the office of the prefect.",
+                    'body'  => "{$student->profile?->first_name} {$student->profile?->last_name} has been called in by the office of the prefect.",
                     'icon'  => '',
                     'url'   => "/notification/$id"
-                ], $programHead->user_id);
+                ], $programHead->id);
                 $dataProg = [
-                    'program_head_name' => $programHead->first_name . ' ' . $programHead->last_name,
+                    'program_head_name' => $programHead->profile?->first_name . ' ' . $programHead->profile?->last_name,
                     'date_reported' => Carbon::parse(now())->format('Y-d-m'),
-                    'student_name' => $student->first_name . ' ' . $student->last_name,
+                    'student_name' => $student->profile?->first_name . ' ' . $student->profile?->last_name,
                     'program' => $student->program->name ?? null
                 ];
                 Mail::to($programHead->email)
                     ->send(new ProgramHeadCallInMail($dataProg));
-        
-                broadcast(new NotifyUser($programHead->user_id));
+
+                broadcast(new NotifyUser($programHead->id));
             }
 
             /** Broadcast event */
@@ -172,7 +175,7 @@ class NotificationController extends Controller
 
             /** Action Log */
             ActionLog::create([
-                'user_id'     => auth()->user()->user_id,
+                'user_id'     => auth()->id(),
                 'action_type' => 'call-in',
                 'details'     => 'calls in a student for office call'
             ]);
@@ -194,7 +197,6 @@ class NotificationController extends Controller
                 'error'   => $e->getMessage(),
                 'line' => $e->getLine(),
                 'file' => $e->getFile(),
-                'head' => $programHead->user_id
             ], 400);
         }
     }
@@ -214,7 +216,7 @@ class NotificationController extends Controller
         
     }
     public function markAsRead(Request $request) {
-        $userId = auth()->user()->user_id;
+        $userId = auth()->id();
         $read = [ 'read_since' => DB::raw("CURRENT_TIMESTAMP") ];
         
         $notif = Notifications::where('receiver_id', $userId);
@@ -240,7 +242,7 @@ class NotificationController extends Controller
         return self::getNotif($userId, 4);
     }
     public function destroy(Request $request, $type) {
-        $userId = auth()->user()->user_id;
+        $userId = auth()->id();
         $notif = Notifications::where('receiver_id', $userId);
 
         switch($type) {
@@ -284,7 +286,7 @@ class NotificationController extends Controller
         return [
             'unread_count' => $unreadCount,
             'notif' => $notif->where('receiver_id', $id)->latest('created_at')->limit($lim)->get(),
-            'size' => $notif->where('receiver_id',  auth()->user()->user_id)->count(),
+            'size' => $notif->where('receiver_id',  $id)->count(),
         ];
     }
     public function getStudentNotification($type) {
@@ -296,7 +298,7 @@ class NotificationController extends Controller
         }
     }
     public function getStudentCallInNotification() {
-        $notif = Notifications::with(['receiver.program', 'receiver.profile'])
+        $notif = Notifications::with(['receiver.program', 'receiver.profile', 'receiver.enrollments'])
                               ->whereHas('receiver', function($q) {
                                 $q->where('role', 'student');
                               })
@@ -307,7 +309,7 @@ class NotificationController extends Controller
         return $notif;
     }
     public function getUserAppointmentNotification() {
-        $notif = Notifications::with(['receiver.program', 'receiver.parent', 'receiver.profile'])
+        $notif = Notifications::with(['receiver.program', 'receiver.parent', 'receiver.profile', 'receiver.enrollments'])
                               ->where('notif_type', 'appointment')
                               ->whereNot('receiver_id', auth()->user()->id)
                               ->latest('created_at')

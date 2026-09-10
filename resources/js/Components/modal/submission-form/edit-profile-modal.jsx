@@ -185,8 +185,14 @@ const Body = (props) => {
           />
         </div>
 
-        {(!preview && props.data.user_type != 'itrc') && (
-          <div className="grid gap-6">
+        {props.data.user_type != 'itrc' && (
+          // Hidden via CSS (not conditionally unmounted) while the picture
+          // cropper is showing (preview truthy) — EducationBackgroundSection
+          // below keeps its own local state for the school-info fields, so
+          // unmounting this block while cropping (then remounting once the
+          // crop is confirmed) was wiping out whatever the user had already
+          // typed there, reverting it to the original, untouched data.
+          <div className={`grid gap-6 ${preview ? 'hidden' : ''}`}>
             {/* ✅ Wrap input rows
             {(checkEdit()) &&
             <div className="flex flex-col sm:flex-row gap-4">

@@ -16,6 +16,14 @@ const fileToBase64 = (file) => new Promise((resolve, reject) => {
  * base64 so they survive JSON serialization.
  */
 export class FormCache {
+    /**
+     * Returns true/false rather than swallowing failures silently — a
+     * caller that navigates away assuming the draft was saved (e.g. the
+     * forced account-setup profile step, which hands off to the password
+     * step purely through this cache) needs to know when it wasn't, most
+     * commonly because a large profile-picture File blew the localStorage
+     * quota once base64-encoded.
+     */
     static async save(key, data) {
         try {
             const entries = await Promise.all(
@@ -27,8 +35,10 @@ export class FormCache {
                 })
             );
             localStorage.setItem(PREFIX + key, JSON.stringify(Object.fromEntries(entries)));
+            return true;
         } catch (e) {
             console.log(e);
+            return false;
         }
     }
 

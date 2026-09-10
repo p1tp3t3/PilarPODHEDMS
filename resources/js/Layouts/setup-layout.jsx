@@ -1,19 +1,23 @@
 import bg from "@/images/bg-pilar.jpg"
 import ProfilePic from "@/Components/other/profile-pic"
-import { Link, router } from "@inertiajs/react"
+import { router } from "@inertiajs/react"
 import { ReloadProvider } from "@/context-provider/reload-provider"
 import { LogOut, Info } from "lucide-react"
+import { cloneElement, useState } from "react"
 
 const SetupLayout = ({ children, user }) => {
     // Profile and password are only actually saved together, at the very
-    // end (AccountSetupController::complete) — so the step shown here comes
-    // from which page we're on, not from a DB flag that doesn't flip until
-    // that final submit.
-    const step = window.location.pathname.startsWith('/verify-email')
-        ? 1
-        : window.location.pathname.startsWith('/settings/')
-        ? 3
-        : 2
+    // end (AccountSetupController::complete) — the profile→password
+    // transition is a local view change within the same page
+    // (edit-profile-form.jsx), not a navigation, so the step can't be
+    // inferred from the URL past the very first load. This layout owns the
+    // step as state and hands the setter down to the page it wraps, so both
+    // the indicator here and the page's own conditional render stay in sync
+    // off one source of truth.
+    const [setupStep, setSetupStep] = useState(
+        window.location.pathname.startsWith('/verify-email') ? 'verify' : 'profile'
+    )
+    const step = setupStep === 'verify' ? 1 : setupStep === 'password' ? 3 : 2
 
     return (
         <ReloadProvider>
@@ -51,12 +55,16 @@ const SetupLayout = ({ children, user }) => {
                         </span>
                     </div>
                     {step === 3 && (
-                        <Link href={`/profile/${user.username}/edit`} className="whitespace-nowrap underline shrink-0">
+                        <button
+                            type="button"
+                            onClick={() => setSetupStep('profile')}
+                            className="whitespace-nowrap underline shrink-0"
+                        >
                             Back to Profile
-                        </Link>
+                        </button>
                     )}
                 </div>
-                {children}
+                {cloneElement(children, { setupStep, setSetupStep })}
             </div>
         </div>
         </ReloadProvider>

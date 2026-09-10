@@ -30,6 +30,7 @@ class ReferralResource extends JsonResource
             'user' => $this->whenLoaded('user'),
             'referredStudent' => $this->whenLoaded('referredStudent'),
             'referralReferredStudent' => $this->whenLoaded('referralReferredStudent'),
+            'revisions' => $this->whenLoaded('revisions'),
         ];
     }
 }

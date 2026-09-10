@@ -10,9 +10,11 @@ import { ArrowLeft } from "lucide-react"
 
 const AuthSideBar = ({ usr }) => {
   // Reliably eager-loaded regardless of which page's controller built
-  // `usr` — see HandleInertiaRequests — used only for the picture/name/
-  // role-label below. Page-list filtering keeps using `usr` (role-based,
-  // no relation needed) so it isn't affected either way.
+  // `usr` — see HandleInertiaRequests — used for the picture/name/role-label
+  // below, and merged into what's passed to getSidebarPages() so its
+  // position-based show() checks (program_head/faculty, guard/guidance)
+  // work consistently no matter which page happens to be open, instead of
+  // depending on that page's own controller having loaded the relation.
   const { auth } = usePage().props
   const identity = auth?.user ?? usr
 
@@ -114,7 +116,11 @@ const AuthSideBar = ({ usr }) => {
         <div>
           <div className="grid gap-2 overflow-hidden overflow-y-auto">
             <h1 className="px-10 text-gray-400 text-[0.9em]">Menu</h1>
-            <SidebarNav list={getSidebarPages(usr)} />
+            <SidebarNav list={getSidebarPages({
+              ...usr,
+              teaching_staff: identity.teaching_staff,
+              non_teaching_staff: identity.non_teaching_staff,
+            })} />
           </div>
         </div>
       </div>

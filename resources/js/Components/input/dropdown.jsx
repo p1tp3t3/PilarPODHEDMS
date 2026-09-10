@@ -1,198 +1,98 @@
 import { toTitleCase } from "@/others/function"
-import { useEffect, useRef, useState } from "react"
-import { createPortal } from "react-dom"
-import { ChevronDown } from "lucide-react"
+import { FormControl, Select, MenuItem, FormHelperText, Autocomplete, TextField, createFilterOptions } from "@mui/material"
+
+const muiFieldSx = {
+    '& .MuiOutlinedInput-root': { borderRadius: '8px', fontSize: '0.85em' },
+}
+
+const objConvert = (list) => list.map(e => {
+    const [value = null, label = null] = Object.values(e) || []
+    return { value, label }
+})
 
 const DropdownField = (props) => {
-    const objConvert = () => {
-        return props.list.map(e => {
-            const [value = null, label = null] = Object.values(e) || []
-            return { value, label }
-        })
+    const options = objConvert(props.list)
+    const value = props.val ?? ""
+    const defaultOption = props.default ? { value: props.default.val, label: props.default.label } : null
+    const hasMatch = (defaultOption && defaultOption.value === value) || options.some(o => o.value === value)
+
+    const optionLabel = (e) => props.titleCase ? toTitleCase(e.label) : e.label?.toUpperCase()
+
+    // When the current value matches neither the default nor any option (e.g.
+    // val is null/unset before a URL filter is applied), fall back to showing
+    // the default's label instead of a blank box — the hidden fallback
+    // MenuItem below (added only to avoid MUI's "out of range value" console
+    // warning) has no visible content, so without this the box would render
+    // empty even though a default exists.
+    const renderValue = (v) => {
+        if (defaultOption && defaultOption.value === v) return defaultOption.label
+        const match = options.find(o => o.value === v)
+        if (match) return optionLabel(match)
+        if (defaultOption) return defaultOption.label
+        return options[0] ? optionLabel(options[0]) : ""
     }
+
     return (
-        <div className="w-full relative" style={{ maxWidth: '100%', overflow: 'hidden' }}>
-            <select className="text-[0.8em] w-full" name={props.name} onChange={props.onChange} value={props.val} required={props.req} style={{
-                maxWidth: '100%',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden'
-            }}>
-                {props.default && <option value={props.default.val}>{props.default.label}</option>}
-                {objConvert().map((e, i) => 
-                    <option key={i} value={e.value}>{props.titleCase ? toTitleCase(e.label) : e.label.toUpperCase()}</option>
-                )}
-            </select>
-            <div className="text-[#d12323] text-[12px] flex items-center gap-2">
-                <div className="transition-[0.2s] font-[1000]">
-                    {props.error}
-                </div>
-            </div>
+        <div className="w-full">
+            <FormControl size="small" fullWidth error={!!props.error} required={props.req}>
+                <Select
+                    name={props.name}
+                    value={value}
+                    onChange={(e) => props.onChange({ target: { name: props.name, value: e.target.value } })}
+                    displayEmpty
+                    renderValue={renderValue}
+                    sx={muiFieldSx}
+                >
+                    {!hasMatch && <MenuItem value={value} sx={{ display: "none" }}></MenuItem>}
+                    {defaultOption && <MenuItem value={defaultOption.value}>{defaultOption.label}</MenuItem>}
+                    {options.map((e, i) => (
+                        <MenuItem key={i} value={e.value}>
+                            {optionLabel(e)}
+                        </MenuItem>
+                    ))}
+                </Select>
+                {props.error && <FormHelperText>{props.error}</FormHelperText>}
+            </FormControl>
         </div>
     )
 }
 
+const filter = createFilterOptions()
+
 const Search = ({ list, name, val, onChange, req, error, default: def }) => {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
-  const dropdownRef = useRef(null);
-  const buttonRef = useRef(null);
-  const rafId = useRef(null);
+    const options = objConvert(list)
+    // Only ever set `value` to a real match, never to `def` — Autocomplete
+    // treats its `value` as an actual selection (renders it with a clear
+    // button, etc). `def` should just be the placeholder text shown when
+    // nothing is genuinely selected, not a selectable/clearable value itself.
+    const selected = options.find((o) => o.value === val) ?? null
 
-  const objConvert = () =>
-    list.map((e) => {
-      const values = Object.values(e || {});
-      return { value: values[0] ?? null, label: values[1] ?? null };
-    });
-
-  const filtered = objConvert().filter((o) =>
-    (o.label ?? "").toLowerCase().includes(search.toLowerCase())
-  );
-
-  const handleSelect = (value) => {
-    onChange({ target: { name, value } });
-    setOpen(false);
-    setSearch("");
-  };
-
-  const selectedLabel =
-    objConvert().find((o) => o.value === val)?.label ||
-    def?.label ||
-    "Select...";
-
-  /** 🧭 Position tracking using visualViewport to fix keyboard issues */
-  const updatePosition = () => {
-    if (!open || !buttonRef.current) return;
-
-    const rect = buttonRef.current.getBoundingClientRect();
-    const viewportOffset = window.visualViewport
-      ? window.visualViewport.offsetTop
-      : 0;
-
-    setPos({
-      top: rect.bottom + viewportOffset + 4,
-      left: rect.left,
-      width: rect.width,
-    });
-
-    rafId.current = requestAnimationFrame(updatePosition);
-  };
-
-  useEffect(() => {
-    if (open) {
-      updatePosition();
-    } else {
-      cancelAnimationFrame(rafId.current);
-    }
-    return () => cancelAnimationFrame(rafId.current);
-  }, [open]);
-
-  /** 🔒 Close dropdown on outside click */
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target) &&
-        !buttonRef.current.contains(e.target)
-      ) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  return (
-    <div className="relative w-full">
-      {/* Trigger Button */}
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className={`border rounded-md w-full px-3 py-2 text-[0.85em] flex items-center justify-between gap-2 transition-colors duration-200 ${
-          req && !val
-            ? "border-red-500"
-            : "border-gray-300 hover:border-gray-400"
-        }`}
-      >
-        <span className="flex-1 break-words whitespace-normal text-left block">
-  {selectedLabel}
-</span>
-
-        <ChevronDown
-          size={14}
-          className={`text-gray-600 transition-transform ${
-            open ? "rotate-180" : ""
-          }`}
-        />
-      </button>
-
-      {/* Dropdown Menu in portal */}
-      {open &&
-        createPortal(
-          <div
-            ref={dropdownRef}
-            style={{
-              position: "fixed",
-              top: pos.top,
-              left: pos.left,
-              width: pos.width,
-              zIndex: 9999,
-            }}
-            className="bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto text-[0.85em]"
-          >
-            {/* Search Bar */}
-            <div className="p-2 border-b border-gray-200 sticky top-0 bg-white">
-              <input
-                type="text"
-                placeholder="Search..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full p-1.5 border border-gray-300 rounded-md text-[0.8em] focus:outline-none focus:ring-1 focus:ring-blue-400"
-              />
-            </div>
-
-            {/* Default Option */}
-            {def && (
-              <div
-                className="p-2 cursor-pointer hover:bg-gray-100 truncate"
-                onClick={() => handleSelect(def.value)}
-              >
-                {def.label}
-              </div>
-            )}
-
-            {/* Items */}
-            {filtered.length > 0 ? (
-              filtered.map((o, i) => (
-                <div
-                  key={i}
-                  className="p-2 cursor-pointer hover:bg-blue-50 truncate"
-                  onClick={() => handleSelect(o.value)}
-                >
-                  {o.label}
-                </div>
-              ))
-            ) : (
-              <div className="p-2 text-gray-400 text-center text-[0.8em]">
-                No results found
-              </div>
-            )}
-          </div>,
-          document.body
-        )}
-
-      {error && (
-        <p className="text-red-600 text-[12px] mt-1 font-semibold">{error}</p>
-      )}
-    </div>
-  );
-};
-
-
-
-
+    return (
+        <div className="w-full">
+            <Autocomplete
+                options={options}
+                value={selected}
+                getOptionLabel={(o) => o?.label ?? ""}
+                isOptionEqualToValue={(o, v) => o?.value === v?.value}
+                onChange={(e, newValue) => onChange({ target: { name, value: newValue ? newValue.value : "" } })}
+                filterOptions={(opts, state) => {
+                    const filtered = filter(opts, state)
+                    return def ? [def, ...filtered.filter((o) => o.value !== def.val)] : filtered
+                }}
+                renderInput={(params) => (
+                    <TextField
+                        {...params}
+                        size="small"
+                        placeholder={def?.label ?? "Select..."}
+                        error={!!req && !val}
+                        sx={muiFieldSx}
+                    />
+                )}
+            />
+            {error && <FormHelperText error>{error}</FormHelperText>}
+        </div>
+    )
+}
 
 DropdownField.Search = Search
 export default DropdownField

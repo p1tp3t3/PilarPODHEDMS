@@ -40,6 +40,7 @@ class ComplaintResource extends JsonResource
             'complaintSubject' => $this->whenLoaded('complaintSubject'),
             'complaintSubjectViolation' => $this->whenLoaded('complaintSubjectViolation'),
             'violation' => $this->whenLoaded('violation'),
+            'revisions' => $this->whenLoaded('revisions'),
             'context_analysis' => $this->when(isset($this->context_analysis), $this->context_analysis),
         ];
     }

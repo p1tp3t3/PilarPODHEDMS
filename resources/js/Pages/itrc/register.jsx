@@ -53,6 +53,14 @@ const Register = (props) => {
         }
     }, []);
 
+    // Keep the staged copy in sync with in-grid edits, so a refresh mid-review
+    // doesn't silently discard corrections made before finalizing.
+    useEffect(() => {
+        if (csvPreview) {
+            sessionStorage.setItem('student-csv-preview', JSON.stringify(csvPreviewRows));
+        }
+    }, [csvPreview, csvPreviewRows]);
+
     const originalData = {
         first_name: "",
         middle_name: "",
@@ -390,6 +398,12 @@ const Register = (props) => {
                 rows={csvPreviewRows}
                 onCancel={cancelCsvPreview}
                 onFinalize={finalizeStudentCsv}
+                onRowsChange={setCsvPreviewRows}
+                onValidateRow={(row, onResult, onError) =>
+                    RegisterService.validateStudentCsvRow(row, onResult, () => {}, onError)
+                }
+                programOptions={(props.program ?? []).map((p) => p.name)}
+                schoolYearOptions={(props.school_years ?? []).map((s) => s.year)}
             />
         ) : (
         <div className="w-full py-4 grid gap-4">
@@ -408,7 +422,7 @@ const Register = (props) => {
                             <div className="z-[1] w-full">
                                 <RegistrationForm
                                     baseData={originalData}
-                                    selectionVal={[ sex, userType, props.program, yearLevel ]}
+                                    selectionVal={[ sex, userType, props.program, yearLevel, props.school_years ]}
                                     validationErr={validationError}
                                     activate={activate}
                                     reload={loadRegister}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import ListSkeleton from "../reload/list-skeleton";
 import { ViolationService } from "@/others/services/violation-service";
+import { ordinal, readableDate, readableTime } from "@/others/function";
 
 const RecentViolationOccurenceList = ({ user_id, list: listProp = null }) => {
     const [list, setList] = useState(listProp);
@@ -50,7 +51,7 @@ const RecentViolationOccurenceList = ({ user_id, list: listProp = null }) => {
 
 const Row = ({ data }) => {
     const violation = data.offense?.violation;
-    const penalty = data.penalty;
+    const occurrences = data.occurrence_list ?? [];
 
     const name = violation?.violation_name ?? "Unknown Violation";
     const count = data.total_occurrence;
@@ -69,22 +70,28 @@ const Row = ({ data }) => {
                 <b>Occurrences:</b> {occurrenceLabel}
             </p>
 
-            {/* PENALTY SECTION */}
-            <div className="mt-2">
-                <p className="text-gray-800 font-medium text-sm mb-1">Penalty:</p>
-
-                {penalty ? (
-                    <div className="bg-blue-50 border border-blue-300 px-3 py-2 rounded text-sm text-blue-900">
-                        <p><b>{penalty.description}</b></p>
-                        <p className="text-xs text-blue-700">
-                            (Based on {penalty.occurrence_used} occurrence)
-                        </p>
+            {/* PER-OCCURRENCE BREAKDOWN */}
+            <div className="grid gap-2">
+                {occurrences.map((o) => (
+                    <div key={o.occurrence} className="bg-blue-50 border border-blue-300 px-3 py-2 rounded text-sm text-blue-900">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <b>{ordinal(o.occurrence)} Offense</b>
+                            <span className="text-xs text-blue-700">
+                                {o.date ? `${readableDate(o.date)} (${readableTime(o.date)})` : "N/A"}
+                            </span>
+                        </div>
+                        {o.penalty ? (
+                            <p className="mt-1">
+                                {o.penalty.description}
+                                <span className="text-xs text-blue-700">
+                                    {" "}(Based on {ordinal(o.penalty.occurrence_used)} occurrence)
+                                </span>
+                            </p>
+                        ) : (
+                            <p className="mt-1 text-gray-600 italic">No penalty defined for this occurrence.</p>
+                        )}
                     </div>
-                ) : (
-                    <div className="bg-gray-100 border border-gray-300 px-3 py-2 rounded text-sm text-gray-600 italic">
-                        No penalty defined for this occurrence.
-                    </div>
-                )}
+                ))}
             </div>
         </div>
     );

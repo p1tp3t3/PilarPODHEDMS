@@ -11,6 +11,7 @@ use App\Http\Requests\Complaint\StoreComplaintRequest;
 use App\Http\Resources\ComplaintResource;
 use App\Models\ActionLog;
 use App\Models\Complaint;
+use App\Models\ComplaintRevision;
 use App\Models\ComplaintSubject;
 use App\Models\Program;
 use App\Models\User;
@@ -35,8 +36,10 @@ class ComplaintController extends Controller
         $complaints = self::isPrefect()
                     ? self::allComplaints()
                     :  self::allUserComplaint();
+        $user = auth()->user();
+        $user->allow_complaint = $user->permissions?->allow_complaint;
         $props = [
-            'user' => auth()->user(),
+            'user' => $user,
             'program' => Program::latest('id')
                                 ->get(['id', 'name']),
             'students' => User::with(['profile', 'program'])
@@ -96,7 +99,7 @@ class ComplaintController extends Controller
                 );
                 $webpushNotif = [
                     'title' => "Complaint Report!!!",
-                    'body' => "{$complaintNotif->user->profile?->first_name} Reported a Complaint on {$complaintNotif->subject->profile?->first_name}",
+                    'body' => "{$complaintNotif->user?->profile?->first_name} Reported a Complaint on {$complaintNotif->subject?->profile?->first_name}",
                     'icon' => $profile,
                     'url' => url('/prefect/complaint'),
                 ];
@@ -129,7 +132,7 @@ class ComplaintController extends Controller
                         $complaintNotifField = self::getComplaintNotifMessageResponseFields($complaint);
                         $webpushNotif = [
                             'title' => "Complaint Report!!!",
-                            'body' => "{$complaint->user->profile?->first_name} Reported a Complaint on {$complaint->subject->profile?->first_name}",
+                            'body' => "{$complaint->user?->profile?->first_name} Reported a Complaint on {$complaint->subject?->profile?->first_name}",
                             'icon' => $profile,
                             'url' => url('/complaints'),
                         ];
@@ -220,6 +223,22 @@ class ComplaintController extends Controller
         ]);
     }
 
+    // Evidence that existed before the complaint's one-time edit — copied
+    // into its own folder at edit time, see updateComplaint().
+    public function downloadPreviousEvidence($id, $fileName) {
+        $fileName = basename($fileName);
+        $complaintNumber = Complaint::where('id', $id)->value('complaint_number');
+        $path = storage_path("app/private/complaints/complaint-{$complaintNumber}/previous_evidences/$fileName");
+
+        if (!file_exists($path)) {
+            abort(404);
+        }
+
+        return response()->file($path, [
+            'Content-Type' => mime_content_type($path),
+        ]);
+    }
+
     public function downloadSubjectDocument($id, $fileName) {
         $fileName = basename($fileName);
         $complaintNumber = Complaint::where('id', $id)->value('complaint_number');
@@ -239,10 +258,10 @@ class ComplaintController extends Controller
         $complaint = Complaint::with(['user.profile', 'subject.profile'])
                               ->where('id', $id)
                               ->first();
-        $complainantName = $complaint->user->profile?->first_name;
+        $complainantName = $complaint->user?->profile?->first_name;
         $webpushNotif = [
             'title' => "Complaint Report!!!",
-            'body' => "{$complaint->user->profile?->first_name} Report An Complaint {$complaint->subject->profile?->first_name}",
+            'body' => "{$complaint->user?->profile?->first_name} Report An Complaint {$complaint->subject?->profile?->first_name}",
             'icon' => '',
             'url' => url('/complaints')
         ];
@@ -291,15 +310,15 @@ class ComplaintController extends Controller
                 'complaint_status' => 'rejected',
                 'rejected_reason' => $request->reason,
                 'rejected_at' => now(),
-                'archived_at' => Carbon::parse(now())->addYears(5)
+                'archived_at' => archive_retention_date()
             ]);
 
             $complaint = $complaint->first();
-            $complainantName = $complaint->user->profile?->first_name;
+            $complainantName = $complaint->user?->profile?->first_name;
             $complaintNotifField = self::getComplaintNotifMessageResponseFields($complaint, 'rejected');
             $webpushNotif = [
                 'title' => "Complaint Report!!!",
-                'body' => "Your Complaint Against {$complaint->subject->profile?->first_name} {$complaint->subject->profile?->last_name} Has Been Rejected",
+                'body' => "Your Complaint Against {$complaint->subject?->profile?->first_name} {$complaint->subject?->profile?->last_name} Has Been Rejected",
                 'icon' => '',
                 'url' => url('/complaints')
             ];
@@ -351,6 +370,27 @@ class ComplaintController extends Controller
                 return response()->json(['message' => 'You have already used your one edit for this complaint.'], 400);
             }
 
+            // Snapshot everything as it was right before this (one-time) edit
+            // overwrites it, so the prefect can still see the previous
+            // version — this is a log, not a destructive edit.
+            $previousSubjects = ComplaintSubject::where('complaint_id', $id)
+                ->with('user.profile')
+                ->get()
+                ->map(fn ($s) => [
+                    'first_name' => $s->user?->profile?->first_name,
+                    'middle_name' => $s->user?->profile?->middle_name,
+                    'last_name' => $s->user?->profile?->last_name,
+                ]);
+
+            ComplaintRevision::create([
+                'complaint_id' => $id,
+                'incident' => $complaint->violation?->violation_name,
+                'complaint_description' => $complaint->complaint_description,
+                'complaint_evidences' => $complaint->complaint_evidences,
+                'subjects' => json_encode($previousSubjects),
+                'created_at' => now(),
+            ]);
+
             $complaint->update([
                 'incident_id' => $request->incident_id,
                 'complaint_description' => $request->complaint_description,
@@ -366,15 +406,42 @@ class ComplaintController extends Controller
                 ComplaintSubject::insert(['complaint_id' => $id, 'student_id' => $studentId]);
             }
 
+            // Editing a complaint is a log, not a destructive edit — every
+            // evidence file that existed before this edit is copied into
+            // previous_evidences/ untouched (see the ComplaintRevision
+            // snapshot above), so evidences/ only ever needs to reflect
+            // what's currently active: a "removed" file disappears from
+            // evidences/ but stays retrievable from previous_evidences/.
+            $complaintFolderPath = storage_path("app/private/complaints/complaint-{$complaint->complaint_number}");
+            $evidencesFolder = "{$complaintFolderPath}/evidences";
+            $previousEvidencesFolder = "{$complaintFolderPath}/previous_evidences";
+            $existing = $complaint->complaint_evidences ? json_decode($complaint->complaint_evidences, true) : [];
+
+            if (!empty($existing)) {
+                File::ensureDirectoryExists($previousEvidencesFolder);
+                foreach ($existing as $e) {
+                    $src = "{$evidencesFolder}/{$e['file']}";
+                    if (File::exists($src)) {
+                        File::copy($src, "{$previousEvidencesFolder}/{$e['file']}");
+                    }
+                }
+            }
+
+            if ($request->has('hidden_evidence_files')) {
+                $hiddenFiles = json_decode($request->hidden_evidence_files, true) ?? [];
+                foreach ($existing as $e) {
+                    if (in_array($e['file'], $hiddenFiles) && File::exists("{$evidencesFolder}/{$e['file']}")) {
+                        File::delete("{$evidencesFolder}/{$e['file']}");
+                    }
+                }
+                $existing = array_values(array_filter($existing, fn ($e) => !in_array($e['file'], $hiddenFiles)));
+            }
+
             $evidence = array_filter($request->file('evidence') ?? []);
             if (!empty($evidence)) {
-                $complaintFolderPath = storage_path("app/private/complaints/complaint-{$complaint->complaint_number}");
-                $evidencesFolder = "{$complaintFolderPath}/evidences";
                 File::ensureDirectoryExists($evidencesFolder);
 
-                $existing = $complaint->complaint_evidences ? json_decode($complaint->complaint_evidences, true) : [];
                 $i = count($existing) + 1;
-
                 foreach ($evidence as $e) {
                     $extension = $e->getClientOriginalExtension();
                     $type = str_contains($e->getMimeType(), 'image') ? 'pic' : 'vid';
@@ -383,8 +450,9 @@ class ComplaintController extends Controller
                     $existing[] = ['type' => $type, 'file' => $fileName];
                     $i++;
                 }
-                Complaint::where('id', $id)->update(['complaint_evidences' => json_encode($existing)]);
             }
+
+            Complaint::where('id', $id)->update(['complaint_evidences' => json_encode($existing)]);
 
             ActionLog::create([
                 'user_id' => auth()->id(),
@@ -420,14 +488,14 @@ class ComplaintController extends Controller
         if ($complaint->complainant_id !== auth()->id()) {
             return response()->json(['message' => 'You can only revoke a complaint you filed yourself.'], 403);
         }
-        if (!in_array($complaint->complaint_status, ['pending', 'ongoing'])) {
+        if ($complaint->complaint_status !== 'pending') {
             return response()->json(['message' => 'This complaint can no longer be revoked.'], 400);
         }
 
         $complaint->update([
             'complaint_status' => 'revoked',
             'revoked_at' => now(),
-            'archived_at' => Carbon::parse(now())->addYears(5),
+            'archived_at' => archive_retention_date(),
         ]);
 
         ActionLog::create([
@@ -471,7 +539,7 @@ class ComplaintController extends Controller
 
                         $webpushNotif = [
                             'title' => "Complaint Approved",
-                            'body'  => "Your complaint against {$complaint->subject->profile?->first_name} {$complaint->subject->profile?->last_name} is now under investigation.",
+                            'body'  => "Your complaint against {$complaint->subject?->profile?->first_name} {$complaint->subject?->profile?->last_name} is now under investigation.",
                             'icon'  => '',
                             'url'   => url('/complaints')
                         ];
@@ -481,7 +549,7 @@ class ComplaintController extends Controller
                             $webpushNotif,
                         );
 
-                        $userNames[] = $complaint->user->profile?->first_name;
+                        $userNames[] = $complaint->user?->profile?->first_name;
                         $processedCount++;
                     }
 
@@ -502,12 +570,12 @@ class ComplaintController extends Controller
                         Complaint::where('id', $id)->update([
                             'complaint_status' => 'rejected',
                             'rejected_at' => now(),
-                            'archived_at' => Carbon::now()->addYears(5)
+                            'archived_at' => archive_retention_date()
                         ]);
 
                         $webpushNotif = [
                             'title' => "Complaint Rejected",
-                            'body'  => "Your complaint against {$complaint->subject->profile?->first_name} {$complaint->subject->profile?->last_name} has been rejected.",
+                            'body'  => "Your complaint against {$complaint->subject?->profile?->first_name} {$complaint->subject?->profile?->last_name} has been rejected.",
                             'icon'  => '',
                             'url'   => url('/complaints')
                         ];
@@ -517,7 +585,7 @@ class ComplaintController extends Controller
                             $webpushNotif,
                         );
 
-                        $userNames[] = $complaint->user->profile?->first_name;
+                        $userNames[] = $complaint->user?->profile?->first_name;
                         $processedCount++;
                     }
 
@@ -563,8 +631,8 @@ class ComplaintController extends Controller
     }
     public function allComplaints() {
         $status = isset($_GET['status']) ? $_GET['status'] : 'ongoing';
-        $data = Complaint::whereIn('complaint_status', ['pending', 'ongoing', 'resolved'])
-                         ->with(['user.profile', 'subject.profile', 'subject.program', 'complaintSubject.user.profile', 'complaintSubject.user.program']);
+        $data = Complaint::whereIn('complaint_status', ['pending', 'ongoing', 'resolved', 'rejected', 'revoked'])
+                         ->with(['user.profile', 'user.program', 'user.enrollments', 'subject.profile', 'subject.program', 'subject.enrollments', 'complaintSubject.user.profile', 'complaintSubject.user.program', 'complaintSubject.user.enrollments']);
         $search = $_GET['search'] ?? null;
         $date = $_GET['date'] ?? null;
         $year   = $_GET['year'] ?? null;  // ✅ new filter
@@ -598,20 +666,31 @@ class ComplaintController extends Controller
 
             $data->whereBetween(DB::raw("YEAR(created_at)"), [$startYear, $endYear]);
         }
-        if(isset($_GET['status']) && in_array($_GET['status'], ['pending', 'ongoing'])) {
+        // rejected/revoked complaints get archived_at set the moment they
+        // reach that status (see cancelComplaint()/revokeComplaint()) — that
+        // field is the same one the Archives page filters on
+        // (ArchiveController::index() uses whereNotNull('archived_at')), so
+        // gating these two statuses behind whereNull('archived_at') like the
+        // active ones would make their tabs permanently empty by
+        // construction. Show them by status alone instead, archived or not.
+        if (isset($_GET['status']) && in_array($_GET['status'], ['rejected', 'revoked'])) {
+            $data = $data->where('complaint_status', $status);
+        } elseif (isset($_GET['status']) && in_array($_GET['status'], ['pending', 'ongoing'])) {
             $data = (auth()->user()->role == 'sub_admin')
                     ? $data->where('complaint_status', $status)
                            ->whereNull('archived_at')
                     : $data->whereNull('archived_at');
-        }else {
+        } else {
             $data = $data->whereNull('archived_at');
         }
 
-        $data = (isset($_GET['status']) && in_array($_GET['status'], ['rejected', 'pending']))
-                ?
-                $data->latest('created_at')
-                :
-                $data->latest('confirmed_at');
+        if (isset($_GET['status']) && $_GET['status'] === 'revoked') {
+            $data = $data->latest('revoked_at');
+        } elseif (isset($_GET['status']) && in_array($_GET['status'], ['rejected', 'pending'])) {
+            $data = $data->latest('created_at');
+        } else {
+            $data = $data->latest('confirmed_at');
+        }
 
         return ['data' => ComplaintResource::collection($data->get())];
     }
@@ -619,12 +698,22 @@ class ComplaintController extends Controller
         $data = Complaint::where('complainant_id', auth()->user()->id);
         $status = isset($_GET['status']) ? $_GET['status'] : null;
 
-        if(isset($_GET['status']) && in_array($_GET['status'], ['pending', 'ongoing', 'rejected', 'resolved', 'revoked'])) {
+        // rejected/revoked complaints get archived_at set the moment they
+        // reach that status (see cancelComplaint()/revokeComplaint()) — the
+        // same field the Archives page filters on
+        // (ArchiveController::index() uses whereNotNull('archived_at')), so
+        // this tab would be permanently empty if it also required
+        // archived_at to be null. Filter by status alone for these two.
+        if (isset($_GET['status']) && in_array($_GET['status'], ['rejected', 'revoked'])) {
+            $data = $data->where('complaint_status', $status);
+        } elseif (isset($_GET['status']) && in_array($_GET['status'], ['pending', 'ongoing', 'resolved'])) {
             $data = $data->where('complaint_status', $status)
-                           ->latest('created_at');
+                           ->whereNull('archived_at');
         } else {
-            $data = $data->latest('created_at');
+            $data = $data->whereNull('archived_at');
         }
+
+        $data = $data->latest('created_at');
 
 
         return ['data' => ComplaintResource::collection($data->get())];
@@ -666,17 +755,37 @@ class ComplaintController extends Controller
                         // SUBJECT OFFENSES + VIOLATION DETAILS
                         'complaintSubjectViolation.violation',
                         'violation',
+
+                        // PREVIOUS VERSION (if this complaint was edited)
+                        'revisions',
                     ])
                     ->where('id', $id)
                     ->first();
 
+        if (!$complaint) {
+            abort(404, 'Complaint not found.');
+        }
 
         if(auth()->user()->role == 'sub_admin') {
-            $api = Http::withoutVerifying()->post('https://pitpete-violation-risk-predictor-api.hf.space/python/complaint/context', [
-                'complaint_text' => $complaint->complaint_description
-            ]);
-            $predictions = $api->successful() ? $api->json() : [];
-            $complaint->context_analysis = $predictions['data'] ?? [];
+            // Third-party model host (free-tier Hugging Face Space) — prone to
+            // cold-start delays/downtime, so this must never take the whole
+            // page down; context analysis is a nice-to-have, not required.
+            // Always store it JSON-encoded (a string) since the frontend
+            // always does JSON.parse() on this field.
+            try {
+                $api = Http::withoutVerifying()->timeout(10)->post('https://pitpete-violation-risk-predictor-api.hf.space/python/complaint/context', [
+                    'complaint_text' => $complaint->complaint_description
+                ]);
+                $predictions = $api->successful() ? $api->json() : [];
+            } catch (Exception $e) {
+                $predictions = [];
+            }
+            // The upstream API already returns `data` as a JSON-encoded
+            // string on success — only encode it ourselves in the
+            // fallback/failure case, so this is always a plain JSON string
+            // either way (the frontend always does JSON.parse() on it).
+            $rawData = $predictions['data'] ?? '[]';
+            $complaint->context_analysis = is_string($rawData) ? $rawData : json_encode($rawData);
         }
         return new ComplaintResource($complaint);
     }
@@ -768,6 +877,12 @@ class ComplaintController extends Controller
     {
         $subjectDisplay = $this->formatComplaintSubjectNames($complaintNotif);
 
+        // Direct/unregistered complaints have no `user` (complainant) row —
+        // fall back to the free-text complainant_name stored on the complaint.
+        $complainantName = $complaintNotif->user?->profile
+            ? trim("{$complaintNotif->user->profile->first_name} {$complaintNotif->user->profile->middle_name} {$complaintNotif->user->profile->last_name}")
+            : ($complaintNotif->complainant_name ?? 'Someone');
+
         return [
             'notif_type'  => 'complaint',
             'sender_id'   => $request->complainant,
@@ -775,7 +890,7 @@ class ComplaintController extends Controller
             'content'     => json_encode([
                 'id'                     => $complaintId,
                 'sender_notif_message'   => "You have reported a complaint against {$subjectDisplay}.",
-                'receiver_notif_message' => "{$complaintNotif->user->profile?->first_name} has reported a complaint against {$subjectDisplay}."
+                'receiver_notif_message' => "{$complainantName} has reported a complaint against {$subjectDisplay}."
             ]),
             'read_since' => null
         ];
@@ -818,7 +933,7 @@ class ComplaintController extends Controller
 
         if (sizeOf($subjects) === 2) {
             return $subjects
-                ->map(fn($s) => trim(($s->user->profile?->first_name ?? '') . ' ' . ($s->user->profile?->last_name ?? '')))
+                ->map(fn($s) => trim(($s->user?->profile?->first_name ?? '') . ' ' . ($s->user?->profile?->last_name ?? '')))
                 ->implode(' and ');
         }
 

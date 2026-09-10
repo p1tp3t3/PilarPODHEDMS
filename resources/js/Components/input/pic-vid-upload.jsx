@@ -1,19 +1,25 @@
 import { useRef } from "react"
 import { Plus, X, Play, FileText } from "lucide-react"
 
-const PicVidUpload = ({ 
+const PicVidUpload = ({
     type,
     label,
     multiple,
     def,
     fileList,
-    name, 
+    name,
     id,
-    reqFileList, 
-    setFileList, 
+    reqFileList,
+    setFileList,
     setReqFileList,
     maximumSize,
-    maxCount = 2
+    maxCount = 2,
+    // Optional: already-uploaded files (e.g. when editing a form) shown in
+    // the same row as new uploads — [{ key, src, type, href }]. Removing one
+    // calls onRemoveExisting(key) — a soft-hide on the backend, not a real
+    // delete, so the underlying record/log is preserved either way.
+    existingList = [],
+    onRemoveExisting = () => {},
 }) => {
     const canvasRef = useRef(null)
     
@@ -116,7 +122,7 @@ const PicVidUpload = ({
         <div className="grid gap-2 w-full">
             <div className="text-[0.8em]">{label}</div>
             <div>
-                {fileList.length !== 0 ? (
+                {(fileList.length !== 0 || existingList.length !== 0) ? (
                 <div className="grid gap-3">
                     {multiple && type !== "pdf" && (
                     <label
@@ -127,12 +133,22 @@ const PicVidUpload = ({
                     </label>
                     )}
                     <div className="flex gap-2 pb-2 w-full overflow-hidden overflow-x-auto">
+                    {existingList.map((e) => (
+                        <div className="h-full" key={`existing-${e.key}`}>
+                        <File
+                            type={e.type ?? type}
+                            onRemove={() => onRemoveExisting(e.key)}
+                            href={e.href}
+                            src={e.src}
+                            name={e.name}
+                        />
+                        </div>
+                    ))}
                     {fileList.map((e, i) => (
                         <div className="h-full" key={i}>
                         <File
                             type={type}
-                            i={i}
-                            removeFile={removeFile}
+                            onRemove={() => removeFile(i)}
                             src={e.src}
                             name={e.name}
                         />
@@ -169,14 +185,14 @@ const PicVidUpload = ({
     )
 }
 
-const File = ({ type, removeFile, i, src }) => {
-    return (
-        <div className="bg-gray-300 w-[13rem] h-[15rem] rounded-md object-cover overflow-hidden grid place-items-center relative p-1 flex-shrink-0">
+const File = ({ type, onRemove, src, href, name }) => {
+    const content = (
+        <>
             <div className="justify-self-end self-start z-10">
                 <button
                 type="button"
                 className="bg-white w-[1.2rem] h-[1.2rem] rounded-full text-[0.8em]"
-                onClick={() => removeFile(i)}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove() }}
                 >
                 <X size={12} />
                 </button>
@@ -200,8 +216,14 @@ const File = ({ type, removeFile, i, src }) => {
                     <span className="text-[0.7em] mt-1 truncate w-[4rem]">{name}</span>
                 </div>
             )}
-        </div>
+        </>
     )
+
+    const className = "bg-gray-300 w-[13rem] h-[15rem] rounded-md object-cover overflow-hidden grid place-items-center relative p-1 flex-shrink-0"
+
+    return href
+        ? <a href={href} target="_blank" rel="noreferrer" className={className}>{content}</a>
+        : <div className={className}>{content}</div>
 }
 
 export default PicVidUpload

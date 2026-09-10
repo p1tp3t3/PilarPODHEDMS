@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import Btn from "@/Components/button/normal-btn"
-import { Table, TableHead, TableBody, TableRow, TableCell } from "@mui/material"
+import { DataGrid } from "@mui/x-data-grid"
+import Box from "@mui/material/Box"
 import LineGraph from "@/Components/card/line-graph-statistic"
 import BarGraph from "@/Components/card/bar-graph-statistic-card"
 import ProfilePic from "@/Components/other/profile-pic"
@@ -193,29 +194,22 @@ const AnalyticalReport = (props) => {
             />
           </div>}
 
-          <div className="w-full overflow-x-auto">
-            <Table sx={{ width: "100%", backgroundColor: "#fff", fontSize: "0.875rem" }}>
-              <TableHead>
-                <TableRow sx={{ "& .MuiTableCell-root": { backgroundColor: "#f3f4f6" } }}>
-                  <TableCell>#</TableCell>
-                  <TableCell>Program</TableCell>
-                  <TableCell>Students With Violations</TableCell>
-                  <TableCell>Total Violations</TableCell>
-                </TableRow>
-              </TableHead>
-
-              <TableBody>
-                {preview.violationProgram.map((e, i) => (
-                  <TableRow key={i} sx={{ fontSize: "0.9em" }}>
-                    <TableCell>{i + 1}.</TableCell>
-                    <TableCell>{e.program}</TableCell>
-                    <TableCell>{e.students_with_violations}</TableCell>
-                    <TableCell>{e.total_violations}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <Box sx={{ width: "100%", overflowX: "auto" }}>
+            <Box sx={{ minWidth: "600px", height: 400 }}>
+              <DataGrid
+                rows={preview.violationProgram.map((e, i) => ({ id: i, ...e }))}
+                columns={[
+                  { field: "index", headerName: "#", width: 60, valueGetter: (v, row) => row.id + 1 },
+                  { field: "program", headerName: "Program", flex: 1, minWidth: 200 },
+                  { field: "students_with_violations", headerName: "Students With Violations", width: 210 },
+                  { field: "total_violations", headerName: "Total Violations", width: 160 },
+                ]}
+                hideFooter
+                disableRowSelectionOnClick
+                showToolbar
+              />
+            </Box>
+          </Box>
         </div>
 
 

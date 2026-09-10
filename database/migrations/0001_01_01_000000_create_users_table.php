@@ -23,8 +23,6 @@ return new class extends Migration
                 'teaching_staff', 
                 'non_teaching_staff',
                 'parent', 
-                'guard', 
-                'guidance',
             ]);
             $table->string('username')->nullable();
             $table->string('email')->nullable()->unique();

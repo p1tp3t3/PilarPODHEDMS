@@ -80,11 +80,6 @@ const About = (props) => {
             setBtnLabel('save changes')
         }, 3000)
     }
-    const shouldShowFamilyButton = () => {
-        return (props.data.username === props.user.username) && (props.family['members']['parent'].length == 0 && props.family['members']['child'].length == 0 && props.data.user_type != 'parent');
-    };
-
-
     return (
         <div className="flex gap-6">
             <div className="grid gap-6 w-full">
@@ -95,7 +90,7 @@ const About = (props) => {
                     icon={User}
                 >
                     <form onSubmit={handleSubmit}>
-                        <div className="text-[0.9em]">
+                        <div className="text-[0.9em] flex flex-wrap items-center gap-x-6 gap-y-1">
                             {showUserAccessibility().map((e, i) =>
                                 <CheckBoxButton.CheckBox
                                     key={e.val}
@@ -114,29 +109,29 @@ const About = (props) => {
                 </ProfileSectionWrapper>}
                 <ProfileSectionWrapper title="Personal Information" icon={User}>
                     <div className="">
-                        <Label 
-                            title="Username" 
-                            desc={`@${props.data.username}`} 
+                        <Label
+                            title="Username"
+                            desc={`@${props.data.username}`}
                         />
                         {!['super_admin', 'sub_admin'].includes(props.data.user_type) &&
                         <>
-                        <Label 
-                            title="Sex" 
-                            desc={`${props.data.sex === 'm' ? 'Male' : 'Female'}`} 
+                        <Label
+                            title="Sex"
+                            desc={`${props.data.sex === 'm' ? 'Male' : 'Female'}`}
                         />
-                        
-                        <Label 
-                            title="Date of Birth" 
-                            desc={(props.data.date_of_birth != null) ? readableDate(props.data.date_of_birth) : 'N/A'} 
+
+                        <Label
+                            title="Date of Birth"
+                            desc={(props.data.date_of_birth != null) ? readableDate(props.data.date_of_birth) : 'N/A'}
                         />
-                        <Label 
-                            title="Age" 
+                        <Label
+                            title="Age"
                             desc={(props.data.age != null) ? `${props.data.age} years old` : 'N/A'}
                         />
                         </>}
-                        <Label 
-                            title="User Role" 
-                            desc={`${replaceUnderScoreToSpace(props.data.user_type.toUpperCase())}`} 
+                        <Label
+                            title="User Role"
+                            desc={`${replaceUnderScoreToSpace(props.data.user_type.toUpperCase())}`}
                         />
                         {(props.data.user_type === 'teaching_staff' && props.data.unique_att?.program != null) && (
                             <div className="border-b border-gray-200 py-3 last:border-b-0">
@@ -155,27 +150,27 @@ const About = (props) => {
                             <>
                             <Label
                                 title="School Year"
-                                desc={props.data.unique_att.enrollments[props.data.unique_att.enrollments.length - 1].school_year}
+                                desc={props.data.unique_att.enrollments[props.data.unique_att.enrollments.length - 1].school_year?.year}
                             />
                             </>
                         )}
                         {!['super_admin', 'sub_admin'].includes(props.data.user_type) &&
                         <>
-                        <Label 
-                            title="Religion" 
-                            desc={(props.data.religion) ? toTitleCase(props.data.religion) : 'N/A'} 
+                        <Label
+                            title="Religion"
+                            desc={(props.data.religion) ? toTitleCase(props.data.religion) : 'N/A'}
                         />
-                        <Label 
-                            title="Citizenship" 
-                            desc={(props.data.citizenship) ? toTitleCase(props.data.citizenship) : 'N/A'} 
+                        <Label
+                            title="Citizenship"
+                            desc={(props.data.citizenship) ? toTitleCase(props.data.citizenship) : 'N/A'}
                         />
-                        <Label 
-                            title="Civil Status" 
-                            desc={`${toTitleCase(props.data.civil_status)}`} 
+                        <Label
+                            title="Civil Status"
+                            desc={`${toTitleCase(props.data.civil_status)}`}
                         />
-                        <Label 
-                            title="Place of Birth" 
-                            desc={props.data.place_of_birth || 'N/A'} 
+                        <Label
+                            title="Place of Birth"
+                            desc={props.data.place_of_birth || 'N/A'}
                         /></>}
                     </div>
                 </ProfileSectionWrapper>
@@ -183,52 +178,41 @@ const About = (props) => {
                     <div className="">
                         {!['super_admin', 'sub_admin'].includes(props.data.user_type) &&
                         <div className="grid gap-3">
-                            <AddressDisplay 
-                                title="Current Address" 
-                                address={props.data.current_address} 
+                            <AddressDisplay
+                                title="Current Address"
+                                address={props.data.current_address}
                             />
-                            <AddressDisplay 
-                                title="Permanent Address" 
-                                address={props.data.permanent_address} 
+                            <AddressDisplay
+                                title="Permanent Address"
+                                address={props.data.permanent_address}
                             />
                         </div>}
-                        <Label 
-                            title="Email" 
-                            desc={props.data.email || 'N/A'} 
+                        <Label
+                            title="Email"
+                            desc={props.data.email || 'N/A'}
                         />
                         {!['super_admin', 'sub_admin'].includes(props.data.user_type) &&
-                        <Label 
-                            title="Phone Number" 
-                            desc={props.data.phone_number || 'N/A'} 
+                        <Label
+                            title="Phone Number"
+                            desc={props.data.phone_number || 'N/A'}
                         />}
                     </div>
                 </ProfileSectionWrapper>
                 {((props.data.user_type === 'student') || props.data.user_type === 'parent') && (
                     <>
-                        <ProfileSectionWrapper 
+                        <ProfileSectionWrapper
                             title={`Family Background ${props.family.family_code != null ? `(${props.family.family_code})` : ''}`}
                             icon={Users}
-                            side={
-                                shouldShowFamilyButton() ? (
-                                    <button 
-                                        type="button"
-                                        className="font-normal bg-blue-600 text-white text-sm  px-3 py-2 rounded-md hover:bg-blue-700 transition-colors"
-                                        onClick={props.openFamilyRegistration}
-                                    >
-                                        Create Family
-                                    </button>
-                                ) : null
-                            }
                         >
                             {(props.family['members']['parent'].length !== 0 && props.family['members']['child'].length !== 0) ? (
                                 <div className="space-y-4">
-                                    <UserGroupSection 
-                                        title="Parents:" 
-                                        list={props.family.members.parent} 
+                                    <UserGroupSection
+                                        title="Parents:"
+                                        list={props.family.members.parent}
                                     />
-                                    <UserGroupSection 
-                                        title="Children:" 
-                                        list={props.family.members.child} 
+                                    <UserGroupSection
+                                        title="Children:"
+                                        list={props.family.members.child}
                                     />
                                 </div>
                             ) : (
@@ -238,13 +222,13 @@ const About = (props) => {
                             )}
                         </ProfileSectionWrapper>
                         {props.data.user_type === 'student' && (
-                            <ProfileSectionWrapper 
-                                title="Educational Background" 
+                            <ProfileSectionWrapper
+                                title="Educational Background"
                                 icon={GraduationCap}
                             >
-                                <EducationBackgroundSection 
+                                <EducationBackgroundSection
                                     type={'label'}
-                                    list={props.educationBackground} 
+                                    list={props.educationBackground}
                                     usr={props.user}
                                     student_data={props.data}
                                 />
@@ -407,34 +391,34 @@ const EducationBackgroundFieldSection = ({ title, user, data, program, setData, 
         <div className="">
             <h2 className="text-lg font-semibold mb-4">{transferee ? 'College (If Transferee)' : replaceUnderScoreToSpace(toTitleCase(title))}</h2>
             <div className="space-y-4">
-                <FormTextfield 
+                <FormTextfield
                     label="School Name"
-                    name={`${type}_school_name`} 
+                    name={`${type}_school_name`}
                     id={`${type}_school_name`}
                     val={sh ? data.sh_school_name : data[`${type}_school_name`]}
-                    change={(e) => change(e, setData)} 
+                    change={(e) => change(e, setData)}
                     req={sh || (!transferee)}
                     error={validationErr?.[`${type}_school_name`]}
                     errorAsterisk={validationErr?.[`${type}_school_nameAsterisk`]}
                 />
-                <FormTextfield 
+                <FormTextfield
                     label="School Address"
-                    name={`${type}_school_address`} 
+                    name={`${type}_school_address`}
                     id={`${type}_school_address`}
                     val={sh ? data.sh_school_address : data[`${type}_school_address`]}
-                    change={(e) => change(e, setData)} 
+                    change={(e) => change(e, setData)}
                     req={sh || (!transferee)}
                     error={validationErr?.[`${type}_school_address`]}
                     errorAsterisk={validationErr?.[`${type}_school_addressAsterisk`]}
                 />
                 <div className={`grid grid-cols-1 ${(sh) ? 'md:grid-cols-1' : (transferee) ? 'md:grid-cols-1' : ((!transferee && (user.role == 'super_admin' || user.role == 'sub_admin')) ? 'md:grid-cols-2' : 'md:grid-cols-1')} gap-4`}>
-                    <FormTextfield 
+                    <FormTextfield
                         label={transferee ? 'Date Last Attended' : 'Year Graduated'}
-                        name={transferee ? 'date_last_attended' : `${type}_year_graduated`} 
+                        name={transferee ? 'date_last_attended' : `${type}_year_graduated`}
                         id={transferee ? 'date_last_attended' : `${type}_year_graduated`}
                         val={transferee ? data.date_last_attended : (sh ? data.sh_year_graduated : data[`${type}_year_graduated`])}
                         type={transferee ? 'date' : 'text'}
-                        change={(e) => change(e, setData)} 
+                        change={(e) => change(e, setData)}
                         req={sh || (!transferee)}
                         error={validationErr?.[transferee ? 'date_last_attended' : `${type}_year_graduated`]}
                         errorAsterisk={validationErr?.[transferee ? 'date_last_attendedAsterisk' : `${type}_year_graduatedAsterisk`]}
@@ -445,9 +429,9 @@ const EducationBackgroundFieldSection = ({ title, user, data, program, setData, 
                                 <DropdownField
                                     default={{ val: '', label: 'Select Program' }}
                                     list={program}
-                                    name="college_program" 
+                                    name="college_program"
                                     val={data.college_program}
-                                    onChange={(e) => change(e, setData)} 
+                                    onChange={(e) => change(e, setData)}
                                     error={validationErr?.college_program}
                                     errorAsterisk={validationErr?.college_programAsterisk}
                                     titleCase={true}
@@ -456,22 +440,22 @@ const EducationBackgroundFieldSection = ({ title, user, data, program, setData, 
                                 <>
                                     {transferee &&
                                     <>
-                                    <FormTextfield 
+                                    <FormTextfield
                                         label="Program / Course"
-                                        name={`${type}_program`} 
+                                        name={`${type}_program`}
                                         id={`${type}_program`}
                                         val={data.tr_college_program}
-                                        change={(e) => change(e, setData)} 
+                                        change={(e) => change(e, setData)}
                                         req={true}
                                         error={validationErr?.[`${type}_program`]}
                                         errorAsterisk={validationErr?.[`${type}_programAsterisk`]}
                                     />
-                                    <FormTextfield 
+                                    <FormTextfield
                                         label="Year Level"
-                                        name="year_level" 
+                                        name="year_level"
                                         id="year_level"
                                         val={data.year_level}
-                                        change={(e) => change(e, setData)} 
+                                        change={(e) => change(e, setData)}
                                         req={true}
                                         error={validationErr?.year_level}
                                         errorAsterisk={validationErr?.[`year_levelAsterisk`]}

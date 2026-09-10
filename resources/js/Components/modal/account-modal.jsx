@@ -51,7 +51,7 @@ const AccountModal = (props) => {
                                     <div>Account Settings</div>
                                 </li>
                             </Link>
-                            {(user.role == 'super_admin' || user.role == 'sub_admin') &&
+                            {user.role == 'super_admin' &&
                             <Link href='/maintenance'>
                                 <li className={listStyle}>
                                     <div className="h-[1.8rem] w-[1.8rem] bg-gray-500 text-[1.2em] text-white rounded-[100%] grid place-items-center">

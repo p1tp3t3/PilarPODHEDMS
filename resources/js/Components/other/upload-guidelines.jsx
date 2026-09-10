@@ -1,7 +1,12 @@
 import { Table, TableHead, TableBody, TableRow, TableCell, TableContainer } from "@mui/material"
 import { Download } from "lucide-react"
 
+const TYPE_LABELS = {
+  enrollment_update: "Enrollment Update",
+}
+
 const UploadGuidelines = (props) => {
+  const typeLabel = TYPE_LABELS[props.type] ?? props.type
   const userType = () => {
     const baseFields = [
       { field: "id", value: "School I.D (must start with 'C' followed by digits)", example: "c2210213" },
@@ -40,6 +45,15 @@ const UploadGuidelines = (props) => {
         return baseFields.concat([
           { field: "work_type", value: "Type of work", example: "Clerical" },
         ]);
+      case "enrollment_update":
+        return [
+          { field: "id", value: "School I.D of an already-registered student", example: "c2210213" },
+          { field: "program", value: "Program enrolled, by name (e.g. BSIT, BEED)", example: "BSIT" },
+          { field: "year_level", value: "Year level", example: "2" },
+          { field: "semester", value: "Semester", example: "1" },
+          { field: "school_year", value: "School Year", example: "2024-2025" },
+          { field: "enrolled_at", value: "Date enrolled (YYYY-MM-DD)", example: "2024-08-15" },
+        ];
       default:
         return baseFields;
     }
@@ -50,6 +64,7 @@ const UploadGuidelines = (props) => {
     if (props.type == 'faculty') return 'faculty-pczc'
     if (props.type == 'administrative') return 'administrative-program name(bachelor-of-science-in-information-technoology)'
     if (props.type == 'staff') return 'staff'
+    if (props.type == 'enrollment_update') return 'enrollment-update-template'
   }
 
   const data = userType();
@@ -74,7 +89,7 @@ const UploadGuidelines = (props) => {
     <div className="space-y-6">
       {/* Header */}
       <h1 className="text-xl font-bold capitalize text-center">
-        Upload Guidelines for {props.type}
+        Upload Guidelines for {typeLabel}
       </h1>
 
       {/* Notes */}
@@ -84,7 +99,7 @@ const UploadGuidelines = (props) => {
           <li>Accepted file name: <b>{fileName()}.csv</b></li>}
           <li>Accepted file type: <b>.csv</b></li>
           <li>The first row must contain exact field names as shown below.</li>
-          {props.type == 'student' &&
+          {(props.type == 'student' || props.type == 'enrollment_update') &&
           <li>
             <div>Program must match one of these program names exactly:</div>
             <ul>

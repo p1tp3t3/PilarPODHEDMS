@@ -21,13 +21,32 @@ class AccountSetupController extends Controller
         $user = auth()->user();
 
         if ($user->hasVerifiedEmail()) {
-            return redirect("/profile/{$user->username}/edit");
+            return redirect("/force-change/{$user->username}");
         }
 
         return Inertia::render('auth/verify-email', [
             'user' => $user,
             'email' => $user->email,
         ]);
+    }
+
+    /**
+     * Steps 2 and 3 of forced setup share one URL (/force-change/{username})
+     * and one page — reuses the exact same page-rendering logic as the
+     * voluntary profile-edit route (ProfileController::edit). The page
+     * itself (resources/js/Pages/student/edit-profile-form.jsx) renders the
+     * profile form first, then the password form (AccountSettingsForm,
+     * normally reached via the unrelated /settings/{id} route) in place once
+     * the profile step is done — a local view change, not a navigation, so
+     * nothing here needs to dispatch to AccountController::accountSettingsIndex.
+     */
+    public function showStep($username)
+    {
+        if (!session('force_account_setup')) {
+            abort(404);
+        }
+
+        return (new ProfileController)->edit($username);
     }
 
     public function resendVerificationEmail()

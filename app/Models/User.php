@@ -65,7 +65,12 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function enrollments()
     {
-        return $this->hasMany(Enrollment::class, 'student_id', 'id');
+        // Every consumer of this relation (showUserType() on the frontend,
+        // and its several inline re-implementations across list components)
+        // picks the LAST array element as "the current enrollment" — that's
+        // only reliable if the relation itself guarantees insertion order,
+        // which a bare hasMany does not.
+        return $this->hasMany(Enrollment::class, 'student_id', 'id')->orderBy('id');
     }
 
     public function enrollment()
@@ -90,6 +95,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function teachingStaff()
     {
         return $this->hasOne(TeachingStaff::class, 'user_id', 'id');
+    }
+
+    public function nonTeachingStaff()
+    {
+        return $this->hasOne(NonTeachingStaff::class, 'user_id', 'id');
     }
 
     public function parent()
@@ -170,8 +180,9 @@ class User extends Authenticatable implements MustVerifyEmail
     private function relationsForRole(string $role): array
     {
         return match ($role) {
-            'student' => ['program', 'enrollments.program', 'educationBackground', 'profile', 'permissions'],
+            'student' => ['program', 'enrollments.program', 'enrollments.schoolYear', 'educationBackground', 'profile', 'permissions'],
             'teaching_staff' => ['teachingStaff.program', 'profile', 'permissions'],
+            'non_teaching_staff' => ['nonTeachingStaff', 'profile', 'permissions'],
             'parent' => ['parent', 'profile', 'permissions'],
             default => ['profile', 'permissions'],
         };
@@ -195,7 +206,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function newUsers()
     {
-        return $this->with(['profile', 'program', 'enrollments.program', 'teachingStaff.program', 'parent'])
+        return $this->with(['profile', 'program', 'enrollments.program', 'enrollments.schoolYear', 'teachingStaff.program', 'parent'])
             ->where('id', '!=', auth()->id())
             ->whereRaw('DATE(created_at) = DATE(NOW())')
             ->latest()
@@ -212,7 +223,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function allUserAccount()
     {
-        $query = $this->with('profile')->where('id', '!=', auth()->id());
+        $query = $this->with(['profile', 'program', 'enrollments', 'teachingStaff.program', 'nonTeachingStaff'])->where('id', '!=', auth()->id());
 
         $role = request()->query('role', request()->query('user-type'));
         $program = request()->query('program');

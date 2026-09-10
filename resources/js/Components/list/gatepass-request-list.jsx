@@ -3,11 +3,25 @@ import Box from "@mui/material/Box"
 import { useContext, useMemo } from "react"
 import AuthContext from "@/context-provider/auth-provider"
 
-import { getProfilePic, readableDate, readableTime, toTitleCase } from "../../others/function"
+import { getProfilePic, readableDate, readableTime, showUserType, toTitleCase } from "../../others/function"
 import ProfilePic from "../other/profile-pic"
 import ActionBtn from "../button/action-btn"
 import ListSkeleton from "../reload/list-skeleton"
 import { FileText } from "lucide-react"
+
+const STATUS_STYLES = {
+    pending: "bg-yellow-100 text-yellow-700",
+    approved: "bg-green-100 text-green-700",
+    rejected: "bg-red-100 text-red-700",
+    revoked: "bg-gray-200 text-gray-700",
+}
+
+const statusFor = (e) => {
+    if (e.revoked_at) return "revoked"
+    if (e.rejected_at) return "rejected"
+    if (e.confirmed_at) return "approved"
+    return "pending"
+}
 
 const GatePassRequestList = (props) => {
     const { usr } = useContext(AuthContext)
@@ -17,10 +31,17 @@ const GatePassRequestList = (props) => {
         return props.list.map((e, i) => ({
             i: i + 1,
             id: e.id,
+            gatepass_number: e.gatepass_number,
             user_id: e.user?.id_number,
             name: (e.user.profile?.first_name ?? '') + ' ' + (e.user.profile?.middle_name ?? '') + " " + (e.user.profile?.last_name ?? '') + ' ' + e.user.role,
             user: e.user,
             created_at: e.created_at,
+            confirmed_at: e.confirmed_at,
+            rejected_at: e.rejected_at,
+            rejected_reason: e.rejected_reason,
+            revoked_at: e.revoked_at,
+            archived_at: e.archived_at,
+            status: statusFor(e),
         }))
     }, [props.list])
 
@@ -29,6 +50,11 @@ const GatePassRequestList = (props) => {
             {
                 field: 'i',
                 headerName: '#'
+            },
+            {
+                field: 'gatepass_number',
+                headerName: 'Reference No.',
+                flex: 0.8,
             },
             {
                 field: 'user_id',
@@ -45,12 +71,22 @@ const GatePassRequestList = (props) => {
                         <div className="flex items-center gap-3 h-full">
                             <ProfilePic size={2.5} src={getProfilePic(u?.profile?.profile_picture, u?.profile?.sex)} />
                             <div className="flex flex-col justify-center leading-tight">
-                                <div className="text-[0.9em] font-semibold">
-                                    {u ? `${u.profile?.first_name ?? ""} ${u.profile?.last_name ?? ""}` : "-"}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-[0.9em] font-semibold">
+                                        {u ? `${u.profile?.first_name ?? ""} ${u.profile?.last_name ?? ""}` : "-"}
+                                    </span>
+                                    <span className={`px-2 py-0.5 rounded-full text-[0.75em] font-medium ${STATUS_STYLES[params.row.status]}`}>
+                                        {toTitleCase(params.row.status)}
+                                    </span>
                                 </div>
                                 <div className="text-[0.8em] text-gray-600">
-                                    {u?.role ? toTitleCase(u.role) : "-"}
+                                    {u ? showUserType(u) : "-"}
                                 </div>
+                                {params.row.rejected_reason && (
+                                    <div className="text-[0.75em] text-gray-500">
+                                        Reason: {params.row.rejected_reason}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )
@@ -70,11 +106,11 @@ const GatePassRequestList = (props) => {
                 field: "actions",
                 type: "actions",
                 headerName: "Action",
-                width: 280,
+                width: 300,
                 align: 'start',
                 headerAlign: 'start',
                 renderCell: (params) => (
-                    <div className="flex gap-2 items-center h-full">
+                    <div className="flex flex-wrap gap-2 items-center py-1">
                         <ActionBtn
                             className="bg-blue-700 hover:bg-blue-800"
                             onClick={() => props.view(params.row.id)}
@@ -82,7 +118,7 @@ const GatePassRequestList = (props) => {
                             View
                         </ActionBtn>
 
-                        {usr?.role === "sub_admin" && (
+                        {usr?.role === "sub_admin" && params.row.status === "pending" && (
                             <>
                                 <ActionBtn
                                     className="bg-green-500 hover:bg-green-600"
@@ -142,7 +178,7 @@ const GatePassRequestList = (props) => {
                 overflowX: "auto",
             }}
         >
-            <Box sx={{ minWidth: "1000px" }}>
+            <Box sx={{ minWidth: "1020px" }}>
                 <DataGrid
                     rows={rows}
                     columns={columns}
@@ -152,6 +188,7 @@ const GatePassRequestList = (props) => {
                     }}
                     pagination
                     disableRowSelectionOnClick
+                    getRowHeight={() => 'auto'}
                     showToolbar
                 />
             </Box>

@@ -6,12 +6,15 @@ use App\Events\SendGatePass;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\GatePass\ApproveGatePassRequest;
 use App\Http\Requests\GatePass\GatepassRequestRequest;
+use App\Http\Requests\GatePass\RejectGatePassRequest;
+use App\Http\Requests\GatePass\UpdateGatePassRequest;
 use App\Http\Resources\GatePassResource;
 use App\Mail\GatePassMail;
 use App\Models\ActionLog;
 use App\Models\GatePass;
+use App\Models\GatePassRevision;
 use App\Models\User;
-use Carbon\Carbon;
+use App\Traits\GeneratesSequenceCode;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,11 +24,10 @@ use PHPQRCode\QRcode;
 
 class GatePassController extends Controller
 {
+    use GeneratesSequenceCode;
+
     public function index() {
         $isPrefect = self::isPrefect() ? 'prefect' : 'other';
-
-        $guard = User::where('role', 'guard')
-                     ->where('id', auth()->user()->id);
 
         $gatepass = '';
         if(isset($_GET['status'])) {
@@ -33,6 +35,10 @@ class GatePassController extends Controller
                 $gatepass = self::getAllApprovedGatePass();
             }else if($_GET['status'] == 'expired-users') {
                 $gatepass = self::getGatePassExpired();
+            }else if($_GET['status'] == 'rejected-requests') {
+                $gatepass = self::getAllRejectedGatePass();
+            }else if($_GET['status'] == 'revoked-requests') {
+                $gatepass = self::getAllRevokedGatePass();
             }else {
                 $gatepass = self::getAllGatePassRequest();
             }
@@ -40,16 +46,28 @@ class GatePassController extends Controller
             $gatepass = self::getAllGatePassRequest();
         }
 
+        $user = auth()->user();
+        $user->allow_gatepass = $user->permissions?->allow_gatepass;
+
         return Inertia::render("$isPrefect/gatepass", [
-            'user' => ($guard->exists()) ? $guard->first() : auth()->user(),
+            'user' => $user,
             'program_name' => is_program_head(),
             'gatepass_request_list' => $gatepass,
             'user_gatepass' => self::getGatePass(auth()->user()->id)
         ]);
     }
     public function qrcodeIndex() {
+        $user = auth()->user();
+        $isGuard = $user->role === 'non_teaching_staff'
+            && $user->nonTeachingStaff?->position === 'Guard';
+        $isAdmin = in_array($user->role, ['sub_admin', 'super_admin'], true);
+
+        if (!$isGuard && !$isAdmin) {
+            return redirect('/dashboard');
+        }
+
         return Inertia::render('staff/gatepass-verification', [
-            'user' => auth()->user(),
+            'user' => $user,
             'program_name' => null,
             'gatepass_approved_list' => self::getAllGatePass()->get()
         ]);
@@ -75,21 +93,11 @@ class GatePassController extends Controller
             'icon' =>'',
             'url' => url('/prefect/gatepass'),
         ];
-        $now = Carbon::now();
-
-        if(auth()->user()->permissions?->allow_gatepass != 1)
-            return response()->json(['message' => 'you are restricted of requesting a gatepass'], 400);
-
-        if ($now->hour >= 15 || $now->hour < 7)
-            return response()->json([
-                'message' => 'You cannot request a gatepass between 3pm to 7am.'
-            ], 400);
-
-
         DB::beginTransaction();
         try {
 
             $lastIndex = GatePass::insertGetId([
+                'gatepass_number' => $this->generateSequenceCode(GatePass::class, 'gatepass_number'),
                 'user_id' => auth()->user()->id,
                 'reason' =>  $request->other_reason
             ]);
@@ -111,7 +119,7 @@ class GatePassController extends Controller
         }
     }
     public function approveGatePassRequest($id, ApproveGatePassRequest $request) {
-        $gatepass = GatePass::with(['user.profile', 'user.program'])->where('id', $id);
+        $gatepass = GatePass::with(['user.profile', 'user.program', 'user.enrollments'])->where('id', $id);
         $expDate = request('expiration_date');
 
 
@@ -175,7 +183,10 @@ class GatePassController extends Controller
         }
 
     }
-    public function disapproveGatePassRequest($id) {
+    // Soft reject — the row stays (unlike the old behavior, which hard-
+    // deleted the request with no reason recorded at all), mirroring
+    // ComplaintController::cancelComplaint()'s reject-with-reason pattern.
+    public function disapproveGatePassRequest(RejectGatePassRequest $request, $id) {
         DB::beginTransaction();
         try {
             $gatepass = GatePass::with('user.profile')->where('id', $id);
@@ -184,12 +195,95 @@ class GatePassController extends Controller
                 'action_type' => 'gatepass',
                 'details' => 'rejects the gatepass request of ' . $gatepass->first()->user->profile?->first_name
             ]);
-            $gatepass->delete();
+            $gatepass->update([
+                'rejected_reason' => $request->reason,
+                'rejected_at' => now(),
+                'archived_at' => archive_retention_date(),
+            ]);
             DB::commit();
             return response()->json(self::getAllGatePassRequest()->toArray());
         }catch (Exception $x) {
             DB::rollBack();
             return response()->json(['message' => $x], 400);
+        }
+    }
+
+    /**
+     * Lets the requester withdraw their own pending gate pass. Soft delete,
+     * not a hard delete — mirrors ComplaintController::revokeComplaint().
+     */
+    public function revokeGatePass($id) {
+        $gatepass = GatePass::with('user.profile')->where('id', $id)->first();
+
+        if (!$gatepass) {
+            return response()->json(['message' => 'Gate pass not found.'], 404);
+        }
+        if ($gatepass->user_id !== auth()->id()) {
+            return response()->json(['message' => 'You can only revoke a gate pass you requested yourself.'], 403);
+        }
+        if ($gatepass->confirmed_at !== null || $gatepass->rejected_at !== null || $gatepass->revoked_at !== null) {
+            return response()->json(['message' => 'This gate pass can no longer be revoked.'], 400);
+        }
+
+        $gatepass->update([
+            'revoked_at' => now(),
+            'archived_at' => archive_retention_date(),
+        ]);
+
+        ActionLog::create([
+            'user_id' => auth()->id(),
+            'action_type' => 'gatepass',
+            'details' => 'revokes their own gatepass request',
+        ]);
+
+        return response()->json(self::getGatePass(auth()->id()));
+    }
+
+    /**
+     * One-time edit of the requester's own pending gate pass reason —
+     * mirrors ComplaintController::updateComplaint()'s snapshot-before-
+     * overwrite pattern (a log, not a destructive edit).
+     */
+    public function updateGatePass(UpdateGatePassRequest $request, $id) {
+        DB::beginTransaction();
+        try {
+            $gatepass = GatePass::where('id', $id)->first();
+
+            if (!$gatepass) {
+                return response()->json(['message' => 'Gate pass not found.'], 404);
+            }
+            if ($gatepass->user_id !== auth()->id()) {
+                return response()->json(['message' => 'You can only edit a gate pass you requested yourself.'], 403);
+            }
+            if ($gatepass->confirmed_at !== null || $gatepass->rejected_at !== null || $gatepass->revoked_at !== null) {
+                return response()->json(['message' => 'This gate pass can no longer be edited.'], 400);
+            }
+            if ($gatepass->edited_at !== null) {
+                return response()->json(['message' => 'You have already used your one edit for this gate pass.'], 400);
+            }
+
+            GatePassRevision::create([
+                'gate_pass_id' => $id,
+                'reason' => $gatepass->reason,
+                'created_at' => now(),
+            ]);
+
+            $gatepass->update([
+                'reason' => $request->reason,
+                'edited_at' => now(),
+            ]);
+
+            ActionLog::create([
+                'user_id' => auth()->id(),
+                'action_type' => 'gatepass',
+                'details' => 'edits their own gatepass request',
+            ]);
+
+            DB::commit();
+            return response()->json(self::getGatePass(auth()->id()));
+        } catch (Exception $x) {
+            DB::rollBack();
+            return response()->json(['message' => $x->getMessage()], 400);
         }
     }
 
@@ -219,20 +313,35 @@ class GatePassController extends Controller
         return auth()->user()->role == 'sub_admin';
     }
     public function getAllGatePassRequest() {
-        return GatePassResource::collection(GatePass::with(['user.profile', 'user.program'])
+        return GatePassResource::collection(GatePass::with(['user.profile', 'user.program', 'user.enrollments'])
                        ->where('confirmed_at', NULL)
+                       ->whereNull('archived_at')
                        ->latest('created_at')
+                       ->get());
+    }
+    public function getAllRejectedGatePass() {
+        return GatePassResource::collection(GatePass::with(['user.profile', 'user.program', 'user.enrollments'])
+                       ->whereNotNull('rejected_at')
+                       ->latest('rejected_at')
+                       ->get());
+    }
+    public function getAllRevokedGatePass() {
+        return GatePassResource::collection(GatePass::with(['user.profile', 'user.program', 'user.enrollments'])
+                       ->whereNotNull('revoked_at')
+                       ->latest('revoked_at')
                        ->get());
     }
     public function getAllGatePass() {
 
-    return User::with(['profile'])
+    return User::with(['profile', 'program', 'enrollments'])
         ->whereHas('gatepass', function ($q) {
             $q->whereNotNull('confirmed_at')
+            ->whereNull('archived_at')
             ->where('date_expiration', '>=', now());
         })
         ->with(['gatepass' => function ($q) {
             $q->whereNotNull('confirmed_at')
+            ->whereNull('archived_at')
             ->where('date_expiration', '>=', now())
             ->latest()
             ->limit(1);
@@ -241,19 +350,22 @@ class GatePassController extends Controller
             GatePass::select('confirmed_at')
                 ->whereColumn('gate_pass.user_id', 'users.id')
                 ->whereNotNull('confirmed_at')
+                ->whereNull('archived_at')
                 ->where('date_expiration', '>=', now())
                 ->latest()
                 ->limit(1)
         );
     }
     public function getGatePassExpired() {
-        return User::with(['profile'])
+        return User::with(['profile', 'program', 'enrollments'])
         ->whereHas('gatepass', function ($q) {
             $q->whereNotNull('confirmed_at')
+            ->whereNull('archived_at')
             ->where('date_expiration', '<=', now());
         })
         ->with(['gatepass' => function ($q) {
             $q->whereNotNull('confirmed_at')
+            ->whereNull('archived_at')
             ->where('date_expiration', '<=', now())
             ->latest()
             ->limit(1);
@@ -262,6 +374,7 @@ class GatePassController extends Controller
             GatePass::select('confirmed_at')
                 ->whereColumn('gate_pass.user_id', 'users.id')
                 ->whereNotNull('confirmed_at')
+                ->whereNull('archived_at')
                 ->where('date_expiration', '<=', now())
                 ->latest()
                 ->limit(1)

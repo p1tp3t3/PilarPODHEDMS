@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Referral;
 
+use App\Rules\EnrolledStudent;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreReferralRequest extends FormRequest
@@ -17,7 +18,7 @@ class StoreReferralRequest extends FormRequest
             'referrer_id' => 'nullable|integer|exists:users,id',
             'referral_reason' => 'required|string',
             'referred_students' => 'required|array|min:1',
-            'referred_students.*' => 'integer|exists:users,id',
+            'referred_students.*' => ['integer', 'exists:users,id', new EnrolledStudent],
         ];
     }
 

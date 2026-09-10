@@ -7,7 +7,7 @@ import ComplaintNotif from "../card/notif/complaint-notif"
 import GatePassNotif from "../card/notif/gatepass-notif"
 import NormalNotif from "../card/notif/normal-notif"
 import ReferralNotif from "../card/notif/referral-notif"
-import { toTitleCase } from "@/others/function"
+import { toTitleCase, parseNotifContent } from "@/others/function"
 import { motion } from "framer-motion"
 import { BellOff, Trash2 } from "lucide-react"
 
@@ -133,7 +133,7 @@ const NotificationList = ({
 }
 
 const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
-    const content = JSON.parse(obj.content.replace(/'/g, '"'))
+    const content = parseNotifContent(obj.content)
 
     const d = <ActionBtn 
                   className="hidden group-hover:block bg-red-600 hover:bg-red-700 absolute top-1/2 -translate-y-1/2 right-2 p-2"
@@ -196,6 +196,17 @@ const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
                        <GatePassNotif obj={obj} />
                        {(enableDel && !select) 
                        ? 
+                       d
+                       :
+                       (select)
+                       ? checkBox
+                       : ''}
+                   </NotificationWrapper>
+        case 'violation_access':
+            return <NotificationWrapper link={`/violation-management?tab=access-requests&id=${obj.id}`}>
+                       <NormalNotif obj={obj} />
+                       {(enableDel && !select)
+                       ?
                        d
                        :
                        (select)

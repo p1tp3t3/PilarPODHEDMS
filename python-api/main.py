@@ -1,7 +1,6 @@
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
-from webpush import WebPush
-from model_training.config_model import model_eivp
+from model_training.config_model import model_eivp, model_cca
 
 app = Flask(__name__)
 CORS(app)
@@ -13,7 +12,6 @@ def index():
 
 
 #------------------------------------------Model Routes-------------------------------------------
-"""
 @app.route('/python/violation/add', methods=['POST'])
 def add_violation():
     data = request.get_json()
@@ -40,6 +38,7 @@ def delete_violation():
         'message': 'Violation deleted successfully'
     })
 
+
 @app.route('/python/complaint/context', methods=['POST'])
 def analyze_complaint_context():
     data = request.get_json()
@@ -52,7 +51,7 @@ def analyze_complaint_context():
     return jsonify({
         'data': results
     })
-"""
+    
 @app.route('/python/model/data/append', methods=['POST'])
 def append_logistic_test_data():
     data = request.get_json()
@@ -63,6 +62,14 @@ def append_logistic_test_data():
     return jsonify({
         'status': 'success',
         'message': 'Test data appended successfully'
+    })
+
+@app.route('/python/model/train', methods=['POST'])
+def train_model():
+    model_eivp.train_model(True)
+    return jsonify({
+        'status': 'success',
+        'message': 'Model trained successfully'
     })
 
 @app.route('/python/model/predict', methods=['POST'])
@@ -83,77 +90,6 @@ def incident_risk():
     
 #------------------------------------------------------------------------------------------------------
 
-
-#------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------
-
-
-#------------------------------------------Push Notification Route-------------------------------------------
-    
-@app.route('/python/webpush', methods=['POST'])
-def push_notification():
-    json_data = request.get_json()
-    data = {
-        'title': json_data.get('title'),
-        'body': json_data.get('body'),
-        'icon': json_data.get('icon'),
-        'url': json_data.get('url')
-    }
-    errors = []
-    sub = json_data.get('subscription')
-    
-    for s in sub:
-        wp = WebPush(data, s['endpoint'], s['public_key'], s['auth'])
-        errors.append(wp.push())
-    
-    print(errors)
-    return jsonify({'status': 'success', 'message': 'Data received', 'errors': errors }) 
-
-
-@app.route('/python/webpush/check-subscription-expiration', methods=['POST'])
-def check_expiration():
-    data = request.get_json()
-    if not data or "list" not in data:
-        return jsonify({
-            "status": "error",
-            "message": "Missing 'list'"
-        }), 400
-
-    endpoints = data["list"]
-    print(endpoints)
-    results = []
-
-    for item in endpoints:
-        endpoint = item.get("endpoint")
-        p256dh = item.get("public_key")
-        auth = item.get("auth")
-
-        if not endpoint or not p256dh or not auth:
-            results.append({
-                "endpoint": endpoint,
-                "status": "invalid",
-                "message": "Missing subscription keys"
-            })
-            continue
-
-        # Instance of WebPush for this record
-        wp = WebPush(
-            data={"title": "", "body": "", "icon": "", "url": ""},
-            endpoint=endpoint,
-            public_key=p256dh,
-            auth=auth
-        )
-
-        # Check expiration
-        result = wp.check_expired_subscription(endpoint)
-        results.append(result)
-        
-        print(result)
-    return jsonify({
-        "status": "success",
-        "results": results
-    })
-    
 #------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
     app.run(debug=True, port=5032)

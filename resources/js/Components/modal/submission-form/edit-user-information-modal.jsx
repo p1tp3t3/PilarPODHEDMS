@@ -256,7 +256,7 @@ const EditUserInfoModal = (props) => {
                     {userType != 'itrc' &&
                     <div className="grid gap-3">
                         <div><h1><b>Accessibility</b></h1></div>
-                        <div className="text-[0.9em]">
+                        <div className="text-[0.9em] flex flex-wrap items-center gap-x-6 gap-y-1">
                             {showUserAccessibility().map((e, i) =>
                                 <CheckBoxButton.CheckBox
                                     key={e.val}

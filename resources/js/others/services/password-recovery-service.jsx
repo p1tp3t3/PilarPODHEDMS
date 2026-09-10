@@ -5,12 +5,12 @@ export const PasswordRecoveryService = {
         const api = new APIRequest(`/contact/${username}`, "post", {}, setter, success, error);
         api.fetchData();
     },
-    recover(data, success, error) {
-        const api = new APIRequest("/forgot-password/recover", "post", data, () => {}, success, error);
+    sendLink(username, success, error) {
+        const api = new APIRequest("/forgot-password/send-link", "post", { username }, () => {}, success, error);
         api.sendPostData();
     },
-    resendOtp(pin, type, username) {
-        const api = new APIRequest("/forgot-password/otp", "post", { pin, type, username });
+    reset(username, new_password, success, error) {
+        const api = new APIRequest(`/reset-password/${username}`, "post", { new_password }, () => {}, success, error);
         api.sendPostData();
     },
 };

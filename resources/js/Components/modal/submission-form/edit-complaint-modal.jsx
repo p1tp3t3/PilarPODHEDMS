@@ -12,11 +12,24 @@ import PicVidUpload from "@/Components/input/pic-vid-upload"
 import ProfilePic from "@/Components/other/profile-pic"
 import { X } from "lucide-react"
 
+const safeParseArray = (value) => {
+    if (Array.isArray(value)) return value
+    if (typeof value !== 'string' || value === '') return []
+    try {
+        const parsed = JSON.parse(value)
+        return Array.isArray(parsed) ? parsed : []
+    } catch {
+        return []
+    }
+}
+
 const EditComplaintModal = (props) => {
     const [search, setSearch] = useState(""),
           [selectedStudents, setSelectedStudents] = useState([]),
           [incident, setIncident] = useState(''),
           [description, setDescription] = useState(''),
+          [existingEvidence, setExistingEvidence] = useState([]),
+          [originalEvidenceFiles, setOriginalEvidenceFiles] = useState([]),
 
           [picture_list, setPictureList] = useState([]),
           [req_picture_list, setReqPictureList] = useState([]),
@@ -33,11 +46,20 @@ const EditComplaintModal = (props) => {
             )
             setIncident(props.data.incident_id ?? '')
             setDescription(props.data.complaint_description ?? '')
+            const visibleEvidence = safeParseArray(props.data.complaint_evidences).filter((e) => !e.hidden)
+            setExistingEvidence(visibleEvidence)
+            setOriginalEvidenceFiles(visibleEvidence.map((e) => e.file))
             setPictureList([])
             setReqPictureList([])
             setValidationError({ subject: '', reason: '' })
         }
     }, [props.close, props.data])
+
+    // "Removing" existing evidence only hides it going forward — it's a log,
+    // the file/record itself is never deleted (see updateComplaint()).
+    const removeExistingEvidence = (file) => {
+        setExistingEvidence((prev) => prev.filter((e) => e.file !== file))
+    }
 
     const handleSearch = (e) => setSearch(e.target.value)
 
@@ -70,6 +92,9 @@ const EditComplaintModal = (props) => {
         selectedStudents.forEach((s, i) => f.append(`student_subjects[${i}]`, s.id))
         f.append('complaint_description', description)
         f.append('incident_id', incident)
+        const keptFiles = existingEvidence.map((e) => e.file)
+        const hiddenFiles = originalEvidenceFiles.filter((file) => !keptFiles.includes(file))
+        f.append('hidden_evidence_files', JSON.stringify(hiddenFiles))
         req_picture_list.forEach((file, index) => f.append(`evidence[${index}]`, file))
 
         showWarningModal(
@@ -189,13 +214,20 @@ const EditComplaintModal = (props) => {
                         />
 
                         <div className="grid gap-2">
-                            <div className="text-[0.9em] font-semibold">Add More Evidence (Optional)</div>
+                            <div className="text-[0.9em] font-semibold">Evidence (Optional)</div>
                             <PicVidUpload
                                 type='pic'
                                 label="5 JPEG or PNG File Only"
                                 multiple={true}
                                 def='Upload Pics Here Up To 2MB'
                                 fileList={picture_list}
+                                existingList={existingEvidence.map((e) => ({
+                                    key: e.file,
+                                    type: e.type,
+                                    src: `/complaint/${props.data.id}/evidence/${e.file}`,
+                                    href: `/complaint/${props.data.id}/evidence/${e.file}`,
+                                }))}
+                                onRemoveExisting={removeExistingEvidence}
                                 name='pic_evidence'
                                 id='edit_pic_file'
                                 reqFileList={req_picture_list}

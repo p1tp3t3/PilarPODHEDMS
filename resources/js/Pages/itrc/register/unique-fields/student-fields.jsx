@@ -2,13 +2,6 @@ import DropdownField from "@/Components/input/dropdown";
 import FormTextfield from "@/Components/input/form-input";
 
 const StudentFields = ({ data, handleChange, selectionVal, validationErr }) => {
-    const currentYear = new Date().getFullYear() - 1;
-    const schoolYears = Array.from({ length: 5 }, (_, i) => {
-        const start = currentYear + i;
-        const end = start + 1;
-        return { val: `${start}-${end}`, label: `${start}-${end}` };
-    });
-
     return (
         <>
         <div className="flex flex-col sm:flex-row gap-3 w-full">
@@ -32,11 +25,11 @@ const StudentFields = ({ data, handleChange, selectionVal, validationErr }) => {
         <div className="flex flex-col sm:flex-row gap-3 w-full">
             <DropdownField
                 default={{ val: "", label: "Select School Year" }}
-                val={data.school_year}
+                val={data.school_year_id}
                 onChange={handleChange}
-                list={schoolYears}
-                name="school_year"
-                error={validationErr.school_year}
+                list={selectionVal[4]}
+                name="school_year_id"
+                error={validationErr.school_year_id}
             />
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full">

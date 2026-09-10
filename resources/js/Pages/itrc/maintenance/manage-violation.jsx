@@ -5,7 +5,7 @@ import { DataGrid } from "@mui/x-data-grid";
 import { Box } from "@mui/material";
 import { router } from "@inertiajs/react";
 
-const ManageViolation = ({ list, events, reload, setter }) => {
+const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditRow = true, canDelete = true }) => {
     const deleteViolation = (e) => {
         showWarningModal(
             "Are You Sure You Want To Delete " + e.violation_name + "?",
@@ -31,6 +31,7 @@ const ManageViolation = ({ list, events, reload, setter }) => {
         <div className="flex-1 min-w-0 overflow-y-auto">
 
             {/* Toolbar */}
+            {canAdd && (
             <div className="flex justify-end mb-4">
                 <button
                     className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full sm:w-auto"
@@ -39,6 +40,12 @@ const ManageViolation = ({ list, events, reload, setter }) => {
                     Add Violation
                 </button>
             </div>
+            )}
+            {(!canAdd || !canEditRow || !canDelete) && (
+                <div className="mb-4 text-[0.85em] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-4 py-2">
+                    You need prefect-approved access to add, edit, or delete violations. Request it from the Edit Access tab.
+                </div>
+            )}
 
             {/* DATA TABLE */}
             <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm overflow-x-auto">
@@ -151,18 +158,22 @@ const ManageViolation = ({ list, events, reload, setter }) => {
                                             >
                                                 View
                                             </ActionBtn>
+                                            {canEditRow && (
                                             <ActionBtn
                                                 className="bg-blue-600 hover:bg-blue-700"
                                                 onClick={() => events[0]("violation", "edit", row)}
                                             >
                                                 Edit
                                             </ActionBtn>
+                                            )}
+                                            {canDelete && (
                                             <ActionBtn
                                                 className="bg-red-600 hover:bg-red-700"
                                                 onClick={() => deleteViolation(row)}
                                             >
                                                 Delete
                                             </ActionBtn>
+                                            )}
                                         </div>
                                     ),
                                 },

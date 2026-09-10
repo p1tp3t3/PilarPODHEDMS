@@ -21,10 +21,11 @@ class ForceAccountSetup
      * Three steps, in order: verify email (Laravel's built-in signed-link
      * verification) → complete profile → set password. Profile completion
      * and the password change are submitted together as one atomic step
-     * (AccountSetupController::complete) — the profile-edit and password
-     * pages are both reachable once the email step is done, but every other
-     * route stays blocked until that combined submission succeeds and
-     * clears the session flag.
+     * (AccountSetupController::complete) — both the profile and password
+     * steps are rendered by the same page at /force-change/{username} (the
+     * password step is a local, in-page view change after the profile step,
+     * not a separate route), but every other route stays blocked until
+     * that combined submission succeeds and clears the session flag.
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
@@ -54,8 +55,7 @@ class ForceAccountSetup
         }
 
         $allowed = [
-            "/profile/{$user->username}/edit",
-            "/settings/{$user->username}",
+            "/force-change/{$user->username}",
             '/account-setup/complete',
             '/api/password/verify',
             '/log-out',
@@ -67,6 +67,6 @@ class ForceAccountSetup
             }
         }
 
-        return Inertia::location("/profile/{$user->username}/edit");
+        return Inertia::location("/force-change/{$user->username}");
     }
 }

@@ -5,6 +5,18 @@ import SelectedUser from "@/Components/other/selected-user"
 import { getProfilePic, readableDate, readableTime, toTitleCase } from "@/others/function"
 import CircleReload from "@/Components/reload/circle-reload"
 import { Link } from "@inertiajs/react"
+import { History } from "lucide-react"
+
+const safeParseArray = (value) => {
+    if (Array.isArray(value)) return value
+    if (typeof value !== 'string' || value === '') return []
+    try {
+        const parsed = JSON.parse(value)
+        return Array.isArray(parsed) ? parsed : []
+    } catch {
+        return []
+    }
+}
 
 const ViewReferralModal = (props) => {
     const [data, setData] = useState(null),
@@ -82,6 +94,36 @@ const Body = ({ data }) => {
                     <p>{data.reason_description}</p>
                 </div>
             </div>
+
+            {data.edited_at && data.revisions?.length > 0 && (() => {
+                const previous = data.revisions[0]
+                const previousStudents = safeParseArray(previous.students)
+                return (
+                    <div className="rounded-xl border border-amber-200 bg-white p-4">
+                        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                            <History size={18} className="text-gray-400" />
+                            Previous Version (Before Edit)
+                        </h2>
+                        <div className="grid gap-3 text-sm">
+                            <div>
+                                <span className="text-gray-500">Referred Student(s): </span>
+                                <span className="text-gray-800 font-medium">
+                                    {previousStudents.length !== 0
+                                        ? previousStudents.map((s) => `${s.first_name ?? ''} ${s.last_name ?? ''}`.trim()).filter(Boolean).join(', ')
+                                        : '—'}
+                                </span>
+                            </div>
+                            <div>
+                                <div className="text-gray-500 mb-1">Reason:</div>
+                                <div className="rounded-md bg-amber-50/60 p-3 text-gray-700 h-24 overflow-y-auto">{previous.reason_description}</div>
+                            </div>
+                            <div className="text-[0.75em] text-gray-400">
+                                Edited on {readableDate(data.edited_at)} ({readableTime(data.edited_at)})
+                            </div>
+                        </div>
+                    </div>
+                )
+            })()}
         </div>
     )
 }

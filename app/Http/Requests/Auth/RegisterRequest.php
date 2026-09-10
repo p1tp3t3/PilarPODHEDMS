@@ -22,7 +22,10 @@ class RegisterRequest extends FormRequest
     public function rules(): array
     {
         $fields = [
-            'role' => 'required|in:student,super_admin,sub_admin,teaching_staff,non_teaching_staff,parent,guard,guidance',
+            // "guard"/"guidance" aren't real roles — they're
+            // non_teaching_staff positions, and the users.role column's
+            // enum would reject an INSERT of either literal value.
+            'role' => 'required|in:student,super_admin,sub_admin,teaching_staff,non_teaching_staff,parent',
         ];
         return (request()->has('file') ? array_merge($fields, [
             'file' => 'required|file',

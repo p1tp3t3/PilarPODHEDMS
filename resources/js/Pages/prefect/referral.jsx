@@ -11,6 +11,7 @@ import { useReload } from "@/context-provider/reload-provider"
 import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
 import { showOutputModal, showWarningModal } from "@/others/function"
+import { ArchiveService } from "@/others/services/archive-service"
 
 const PrefectReferral = (props) => {
     const MySwal = withReactContent(Swal)
@@ -46,7 +47,31 @@ const PrefectReferral = (props) => {
             confirm = false,
             label = '',
             btn = ''
-            
+
+        if (type === 'archive') {
+            showWarningModal(
+                'Are You Sure You Want To Archive This Referral?',
+                'Archive Referral',
+                'Cancel',
+                () => {
+                    loadRegister(true, "text-wait", "Archiving Referral")
+                    ArchiveService.transfer(
+                        'referral', id,
+                        () => {
+                            showOutputModal('Referral Archived Successfully', 's', () => {
+                                loadRegister(false)
+                                window.location.reload()
+                            })
+                        },
+                        () => {
+                            showOutputModal('Failed to Archive Referral', 'e', () => loadRegister(false))
+                        }
+                    )
+                }
+            )
+            return
+        }
+
         switch(type) {
             case 'confirm':
                 route = `/referral/verify/${id}/confirm`

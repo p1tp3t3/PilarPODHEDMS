@@ -23,11 +23,14 @@ class AbsenceResource extends JsonResource
             'rejected_reason' => $this->rejected_reason,
             'rejected_at' => $this->rejected_at,
             'confirmed_at' => $this->confirmed_at,
+            'edited_at' => $this->edited_at,
+            'revoked_at' => $this->revoked_at,
             'date_from' => $this->date_from,
             'date_to' => $this->date_to,
             'archived_at' => $this->archived_at,
             'created_at' => $this->created_at,
             'user' => $this->whenLoaded('user'),
+            'revisions' => $this->whenLoaded('revisions'),
         ];
     }
 }

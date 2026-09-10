@@ -13,6 +13,16 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Trusts the loopback interface as a proxy so requests forwarded by
+        // the local Vite dev server (used to route a single ngrok tunnel to
+        // both Vite and Laravel) carry X-Forwarded-Proto through correctly —
+        // otherwise Laravel thinks every tunneled request is plain HTTP and
+        // generates http:// URLs (route(), url(), asset()) on an https page,
+        // which browsers block as mixed content.
+        if(env('APP_ENV') === 'local' && env('NGROK_URL')) {
+            $middleware->trustProxies(at: [parse_url(env('NGROK_URL'), PHP_URL_HOST)]);
+        }
+
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
@@ -29,6 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'children-monitoring-authorized' => \App\Http\Middleware\ChildrenMonitoringAuthorization::class,
 
             'role' => \App\Http\Middleware\RoleAuthenticable::class,
+            'violation-edit-authorized' => \App\Http\Middleware\EnsureViolationEditAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

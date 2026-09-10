@@ -1,18 +1,17 @@
 import ViewGatePassModal from "@/Components/modal/view/view-gatepass-modal"
-import CircleReload from "@/Components/reload/circle-reload"
 import NotifDisplayLayout from "@/Layouts/notif-display-layout"
-import { useEffect, useState } from "react"
+import { DoorOpen } from "lucide-react"
+import NotifDetailCard from "@/Components/other/notif-detail-card"
+import { parseNotifContent } from "@/others/function"
 
 const GatePassNotification = (props) => {
-    const content = JSON.parse(props.notif.content.replace(/'/g, '"'))
-        
+    const content = parseNotifContent(props.notif.content)
+
 
     return (
-            <div className="min-h-screen bg-gray-100 flex justify-center py-10 px-4">
-                <div className="bg-white shadow rounded-lg w-[35rem] p-6">
-                    <ViewGatePassModal.Body data={content['gatepass']} />
-                </div>
-            </div>
+        <NotifDetailCard icon={DoorOpen} tone="default" title="Gate Pass">
+            <ViewGatePassModal.Body data={content['gatepass']} />
+        </NotifDetailCard>
     )
 }
 

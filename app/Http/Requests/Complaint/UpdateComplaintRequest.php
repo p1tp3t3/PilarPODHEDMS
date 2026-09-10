@@ -20,6 +20,7 @@ class UpdateComplaintRequest extends FormRequest
             'student_subjects.*' => 'integer|exists:users,id',
             'evidence' => 'nullable|array',
             'evidence.*' => 'nullable|file|max:10240',
+            'hidden_evidence_files' => 'nullable|string',
         ];
     }
 }

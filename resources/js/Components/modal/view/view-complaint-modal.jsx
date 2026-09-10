@@ -20,6 +20,7 @@ import {
     ClipboardList,
     Undo2,
     FileText,
+    History,
 } from "lucide-react"
 
 const ViewComplaintModal = (props) => {
@@ -102,9 +103,23 @@ const Stat = ({ icon: Icon, label, value }) => (
     </div>
 )
 
+// Defensive against non-string/malformed values from the backend (a bad
+// JSON.parse here throws synchronously during render and blanks the whole
+// page) — always resolves to an array, never throws.
+const safeParseArray = (value) => {
+    if (Array.isArray(value)) return value
+    if (typeof value !== 'string' || value === '') return []
+    try {
+        const parsed = JSON.parse(value)
+        return Array.isArray(parsed) ? parsed : []
+    } catch {
+        return []
+    }
+}
+
 const Body = ({ data, usr }) => {
-    const evidences = data.complaint_evidences ? JSON.parse(data.complaint_evidences) : []
-    const contextAnalysis = data.context_analysis ? JSON.parse(data.context_analysis) : []
+    const evidences = safeParseArray(data.complaint_evidences)
+    const contextAnalysis = safeParseArray(data.context_analysis)
     const complainantName = toTitleCase(data.user != null ? data.user.profile?.first_name : data.complainant_name)
 
     return (
@@ -136,6 +151,53 @@ const Body = ({ data, usr }) => {
                     {data.revoked_at &&
                     <Stat icon={Undo2} label="Revoked Since" value={`${readableDate(data.revoked_at)} (${readableTime(data.revoked_at)})`} />}
                 </div>
+
+                {data.edited_at && data.revisions?.length > 0 && (() => {
+                    const previous = data.revisions[0]
+                    const previousSubjects = safeParseArray(previous.subjects)
+                    const previousEvidences = safeParseArray(previous.complaint_evidences)
+                    return (
+                        <Section icon={History} title="Previous Version (Before Edit)" tone="border-amber-200">
+                            <div className="grid gap-3 text-sm">
+                                <div>
+                                    <span className="text-gray-500">Incident: </span>
+                                    <span className="text-gray-800 font-medium">{previous.incident ? toTitleCase(previous.incident) : '—'}</span>
+                                </div>
+                                <div>
+                                    <span className="text-gray-500">Subject(s): </span>
+                                    <span className="text-gray-800 font-medium">
+                                        {previousSubjects.length !== 0
+                                            ? previousSubjects.map((s) => `${s.first_name ?? ''} ${s.last_name ?? ''}`.trim()).filter(Boolean).join(', ')
+                                            : '—'}
+                                    </span>
+                                </div>
+                                <div>
+                                    <div className="text-gray-500 mb-1">Reason:</div>
+                                    <div className="rounded-md bg-amber-50/60 p-3 text-gray-700 h-24 overflow-y-auto">{previous.complaint_description}</div>
+                                </div>
+                                {previousEvidences.length !== 0 &&
+                                <div>
+                                    <div className="text-gray-500 mb-1">Evidence:</div>
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                                        {previousEvidences.map((e, i) => {
+                                            const src = `/complaint/${data.id}/previous-evidence/${e.file}`
+                                            return (
+                                                <a key={i} href={src} target="_blank" rel="noreferrer" className="block rounded-lg overflow-hidden border border-gray-200 hover:border-gray-300">
+                                                    {e.type === 'vid'
+                                                    ? <video src={src} className="w-full h-20 object-cover" />
+                                                    : <img src={src} className="w-full h-20 object-cover" alt={`Previous evidence ${i + 1}`} />}
+                                                </a>
+                                            )
+                                        })}
+                                    </div>
+                                </div>}
+                                <div className="text-[0.75em] text-gray-400">
+                                    Edited on {readableDate(data.edited_at)} ({readableTime(data.edited_at)})
+                                </div>
+                            </div>
+                        </Section>
+                    )
+                })()}
 
                 {data.rejected_reason != null &&
                 <Section icon={FileWarning} title="Reason for Rejection" tone="border-red-200">

@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Enrollment;
+use App\Models\SchoolYear;
 use App\Models\User;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -52,8 +53,10 @@ class ProcessStudentAccountUpdate implements ShouldQueue
             'activate' => $activate
         ]);
 
+        $schoolYearId = SchoolYear::where('year', $this->schoolYear)->value('id');
+
         Enrollment::where('student_id', $student->id)
-            ->where('school_year', $this->schoolYear)
+            ->where('school_year_id', $schoolYearId)
             ->update([
                 'status' => $activate ? 'enrolled' : 'dropped',
                 'dropped_at' => $activate ? null : now(),

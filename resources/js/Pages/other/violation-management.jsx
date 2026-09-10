@@ -6,10 +6,18 @@ import ManagePenalty from "../itrc/maintenance/manage-penalty";
 import SetPenaltyModal from "@/Components/modal/submission-form/set-penalty-modal";
 import TabSwitcher from "@/Components/other/tab-switcher";
 import StudentViolationList from "@/Components/list/student-violation-list";
+import ViolationAccessRequests from "../itrc/maintenance/violation-access-requests";
 import { useReload } from "@/context-provider/reload-provider";
+import { ViolationAccessService } from "@/others/services/violation-access-service";
 
 const ViolationManagement = (props) => {
-    const [activeTab, setActiveTab] = useState('violations'),
+    const isSuperAdmin = props.user?.role === 'super_admin';
+    const [access, setAccess] = useState(
+        isSuperAdmin
+            ? { violation: { add: false, edit: false, delete: false }, penalty: { add: false, delete: false } }
+            : { violation: { add: true, edit: true, delete: true }, penalty: { add: true, delete: true } }
+    );
+    const [activeTab, setActiveTab] = useState(new URLSearchParams(window.location.search).get('tab') ?? 'violations'),
           [penalty, openPenalty] = useState(false),
           [violation, openViolation] = useState(false),
           [action, setAction] = useState("create"),
@@ -19,6 +27,12 @@ const ViolationManagement = (props) => {
           [clickedOk, setClickOk] = useState(false);
 
     const { loadRegister, setReload, setOnClose } = useReload();
+
+    useEffect(() => {
+        if (isSuperAdmin) {
+            ViolationAccessService.getStatus((data) => setAccess(data.has_access));
+        }
+    }, []);
 
     useEffect(() => {
         setOnClose(() => (e) => {
@@ -81,7 +95,8 @@ const ViolationManagement = (props) => {
                             tabs={[
                                 { key: "violations", label: "Manage Violations" },
                                 { key: "penalty", label: "Manage Penalties" },
-                                { key: "student-violations", label: "Student Violations" },
+                                ...(isSuperAdmin ? [] : [{ key: "student-violations", label: "Student Violations" }]),
+                                { key: "access-requests", label: isSuperAdmin ? "Edit Access" : "Access Requests" },
                             ]}
                             value={activeTab}
                             onChange={setActiveTab}
@@ -96,6 +111,9 @@ const ViolationManagement = (props) => {
                                     setter={setViolationList}
                                     reload={loadRegister}
                                     events={[openActionModal]}
+                                    canAdd={access.violation.add}
+                                    canEditRow={access.violation.edit}
+                                    canDelete={access.violation.delete}
                                 />
                             )}
 
@@ -106,13 +124,19 @@ const ViolationManagement = (props) => {
                                     setter={setPenaltyList}
                                     reload={loadRegister}
                                     events={[openActionModal]}
+                                    canAdd={access.penalty.add}
+                                    canDelete={access.penalty.delete}
                                 />
                             )}
 
-                            {activeTab === "student-violations" && (
+                            {activeTab === "student-violations" && !isSuperAdmin && (
                                 <div className="grid gap-4">
                                     <StudentViolationList list={props.student_violation_list} />
                                 </div>
+                            )}
+
+                            {activeTab === "access-requests" && (
+                                <ViolationAccessRequests user={props.user} />
                             )}
                         </div>
                     </div>

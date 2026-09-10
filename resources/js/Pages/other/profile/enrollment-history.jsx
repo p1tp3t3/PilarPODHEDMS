@@ -22,7 +22,7 @@ const EnrollmentHistory = ({ enrollments = [] }) => {
                             >
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                     <span className="font-semibold text-gray-800">
-                                        {e.school_year} {e.semester ? `· ${e.semester} Semester` : ''}
+                                        {e.school_year?.year} {e.semester ? `· ${e.semester} Semester` : ''}
                                     </span>
                                     <span className="text-gray-600">
                                         {e.status ? toTitleCase(replaceUnderScoreToSpace(e.status)) : 'N/A'}

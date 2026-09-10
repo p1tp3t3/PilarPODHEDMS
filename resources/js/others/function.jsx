@@ -7,6 +7,25 @@ import { PushNotificationService } from "./services/push-notification-service";
 const MySwal = withReactContent(Swal)
 const cryptoKey = 'gh4mdvcf'
 
+// Notification `content` is normally real JSON (json_encode on the backend),
+// but some legacy rows were written with single-quoted pseudo-JSON that a
+// blind `.replace(/'/g, '"')` used to "fix" — which corrupts real JSON the
+// moment an interpolated value (a name) legitimately contains an apostrophe.
+// Try real JSON first; only fall back to the quote-swap for old rows, and
+// never throw either way.
+export const parseNotifContent = (raw) => {
+    if (typeof raw !== 'string' || raw === '') return {}
+    try {
+        return JSON.parse(raw)
+    } catch {
+        try {
+            return JSON.parse(raw.replace(/'/g, '"'))
+        } catch {
+            return {}
+        }
+    }
+}
+
 
 export const showProgressBar = (label, percent) =>  {
     const Toast = Swal.mixin({
@@ -206,8 +225,9 @@ export function toTitleCase(str) {
             .join(" ");
 }
 export function readableDate(d) {
+    if (!d) return "N/A"
     const date = new Date(d)
-    
+
     return date.toLocaleDateString("en-US", {
         year: "numeric",
         month: "short",
@@ -215,6 +235,7 @@ export function readableDate(d) {
     })
 }
 export function readableTime(t) {
+    if (!t) return "N/A"
     const date = new Date(t.replace(" ", "T"));
 
     let hours = date.getHours();
@@ -448,8 +469,12 @@ export const decryptData = (en) => {
 
 export const showUserType = (user, showParentRole) => {
     switch(user.role) {
-        case 'student':
-            return `Student`
+        case 'student': {
+            const latestEnrollment = user.enrollments?.[user.enrollments.length - 1]
+            const programName = user.program?.name ?? latestEnrollment?.program?.name
+            const yearLevel = latestEnrollment?.year_level ? getYearLevel(latestEnrollment.year_level) : null
+            return [programName, yearLevel].filter(Boolean).join(" • ") || "Student"
+        }
         case 'parent':
             return `${(showParentRole) ? `${toTitleCase(user.parent.parent_role)}` : 'Parent'}`
         case 'teaching_staff':
@@ -459,11 +484,7 @@ export const showUserType = (user, showParentRole) => {
         case 'super_admin':
             return `System Admin`
         case 'non_teaching_staff':
-            return `Staff`
-        case 'guard':
-            return `Guard`
-        case 'guidance':
-            return `Guidance`
+            return user.non_teaching_staff?.position ?? `Staff`
         case 'sub_admin':
             return `Prefect of Discipline`
     }

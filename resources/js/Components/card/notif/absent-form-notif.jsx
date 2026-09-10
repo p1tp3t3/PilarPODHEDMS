@@ -1,5 +1,5 @@
 import NotificationWrapper from "@/wrapper/notif-wrapper"
-import { readableDate, readableTime, toTitleCase } from "@/others/function"
+import { readableDate, readableTime, toTitleCase, parseNotifContent } from "@/others/function"
 import AuthContext from "@/context-provider/auth-provider"
 import { useContext } from "react"
 import { FileText } from "lucide-react"
@@ -7,7 +7,7 @@ import { FileText } from "lucide-react"
 const AbsentFormNotif = ({  obj }) => {
     const { usr } = useContext(AuthContext)
 
-    const content = JSON.parse(obj.content.replace(/'/g, '"'))
+    const content = parseNotifContent(obj.content)
     const date = readableDate(obj.created_at),
           time = readableTime(obj.created_at)
 

@@ -45,9 +45,10 @@ class ProfileAuthorization
             'super_admin'        => ['super_admin', 'sub_admin', 'teaching_staff', 'student', 'parent'],
             'teaching_staff'     => ['teaching_staff', 'super_admin', 'sub_admin', 'student'],
             'parent'             => ['parent', 'student', 'super_admin', 'sub_admin'],
+            // "guard"/"guidance" aren't separate roles — every
+            // non_teaching_staff position (including those two) shares this
+            // one entry, since $authRole can only ever be the literal role.
             'non_teaching_staff' => ['non_teaching_staff', 'super_admin', 'sub_admin'],
-            'guard'              => ['guard', 'super_admin', 'sub_admin'],
-            'guidance'           => ['guidance', 'super_admin', 'sub_admin', 'student'],
         ];
 
         return isset($allowedRoles[$authRole]) && in_array($targetRole, $allowedRoles[$authRole]);

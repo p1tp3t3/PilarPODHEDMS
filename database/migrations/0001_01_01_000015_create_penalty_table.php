@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('penalty', function (Blueprint $table) {
             $table->id();
-            $table->decimal('ref_number', 10, 2);
+            $table->decimal('ref_number', 10, 1);
             $table->string('name');
             $table->text('description');
             $table->timestamp('created_at')->useCurrent();

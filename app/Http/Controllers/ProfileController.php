@@ -34,6 +34,18 @@ class ProfileController extends Controller
     ];
     private $src, $id;
 
+    // Lets search results link to a profile by id instead of exposing
+    // username (treated as sensitive) in search API responses.
+    public function redirectById($id) {
+        $username = User::where('id', $id)->value('username');
+
+        if (!$username) {
+            abort(404, 'User not found.');
+        }
+
+        return redirect("/profile/{$username}");
+    }
+
     public function index($id) {
         $account = new User();
 
@@ -442,7 +454,7 @@ class ProfileController extends Controller
                                 'school_address' => self::isKeyUndefined($educationBackground, 'tr_college_school_address'),
                                 'year_graduated' => self::isKeyUndefined($educationBackground, 'tr_college_year_graduated'),
                                 'program' => self::isKeyUndefined($educationBackground, 'tr_college_program'),
-                                'date_attended' => self::isKeyUndefined($educationBackground, 'tr_date_last_attended'),
+                                'date_attended' => self::isKeyUndefined($educationBackground, 'date_last_attended'),
                                 'transferee' => 1,
                                 'year_level' => self::isKeyUndefined($educationBackground, 'year_level'),
                                ]);

@@ -6,6 +6,7 @@ import { Card, CardActionArea, CardContent, Box, Typography, Tooltip } from "@mu
 const ACCENT_COLORS = {
     "text-blue-700": { bg: "bg-blue-100", text: "text-blue-700" },
     "text-green-700": { bg: "bg-green-100", text: "text-green-700" },
+    "text-amber-700": { bg: "bg-amber-100", text: "text-amber-700" },
 };
 const DEFAULT_ACCENT = { bg: "bg-blue-100", text: "text-blue-600" };
 

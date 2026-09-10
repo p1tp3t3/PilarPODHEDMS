@@ -115,7 +115,9 @@ class AuthenticatedSessionController extends Controller
             // default profile and password — these roles must complete both
             // before using the rest of the app. Driven off a session flag
             // (checked by ForceAccountSetup), not re-derived on every request.
-            $forcedRoles = ['student', 'teaching_staff', 'non_teaching_staff', 'guard', 'guidance'];
+            // "guard"/"guidance" aren't separate roles — every
+            // non_teaching_staff position is already covered by that entry.
+            $forcedRoles = ['student', 'teaching_staff', 'non_teaching_staff'];
             if (in_array($user->role, $forcedRoles, true) && (!$user->already_update_profile || !$user->already_update_password)) {
                 $request->session()->put('force_account_setup', true);
 

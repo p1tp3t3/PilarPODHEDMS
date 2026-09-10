@@ -1,5 +1,5 @@
 import { DataGrid } from '@mui/x-data-grid'
-import { getProfilePic, readableDate, readableTime, toTitleCase } from "@/others/function"
+import { getProfilePic, readableDate, readableTime, showUserType } from "@/others/function"
 import ProfilePic from "../other/profile-pic"
 import ActionBtn from "../button/action-btn"
 import Box from '@mui/material/Box'
@@ -11,12 +11,13 @@ const GatePassList = (props) => {
             id: e.gatepass?.[0]?.id ?? i,
             index: i + 1,
             fullName: `${e.profile?.first_name || ""} ${e.profile?.last_name || ""}`,
-            userType: toTitleCase(e.role),
+            userType: showUserType(e),
             profile_picture: e.profile?.profile_picture,
             sex: e.profile?.sex,
             requested: e.gatepass?.[0]?.created_at,
             confirmed: e.gatepass?.[0]?.confirmed_at,
             expiration: e.gatepass?.[0]?.date_expiration,
+            archived_at: e.gatepass?.[0]?.archived_at,
         }))
         : []
 
@@ -78,14 +79,25 @@ const GatePassList = (props) => {
             field: 'action',
             headerName: 'Action',
             sortable: false,
-            width: 120,
+            width: 220,
             renderCell: (params) => (
-                <ActionBtn
-                    className="bg-blue-700 hover:bg-blue-800"
-                    onClick={() => props.view(params.row.id)}
-                >
-                    View
-                </ActionBtn>
+                <div className="flex gap-2 items-center h-full">
+                    <ActionBtn
+                        className="bg-blue-700 hover:bg-blue-800"
+                        onClick={() => props.view(params.row.id)}
+                    >
+                        View
+                    </ActionBtn>
+
+                    {props.events && !params.row.archived_at && (
+                        <ActionBtn
+                            className="bg-amber-600 hover:bg-amber-700"
+                            onClick={() => props.events(params.row.id, "archive")}
+                        >
+                            Archive
+                        </ActionBtn>
+                    )}
+                </div>
             )
         }
     ]
@@ -93,7 +105,6 @@ const GatePassList = (props) => {
     return (
         <Box
             sx={{
-                height: 500,
                 width: '100%',
                 backgroundColor: '#fff',
                 borderRadius: 2,
@@ -112,6 +123,9 @@ const GatePassList = (props) => {
                     }}
                     pagination
                     disableRowSelectionOnClick
+                    getRowHeight={() => 'auto'}
+                    showToolbar
+                    localeText={{ noRowsLabel: 'No Gate Pass Records Found' }}
                     sx={{
                         border: 'none',
                         '& .MuiDataGrid-columnHeaders': {

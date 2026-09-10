@@ -12,10 +12,10 @@ use App\Models\Appointment;
 use App\Models\Complaint;
 use App\Models\ComplaintSubjectViolation;
 use App\Models\ComplaintSubject;
-use App\Models\Enrollment;
 use App\Models\GatePass;
 use App\Models\Program;
 use App\Models\Report;
+use App\Models\SchoolYear;
 use App\Models\User;
 use App\Models\Violation;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -34,7 +34,7 @@ class ReportController extends Controller
                                             'student_id',
                                             DB::raw('COUNT(*) as total_offenses')
                                         )
-                                        ->with(['user.profile', 'user.program']) 
+                                        ->with(['user.profile', 'user.program', 'user.enrollments'])
                                         ->whereHas('complaint', function ($q) {
                                             $q->where('complaint_status', 'resolved');
                                         })
@@ -140,7 +140,7 @@ class ReportController extends Controller
             'incident_list' => $incidentList,
             'programs' => Program::all(['id', 'name']),
             'students' => User::with(['profile', 'program'])->where('role', 'student')->get(),
-            'school_years' => Enrollment::select('school_year')->distinct()->orderByDesc('school_year')->pluck('school_year'),
+            'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
             'violation_program' => $data,
             'tardy_report' => Absence::with(['user.profile', 'user.program', 'user.enrollments'])
                             ->whereNotNull('confirmed_at')
@@ -257,7 +257,7 @@ class ReportController extends Controller
                                             'student_id',
                                             DB::raw('COUNT(*) as total_offenses')
                                         )
-                                        ->with(['user.profile', 'user.program'])
+                                        ->with(['user.profile', 'user.program', 'user.enrollments'])
                                         ->whereHas('complaint', function ($q) {
                                             $q->where('complaint_status', 'resolved');
                                         })

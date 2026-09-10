@@ -2,7 +2,8 @@ import NotifDisplayLayout from "@/Layouts/notif-display-layout"
 import { useEffect, useState } from "react"
 import ViewComplaintModal from "@/Components/modal/view/view-complaint-modal"
 import { ComplaintService } from "@/others/services/complaint-service"
-import CircleReload from "@/Components/reload/circle-reload"
+import { AlertTriangle } from "lucide-react"
+import NotifDetailCard, { NotifEmptyState, NotifLoadingState } from "@/Components/other/notif-detail-card"
 
 const ComplaintNotification = (props) => {
     const [data, setData] = useState(null)
@@ -12,26 +13,17 @@ const ComplaintNotification = (props) => {
         ComplaintService.getComplaintInfo(id, setData)
     }, [])
     return  (
-            <div className="py-8">
-                <div className="py-8 px-10 bg-white">
-                    {data != null
-                    ?
-                    (data != '')
-                    ?
-                    <ViewComplaintModal.Body data={data} usr={props.user} />
-                    :
-                    <div className="text-[1.2em] text-gray-500 w-full grid place-items-center h-full">
-                        <div className="grid place-items-center">
-                            <div className="text-[4em]">
-                                <i className="fa-solid fa-circle-exclamation"></i>
-                            </div>
-                            <h1 className="text-[1.2em]">No Complaint Found</h1>
-                        </div>
-                    </div>
-                    :
-                    <CircleReload size={5} />}
-                </div>
-            </div>
+            data != null
+            ?
+            (data != '')
+            ?
+            <NotifDetailCard icon={AlertTriangle} tone="default" title="Complaint Details">
+                <ViewComplaintModal.Body data={data} usr={props.user} />
+            </NotifDetailCard>
+            :
+            <NotifEmptyState icon={AlertTriangle} message="No Complaint Found" />
+            :
+            <NotifLoadingState size={5} />
     )
 }
 

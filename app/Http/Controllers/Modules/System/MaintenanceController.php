@@ -70,7 +70,13 @@ class MaintenanceController extends Controller
             'violation' => $violations,
             'penalty' => Penalty::latest('created_at')->get(),
             'program' => Program::all(['id', 'name', 'color_code']),
-            'student_violation_list' => self::getStudentViolationList(),
+            // Super admin manages the violation/penalty catalog but doesn't
+            // get to see which students actually have violations — that's
+            // student disciplinary data, not system configuration. Don't
+            // even compute/send it for that role.
+            'student_violation_list' => auth()->user()->role === 'super_admin'
+                ? []
+                : self::getStudentViolationList(),
         ]);
     }
 
@@ -81,7 +87,7 @@ class MaintenanceController extends Controller
                     'offenses.violation',
                     'user.profile',
                     'user.program',
-                    'user.enrollments',
+                    'user.enrollments.schoolYear',
                     'user.teachingStaff.program',
                 ])
                 ->whereHas('complaint', function ($q) {
@@ -90,7 +96,12 @@ class MaintenanceController extends Controller
                 ->get()
                 ->groupBy(fn ($d) => $d->user->id)
                 ->map(function ($group) {
-                    $allOffenses = $group->flatMap(fn ($item) => $item->offenses);
+                    // ComplaintSubject::offenses() is only scoped by complaint_id (a
+                    // hasMany can't also be matched against the parent's own
+                    // student_id column) — must filter by student_id here too, or a
+                    // complaint with multiple student subjects double-counts every
+                    // other subject's offenses onto this one.
+                    $allOffenses = $group->flatMap(fn ($item) => $item->offenses->where('student_id', $item->student_id));
                     $majorCount = $allOffenses
                         ->filter(fn ($offense) => optional($offense->violation)->offense_status === 1)
                         ->count();
@@ -123,8 +134,22 @@ class MaintenanceController extends Controller
     public function programIndex() {
         return Inertia::render('itrc/program', [
             'user' => auth()->user(),
-            'program' => ProgramResource::collection(Program::latest('created_at')->get())
+            'program' => ProgramResource::collection(self::programsWithUserCount())
         ]);
+    }
+
+    /**
+     * users_count = enrolled students + teaching staff, the same "in use"
+     * definition destroyProgram() below already checks before allowing a delete.
+     */
+    private static function programsWithUserCount()
+    {
+        return Program::withCount([
+                'enrollments as students_count' => fn ($q) => $q->where('status', 'enrolled'),
+                'teachingStaff as teaching_staff_count',
+            ])
+            ->latest('created_at')
+            ->get();
     }
     public function programUsersIndex($id) {
         $program = Program::with('programHead.user.profile')->findOrFail($id);
@@ -221,7 +246,7 @@ class MaintenanceController extends Controller
 
         Log::info("ZIP CREATED SUCCESSFULLY", ['zipPath' => $zipPath]);
 
-        return ProgramResource::collection(Program::latest('created_at')->get());
+        return ProgramResource::collection(self::programsWithUserCount());
     }
     public function updateProgram(UpdateProgramRequest $request)
     {
@@ -270,7 +295,7 @@ class MaintenanceController extends Controller
             rename($oldStudent, $newStudent);
         }
 
-        return ProgramResource::collection(Program::latest('created_at')->get());
+        return ProgramResource::collection(self::programsWithUserCount());
     }
 
     public function destroyProgram(DestroyProgramRequest $request)
@@ -305,7 +330,7 @@ class MaintenanceController extends Controller
         if (file_exists($facultyFile)) unlink($facultyFile);
         if (file_exists($studentZip)) unlink($studentZip);
 
-        return ProgramResource::collection(Program::latest('created_at')->get());
+        return ProgramResource::collection(self::programsWithUserCount());
     }
 
 

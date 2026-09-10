@@ -1,8 +1,8 @@
-import { readableDate, readableTime, toTitleCase } from "@/others/function"
+import { readableDate, readableTime, toTitleCase, parseNotifContent } from "@/others/function"
 import { TriangleAlert } from "lucide-react"
 
 const ComplaintNotif = ({ obj }) => {
-    const content = JSON.parse(obj.content.replace(/'/g, '"'))
+    const content = parseNotifContent(obj.content)
 
     const date = readableDate(obj.created_at),
           time = readableTime(obj.created_at)

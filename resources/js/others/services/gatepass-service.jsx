@@ -18,4 +18,12 @@ export const GatePassService = {
         api.setSetter(setter);
         api.fetchData();
     },
+    revoke(id, setter, success, error) {
+        const api = new APIRequest(`/gatepass/${id}/revoke`, "post", {}, setter, success, error);
+        api.fetchData();
+    },
+    update(id, reason, setter, success, error) {
+        const api = new APIRequest(`/gatepass/${id}/edit`, "post", { reason }, setter, success, error);
+        api.fetchData();
+    },
 };

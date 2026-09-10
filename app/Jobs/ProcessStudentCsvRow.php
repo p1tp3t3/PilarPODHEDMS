@@ -10,6 +10,7 @@ use App\Models\EducationBackground;
 use App\Models\Enrollment;
 use App\Models\Profile;
 use App\Models\Program;
+use App\Models\SchoolYear;
 use App\Models\Student;
 use App\Models\User;
 use App\Models\UserPermission;
@@ -108,11 +109,13 @@ class ProcessStudentCsvRow implements ShouldQueue
                 get_user_access_field([], 'student')
             );
 
+            $schoolYearId = SchoolYear::where('year', $row['school_year'])->value('id');
+
             Enrollment::updateOrInsert(
                 [
                     'student_id' => $user->id,
                     'program_id' => $program->id,
-                    'school_year' => $row['school_year'],
+                    'school_year_id' => $schoolYearId,
                 ],
                 [
                     'semester' => $row['semester'] ?? 1,

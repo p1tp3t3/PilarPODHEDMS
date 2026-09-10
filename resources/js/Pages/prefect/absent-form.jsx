@@ -11,8 +11,10 @@ import { router } from "@inertiajs/react"
 import NoteAbsentFormModal from "@/Components/modal/submission-form/note-absent-form-modal"
 import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
-import { showWarningModal } from "@/others/function"
+import { showWarningModal, showOutputModal } from "@/others/function"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
+import { ArchiveService } from "@/others/services/archive-service"
+import { List, CheckCircle2, XCircle, Ban, Undo2 } from "lucide-react"
 
 const PrefectAbsentForm = (props) => {
     const MySwal = withReactContent(Swal)
@@ -30,13 +32,17 @@ const PrefectAbsentForm = (props) => {
     })
 
     const option = [
-        { key: 'req-current', label: 'Submitted Absent Forms' },
-        { key: 'noted', label: 'Noted Absent Forms' }
+        { key: 'req-current', label: 'Pending', icon: List },
+        { key: 'noted', label: 'Noted', icon: CheckCircle2 },
+        { key: 'expired', label: 'Expired', icon: XCircle },
+        { key: 'rejected', label: 'Rejected', icon: Ban },
+        { key: 'revoked', label: 'Revoked', icon: Undo2 },
     ]
 
     const handleOption = (type) => {
+        setLstOption(type)
         const url = window.location.pathname
-        router.visit(`${url}?status=${type === 'req-current' ? 'req-current' : 'noted'}`)
+        router.visit(`${url}?status=${type}`)
     }
 
     const setEvents = (i, type) => {
@@ -52,6 +58,28 @@ const PrefectAbsentForm = (props) => {
             case 'view':
                 setId(i)
                 openViewAbsentForm(true)
+                break
+            case 'archive':
+                showWarningModal(
+                    'Are You Sure You Want To Archive This Absent Form?',
+                    'Archive Absent Form',
+                    'Cancel',
+                    () => {
+                        loadRegister(true, "text-wait", "Archiving Absent Form")
+                        ArchiveService.transfer(
+                            'absent form', i,
+                            () => {
+                                showOutputModal('Absent Form Archived Successfully', 's', () => {
+                                    loadRegister(false)
+                                    window.location.reload()
+                                })
+                            },
+                            () => {
+                                showOutputModal('Failed to Archive Absent Form', 'e', () => loadRegister(false))
+                            }
+                        )
+                    }
+                )
                 break
         }
     }

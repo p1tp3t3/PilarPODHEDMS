@@ -9,7 +9,6 @@ import { ProfileService } from "@/others/services/profile-service";
 import About from "./profile/about";
 import Incident from "./profile/incident";
 import EnrollmentHistory from "./profile/enrollment-history";
-import RegisterFamilyModal from "@/Components/modal/submission-form/register-family-modal";
 import AuthLayout from "@/Layouts/auth-layout";
 import TabSwitcher from "@/Components/other/tab-switcher";
 import { motion } from "framer-motion";
@@ -43,10 +42,6 @@ const Profile = (props) => {
     };
 
     const [tab, setTab] = useState('about'),
-          [familyRegistration, openFamilyRegistration] = useState(false),
-          [familyData, setFamilyData] = useState({
-              family_name: props.user.profile?.last_name
-          }),
           [updatedData, setUpdatedData] = useState({});
 
     const otherProfile = props.otherUserProfile.profile ?? {};
@@ -94,7 +89,7 @@ const Profile = (props) => {
         allow_appointment: props.otherUserProfile.permissions?.allow_appointment,
         allow_gatepass: props.otherUserProfile.permissions?.allow_gatepass
     };
-    
+
     const { data, setData, post, processing, errors } = useForm(profileData);
     const [close, closeEditProfile] = useState(false),
           [clickedOk, setClickOk] = useState(false);
@@ -106,7 +101,7 @@ const Profile = (props) => {
     const { loadRegister } = useReload();
     const handleChange = (e) => change(e, setData);
     const handleProfileChange = (e) => setData(prev => ({ ...prev, profile_picture: e }));
-    
+
     const isProfileFieldEmpty = () => (
         props.user.profile?.profile_picture == null &&
         props.user.profile?.current_address == 'place,city,province,zipcode' &&
@@ -122,14 +117,13 @@ const Profile = (props) => {
         switch (t) {
             case "about":
                 return (
-                    <About 
+                    <About
                         user={props.user}
-                        data={profileData} 
+                        data={profileData}
                         data2={data}
                         setData={setData}
-                        family={family} 
-                        educationBackground={educationBackground} 
-                        openFamilyRegistration={openFamilyRegistration}
+                        family={family}
+                        educationBackground={educationBackground}
                     />
                 );
             case "incidents":
@@ -202,7 +196,7 @@ const Profile = (props) => {
     const error = () => {
         showOutputModal(
             `Failed to Update ${(isAllowToEdit() ? `${profileData.first_name}'s` : 'Your')} Profile. Please Try Again`,
-            "e", 
+            "e",
             () => {
                 loadRegister(false);
             }
@@ -310,7 +304,7 @@ const EditProfileAccountBtn = ({
                     {user.role === "student" ? (
                         <Link href={`/profile/${user.username}/edit`}>
                             <button
-                                className="flex items-center gap-2 px-5 py-2.5 
+                                className="flex items-center gap-2 px-5 py-2.5
                                            rounded-full bg-green-600 text-white font-medium
                                            shadow-md hover:bg-green-700 transition-all"
                             >
@@ -321,7 +315,7 @@ const EditProfileAccountBtn = ({
                     ) : (
                         <button
                             onClick={() => closeEditProfile(!close)}
-                            className="flex items-center gap-2 px-5 py-2.5 
+                            className="flex items-center gap-2 px-5 py-2.5
                                        rounded-full bg-green-600 text-white font-medium
                                        shadow-md hover:bg-green-700 transition-all"
                         >

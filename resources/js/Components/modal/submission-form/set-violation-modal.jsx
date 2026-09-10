@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import FormButton from "@/Components/button/button"
 import { ViolationService } from "@/others/services/violation-service"
 import RadioButton from "@/Components/input/radio"
+import { Select, MenuItem } from "@mui/material"
 
 const SetViolationModal = (props) => {
     const action = props.action || "add"
@@ -228,20 +229,22 @@ const SetViolationModal = (props) => {
 
                                         {occ.list.map((p, pIndex) => (
                                             <div key={pIndex} className="flex items-center gap-2 mb-2">
-                                                <select
-                                                    className="border p-2 rounded w-full text-[0.9em]"
+                                                <Select
+                                                    size="small"
+                                                    fullWidth
                                                     value={p.penalty_id}
                                                     onChange={(e) =>
                                                         handlePenaltyChange(occIndex, pIndex, e.target.value)
                                                     }
+                                                    sx={{ '& .MuiOutlinedInput-root, &.MuiOutlinedInput-root': { borderRadius: '8px', fontSize: '0.85em' } }}
                                                 >
-                                                    <option value="">(Optional) Select Penalty</option>
+                                                    <MenuItem value="">(Optional) Select Penalty</MenuItem>
                                                     {props.penalty.map(opt => (
-                                                        <option key={opt.id} value={opt.id}>
+                                                        <MenuItem key={opt.id} value={opt.id}>
                                                             {opt.ref_number != null ? `${opt.ref_number} — ${toTitleCase(opt.description)}` : toTitleCase(opt.description)}
-                                                        </option>
+                                                        </MenuItem>
                                                     ))}
-                                                </select>
+                                                </Select>
 
                                                 {pIndex === 0 ? (
                                                     <button

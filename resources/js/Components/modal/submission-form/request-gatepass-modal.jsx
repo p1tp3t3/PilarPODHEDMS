@@ -61,10 +61,11 @@ const RequestGatePassModal = (props) => {
         )
     }
     const error = (e) => {
-        const m = e.response.data.mesage
+        const errors = e.response?.data?.errors
+        const m = errors ? Object.values(errors)[0]?.[0] : e.response?.data?.message
         props.reload(true, '')
         showOutputModal(
-            m,
+            m || 'There was an error. Please try again.',
             'e',
             () => {
                 props.reload(false)

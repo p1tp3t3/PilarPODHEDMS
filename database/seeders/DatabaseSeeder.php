@@ -23,6 +23,8 @@ class DatabaseSeeder extends Seeder
             ViolationSeeder::class,
             StudentSeeder::class,
             TeachingStaffSeeder::class,
+            NonTeachingStaffSeeder::class,
+            FamilySeeder::class,
             ComplaintSeeder::class,
             ReferralSeeder::class,
             AbsenceSeeder::class,
@@ -34,7 +36,6 @@ class DatabaseSeeder extends Seeder
     private function refresh_storage() {
         $private_folders = [
             storage_path('app/private/complaints'),
-            storage_path('app/private/user-profile'),
             storage_path('app/private/absent-forms'),
             storage_path('app/private/referrals'),
             storage_path('app/private/zips'),

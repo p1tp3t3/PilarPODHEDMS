@@ -13,11 +13,13 @@ import { router } from "@inertiajs/react"
 import SearchUserBar from "@/Components/input/search-user-bar"
 import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
-import { change, showWarningModal } from "@/others/function"
+import { change, showWarningModal, showOutputModal } from "@/others/function"
+import { ArchiveService } from "@/others/services/archive-service"
+import { ReportArchiveService } from "@/others/services/report-archive-service"
 import ActionBtn from "@/Components/button/action-btn"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
 import IssueViolationModal2 from "@/Components/modal/submission-form/issue-violation-modal2"
-import { List, PauseCircle, RotateCw } from "lucide-react"
+import { List, PauseCircle, RotateCw, XCircle, Undo2 } from "lucide-react"
 
 const PrefectComplaint = (props) => {
   const url = new URLSearchParams(window.location.search)
@@ -53,6 +55,8 @@ const PrefectComplaint = (props) => {
     { key: "all", label: "All Complaints", icon: List },
     { key: "pending", label: "Pending", icon: PauseCircle },
     { key: "ongoing", label: "Ongoing", icon: RotateCw },
+    { key: "rejected", label: "Rejected", icon: XCircle },
+    { key: "revoked", label: "Revoked", icon: Undo2 },
   ];
 
 
@@ -95,6 +99,67 @@ const PrefectComplaint = (props) => {
               case 'cancel':
                   setId2(id)
                   openRejectReason(true)
+                  break
+              case 'revoke':
+                  showWarningModal(
+                      'Are You Sure You Want To Revoke This Complaint?',
+                      'Revoke Complaint',
+                      'Cancel',
+                      () => {
+                          loadRegister(true, "text-wait", "Revoking Complaint")
+                          ComplaintService.revoke(
+                              id,
+                              setter,
+                              () => loadRegister(true, "success", "Complaint Revoked Successfully"),
+                              () => loadRegister(true, "error", "Failed to Revoke Complaint")
+                          )
+                      }
+                  )
+                  break
+              case 'reinstate':
+                  showWarningModal(
+                      'Are You Sure This Complaint Deserves Another Look? It Will Be Reinstated As Ongoing.',
+                      'Approve Rejected Complaint',
+                      'Cancel',
+                      () => {
+                          loadRegister(true, "text-wait", "Reinstating Complaint")
+                          ReportArchiveService.recover(
+                              id, 'complaint',
+                              () => {},
+                              () => {
+                                  showOutputModal('Complaint Reinstated Successfully', 's', () => {
+                                      loadRegister(false)
+                                      window.location.reload()
+                                  })
+                              },
+                              () => {
+                                  showOutputModal('Failed to Reinstate Complaint', 'e', () => loadRegister(false))
+                              }
+                          )
+                      }
+                  )
+                  break
+              case 'archive':
+                  showWarningModal(
+                      'Are You Sure You Want To Archive This Complaint?',
+                      'Archive Complaint',
+                      'Cancel',
+                      () => {
+                          loadRegister(true, "text-wait", "Archiving Complaint")
+                          ArchiveService.transfer(
+                              'complaint', id,
+                              () => {
+                                  showOutputModal('Complaint Archived Successfully', 's', () => {
+                                      loadRegister(false)
+                                      window.location.reload()
+                                  })
+                              },
+                              () => {
+                                  showOutputModal('Failed to Archive Complaint', 'e', () => loadRegister(false))
+                              }
+                          )
+                      }
+                  )
                   break
           }
       }
@@ -330,6 +395,7 @@ const PrefectComplaint = (props) => {
                 <ComplaintList
                   type="prefect"
                   list={complaintList}
+                  user={props.user}
                   setId={setId}
                   select={select}
                   select2={select2}

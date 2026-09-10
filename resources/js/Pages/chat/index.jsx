@@ -4,12 +4,23 @@ import { Head } from "@inertiajs/react"
 import ProfilePic from "@/Components/other/profile-pic"
 import { getProfilePic, readableDate, readableTime, toTitleCase, showWarningModal } from "@/others/function"
 import { ChatService } from "@/others/services/chat-service"
+import { UserService } from "@/others/services/user-service"
 import { Broadcast } from "@/others/classes/broadcast-cofiguration"
-import { Send, MessageCircle, Reply, X, Check, CheckCheck, Trash2, Pencil, History } from "lucide-react"
+import { Send, MessageCircle, Reply, X, Check, CheckCheck, Trash2, Pencil, History, ArrowLeft, MoreVertical, Search } from "lucide-react"
+import { Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material"
+
+// Only admins (prefect/itrc) can message any user — canChat() on the
+// backend treats sub_admin/super_admin identically as the "hub" in a
+// hub-and-spoke model, so only they get a broad search; everyone else's
+// contacts are always just the admin(s), already fully listed.
+const isAdminRole = (role) => role === 'sub_admin' || role === 'super_admin'
 
 const Chat = ({ user, contacts: initialContacts }) => {
     const [contacts, setContacts] = useState(initialContacts || [])
     const [activeId, setActiveId] = useState(null)
+    const [search, setSearch] = useState("")
+    const [searchResults, setSearchResults] = useState(null)
+    const canSearch = isAdminRole(user.role)
     const [messages, setMessages] = useState([])
     const [body, setBody] = useState("")
     const [sending, setSending] = useState(false)
@@ -17,6 +28,9 @@ const Chat = ({ user, contacts: initialContacts }) => {
     const [editingMessage, setEditingMessage] = useState(null)
     const [historyMessageId, setHistoryMessageId] = useState(null)
     const [historyData, setHistoryData] = useState(null)
+    // Anchored actions menu — replaces hover-to-reveal (no hover on touch
+    // devices) with an always-visible button that opens a menu next to it.
+    const [actionMenu, setActionMenu] = useState(null) // { anchorEl, message } | null
     const bottomRef = useRef(null)
     const activeIdRef = useRef(activeId)
     const messageRefs = useRef({})
@@ -100,11 +114,56 @@ const Chat = ({ user, contacts: initialContacts }) => {
         ).configure('enable chat edit')
     }, [])
 
+    // Search: check existing contacts (already-messaged users) first, with
+    // no API call at all — only fall back to the backend search when
+    // nothing local matches, and that call itself is cached in
+    // localStorage (UserService.search) so re-typing the same query never
+    // sends a repeat request.
+    useEffect(() => {
+        if (!canSearch) return
+
+        const q = search.trim().toLowerCase()
+        if (q === '') {
+            setSearchResults(null)
+            return
+        }
+
+        const localMatches = contacts.filter((c) => {
+            const name = `${c.profile?.first_name ?? ''} ${c.profile?.last_name ?? ''}`.toLowerCase()
+            return name.includes(q) || c.id_number?.toLowerCase().includes(q)
+        })
+
+        if (localMatches.length > 0) {
+            setSearchResults(localMatches)
+            return
+        }
+
+        const timeout = setTimeout(() => {
+            UserService.search('/api/all-users/all-2', search, (data) => {
+                setSearchResults(Array.isArray(data) ? data : [])
+            })
+        }, 500)
+
+        return () => clearTimeout(timeout)
+    }, [search, contacts, canSearch])
+
     const active = contacts.find((c) => c.id === activeId)
 
-    const openContact = (id) => {
+    // `stub` is the raw user object from a search result — used only the
+    // first time someone not yet in `contacts` (found via search, not an
+    // existing conversation) is opened, so they appear in the list and a
+    // thread can start with them.
+    const openContact = (id, stub) => {
         setActiveId(id)
-        setContacts((prev) => prev.map((c) => c.id === id ? { ...c, unread_count: 0 } : c))
+        setContacts((prev) => {
+            if (prev.some((c) => c.id === id)) {
+                return prev.map((c) => c.id === id ? { ...c, unread_count: 0 } : c)
+            }
+            if (!stub) return prev
+            return [{ ...stub, unread_count: 0, last_message: null, last_message_at: null }, ...prev]
+        })
+        setSearch("")
+        setSearchResults(null)
     }
 
     const handleSend = (e) => {
@@ -206,8 +265,6 @@ const Chat = ({ user, contacts: initialContacts }) => {
             <Head title="Chat" />
             <style>{`
                 .chat-bubble-highlight { box-shadow: 0 0 0 2px #3b82f6; }
-                .chat-bubble-row .chat-reply-btn { visibility: hidden; }
-                .chat-bubble-row:hover .chat-reply-btn { visibility: visible; }
             `}</style>
             {historyMessageId != null && (
                 <div className="fixed inset-0 z-[200] bg-black/40 grid place-items-center px-4" onClick={() => setHistoryMessageId(null)}>
@@ -244,18 +301,38 @@ const Chat = ({ user, contacts: initialContacts }) => {
             <div className="w-full py-6">
                 <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm overflow-hidden" style={{ height: '75vh' }}>
                     <div className="grid grid-cols-1 sm:grid-cols-[18rem_1fr] h-full">
-                        <div className="border-r border-gray-200 overflow-y-auto">
+                        {/* Mobile: contact list and the active thread are two
+                            separate full-screen views (list until a contact
+                            is picked, then just the thread) — on sm+ both
+                            columns show side by side as normal. */}
+                        <div className={`border-r border-gray-200 overflow-y-auto ${active ? 'hidden sm:block' : ''}`}>
                             <div className="px-4 py-3 border-b border-gray-200">
                                 <h1 className="text-[1.1em] font-bold">Chat</h1>
                             </div>
-                            {contacts.length === 0
-                            ? <div className="p-4 text-sm text-gray-500">No contacts available.</div>
-                            : contacts.map((c) => {
+                            {canSearch && (
+                                <div className="px-3 py-2 border-b border-gray-200 relative">
+                                    <div className="relative">
+                                        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                                        <input
+                                            type="text"
+                                            value={search}
+                                            onChange={(e) => setSearch(e.target.value)}
+                                            placeholder="Search anyone..."
+                                            className="w-full border border-gray-300 rounded-full pl-8 pr-3 py-1.5 text-[0.8em] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                            {(searchResults ?? contacts).length === 0
+                            ? <div className="p-4 text-sm text-gray-500">
+                                {searchResults !== null ? 'No users found.' : 'No contacts available.'}
+                              </div>
+                            : (searchResults ?? contacts).map((c) => {
                                 const unread = c.unread_count > 0
                                 return (
                                 <button
                                     key={c.id}
-                                    onClick={() => openContact(c.id)}
+                                    onClick={() => openContact(c.id, c)}
                                     className={`w-full text-left px-4 py-3 flex items-center gap-3 border-b border-gray-100 hover:bg-gray-50 ${activeId === c.id ? 'bg-blue-50' : ''}`}
                                 >
                                     <ProfilePic src={getProfilePic(c.profile?.profile_picture, c.profile?.sex)} size={2.5} />
@@ -289,10 +366,18 @@ const Chat = ({ user, contacts: initialContacts }) => {
                             })}
                         </div>
 
-                        <div className="flex flex-col h-full min-h-0">
+                        <div className={`flex-col h-full min-h-0 ${active ? 'flex' : 'hidden sm:flex'}`}>
                             {active
                             ? <>
                                 <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveId(null)}
+                                        className="sm:hidden text-gray-500 hover:text-gray-800 shrink-0"
+                                        title="Back to contacts"
+                                    >
+                                        <ArrowLeft size={18} />
+                                    </button>
                                     <ProfilePic src={getProfilePic(active.profile?.profile_picture, active.profile?.sex)} size={2.2} />
                                     <div>
                                         <div className="text-[0.9em] font-semibold">
@@ -312,23 +397,7 @@ const Chat = ({ user, contacts: initialContacts }) => {
                                                 className={`chat-bubble-row flex items-center gap-2 transition-shadow rounded-2xl ${mine ? 'justify-end' : 'justify-start'}`}
                                             >
                                                 {mine && !m.unsent_at && (
-                                                    <div className="chat-reply-btn flex items-center gap-1.5 shrink-0">
-                                                        <button
-                                                            type="button"
-                                                            className="text-gray-400 hover:text-red-600"
-                                                            onClick={() => handleUnsend(m.id)}
-                                                            title="Unsend"
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            className="text-gray-400 hover:text-gray-700"
-                                                            onClick={() => startEdit(m)}
-                                                            title="Edit"
-                                                        >
-                                                            <Pencil size={14} />
-                                                        </button>
+                                                    <div className="flex items-center gap-1 shrink-0">
                                                         <button
                                                             type="button"
                                                             className="text-gray-400 hover:text-gray-700"
@@ -336,6 +405,14 @@ const Chat = ({ user, contacts: initialContacts }) => {
                                                             title="Reply"
                                                         >
                                                             <Reply size={15} />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="text-gray-400 hover:text-gray-700"
+                                                            onClick={(e) => setActionMenu({ anchorEl: e.currentTarget, message: m })}
+                                                            title="More actions"
+                                                        >
+                                                            <MoreVertical size={16} />
                                                         </button>
                                                     </div>
                                                 )}
@@ -374,7 +451,7 @@ const Chat = ({ user, contacts: initialContacts }) => {
                                                 {!mine && !m.unsent_at && (
                                                     <button
                                                         type="button"
-                                                        className="chat-reply-btn text-gray-400 hover:text-gray-700 shrink-0"
+                                                        className="text-gray-400 hover:text-gray-700 shrink-0"
                                                         onClick={() => { setEditingMessage(null); setReplyingTo(m) }}
                                                         title="Reply"
                                                     >
@@ -395,6 +472,27 @@ const Chat = ({ user, contacts: initialContacts }) => {
                                     )}
                                     <div ref={bottomRef} />
                                 </div>
+
+                                <Menu
+                                    anchorEl={actionMenu?.anchorEl}
+                                    open={!!actionMenu}
+                                    onClose={() => setActionMenu(null)}
+                                    anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                                    transformOrigin={{ vertical: 'top', horizontal: 'center' }}
+                                >
+                                    {actionMenu?.message.sender_id === user.id && (
+                                        <MenuItem onClick={() => { setActionMenu(null); handleUnsend(actionMenu.message.id) }}>
+                                            <ListItemIcon><Trash2 size={16} /></ListItemIcon>
+                                            <ListItemText>Unsend</ListItemText>
+                                        </MenuItem>
+                                    )}
+                                    {actionMenu?.message.sender_id === user.id && (
+                                        <MenuItem onClick={() => { setActionMenu(null); startEdit(actionMenu.message) }}>
+                                            <ListItemIcon><Pencil size={16} /></ListItemIcon>
+                                            <ListItemText>Edit</ListItemText>
+                                        </MenuItem>
+                                    )}
+                                </Menu>
 
                                 {editingMessage && (
                                     <div className="border-t border-gray-200 px-3 pt-2 flex items-start justify-between gap-2 bg-amber-50">

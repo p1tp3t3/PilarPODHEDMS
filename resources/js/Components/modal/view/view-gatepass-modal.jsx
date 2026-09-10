@@ -146,6 +146,11 @@ const Body = ({ data, handleSubmit, approved, setData2, data2, validationErr }) 
                 </h1>
             </div>
 
+            {/* Reference No. */}
+            <Section label="Reference No.">
+                {info.gatepass_number}
+            </Section>
+
             {/* User Section */}
             <Section label="User Information">
                 <ProfileSection title="" data={info.user} />

@@ -149,3 +149,17 @@ if (!function_exists('get_user_access_field')) {
         }
     }
 }
+
+if (!function_exists('archive_retention_date')) {
+    /**
+     * The date an archived record becomes eligible for deletion —
+     * config('app.archive_retention_years') years from now. Every place
+     * that archives a complaint/referral/absent-form/gate-pass/appointment
+     * should compute archived_at through this, not a hardcoded addYears(5),
+     * so changing the retention setting affects everything consistently.
+     */
+    function archive_retention_date(): \Carbon\Carbon
+    {
+        return now()->addYears((int) config('app.archive_retention_years', 5));
+    }
+}

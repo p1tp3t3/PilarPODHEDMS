@@ -29,7 +29,9 @@ import {
 export const sidebarPages = [
     {
         type: "link", id: "dashboard", href: "/dashboard", icon: LineChart, label: "Dashboard",
-        roles: ["super_admin", "sub_admin", "student", "teaching_staff", "non_teaching_staff", "parent", "guard", "guidance"],
+        // "guard"/"guidance" aren't separate roles — they're positions
+        // inside non_teaching_staff, already covered by that role entry.
+        roles: ["super_admin", "sub_admin", "student", "teaching_staff", "non_teaching_staff", "parent"],
     },
 
     // ---- super_admin (ITRC) ----
@@ -49,6 +51,7 @@ export const sidebarPages = [
         type: "dropdown", id: "system-administrator", icon: Settings, label: "System Administrator", roles: ["super_admin"],
         items: [
             { id: "system-settings", href: "/system-settings", icon: SlidersHorizontal, label: "System Settings" },
+            { id: "school-year", href: "/super-admin/school-year", icon: Calendar, label: "School Year" },
             { id: "maintenance", href: "/maintenance", icon: Wrench, label: "Maintenance" },
         ],
     },
@@ -58,7 +61,7 @@ export const sidebarPages = [
         type: "dropdown", id: "user-list", icon: User, label: "User List", roles: ["sub_admin"],
         items: [
             { id: "student-list", href: "/prefect/student-list", icon: GraduationCap, label: "Student List" },
-            { id: "family", href: "/prefect/family", icon: Users, label: "Family List" },
+            { id: "staff-list", href: "/prefect/staff-list", icon: UserRoundCog, label: "Staff List" },
         ],
     },
     {
@@ -75,10 +78,10 @@ export const sidebarPages = [
     { type: "link", id: "gatepass", href: "/prefect/gatepass", icon: FileText, label: "Gate-Pass", roles: ["sub_admin"] },
     { type: "link", id: "report", href: "/prefect/report", icon: BarChart3, label: "Reports", roles: ["sub_admin"] },
 
-    // ---- shared: complaint (student, teaching_staff, non_teaching_staff, guard, parent) ----
+    // ---- shared: complaint (student, teaching_staff, non_teaching_staff, parent) ----
     {
         type: "link", id: "complaint", href: "/complaint", icon: FileText, label: "Complaint",
-        roles: ["student", "teaching_staff", "non_teaching_staff", "guard", "parent"],
+        roles: ["student", "teaching_staff", "non_teaching_staff", "parent"],
     },
 
     // ---- student ----
@@ -104,8 +107,15 @@ export const sidebarPages = [
         roles: ["teaching_staff"], show: (usr) => usr.teaching_staff?.position === "program_head",
     },
 
-    // ---- guard ----
-    { type: "link", id: "gatepass", href: "/gatepass-verification", icon: FileText, label: "Gate Pass Verification", roles: ["guard"] },
+    // ---- non_teaching_staff: guard/guidance positions ----
+    {
+        type: "link", id: "gatepass", href: "/gatepass-verification", icon: FileText, label: "Gate Pass Verification",
+        roles: ["non_teaching_staff"], show: (usr) => usr.non_teaching_staff?.position === "Guard",
+    },
+    {
+        type: "link", id: "guidance/referral", href: "/guidance/referral", icon: FileText, label: "Referrals",
+        roles: ["non_teaching_staff"], show: (usr) => usr.non_teaching_staff?.position === "Guidance",
+    },
 
     // ---- parent ----
     { type: "link", id: "monitor", href: "/children/monitor", icon: Users, label: "Children Monitoring", roles: ["parent"] },

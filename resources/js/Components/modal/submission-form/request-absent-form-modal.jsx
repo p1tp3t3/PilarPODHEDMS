@@ -2,7 +2,7 @@ import UpModal from "../up-modal";
 import { change, showWarningModal, showOutputModal, toTitleCase } from "../../../others/function";
 import FormTextfield from "@/Components/input/form-input";
 import FormButton from "../../button/button";
-import RadioButton from "@/Components/input/radio";
+import CheckBoxButton from "@/Components/input/checkbox";
 import PicVidUpload from "@/Components/input/pic-vid-upload";
 import BetweenTextfield from "@/Components/input/between-input";
 import { useState } from "react";
@@ -49,11 +49,13 @@ const Body = ({ id, reload }) => {
     change(e, setData);
   };
 
-  // Handles radio button
-  const handleRadioChange = (e) => {
+  // Handles the reason checkboxes (multi-select)
+  const handleReasonCheck = (value) => (e) => {
     setData((prev) => ({
       ...prev,
-      absent_form_reason: [e.target.value],
+      absent_form_reason: e.target.checked
+        ? [...prev.absent_form_reason, value]
+        : prev.absent_form_reason.filter((r) => r !== value),
     }));
   };
 
@@ -213,13 +215,17 @@ const Body = ({ id, reload }) => {
         {/* === REASON === */}
         <div>
           <label className="text-[0.9em] font-bold">Reason*</label>
-          <div className="mt-2">
-            <RadioButton
-              list={reasons}
-              name="absent_form_reason"
-              val={data.absent_form_reason[0]}
-              change={handleRadioChange}
-            />
+          <div className="mt-2 grid gap-2">
+            {reasons.map((r) => (
+              <CheckBoxButton.CheckBox
+                key={r.value}
+                label={r.label}
+                name="absent_form_reason"
+                id={`absent_form_reason_${r.value}`}
+                checked={data.absent_form_reason.includes(r.value)}
+                change={handleReasonCheck(r.value)}
+              />
+            ))}
           </div>
 
           {validationError.absent_form_reason && (

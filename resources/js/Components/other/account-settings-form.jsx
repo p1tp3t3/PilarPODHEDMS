@@ -19,7 +19,7 @@ const PASSWORD_CACHE_KEY = "account-setup-password";
  * hidden and the password step is instead submitted together with the
  * profile step cached on the previous page (see AccountSetupController).
  */
-const AccountSettingsForm = ({ user, targetAccount, reload, forceAccountSetup = false }) => {
+const AccountSettingsForm = ({ user, targetAccount, reload, forceAccountSetup = false, onBackToProfile }) => {
     const isAdmin = user.role === "super_admin";
     const isEditingOwnAccount = targetAccount.id === user.id;
     const isForceSetup = forceAccountSetup && isEditingOwnAccount;
@@ -41,6 +41,7 @@ const AccountSettingsForm = ({ user, targetAccount, reload, forceAccountSetup = 
                 isEditingOwnAccount={isEditingOwnAccount}
                 reload={reload}
                 isForceSetup={isForceSetup}
+                onBackToProfile={onBackToProfile}
             />
         </div>
     );
@@ -158,7 +159,7 @@ const AccountInfoForm = ({ authUser, targetAccount, isAdmin, reload }) => {
     );
 };
 
-const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, reload, isForceSetup = false }) => {
+const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, reload, isForceSetup = false, onBackToProfile }) => {
     const [commonPasswordList, setCommonPasswordList] = useState([]);
     const cachedDraft = isForceSetup ? FormCache.load(PASSWORD_CACHE_KEY) : null;
     const [data, setData] = useState({
@@ -212,6 +213,12 @@ const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, r
                     last_name: targetAccount.profile?.last_name,
                     username: targetAccount.username,
                     email: targetAccount.email,
+                    // data.user_id (spread above) is targetAccount's numeric
+                    // DB id, not a string — validatePassword expects the
+                    // human-readable ID Number here (same meaning it has
+                    // everywhere else in this Validator class), so it's
+                    // overridden with the real id_number field.
+                    user_id: targetAccount.id_number,
                 },
                 err,
                 commonPasswordList
@@ -254,7 +261,11 @@ const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, r
             showOutputModal(
                 "Please complete your profile information first.",
                 "e",
-                () => router.visit(`/profile/${targetAccount.username}/edit`)
+                // Reached via the same page's step state (edit-profile-form.jsx)
+                // in the real forced-setup flow — the route-based fallback only
+                // matters if this component is ever reused somewhere that
+                // doesn't pass onBackToProfile.
+                () => onBackToProfile ? onBackToProfile() : router.visit(`/force-change/${targetAccount.username}`)
             );
             return;
         }

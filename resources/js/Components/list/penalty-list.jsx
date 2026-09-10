@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { DataGrid } from "@mui/x-data-grid"
+import Box from "@mui/material/Box"
 import ListSkeleton from "../reload/list-skeleton"
 import { toTitleCase } from "@/others/function"
 import { ViolationService } from "@/others/services/violation-service";
-import { Table, TableHead, TableBody, TableRow, TableCell } from "@mui/material"
+
 const PenaltyList = ({ list = null }) => {
     const [penaltyList, setPenaltyList] = useState(list);
 
@@ -14,50 +16,43 @@ const PenaltyList = ({ list = null }) => {
         ViolationService.getPenaltyList(setPenaltyList)
     }, []);
 
-    return (
-        <div className="w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm">
-            <Table sx={{ width: "100%" }}>
-                <TableHead>
-                    <TableRow>
-                        <TableCell sx={{ borderBottom: "1px solid #e5e7eb" }}>#</TableCell>
-                        <TableCell sx={{ borderBottom: "1px solid #e5e7eb" }}>Ref No.</TableCell>
-                        <TableCell sx={{ borderBottom: "1px solid #e5e7eb" }}>Penalty Name</TableCell>
-                    </TableRow>
-                </TableHead>
+    const rows = useMemo(() => {
+        if (!penaltyList) return []
+        return penaltyList.map((e, i) => ({
+            id: e.id ?? i,
+            i: i + 1,
+            ref_number: e.ref_number,
+            description: toTitleCase(e.description),
+        }))
+    }, [penaltyList])
 
-                <TableBody>
-                    {penaltyList ? (
-                        penaltyList.length !== 0 ? (
-                            penaltyList.map((e, i) => <Row key={i} i={i} data={e} />)
-                        ) : (
-                            <TableRow>
-                                <TableCell align="center" sx={{ py: 5, fontSize: "0.9em" }} colSpan={3}>
-                                    No Penalty Yet
-                                </TableCell>
-                            </TableRow>
-                        )
-                    ) : (
-                        <TableRow>
-                            <TableCell colSpan={3}>
-                                <div className="flex justify-center items-center w-full py-10 text-[0.9em]">
-                                    <ListSkeleton rows={3} />
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    )}
-                </TableBody>
-            </Table>
-        </div>
-    );
-};
+    const columns = useMemo(() => [
+        { field: "i", headerName: "#", width: 60 },
+        { field: "ref_number", headerName: "Ref No.", width: 140 },
+        { field: "description", headerName: "Penalty Name", flex: 1, minWidth: 200 },
+    ], [])
 
-const Row = ({ i, data }) => {
+    if (penaltyList === null) {
+        return (
+            <div className="w-full px-5 py-10 bg-white rounded-md shadow-black/20 shadow-sm flex justify-center">
+                <ListSkeleton rows={3} />
+            </div>
+        )
+    }
+
     return (
-        <TableRow>
-            <TableCell sx={{ fontSize: "0.9em" }}>{i + 1}.</TableCell>
-            <TableCell sx={{ fontSize: "0.9em" }}>{data.ref_number}</TableCell>
-            <TableCell sx={{ fontSize: "0.9em" }}>{toTitleCase(data.description)}</TableCell>
-        </TableRow>
+        <Box sx={{ width: "100%", backgroundColor: "#fff", borderRadius: 2, boxShadow: 1, p: 2, overflowX: "auto" }}>
+            <Box sx={{ minWidth: "500px" }}>
+                <DataGrid
+                    rows={rows}
+                    columns={columns}
+                    hideFooter
+                    disableRowSelectionOnClick
+                    showToolbar
+                    localeText={{ noRowsLabel: "No Penalty Yet" }}
+                />
+            </Box>
+        </Box>
     );
 };
 

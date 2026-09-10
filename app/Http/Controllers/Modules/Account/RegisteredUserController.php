@@ -14,6 +14,7 @@ use App\Models\FamilyMember;
 use App\Models\Parents;
 use App\Models\Profile;
 use App\Models\Program;
+use App\Models\SchoolYear;
 use App\Models\TeachingStaff;
 use App\Models\User;
 use App\Models\UserPermission;
@@ -47,7 +48,8 @@ class RegisteredUserController extends Controller
             'authType' => auth()->user()->role,
             'student' => $student->getAllStudent(),
             'program' => Program::select('id', 'name', 'description')->get(),
-            'program_name' => is_program_head()
+            'program_name' => is_program_head(),
+            'school_years' => SchoolYear::orderByDesc('year')->get(['id', 'year']),
         ]);
     }
 
@@ -58,81 +60,6 @@ class RegisteredUserController extends Controller
         ]);
     }
 
-    /**
-     * Handle an incoming registration request.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
-    public function familyStore(Request $request)
-    {
-        DB::beginTransaction();
-        try {
-            $familyName = auth()->user()->profile?->last_name ?? auth()->user()->username;
-            $parents = $request->parents;
-            $students = (isset($request->students) ? $request->students : []);
-            array_push($students, ['user_id' => auth()->user()->id]);
-            $updateParent = [];
-            $parentList = [];
-            $email = auth()->user()->email;
-
-
-            if(!empty($email)) {
-                $family = Family::create([
-                    'family_name' => $familyName
-                ]);
-
-                $lastId = $family->id;
-                $member = [];
-
-                foreach($parents as $parent) {
-                    $parentId = self::generateParentId();
-                    $name = $parent['first_name'] . ' ' . $parent['middle_name'] . ' ' . $parent['last_name'];
-                    $username = generate_username(preg_replace('/\s+/', '', $parent['first_name']));
-                    $password = random_int(100000000, 999999999);
-
-                    $updateParent = array_merge($parent,
-                        ['name' => $name,
-                        'id_number' => $parentId,
-                        'email' => $parentId . '@pczc.edu.ph',
-                        'role' => 'parent',
-                        'username' => $username,
-                        'password' => $password]
-                    );
-
-                    array_push($parentList, $updateParent);
-                    $updateParent = array_merge($updateParent, ['activate' => 0]);
-
-                    $updateParent = (object)$updateParent;
-                    self::createUser($updateParent);
-
-                    $parentUserId = User::where('id_number', $parentId)->value('id');
-
-                    array_push($member, [
-                        'family_id' => $lastId,
-                        'member_id' => $parentUserId,
-                    ]);
-                }
-
-                foreach($students as $child) {
-                    array_push($member, [
-                        'family_id' => $lastId,
-                        'member_id' => $child['user_id'],
-                    ]);
-                }
-                FamilyMember::insert($member);
-                if(!is_null($email)) Mail::to($email)->send(new ParentAccountMail($parentList));
-                DB::commit();
-                return response()->json(['message' => 'parent registered successfully']);
-            }
-        } catch(Exception $e) {
-            DB::rollBack();
-            Log::error('Family Registration Failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return response()->json(['message' => 'Error Processing Family Registration. Please Try Again', 'error' => $e->getMessage()], 500);
-        }
-
-
-        return response()->json(['message' => "Email is required. Please fill up your email."], 400);
-    }
     public function generateParentId()
     {
         $prefix = 'p';
@@ -280,7 +207,7 @@ class RegisteredUserController extends Controller
                     Enrollment::create([
                         'student_id' => $user->id,
                         'program_id' => $programId,
-                        'school_year' => $request->school_year,
+                        'school_year_id' => $request->school_year_id,
                         'semester' => $request->semester ?? 1,
                         'year_level' => $yearLevel,
                         'enrolled_at' => $request->enrolled_at ?? now(),
@@ -512,6 +439,14 @@ class RegisteredUserController extends Controller
         return response()->json(['rows' => $preview]);
     }
 
+    /** Re-validate a single row after the admin edits it in the review grid, before committing. */
+    public function validateStudentCsvRowRequest(Request $request)
+    {
+        $errors = self::validateStudentCsvRow($request->row ?? []);
+
+        return response()->json(['valid' => empty($errors), 'errors' => $errors]);
+    }
+
     /** Commit the reviewed rows: one queued job per student, batched, with live progress. */
     public function commitStudentCsv(Request $request)
     {
@@ -624,6 +559,8 @@ class RegisteredUserController extends Controller
             }
             if (!preg_match('/^\d{4}-\d{4}$/', $row['school_year'])) {
                 $errors[] = 'school_year must be YYYY-YYYY.';
+            } elseif (!\App\Models\SchoolYear::where('year', $row['school_year'])->exists()) {
+                $errors[] = "school_year '{$row['school_year']}' does not exist. Create it first in School Year Management.";
             }
             if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $row['enrolled_at']) || !strtotime($row['enrolled_at'])) {
                 $errors[] = 'enrolled_at must be a valid date in YYYY-MM-DD format.';
@@ -661,6 +598,8 @@ class RegisteredUserController extends Controller
 
                 if (!preg_match('/^\d{4}-\d{4}$/', $row['school_year'])) {
                     $rowErrors[$rowNum][] = "Row $rowNum: school_year must be YYYY-YYYY.";
+                } elseif (!\App\Models\SchoolYear::where('year', $row['school_year'])->exists()) {
+                    $rowErrors[$rowNum][] = "Row $rowNum: school_year '{$row['school_year']}' does not exist. Create it first in School Year Management.";
                 }
             }
         ],

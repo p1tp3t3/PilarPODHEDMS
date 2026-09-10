@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Program;
+use App\Models\SchoolYear;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -13,10 +14,19 @@ class EnrollmentFactory extends Factory
 {
     public function definition(): array
     {
+        // enrollment.school_year (string) was replaced by school_year_id (FK)
+        // in a later migration — firstOrCreate rather than SchoolYear::factory()
+        // so every seeded enrollment shares the ONE active "2025-2026" row
+        // instead of tripping the `year` column's unique constraint.
+        $schoolYearId = SchoolYear::firstOrCreate(
+            ['year' => '2025-2026'],
+            ['activate' => true]
+        )->id;
+
         return [
             'student_id' => User::factory(),
             'program_id' => Program::factory(),
-            'school_year' => '2025-2026',
+            'school_year_id' => $schoolYearId,
             'semester' => 1,
             'year_level' => $this->faker->numberBetween(1, 4),
             'status' => 'enrolled',

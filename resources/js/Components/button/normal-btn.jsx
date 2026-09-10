@@ -1,15 +1,24 @@
-import { motion } from "framer-motion"
+import { Button } from "@mui/material"
 
 const Btn = ({ children, onclick, className }) => {
     return (
-        <motion.button
-            type="button"
-            whileTap={{ scale: 0.95 }}
-            className={`px-4 py-2 bg-blue-700 text-[0.9em] text-white rounded transition-colors hover:bg-blue-800 ${className}`}
+        <Button
             onClick={onclick}
+            className={className}
+            variant="contained"
+            disableElevation
+            sx={{
+                px: 2,
+                py: 1,
+                fontSize: '0.9em',
+                borderRadius: '0.375rem',
+                textTransform: 'none',
+                bgcolor: '#1d4ed8',
+                '&:hover': { bgcolor: '#1e40af' },
+            }}
         >
             {children}
-        </motion.button>
+        </Button>
     )
 }
 export default Btn

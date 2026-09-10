@@ -148,12 +148,12 @@ const AppointmentModal = (props) => {
                                     setSearch={setSearch}
                                     name="search_student_parent"
                                     search={search}
-                                    plc="Search Student / Parent Name"
+                                    plc="Search Student Name"
                                     handleSearch={handleSearch}
-                                    def='Student / Parent Not Found'
+                                    def='Student Not Found'
                                     withLink={false}
                                     click={getSearchedStudentParent}
-                                    apiLink="/api/all-users/student_parent"
+                                    apiLink="/api/all-users/student"
                                 />
                             </div>
                             <div>

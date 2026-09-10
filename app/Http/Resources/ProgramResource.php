@@ -17,6 +17,7 @@ class ProgramResource extends JsonResource
             'logo' => $this->logo,
             'created_at' => $this->created_at,
             'program_head' => TeachingStaffResource::make($this->whenLoaded('programHead')),
+            'users_count' => ($this->students_count ?? 0) + ($this->teaching_staff_count ?? 0),
         ];
     }
 }

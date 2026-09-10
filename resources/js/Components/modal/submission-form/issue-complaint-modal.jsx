@@ -6,14 +6,16 @@ import { useState, useEffect } from "react"
 import SearchUserBar from "@/Components/input/search-user-bar"
 import SelectedUser from "../../other/selected-user"
 import DropdownField from "../../input/dropdown"
+import CheckBoxButton from "@/Components/input/checkbox"
 import { ComplaintService } from "@/others/services/complaint-service"
-import { clearField, showOutputModal, getProfilePic, showWarningModal, toTitleCase } from "@/others/function"
+import { clearField, showOutputModal, getProfilePic, showWarningModal, toTitleCase, showUserType } from "@/others/function"
 import PicVidUpload from "@/Components/input/pic-vid-upload"
 import ProfilePic from "@/Components/other/profile-pic"
 import { X } from "lucide-react"
 
 const IssueComplaintModal = (props) => {
     const [search, setSearch] = useState(""),
+          [complainantSearch, setComplainantSearch] = useState(""),
           [searchedComplainant, setSearchedComplainant] = useState(null),
           [searchedStudent, setSearchedStudent] = useState(null),
           [searchedStudent2, setSearchedStudent2] = useState([]),
@@ -71,8 +73,17 @@ const IssueComplaintModal = (props) => {
         const f = new FormData()
 
         if(validateForm()) {
-            f.append('complainant', props.direct_user_id)
-            if(props.user.role == 'sub_admin') f.append('complainant_name', props.val.complainant_name)
+            if(direct) {
+                f.append('complainant', props.direct_user_id)
+            }else if(searchedComplainant) {
+                f.append('complainant', searchedComplainant[0].id)
+            }else if(props.user.role == 'sub_admin') {
+                f.append('complainant_name', props.val.complainant_name)
+            }else {
+                // Regular (non sub_admin) filer — the complainant UI above is
+                // hidden for them, so they're always filing on their own behalf.
+                f.append('complainant', props.user.id)
+            }
             f.append('subject', searchedStudent2[0]['id'])
             searchedStudent2.forEach((e, i) => f.append(`student_subjects[${i}]`, e['id']))
             f.append('complaint_description', props.val.complaint_description)
@@ -128,6 +139,11 @@ const IssueComplaintModal = (props) => {
                 setSearchedStudent(null);     // for autocomplete input
                 setSearchedStudent2([]);      // the selected list
 
+                // CLEAR SEARCHED COMPLAINANT
+                setSearchedComplainant(null);
+                setComplainantSearch("");
+                isDirectComplaint(false);
+
                 // CLEAR ALL COMPLAINT FIELD VALUES
                 props.setter((prev) => ({
                     complainant_name: "",
@@ -155,7 +171,7 @@ const IssueComplaintModal = (props) => {
         let errorMessage = null
         const field = props.val
         
-        if((searchedComplainant == null && !direct && props.user.user_type == 'prefect') && (props.val.complainant_name == '' && !direct && props.user.user_type == 'prefect')) {
+        if((searchedComplainant == null && !direct && props.user.role == 'sub_admin') && (props.val.complainant_name == '' && !direct && props.user.role == 'sub_admin')) {
             errorMessage = {
                 ...errorMessage,
                 complainant: "This is Required. Please Specify the Complainant"
@@ -229,20 +245,48 @@ const IssueComplaintModal = (props) => {
                 </div>
                 <div className="py-3 w-full">
                     <form onSubmit={handleSubmit} method="post" className="grid gap-4">
-                        {(props.user.user_type == 'prefect') &&
+                        {(props.user.role == 'sub_admin') &&
                         <div className="flex flex-wrap items-center gap-2">
-                            <input type="checkbox" id="direct-complaint" onClick={(e) => isDirectComplaint(e.target.checked)} />
-                            <label htmlFor="direct-complaint" className="text-[0.9em]">Direct Complaint</label>
+                            <CheckBoxButton.CheckBox
+                                id="direct-complaint"
+                                name="direct-complaint"
+                                label="Direct Complaint"
+                                checked={direct}
+                                change={(e) => isDirectComplaint(e.target.checked)}
+                            />
                         </div>}
 
                         {/* Complainant */}
-                        {(!direct && props.user.user_type == 'prefect') &&
+                        {(!direct && props.user.role == 'sub_admin') &&
                         <div className="grid gap-3">
+                            {(!searchedComplainant && !props.val.complainant_name) &&
                             <div className="w-full relative z-20">
+                                <div className="text-[0.9em] mb-1">Search Complainant (if registered)</div>
+                                <SearchUserBar
+                                    setSearch={setComplainantSearch}
+                                    name="complainant_search"
+                                    search={complainantSearch}
+                                    plc="Search by name or ID number"
+                                    handleSearch={(e) => setComplainantSearch(e.target.value)}
+                                    lim={4}
+                                    list={[]}
+                                    def="User Not Found"
+                                    withLink={false}
+                                    apiLink="/api/all-users/all-2"
+                                    click={(id, fullUser) => {
+                                        setSearchedComplainant([fullUser])
+                                        setComplainantSearch('')
+                                        props.setter((prev) => ({ ...prev, complainant_name: '' }))
+                                    }}
+                                />
+                            </div>}
+
+                            {!searchedComplainant &&
+                            <div className="w-full relative">
                                 <div className="w-full flex flex-col sm:flex-row gap-3 sm:gap-2 sm:items-center">
                                     <div className="w-full">
                                         <FormTextfield
-                                            label="Enter Complainant's Name"
+                                            label="Or Enter Complainant's Name (if not registered)"
                                             name="complainant_name"
                                             id="complainant_name"
                                             val={props.val.complainant_name}
@@ -253,7 +297,7 @@ const IssueComplaintModal = (props) => {
                                 <div className="text-[#d12323] text-[12px]">
                                     <b>{validationError.complainant}</b>
                                 </div>
-                            </div>
+                            </div>}
 
                             {(searchedComplainant) &&
                             <div className="grid gap-1">
@@ -414,9 +458,7 @@ const SearchUserSection = ({
 }
 const SelectedUser2 = (props) => {
 
-    const isStudent = (props.user.user_type == 'student') 
-                      ? `${props.user.program.name}`
-                      : toTitleCase(props.user.parent.parent_role)
+    const isStudent = showUserType(props.user, true)
     return (
         <div className="flex-shrink-0 grid relative w-[5rem]">
             <div className="justify-self-center grid">

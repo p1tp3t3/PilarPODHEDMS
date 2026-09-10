@@ -60,4 +60,7 @@ class Complaint extends Model
     public function complaintEvidenceFile() {
         return $this->hasMany(ComplaintEvidenceFile::class, 'complaint_case_number', 'case_number');
     }
+    public function revisions() {
+        return $this->hasMany(ComplaintRevision::class, 'complaint_id', 'id')->latest('created_at');
+    }
 }

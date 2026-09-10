@@ -14,7 +14,7 @@ import { Link } from "@inertiajs/react";
 import ActionBtn from "../button/action-btn";
 import AuthContext from "@/context-provider/auth-provider";
 
-const StudentList = ({ list = null, style = true, type = "prefect", paginate = true }) => {
+const StudentList = ({ list = null, style = true, type = "prefect", paginate = true, canEditEnrollment = false, onEditEnrollment = () => {} }) => {
   const data = paginate ? list?.data || [] : list || [];
 
   const rows = useMemo(() => {
@@ -28,7 +28,7 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
     const program = [programName, latestEnrollment?.year_level ? getYearLevel(latestEnrollment.year_level) : null]
       .filter(Boolean)
       .join(" • ");
-    const schoolYear = latestEnrollment?.school_year || "N / A";
+    const schoolYear = latestEnrollment?.school_year?.year || "N / A";
 
     return {
       id: i,
@@ -49,6 +49,7 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
       school_year: schoolYear,
       created_at: user.created_at,
       last_seen: user.last_seen,
+      raw: user,
     };
   });
 }, [data, type]);
@@ -104,16 +105,24 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
       field: "actions",
       type: "actions",
       headerName: "Action",
-      width: 180,
-      headerAlign: "start",
-      align: "start",
+      width: canEditEnrollment ? 300 : 180,
+      headerAlign: "left",
+      align: "left",
       renderCell: (params) => (
-        <div>
+        <div className="flex gap-2 items-center h-full">
           <Link href={`/profile/${params.row.username}`}>
             <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700">
               View
             </ActionBtn>
           </Link>
+          {canEditEnrollment && (
+            <ActionBtn
+              className="bg-indigo-600 text-white hover:bg-indigo-700"
+              onClick={() => onEditEnrollment(params.row.raw)}
+            >
+              Edit Enrollment
+            </ActionBtn>
+          )}
         </div>
       ),
     },

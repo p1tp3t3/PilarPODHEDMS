@@ -26,6 +26,7 @@ const SystemSettings = (props) => {
                             { key: "system_name", label: "System Name" },
                             { key: "login_portal", label: "Super Admin Login Portal" },
                             { key: "mail", label: "Mail Configuration" },
+                            { key: "archive_retention", label: "Archive Retention" },
                             { key: "account", label: "Account Settings" },
                         ]}
                         value={activeTab}
@@ -50,6 +51,13 @@ const SystemSettings = (props) => {
                         {activeTab === "mail" && (
                             <MailConfigTab
                                 mailConfig={props.mail_config}
+                                reload={loadRegister}
+                            />
+                        )}
+
+                        {activeTab === "archive_retention" && (
+                            <ArchiveRetentionTab
+                                retentionYears={props.archive_retention_years}
                                 reload={loadRegister}
                             />
                         )}
@@ -110,6 +118,58 @@ const SystemNameTab = ({ appName, reload }) => {
                     />
                     <div className="grid justify-end">
                         <FormButton type="submit" label="Save System Name" />
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const ArchiveRetentionTab = ({ retentionYears, reload }) => {
+    const [years, setYears] = useState(retentionYears ?? 5);
+    const [error, setError] = useState("");
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        const parsed = parseInt(years, 10);
+        if (!parsed || parsed < 1) {
+            setError("Retention period must be at least 1 year");
+            return;
+        }
+        setError("");
+
+        reload(true, "text-wait", "Updating archive retention period...");
+
+        SystemService.updateArchiveRetention(
+            parsed,
+            () => {
+                reload(true, "success", "Archive Retention Period Updated Successfully");
+            },
+            () => {
+                reload(true, "error", "Failed to Update Archive Retention Period");
+            }
+        );
+    };
+
+    return (
+        <div className="max-w-[30rem]">
+            <div className="bg-white rounded-md shadow-black/20 shadow-sm p-5 sm:p-8 grid gap-6">
+                <p className="text-gray-700">
+                    Archived incident documents (complaints, referrals, and absent forms)
+                    must stay in the archive for this many years before they become eligible for permanent deletion.
+                </p>
+                <form onSubmit={handleSubmit} className="grid gap-5">
+                    <FormTextfield
+                        label="Retention Period (Years)"
+                        name="retention_years"
+                        type="number"
+                        val={years}
+                        change={(e) => setYears(e.target.value)}
+                        error={error}
+                        errorAsterisk={!!error}
+                    />
+                    <div className="grid justify-end">
+                        <FormButton type="submit" label="Save Retention Period" />
                     </div>
                 </form>
             </div>

@@ -7,6 +7,7 @@ use App\Models\EducationBackground;
 use App\Models\Enrollment;
 use App\Models\Profile;
 use App\Models\Program;
+use App\Models\SchoolYear;
 use App\Models\TeachingStaff;
 use App\Models\User;
 use App\Models\UserPermission;
@@ -101,11 +102,13 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
 
                 // === STUDENT ===
                 if ($userType === 'student') {
+                    $schoolYearId = SchoolYear::where('year', $csv['school_year'])->value('id');
+
                     Enrollment::updateOrInsert(
                         [
                             'student_id' => $user->id,
                             'program_id' => $csv['program'],
-                            'school_year' => $csv['school_year'],
+                            'school_year_id' => $schoolYearId,
                         ],
                         [
                             'semester' => $csv['semester'] ?? 1,
@@ -243,6 +246,8 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
 
                     if (!preg_match('/^\d{4}-\d{4}$/', $row['school_year'])) {
                         $rowErrors[$rowNum][] = "Row $rowNum: school_year must be YYYY-YYYY.";
+                    } elseif (!SchoolYear::where('year', $row['school_year'])->exists()) {
+                        $rowErrors[$rowNum][] = "Row $rowNum: school_year '{$row['school_year']}' does not exist. Create it first in School Year Management.";
                     }
                 }
             ],

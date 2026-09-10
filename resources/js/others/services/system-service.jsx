@@ -33,4 +33,10 @@ export const SystemService = {
         const api = new APIRequest("/system-settings/mail-config/test", "post", { test_email: testEmail }, () => {}, success, error);
         api.fetchData();
     },
+    updateArchiveRetention(years, success, error) {
+        const f = new FormData();
+        f.append("retention_years", years);
+        const api = new APIRequest("/system-settings/archive-retention", "post", f, () => {}, success, error);
+        api.sendPostData();
+    },
 };

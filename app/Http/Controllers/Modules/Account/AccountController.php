@@ -3,20 +3,29 @@
 namespace App\Http\Controllers\Modules\Account;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessEnrollmentUpdateCsvRow;
 use App\Jobs\ProcessStudentAccountUpdate;
 use App\Models\ActionLog;
 use App\Models\Complaint;
 use App\Models\ComplaintSubject;
+use App\Models\CsvImportRowResult;
+use App\Models\Enrollment;
 use App\Models\Family;
 use App\Models\FamilyMember;
+use App\Models\NonTeachingStaff;
 use App\Models\Program;
 use App\Models\Referral;
+use App\Models\SchoolYear;
 use App\Models\TeachingStaff;
 use App\Models\UserPermission;
 use App\Http\Controllers\Resource\FileController;
 use App\Http\Resources\TeachingStaffResource;
 use App\Http\Resources\UserResource;
+use App\Http\Resources\UserSearchResource;
+use App\Events\CsvBatchCompleted;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use App\Models\User;
@@ -60,6 +69,9 @@ class AccountController extends Controller
 
         $isPrefect = (auth()->user()->role === 'sub_admin') ? 'prefect' : 'other';
 
+        $schoolYears = \App\Models\SchoolYear::orderByDesc('year')->pluck('year');
+        $schoolYearsFull = SchoolYear::orderByDesc('year')->get(['id', 'year']);
+
         $props = $programHead
                  ? array_merge([
                     'user' => auth()->user(),
@@ -69,7 +81,9 @@ class AccountController extends Controller
                     'program' => Program::all(['id', 'name']),
                     'program_name' => $programHead->program->name,
                     'file_name' => "student-{$programHead->program_id}-{$programHead->program->name}.zip",
-                    'file_name_faculty' => "faculty-account-{$programHead->program_id}-{$programHead->program->name}.csv"
+                    'file_name_faculty' => "faculty-account-{$programHead->program_id}-{$programHead->program->name}.csv",
+                    'school_years' => $schoolYears,
+                    'school_years_full' => $schoolYearsFull,
                 ])
                  : [
                     'user' => auth()->user(),
@@ -77,9 +91,185 @@ class AccountController extends Controller
                         'data' => self::getStudent()
                     ],
                     'program' => Program::all(['id', 'name', 'description', 'color_code']),
+                    'school_years' => $schoolYears,
+                    'school_years_full' => $schoolYearsFull,
                  ];
 
         return Inertia::render("$isPrefect/students", $props);
+    }
+
+    /**
+     * Super admin only: update one student's enrollment record — the manual
+     * counterpart to the bulk CSV path below. Keyed the same way
+     * ProcessStudentCsvRow already upserts enrollment (student_id,
+     * program_id, school_year_id), so a same-year semester change updates
+     * the existing row in place while a new school year or program creates
+     * a new history row, matching how User::enrollments()/enrollment() are
+     * already modeled.
+     */
+    public function updateEnrollment(Request $request) {
+        $data = $request->validate([
+            'student_id' => 'required|exists:users,id',
+            'program_id' => 'required|exists:program,id',
+            'school_year_id' => 'required|exists:school_year,id',
+            'semester' => 'required|integer|between:1,2',
+            'year_level' => 'required|integer|between:1,4',
+            'enrolled_at' => 'required|date',
+        ]);
+
+        $student = User::where('id', $data['student_id'])->where('role', 'student')->firstOrFail();
+
+        Enrollment::updateOrInsert(
+            [
+                'student_id' => $student->id,
+                'program_id' => $data['program_id'],
+                'school_year_id' => $data['school_year_id'],
+            ],
+            [
+                'semester' => $data['semester'],
+                'year_level' => $data['year_level'],
+                'enrolled_at' => $data['enrolled_at'],
+                'status' => 'enrolled',
+            ]
+        );
+
+        ActionLog::create([
+            'user_id' => auth()->user()->id,
+            'action_type' => 'update',
+            'details' => "updates the enrollment record of student {$student->id_number}",
+        ]);
+
+        return response()->json(['message' => 'Enrollment updated successfully.']);
+    }
+
+    /** Preview an enrollment-update CSV: parse + validate every row, write nothing. */
+    public function previewEnrollmentUpdateCsv(Request $request) {
+        $request->validate(['file' => 'required|file']);
+
+        $tmpPath = $request->file('file')->getRealPath();
+        $rows = get_user_df($tmpPath);
+
+        $preview = [];
+        foreach ($rows as $i => $row) {
+            $errors = self::validateEnrollmentUpdateCsvRow($row);
+            $preview[] = [
+                'row_index' => $i,
+                'data' => $row,
+                'valid' => empty($errors),
+                'errors' => $errors,
+            ];
+        }
+
+        return response()->json(['rows' => $preview]);
+    }
+
+    /** Re-validate a single row after the admin edits it in the review grid, before committing. */
+    public function validateEnrollmentUpdateCsvRowRequest(Request $request) {
+        $errors = self::validateEnrollmentUpdateCsvRow($request->row ?? []);
+
+        return response()->json(['valid' => empty($errors), 'errors' => $errors]);
+    }
+
+    /** Commit the reviewed rows: one queued job per student, batched, with live progress. */
+    public function commitEnrollmentUpdateCsv(Request $request) {
+        $request->validate([
+            'rows' => 'required|array|min:1',
+        ]);
+
+        $userId = auth()->user()->id;
+        $lockKey = "csv-batch-lock:enrollment-update:{$userId}";
+
+        if (Cache::has($lockKey)) {
+            return response()->json([
+                'status' => 'locked',
+                'message' => 'Your previous enrollment-update CSV batch is still being processed. Please wait until it finishes.',
+            ], 423);
+        }
+
+        $rows = $request->rows;
+        $total = count($rows);
+
+        $jobs = [];
+        foreach ($rows as $i => $row) {
+            $jobs[] = new ProcessEnrollmentUpdateCsvRow($row, $i, $total, $userId);
+        }
+
+        $batch = Bus::batch($jobs)
+            ->then(function ($batch) use ($userId, $lockKey) {
+                $results = CsvImportRowResult::where('batch_id', $batch->id)->get();
+
+                Cache::forget($lockKey);
+
+                try {
+                    broadcast(new CsvBatchCompleted($userId, [
+                        'batch_id' => $batch->id,
+                        'total' => $results->count(),
+                        'success_count' => $results->where('status', 'success')->count(),
+                        'error_count' => $results->where('status', 'error')->count(),
+                        'errors' => $results->where('status', 'error')->map(fn($r) => [
+                            'row_index' => $r->row_index,
+                            'id_number' => $r->id_number,
+                            'full_name' => $r->full_name,
+                            'message' => $r->message,
+                        ])->values(),
+                    ]));
+                } catch (\Throwable $e) {
+                    Log::warning('CsvBatchCompleted broadcast failed: ' . $e->getMessage());
+                }
+            })
+            ->finally(function ($batch) use ($lockKey) {
+                Cache::forget($lockKey);
+            })
+            ->name('enrollment-update-csv-' . now()->timestamp)
+            ->dispatch();
+
+        Cache::put($lockKey, $batch->id, now()->addHours(2));
+
+        ActionLog::create([
+            'user_id' => $userId,
+            'action_type' => 'update',
+            'details' => 'uploads an enrollment-update csv file',
+        ]);
+
+        return response()->json(['batch_id' => $batch->id]);
+    }
+
+    public static function validateEnrollmentUpdateCsvRow(array $row): array {
+        $errors = [];
+        $required = ['id', 'program', 'year_level', 'semester', 'school_year', 'enrolled_at'];
+
+        foreach ($required as $col) {
+            if (!isset($row[$col]) || trim((string) $row[$col]) === '') {
+                $errors[] = "'$col' cannot be empty.";
+            }
+        }
+
+        if (empty($errors)) {
+            if (!preg_match('/^[Cc]\d+$/', $row['id'])) {
+                $errors[] = "Invalid ID format. Must start with 'C' followed by digits (e.g. C2210213).";
+            } elseif (!User::where('id_number', strtolower($row['id']))->where('role', 'student')->exists()) {
+                $errors[] = "No existing student found with ID '{$row['id']}'.";
+            }
+            if (!Program::whereRaw('LOWER(name) = ?', [strtolower(trim($row['program']))])->exists()) {
+                $errors[] = 'Program must match an existing program name (e.g. BSIT, BEED, BSN).';
+            }
+            if (!is_numeric($row['year_level']) || $row['year_level'] < 1 || $row['year_level'] > 4) {
+                $errors[] = 'Year level must be 1–4.';
+            }
+            if (!is_numeric($row['semester']) || $row['semester'] < 1 || $row['semester'] > 2) {
+                $errors[] = 'Semester must be 1–2.';
+            }
+            if (!preg_match('/^\d{4}-\d{4}$/', $row['school_year'])) {
+                $errors[] = 'school_year must be YYYY-YYYY.';
+            } elseif (!SchoolYear::where('year', $row['school_year'])->exists()) {
+                $errors[] = "school_year '{$row['school_year']}' does not exist. Create it first in School Year Management.";
+            }
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $row['enrolled_at']) || !strtotime($row['enrolled_at'])) {
+                $errors[] = 'enrolled_at must be a valid date in YYYY-MM-DD format.';
+            }
+        }
+
+        return $errors;
     }
 
     public function facultyListIndex() {
@@ -104,6 +294,113 @@ class AccountController extends Controller
                  ];
 
         return Inertia::render("$isPrefect/faculty", $props);
+    }
+
+    /**
+     * Prefect only: a roster covering both staff roles, split by tab —
+     * unlike getFaculty() (teaching_staff only, program-scoped for program
+     * heads), this is unscoped and lets the caller pick teaching vs.
+     * non-teaching via ?type=.
+     */
+    public function getStaffList() {
+        $type = ($_GET['type'] ?? 'teaching') === 'non_teaching' ? 'non_teaching_staff' : 'teaching_staff';
+
+        $data = User::with(['profile', 'teachingStaff.program', 'nonTeachingStaff'])
+                    ->where('role', $type);
+
+        // Program filter only makes sense for teaching staff — non-teaching
+        // staff aren't attached to a program at all.
+        if ($type === 'teaching_staff' && isset($_GET['program']) && $_GET['program'] !== 'all') {
+            $data->whereHas('teachingStaff', function ($q) {
+                $q->where('program_id', $_GET['program']);
+            });
+        }
+
+        if (isset($_GET['search']) && $_GET['search'] !== '') {
+            $data->where('id_number', 'like', "%{$_GET['search']}%");
+        }
+
+        return UserResource::collection(
+            $data->latest('created_at')
+                 ->paginate(100)
+                 ->appends([
+                     'search' => $_GET['search'] ?? '',
+                     'type' => $_GET['type'] ?? 'teaching',
+                     'program' => $_GET['program'] ?? 'all',
+                 ])
+        );
+    }
+
+    public function staffListIndex() {
+        return Inertia::render('prefect/staff-list', [
+            'user' => auth()->user(),
+            'staff' => self::getStaffList(),
+            'programs' => Program::all(['id', 'name']),
+        ]);
+    }
+
+    /**
+     * The fixed, non-teaching-staff position enum — kept here as the one
+     * place both endpoints below validate against, mirroring the
+     * non_teaching_staff.position column (see its migration).
+     */
+    public const NON_TEACHING_STAFF_POSITIONS = [
+        'Registrar', 'Guard', 'Guidance', 'Librarian',
+        'Nurse', 'Administrative Staff', 'Maintenance Staff', 'Security Personnel',
+    ];
+
+    /**
+     * Super admin only: assign (or reassign) a non-teaching staff member's
+     * position among the fixed 8 — this is the only place a
+     * non_teaching_staff account ever gets a position, since registration
+     * doesn't collect one.
+     */
+    public function assignStaffPosition(Request $request) {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'position' => 'required|in:' . implode(',', self::NON_TEACHING_STAFF_POSITIONS),
+        ]);
+
+        $user = User::where('id', $request->user_id)->where('role', 'non_teaching_staff')->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'This account is not a non-teaching staff account.'], 400);
+        }
+
+        NonTeachingStaff::updateOrCreate(
+            ['user_id' => $user->id],
+            ['position' => $request->position]
+        );
+
+        return response()->json(['message' => 'Position Assigned Successfully']);
+    }
+
+    /**
+     * Super admin only: clear a non-teaching staff member's position.
+     * Guard/Guidance are excluded — removing them would silently strip the
+     * gate pass verification / referral intake access those two positions
+     * carry (see GatePassController::qrcodeIndex(), ReferralController).
+     */
+    public function removeStaffPosition(Request $request) {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        $staff = NonTeachingStaff::where('user_id', $request->user_id)->first();
+
+        if (!$staff) {
+            return response()->json(['message' => 'This staff member has no position assigned.'], 404);
+        }
+
+        if (in_array($staff->position, ['Guard', 'Guidance'], true)) {
+            return response()->json([
+                'message' => "{$staff->position} cannot be removed — this position has other access in the system.",
+            ], 403);
+        }
+
+        $staff->delete();
+
+        return response()->json(['message' => 'Position Removed Successfully']);
     }
 
     /**
@@ -134,7 +431,7 @@ class AccountController extends Controller
 
         return Inertia::render('parent/children-monitoring', [
             'user' => auth()->user(),
-            'children' => UserResource::collection(User::with('profile')
+            'children' => UserResource::collection(User::with(['profile', 'program', 'enrollments'])
                             ->whereIn('id', FamilyMember::where('family_id', $familyId)->pluck('member_id'))
                             ->where('role', 'student')
                             ->get())
@@ -280,15 +577,6 @@ class AccountController extends Controller
         }
     }
 
-    public function recoverPassword(Request $request) {
-        $email = User::where('username', $request->username)->value('email');
-        $key = $email . '_otp_hash';
-        if(!cache($key . '_verified')) {
-            return response()->json(['message' => 'error'], 500);
-        }
-        cache()->forget($key . '_verified');
-        self::updatePassword($request);
-    }
     public function searchAccount($username) {
         $account = new User();
         return response()->json([$account->findAccountContactDetail($username)]);
@@ -315,12 +603,6 @@ class AccountController extends Controller
 
 
 
-    private function updatePassword($request) {
-        User::where('username', $request->username)
-            ->update([
-                'password' => Hash::make($request->new_password)
-            ]);
-    }
     public function destroy(Request $request)
 {
     $userIds = [];
@@ -348,6 +630,21 @@ class AccountController extends Controller
         }
 
         $role = $user->role;
+
+        // 🔒 Guard/Guidance hold access other roles depend on (gate pass
+        // verification, referral intake) — deleting the account would
+        // silently strip that, so it's blocked the same as the position
+        // itself (see removeStaffPosition()).
+        if ($role === 'non_teaching_staff') {
+            $position = NonTeachingStaff::where('user_id', $userId)->value('position');
+            if (in_array($position, ['Guard', 'Guidance'], true)) {
+                $skipped[] = [
+                    'user_id' => $userId,
+                    'reason' => "{$position} accounts cannot be deleted — they have other access in the system.",
+                ];
+                continue;
+            }
+        }
 
         // 🔶 super_admin / sub_admin — must leave at least 1 remaining
         if (in_array($role, ['super_admin', 'sub_admin'])) {
@@ -684,7 +981,7 @@ class AccountController extends Controller
                          : null;
         $isProgramHead = $myTeachingStaff && $myTeachingStaff->position === 'program_head';
 
-        $data = User::with(['profile', 'program', 'enrollments'])
+        $data = User::with(['profile', 'program', 'enrollments.schoolYear'])
                     ->where('role', 'student')
                     ->whereHas('enrollments', function($q) {
                         $q->where('status', 'enrolled');
@@ -701,7 +998,9 @@ class AccountController extends Controller
             // Filter by year level if not "all"
             if (isset($_GET['school-year']) && $_GET['school-year'] != 'all') {
                 $data->whereHas('enrollments', function ($q) {
-                    $q->where('school_year', $_GET['school-year']);
+                    $q->whereHas('schoolYear', function ($sq) {
+                        $sq->where('year', $_GET['school-year']);
+                    });
                 });
             }
 
@@ -730,7 +1029,7 @@ class AccountController extends Controller
 
             self::setId($programId);
 
-            $data = User::with(['program'])
+            $data = User::with(['profile', 'program', 'enrollments'])
                 ->where('role', 'student')
                 ->where('id', '!=', auth()->user()->id);
 
@@ -894,14 +1193,32 @@ class AccountController extends Controller
     public function searchAllUsers(Request $request, string $type) {
         $search = trim($request->query('search', ''));
 
-        $query = User::with('profile')->where('id', '!=', auth()->id());
+        $query = User::with(['profile', 'program', 'enrollments', 'parent', 'teachingStaff'])->where('id', '!=', auth()->id());
 
         switch ($type) {
             case 'faculty':
                 $query->where('role', 'teaching_staff');
                 break;
+            case 'non-teaching-staff':
+                // Prefect's Staff List "Non-Teaching Staff" tab — the
+                // counterpart to 'faculty' (teaching_staff only).
+                $query->where('role', 'non_teaching_staff');
+                break;
             case 'student':
+                // Used to pick a target student for complaint/referral/call-in
+                // — must be a currently enrolled, activated account, not just
+                // any row with role='student'.
+                $query->where('role', 'student')
+                      ->where('activate', true)
+                      ->whereHas('enrollment');
+                break;
             case 'family-student':
+                $query->where('role', 'student');
+                break;
+            case 'archive-student':
+                // Archived records span students regardless of their
+                // CURRENT status — unlike the 'student' case above, a
+                // graduated/deactivated student must still be findable here.
                 $query->where('role', 'student');
                 break;
             case 'program_student':
@@ -916,7 +1233,16 @@ class AccountController extends Controller
                 }
                 break;
             case 'student_parent':
-                $query->whereIn('role', ['student', 'parent']);
+                // Used to pick an appointment recipient — parents aren't
+                // subject to enrollment, but a student result must still be
+                // a currently enrolled, activated account.
+                $query->where(function ($q) {
+                    $q->where(function ($q2) {
+                        $q2->where('role', 'student')
+                           ->where('activate', true)
+                           ->whereHas('enrollment');
+                    })->orWhere('role', 'parent');
+                });
                 break;
             case 'resolved_student_complaint':
                 $studentIds = ComplaintSubject::whereHas('complaint', function ($q) {
@@ -941,7 +1267,7 @@ class AccountController extends Controller
             });
         }
 
-        return UserResource::collection(
+        return UserSearchResource::collection(
             $query->latest('users.created_at')->limit(10)->get()
         );
     }

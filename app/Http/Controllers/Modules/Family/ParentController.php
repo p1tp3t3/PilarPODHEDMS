@@ -6,15 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Modules\Account\RegisteredUserController;
 use App\Mail\ParentAccountMail;
 use App\Mail\ParentRejectMail;
+use App\Mail\SignedLinkMail;
 use App\Models\Family;
 use App\Models\FamilyMember;
 use App\Models\ParentRegistrationRequest;
 use App\Models\User;
-use FFI\Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class ParentController extends Controller
@@ -29,21 +30,70 @@ class ParentController extends Controller
     }
     public function store(Request $request) {
         try {
-            $key = $request->email . '_otp_hash';
-            if(!Hash::check($request->pin, cache($key))) {
-                return response()->json(['message' => 'error'], 500);
-            }
-            ParentRegistrationRequest::insert([
+            $request->validate([
+                'name' => 'required|string',
+                'email' => 'required|email',
+            ]);
+
+            // The submission isn't written to the DB yet — it's held in
+            // cache behind a random token until the emailed link is
+            // clicked and its signature verified, mirroring the same
+            // "hold pending data until confirmed" pattern used for
+            // password reset's authorization flag.
+            $token = Str::random(64);
+            cache()->put("parent_registration_pending_{$token}", [
                 'name' => $request->name,
                 'email' => $request->email,
                 'reason' => $request->reason,
-                'parent_details' => json_encode($request->parent_details),
-            ]);
-            cache()->forget($key);
+                'parent_details' => $request->parent_details,
+            ], now()->addMinutes(60));
+
+            $url = URL::temporarySignedRoute(
+                'parent-register.confirm',
+                now()->addMinutes(60),
+                ['token' => $token]
+            );
+
+            Mail::to($request->email)->send(new SignedLinkMail(
+                'Confirm Your Registration Request',
+                'Confirm Your Parent Registration',
+                'Please confirm your registration request by clicking the button below. Once confirmed, it will be sent to the admin for approval.',
+                $url,
+                'Confirm Registration'
+            ));
+
             return response()->json(['message' => 'success']);
         }catch(Exception $x) {
             return response()->json(['message' => 'error'], 500);
         }
+    }
+
+    // Only writes the ParentRegistrationRequest row once the emailed link
+    // is actually clicked and its signature verified — store() only ever
+    // holds the submission in cache.
+    public function confirm(Request $request, $token) {
+        $key = "parent_registration_pending_{$token}";
+        $data = $request->hasValidSignature() ? cache($key) : null;
+
+        if (!$data) {
+            return Inertia::render('other/parent-register-confirm', [
+                'success' => false,
+                'message' => 'This confirmation link is invalid or has expired.',
+            ]);
+        }
+
+        ParentRegistrationRequest::insert([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'reason' => $data['reason'],
+            'parent_details' => json_encode($data['parent_details']),
+        ]);
+        cache()->forget($key);
+
+        return Inertia::render('other/parent-register-confirm', [
+            'success' => true,
+            'message' => 'Your registration request has been submitted and is awaiting admin approval.',
+        ]);
     }
 
     public function storeFamily(Request $request) {

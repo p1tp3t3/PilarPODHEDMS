@@ -37,9 +37,7 @@ class EarlyInterventionViolationPredictor:
         num_cols = [
             "past_repeat_same_violation_count",
             "recent_same_violation_count",
-            "months_since_last_same_violation",
-            "clean_streak_length",
-            "ongoing_same_violation_count"
+            "months_since_last_same_violation"
         ]
 
         X = df[cat_cols + num_cols].copy()
@@ -97,10 +95,14 @@ class EarlyInterventionViolationPredictor:
 
     def predict(self, data):
         model = joblib.load(self.model_name)
-        input = pd.DataFrame([data])
-        
+        # A null/missing numeric feature (e.g. a source complaint with no
+        # offense_issued_at date) becomes NaN here, which LogisticRegression
+        # rejects outright — fill with 0 ("no signal") rather than let one
+        # bad upstream field crash the whole prediction.
+        input = pd.DataFrame([data]).fillna(0)
+
         return make_json_safe(model.predict(input)[0])
-    
+
     def get_insights(self, data, pred):
         insights = []
         violation_type = data.get("violation_type", "Unknown")
@@ -108,17 +110,18 @@ class EarlyInterventionViolationPredictor:
         prob = None
         try:
             model = joblib.load(self.model_name)
-            X_in = pd.DataFrame([data])
+            X_in = pd.DataFrame([data]).fillna(0)
             if hasattr(model, "predict_proba"):
                 prob = float(model.predict_proba(X_in)[:, 1][0])
         except Exception:
             prob = None
 
-        past_repeat = int(data.get("past_repeat_same_violation_count", 0))
-        recent_same = int(data.get("recent_same_violation_count", 0))
-        months_since = int(data.get("months_since_last_same_violation", 0))
-        clean_streak = int(data.get("clean_streak_length", 0))
-        ongoing = int(data.get("ongoing_same_violation_count", 0))
+        # `.get(key, 0)` only substitutes when the key is *missing* — a
+        # present-but-None value (e.g. a source complaint with no
+        # offense_issued_at date) still slips through and breaks int(None).
+        past_repeat = int(data.get("past_repeat_same_violation_count") or 0)
+        recent_same = int(data.get("recent_same_violation_count") or 0)
+        months_since = int(data.get("months_since_last_same_violation") or 0)
 
         insights.append(f"Violation type selected: {violation_type}.")
 
@@ -132,24 +135,20 @@ class EarlyInterventionViolationPredictor:
         else:
             insights.append("No recent occurrences of the same violation were recorded, which lowers short-term risk.")
 
-        if ongoing > 0:
-            insights.append(f"Ongoing pattern detected (ongoing count = {ongoing}). This strongly increases risk.")
+        # months_since only means anything once there's a PAST occurrence to
+        # measure against — for a genuine first offense (past_repeat == 0)
+        # it's pinned to a neutral sentinel (120) by getModelInput()/the
+        # training data, not a real "several months clean" reading, so
+        # describing it as a risk factor here would be misleading either way.
+        if past_repeat == 0:
+            insights.append("This is the student's first recorded occurrence of this violation, so recency history isn't applicable yet.")
         else:
-            insights.append("No ongoing pattern for the same violation is recorded.")
-
-        if months_since <= 1:
-            insights.append("The last same violation was very recent (≤ 1 month), which increases repeat risk.")
-        elif months_since <= 3:
-            insights.append("The last same violation was within 2–3 months, which indicates moderate risk.")
-        else:
-            insights.append("The last same violation was several months ago, which reduces repeat risk.")
-
-        if clean_streak <= 1:
-            insights.append("Clean streak is short (≤ 1), meaning improvement has not been sustained yet.")
-        elif clean_streak <= 3:
-            insights.append("Clean streak is moderate (2–3), indicating some improvement.")
-        else:
-            insights.append("Clean streak is long (≥ 4), indicating sustained improvement and reduced risk.")
+            if months_since <= 1:
+                insights.append("The last same violation was very recent (≤ 1 month), which increases repeat risk.")
+            elif months_since <= 3:
+                insights.append("The last same violation was within 2–3 months, which indicates moderate risk.")
+            else:
+                insights.append("The last same violation was several months ago, which reduces repeat risk.")
 
         if prob is not None:
             verdict = "high" if prob >= 0.65 else ("moderate" if prob >= 0.45 else "low")
@@ -165,30 +164,29 @@ class EarlyInterventionViolationPredictor:
     def get_recommendation(self, data, pred):
         recommendations = []
 
-        past_repeat = int(data.get("past_repeat_same_violation_count", 0))
-        recent_same = int(data.get("recent_same_violation_count", 0))
-        months_since = int(data.get("months_since_last_same_violation", 0))
-        clean_streak = int(data.get("clean_streak_length", 0))
-        ongoing = int(data.get("ongoing_same_violation_count", 0))
+        # `.get(key, 0)` only substitutes when the key is *missing* — a
+        # present-but-None value (e.g. a source complaint with no
+        # offense_issued_at date) still slips through and breaks int(None).
+        past_repeat = int(data.get("past_repeat_same_violation_count") or 0)
+        recent_same = int(data.get("recent_same_violation_count") or 0)
+        months_since = int(data.get("months_since_last_same_violation") or 0)
 
         if int(pred) == 1:
             recommendations.append("Schedule a brief check-in with the student within 24–72 hours.")
             recommendations.append("Review the student’s violation history and identify triggers/patterns.")
             recommendations.append("Notify relevant staff (advisor/counselor/discipline lead) for coordinated support.")
 
-            if ongoing > 0 or recent_same > 0:
-                recommendations.append("Since violations are recent/ongoing, implement a short-term monitoring plan (weekly follow-ups).")
+            if recent_same > 0:
+                recommendations.append("Since violations are recent, implement a short-term monitoring plan (weekly follow-ups).")
 
             if past_repeat > 0:
                 recommendations.append("Since the student has repeated before, create a targeted behavior contract with clear goals and check-ins.")
 
-            if clean_streak <= 1 and months_since <= 1:
-                recommendations.append("Risk is elevated due to short clean streak and recent history; intervene sooner and document actions.")
+            if months_since <= 1:
+                recommendations.append("Risk is elevated due to recent history; intervene sooner and document actions.")
         else:
             recommendations.append("Continue routine monitoring—no immediate intervention required.")
-            recommendations.append("Provide positive reinforcement and encourage maintaining a clean streak.")
-            if clean_streak >= 3:
-                recommendations.append("Recognize the sustained improvement (longer clean streak) to support continued positive behavior.")
+            recommendations.append("Provide positive reinforcement and encourage maintaining good behavior.")
 
         return recommendations
     
@@ -204,8 +202,6 @@ class EarlyInterventionViolationPredictor:
             "past_repeat_same_violation_count",
             "recent_same_violation_count",
             "months_since_last_same_violation",
-            "clean_streak_length",
-            "ongoing_same_violation_count",
         }
         missing = required - set(data.keys())
         if missing:
@@ -238,23 +234,15 @@ class EarlyInterventionViolationPredictor:
         cleaned["months_since_last_same_violation"] = to_int(
             data.get("months_since_last_same_violation"), "months_since_last_same_violation"
         )
-        cleaned["clean_streak_length"] = to_int(
-            data.get("clean_streak_length"), "clean_streak_length"
-        )
-        cleaned["ongoing_same_violation_count"] = to_int(
-            data.get("ongoing_same_violation_count"), "ongoing_same_violation_count"
-        )
 
         y = 0 if cleaned['past_repeat_same_violation_count'] < 2 else self.predict(data)
-        
+
         cleaned["will_repeat_the_same_violation"] = y
 
         nonneg_fields = [
             "past_repeat_same_violation_count",
             "recent_same_violation_count",
             "months_since_last_same_violation",
-            "clean_streak_length",
-            "ongoing_same_violation_count",
         ]
         for f in nonneg_fields:
             if cleaned[f] < 0:
@@ -262,11 +250,6 @@ class EarlyInterventionViolationPredictor:
 
         if cleaned["months_since_last_same_violation"] > 120:
             raise ValueError("months_since_last_same_violation seems too large (>120 months).")
-        if cleaned["clean_streak_length"] > 120:
-            raise ValueError("clean_streak_length seems too large (>120).")
-
-        if cleaned["past_repeat_same_violation_count"] == 0 and cleaned["ongoing_same_violation_count"] > 2:
-            raise ValueError("Inconsistent: past_repeat_same_violation_count is 0 but ongoing_same_violation_count is high.")
 
         new_row = pd.DataFrame([cleaned])
         self.df = pd.concat([self.df, new_row], ignore_index=True)

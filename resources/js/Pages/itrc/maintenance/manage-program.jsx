@@ -3,7 +3,7 @@ import { ProgramService } from "@/others/services/program-service";
 import { getProgramLogo, readableDate, readableTime, showWarningModal } from "@/others/function";
 import { useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
-import { Box } from "@mui/material";
+import { AlertCircle } from "lucide-react";
 import ActionBtn from "@/Components/button/action-btn";
 import { router } from "@inertiajs/react";
 
@@ -85,29 +85,40 @@ const ManageProgram = ({ list, original_list, events, reload, setter }) => {
       renderCell: (params) => `${readableDate(params.row.created_at)} (${readableTime(params.row.created_at)})`
     },
     {
+      field: "users_count",
+      headerName: "Users",
+      width: 100,
+      sortable: false,
+      align: "center",
+      headerAlign: "center",
+      renderCell: ({ row }) => row.users_count ?? 0,
+    },
+    {
       field: "actions",
+      type: "actions",
       headerName: "Action",
       width: 270,
-      sortable: false,
+      align: "left",
+      headerAlign: "left",
       renderCell: ({ row }) => (
         <div className="flex gap-2 items-center h-full">
           <ActionBtn
             onClick={() => router.visit(`/super-admin/program/${row.id}/users`)}
-            className="!inline-flex !items-center !gap-1.5 !bg-gray-100 !text-gray-700 hover:!bg-gray-200 !rounded-full !px-3.5 !py-1.5 !text-[0.8em] !font-medium"
+            className="bg-blue-600 text-white hover:bg-blue-700"
           >
-            <i className="fa-solid fa-eye text-[0.8em]"></i> View
+            View
           </ActionBtn>
           <ActionBtn
             onClick={() => events[0]("program", "edit", row)}
-            className="!inline-flex !items-center !gap-1.5 !bg-blue-50 !text-blue-700 hover:!bg-blue-100 !rounded-full !px-3.5 !py-1.5 !text-[0.8em] !font-medium"
+            className="bg-indigo-600 text-white hover:bg-indigo-700"
           >
-            <i className="fa-solid fa-pen text-[0.8em]"></i> Edit
+            Edit
           </ActionBtn>
           <ActionBtn
             onClick={() => deleteProgram(row)}
-            className="!inline-flex !items-center !gap-1.5 !bg-red-50 !text-red-700 hover:!bg-red-100 !rounded-full !px-3.5 !py-1.5 !text-[0.8em] !font-medium"
+            className="bg-red-600 text-white hover:bg-red-700"
           >
-            <i className="fa-solid fa-trash text-[0.8em]"></i> Delete
+            Delete
           </ActionBtn>
         </div>
       ),
@@ -117,7 +128,6 @@ const ManageProgram = ({ list, original_list, events, reload, setter }) => {
   return (
     <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm overflow-x-auto">
       <div className="w-full px-5 py-3 min-w-[800px]">
-      <Box sx={{ height: 600, width: "100%" }}>
         <DataGrid
           rows={list}
           getRowId={(row) => row.id}
@@ -125,27 +135,20 @@ const ManageProgram = ({ list, original_list, events, reload, setter }) => {
           pagination
           initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
           pageSizeOptions={[20, 50, 100]}
-          disableSelectionOnClick
           disableRowSelectionOnClick
-          autoHeight
+          hideFooterSelectedRowCount
           showToolbar
-          sx={{
-            "& .MuiDataGrid-columnHeaders": {
-              backgroundColor: "#f3f3f3",
-            },
-          }}
           components={{
             NoRowsOverlay: () => (
-              <div className="grid place-items-center h-full text-gray-600">
+              <div className="grid place-items-center h-full text-gray-600 py-10">
                 <div className="text-[4em]">
-                  <i className="fa-solid fa-circle-exclamation"></i>
+                  <AlertCircle size="1em" />
                 </div>
                 <div><b>No Programs Found</b></div>
               </div>
             ),
           }}
         />
-      </Box>
       </div>
     </div>
   );

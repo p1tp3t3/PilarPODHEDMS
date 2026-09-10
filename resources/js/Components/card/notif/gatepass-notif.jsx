@@ -1,11 +1,11 @@
-import { readableDate, readableTime, toTitleCase } from "@/others/function"
+import { readableDate, readableTime, toTitleCase, parseNotifContent } from "@/others/function"
 import NotificationWrapper from "@/wrapper/notif-wrapper"
 import { FileText } from "lucide-react"
 
 
 
 const GatePassNotif = ({ obj }) => {
-    const content = JSON.parse(obj.content.replace(/'/g, '"'))
+    const content = parseNotifContent(obj.content)
     
     const date = readableDate(obj.created_at),
             time = readableTime(obj.created_at)

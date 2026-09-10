@@ -2,12 +2,18 @@ import { APIRequest } from "../classes/api-req";
 
 export const ReportArchiveService = {
     recover(id, type, setter, success, error) {
-        const api = new APIRequest("/prefect/archive/recover", "post", { id, type }, setter, success, error);
-        api.fetchData();
+        const f = new FormData();
+        f.append("id", id);
+        f.append("type", type);
+        const api = new APIRequest("/prefect/archive/recover", "post", f, () => {}, success, error);
+        api.sendPostData();
     },
     deleteArchived(type, id, success, error) {
-        const api = new APIRequest("/prefect/archive/delete", "post", { type, id }, (e) => console.log(e), success, error);
-        api.fetchData();
+        const f = new FormData();
+        f.append("type", type);
+        f.append("id", id);
+        const api = new APIRequest("/prefect/archive/delete", "post", f, () => {}, success, error);
+        api.sendPostData();
     },
     deleteReport(id, setter) {
         const api = new APIRequest("/prefect/report/delete", "post", { id }, setter);

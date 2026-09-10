@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import UpModal from "../up-modal"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
 import { readableDate, readableTime, showWarningModal, toTitleCase } from "@/others/function"
-import { Table, TableHead, TableBody, TableRow, TableCell, Chip } from "@mui/material"
+import { DataGrid } from "@mui/x-data-grid"
+import Box from "@mui/material/Box"
+import { Chip } from "@mui/material"
+import ListSkeleton from "../../reload/list-skeleton"
 import { FileText, Trash2, Download, Eye, FolderOpen } from "lucide-react"
 
 const GeneratedReportsModal = ({ close, closeModal, pd, isEnableOuterClose }) => {
@@ -28,6 +31,75 @@ const GeneratedReportsModal = ({ close, closeModal, pd, isEnableOuterClose }) =>
         )
     }
 
+    const rows = useMemo(() => {
+        if (!list) return []
+        return list.map((r) => ({ id: r.id, ...r }))
+    }, [list])
+
+    const columns = useMemo(() => [
+        { field: "report_name", headerName: "Report Name", flex: 1, minWidth: 200 },
+        {
+            field: "report_type",
+            headerName: "Type",
+            width: 150,
+            renderCell: (params) => <Chip label={toTitleCase(params.value)} size="small" variant="outlined" />,
+        },
+        {
+            field: "file_type",
+            headerName: "File",
+            width: 90,
+            renderCell: (params) => params.value?.toUpperCase(),
+        },
+        {
+            field: "created_at",
+            headerName: "Generated At",
+            width: 190,
+            renderCell: (params) => (
+                <span className="text-[0.85em]">
+                    {readableDate(params.value)} ({readableTime(params.value)})
+                </span>
+            ),
+        },
+        {
+            field: "actions",
+            type: "actions",
+            headerName: "Actions",
+            width: 130,
+            renderCell: (params) => {
+                const r = params.row
+                return (
+                    <div className="flex items-center gap-2">
+                        {r.view_url &&
+                        <a
+                            href={r.view_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+                            title="View"
+                        >
+                            <Eye size={16} />
+                        </a>}
+                        <a
+                            href={r.download_url}
+                            className="p-1.5 rounded hover:bg-blue-50 text-blue-600"
+                            title="Download"
+                        >
+                            <Download size={16} />
+                        </a>
+                        <button
+                            type="button"
+                            onClick={() => handleDelete(r)}
+                            className="p-1.5 rounded hover:bg-red-50 text-red-600"
+                            title="Delete"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    </div>
+                )
+            },
+        },
+    ], [])
+
     return (
         <UpModal
             close={close}
@@ -44,7 +116,7 @@ const GeneratedReportsModal = ({ close, closeModal, pd, isEnableOuterClose }) =>
                 </div>
 
                 {list === null &&
-                <div className="py-10 text-center text-gray-500">Loading...</div>}
+                <div className="py-10 flex justify-center"><ListSkeleton rows={4} /></div>}
 
                 {list !== null && list.length === 0 &&
                 <div className="py-10 text-center text-gray-500">
@@ -53,62 +125,18 @@ const GeneratedReportsModal = ({ close, closeModal, pd, isEnableOuterClose }) =>
                 </div>}
 
                 {list !== null && list.length > 0 &&
-                <div className="w-full overflow-x-auto max-h-[28rem]">
-                    <Table sx={{ width: "100%", fontSize: "0.875rem" }} stickyHeader>
-                        <TableHead>
-                            <TableRow sx={{ "& .MuiTableCell-root": { backgroundColor: "#f3f4f6", fontWeight: 700 } }}>
-                                <TableCell>Report Name</TableCell>
-                                <TableCell>Type</TableCell>
-                                <TableCell>File</TableCell>
-                                <TableCell>Generated At</TableCell>
-                                <TableCell align="right">Actions</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {list.map((r) => (
-                                <TableRow key={r.id} hover>
-                                    <TableCell>{r.report_name}</TableCell>
-                                    <TableCell>
-                                        <Chip label={toTitleCase(r.report_type)} size="small" variant="outlined" />
-                                    </TableCell>
-                                    <TableCell>{r.file_type?.toUpperCase()}</TableCell>
-                                    <TableCell>
-                                        {readableDate(r.created_at)} ({readableTime(r.created_at)})
-                                    </TableCell>
-                                    <TableCell align="right">
-                                        <div className="flex justify-end gap-2">
-                                            {r.view_url &&
-                                            <a
-                                                href={r.view_url}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
-                                                title="View"
-                                            >
-                                                <Eye size={16} />
-                                            </a>}
-                                            <a
-                                                href={r.download_url}
-                                                className="p-1.5 rounded hover:bg-blue-50 text-blue-600"
-                                                title="Download"
-                                            >
-                                                <Download size={16} />
-                                            </a>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleDelete(r)}
-                                                className="p-1.5 rounded hover:bg-red-50 text-red-600"
-                                                title="Delete"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </div>}
+                <Box sx={{ width: "100%", overflowX: "auto" }}>
+                    <Box sx={{ minWidth: "700px", height: 420 }}>
+                        <DataGrid
+                            rows={rows}
+                            columns={columns}
+                            hideFooter
+                            disableRowSelectionOnClick
+                            getRowHeight={() => "auto"}
+                            showToolbar
+                        />
+                    </Box>
+                </Box>}
             </div>
         </UpModal>
     )

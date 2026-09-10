@@ -28,24 +28,6 @@ const PrefectStudents = (props) => {
       }&school-year=${field === "school-year" ? value : schoolYear}`
     )
   }
-  // Generate last X school years dynamically
-  const generateSchoolYears = (count = 6) => {
-    const years = [];
-    const currentYear = new Date().getFullYear();
-
-    for (let i = 0; i < count; i++) {
-      const start = currentYear - i;
-      const end = start + 1;
-      years.push({
-        val: `${start}-${end}`,
-        label: `${start}-${end}`,
-      });
-    }
-
-    return years;
-  };
-
-
   return (
       <div className="w-full py-4">
         <div className="w-full grid gap-5 relative">
@@ -65,7 +47,7 @@ const PrefectStudents = (props) => {
               />
               <DropdownField
                   default={{ val: "all", label: "Select School Year" }}
-                  list={generateSchoolYears()}
+                  list={(props.school_years || []).map((y) => ({ val: y, label: y }))}
                   val={params.get("school-year")}
                   onChange={(e) => handleSelect("school-year", e.target.value)}
               />

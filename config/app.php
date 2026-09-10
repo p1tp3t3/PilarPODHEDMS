@@ -136,4 +136,17 @@ return [
 
     'maintenance_login_secret' => env('MAINTENANCE_LOGIN_SECRET'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Archive retention period
+    |--------------------------------------------------------------------------
+    |
+    | Years an archived complaint/referral/absent-form/gate-pass/appointment
+    | record must stay in the archive before it's eligible for deletion.
+    | Adjustable from System Settings (writes back to .env).
+    |
+    */
+
+    'archive_retention_years' => env('ARCHIVE_RETENTION_YEARS', 5),
+
 ];

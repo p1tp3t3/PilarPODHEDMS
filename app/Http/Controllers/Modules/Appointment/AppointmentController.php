@@ -527,6 +527,7 @@ class AppointmentController extends Controller
 
         $accepted = Appointment::with(['user.profile'])
             ->whereBetween('date_time_appoint', [$start, $end])
+            ->whereNull('archived_at')
             ->get()
             ->map(function ($appointment) {
                 $name = trim(($appointment->user->profile->first_name ?? '') . ' ' . ($appointment->user->profile->last_name ?? ''));
@@ -670,7 +671,7 @@ class AppointmentController extends Controller
 
     public function getAppointmentToday() {
         return AppointmentResource::collection(Appointment::with(['user' => function($q) {
-                                $q->with(['profile', 'program', 'parent']);
+                                $q->with(['profile', 'program', 'parent', 'enrollments']);
                             }])
                           ->where(DB::raw("DATE_FORMAT(date_time_appoint, '%Y-%m-%d')"), DB::raw("DATE_FORMAT(NOW(), '%Y-%m-%d')"))
                           ->get());

@@ -1,11 +1,13 @@
 import ViewAbsentFormModal from "@/Components/modal/view/view-absent-form-modal"
-import CircleReload from "@/Components/reload/circle-reload"
 import NotifDisplayLayout from "@/Layouts/notif-display-layout"
 import { AbsentFormService } from "@/others/services/absent-form-service"
 import { useEffect, useState } from "react"
+import { CalendarX } from "lucide-react"
+import NotifDetailCard, { NotifEmptyState, NotifLoadingState } from "@/Components/other/notif-detail-card"
+import { parseNotifContent } from "@/others/function"
 
 const AbsentNotification  = (props) => {
-    const content = JSON.parse(props.notif.content.replace(/'/g, '"'))
+    const content = parseNotifContent(props.notif.content)
 
     const [data, setData] = useState(null)
 
@@ -16,43 +18,21 @@ const AbsentNotification  = (props) => {
 
 
     return (
-            <div className="min-h-screen bg-gray-100 flex justify-center py-10 px-4">
-                {props.notif.confirmed_at == null
+                props.notif.confirmed_at == null
                 ?
-                <>
-                {
                 ((data != null)
                 ?
                 (data != '')
                 ?
-                <div className="bg-white shadow rounded-lg w-full max-w-2xl p-6">
+                <NotifDetailCard icon={CalendarX} tone="default" title="Absent Form">
                     <ViewAbsentFormModal.Body data={data} />
-                </div>
+                </NotifDetailCard>
                 :
-                <div className="text-[1.2em] text-gray-500 w-full grid place-items-center h-full">
-                    <div className="grid place-items-center">
-                        <div className="text-[4em]">
-                            <i className="fa-solid fa-circle-exclamation"></i>
-                        </div>
-                        <h1 className="text-[1.2em]">No Absent Form Found</h1>
-                    </div>
-                </div>
+                <NotifEmptyState icon={CalendarX} message="No Absent Form Found" />
                 :
-                <CircleReload size={5} />)
-                }
-                </>
+                <NotifLoadingState size={5} />)
                 :
-                <div className="bg-white shadow rounded-lg w-full max-w-2xl p-6">
-                    <div className="text-[1.2em] text-gray-500 w-full grid place-items-center h-full">
-                        <div className="grid place-items-center">
-                            <div className="text-[4em]">
-                                <i className="fa-solid fa-circle-exclamation"></i>
-                            </div>
-                            <h1 className="text-[1.2em]">No Absent Form Found</h1>
-                        </div>
-                    </div>
-                </div>}
-            </div>
+                <NotifEmptyState icon={CalendarX} message="No Absent Form Found" />
     )
 }
 

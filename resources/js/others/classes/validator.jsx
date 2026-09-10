@@ -189,10 +189,10 @@ export class Validator {
                 err.year_level = 'Year Level is not selected'
             }else {
                 err.year_level = ''
-            }if(f['school_year'] == '') {
-                err.school_year = 'School Year is not selected'
+            }if(f['school_year_id'] == '') {
+                err.school_year_id = 'School Year is not selected'
             }else {
-                err.school_year = ''
+                err.school_year_id = ''
             }
 
         }if(this.role == 'faculty') {
@@ -727,9 +727,9 @@ export class Validator {
             errorMessage.password = 'Password must not contain your name';
         } else if (
             // ✅ Only check username, user ID, or email if they exist
-            (field.username && lowerPass.includes(field.username.toLowerCase())) ||
-            (field.user_id && lowerPass.includes(field.user_id.toLowerCase())) ||
-            (field.email && lowerPass.includes(field.email.toLowerCase()))
+            (field.username && lowerPass.includes(String(field.username).toLowerCase())) ||
+            (field.user_id && lowerPass.includes(String(field.user_id).toLowerCase())) ||
+            (field.email && lowerPass.includes(String(field.email).toLowerCase()))
         ) {
             errorMessage.password = 'Password must not contain your username, user ID or email';
         } else if (!/[0-9]/.test(password)) {
