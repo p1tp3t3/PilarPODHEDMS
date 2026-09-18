@@ -4,6 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Console\Scheduling\Schedule;
 
 
 $app = Application::configure(basePath: dirname(__DIR__))
@@ -14,12 +15,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Trusts the loopback interface as a proxy so requests forwarded by
-        // the local Vite dev server (used to route a single ngrok tunnel to
-        // both Vite and Laravel) carry X-Forwarded-Proto through correctly —
-        // otherwise Laravel thinks every tunneled request is plain HTTP and
-        // generates http:// URLs (route(), url(), asset()) on an https page,
-        // which browsers block as mixed content.
+        
         if(env('APP_ENV') === 'local' && env('NGROK_URL'))
             $middleware->trustProxies(at: [parse_url(env('NGROK_URL'), PHP_URL_HOST)]);
 
@@ -29,6 +25,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\CheckMaintenanceMode::class,
             \App\Http\Middleware\ForceAccountSetup::class,
         ]);
+        
         $middleware->alias([
             'activate' => \App\Http\Middleware\Activation::class,
             'user-activity' => \App\Http\Middleware\UserActivity::class,
@@ -40,6 +37,24 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'violation-edit-authorized' => \App\Http\Middleware\EnsureViolationEditAccess::class,
         ]);
     })
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command('app:notify-gate-pass-expiration-command')
+                 ->timezone('Asia/Manila')
+                 ->dailyAt('08:00');
+
+        $schedule->command('app:notify-unresolved-cases-command')
+                 ->yearly()
+                 ->timezone('Asia/Manila')
+                 ->dailyAt('08:00');
+
+        $schedule->command('app:train-logistic-model-command')
+                 ->timezone('Asia/Manila')
+                 ->dailyAt('08:00');
+
+        $schedule->command('app:notify-student-violation-prediction-command')
+                 ->timezone('Asia/Manila')
+                 ->dailyAt('08:00');
+    })
     ->withExceptions(function (Exceptions $exceptions): void {
         if (env('APP_ENV') === 'local' && env('NGROK_URL')) {
             $exceptions->shouldRenderJsonWhen(
@@ -47,12 +62,5 @@ $app = Application::configure(basePath: dirname(__DIR__))
             );
         }
     });
-
-// withExceptions() must always run — it's what binds Laravel's exception
-// handler into the container at all, not just the ngrok-specific JSON
-// customization below. Skipping the call entirely whenever NGROK_URL isn't
-// set (the previous ternary) left every request/command without an
-// ExceptionHandler binding, so any error anywhere became an unrenderable
-// "Target [Illuminate\Contracts\Debug\ExceptionHandler] is not
-// instantiable" crash instead of the actual error.
+    
 return $app->create();

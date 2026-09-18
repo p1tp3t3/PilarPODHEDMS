@@ -5,17 +5,16 @@ namespace App\Console\Commands;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Http;
 
-#[Signature('app:train-logistic-model-command')]
+#[Signature('app:notify-unresolved-cases-command')]
 #[Description('Command description')]
-class TrainLogisticModelCommand extends Command
+class NotifyUnresolvedCasesCommand extends Command
 {
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        
+        //
     }
 }

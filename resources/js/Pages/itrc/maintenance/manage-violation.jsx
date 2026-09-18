@@ -100,6 +100,29 @@ const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditR
                                     ),
                                 },
                                 {
+                                    field: "keywords",
+                                    headerName: "Keywords",
+                                    flex: 1,
+                                    minWidth: 200,
+                                    sortable: false,
+                                    renderCell: ({ row }) => (
+                                        <div className="flex flex-wrap gap-1 py-2">
+                                            {row.keywords?.length > 0 ? (
+                                                row.keywords.map((kw, i) => (
+                                                    <span
+                                                        key={i}
+                                                        className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs rounded-full"
+                                                    >
+                                                        {kw}
+                                                    </span>
+                                                ))
+                                            ) : (
+                                                <span className="italic text-gray-400 text-[0.85em]">None</span>
+                                            )}
+                                        </div>
+                                    ),
+                                },
+                                {
                                     field: "penalties",
                                     headerName: "Penalties",
                                     flex: 1.6,
@@ -153,14 +176,14 @@ const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditR
                                     renderCell: ({ row }) => (
                                         <div className="flex gap-2 items-center h-full py-2">
                                             <ActionBtn
-                                                className="bg-gray-600 hover:bg-gray-700"
+                                                className="bg-blue-600 hover:bg-blue-700"
                                                 onClick={() => router.visit(`/violation-management/${row.id}/students`)}
                                             >
                                                 View
                                             </ActionBtn>
                                             {canEditRow && (
                                             <ActionBtn
-                                                className="bg-blue-600 hover:bg-blue-700"
+                                                className="bg-indigo-600 hover:bg-indigo-700"
                                                 onClick={() => events[0]("violation", "edit", row)}
                                             >
                                                 Edit

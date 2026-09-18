@@ -7,7 +7,8 @@ use Illuminate\Http\Request;
 
 class WebPushController extends Controller
 {
-    public function store(Request $request) {
+    public function store(Request $request)
+    {
         if (auth()->check()) {
             auth()->user()->updatePushSubscription(
                 $request->endpoint,

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Modules\Violation;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\ViolationAccessRequest;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
@@ -22,12 +23,12 @@ class ViolationAccessController extends Controller
         }
 
         $data = $request->validate([
-            'resource' => 'required|in:' . implode(',', ViolationAccessRequest::RESOURCES),
-            'access_type' => 'required|in:' . implode(',', ViolationAccessRequest::ACCESS_TYPES),
+            'resource' => 'required|in:'.implode(',', ViolationAccessRequest::RESOURCES),
+            'access_type' => 'required|in:'.implode(',', ViolationAccessRequest::ACCESS_TYPES),
             'reason' => 'required|string|max:1000',
         ]);
 
-        if (!in_array($data['access_type'], ViolationAccessRequest::VALID_COMBINATIONS[$data['resource']], true)) {
+        if (! in_array($data['access_type'], ViolationAccessRequest::VALID_COMBINATIONS[$data['resource']], true)) {
             return response()->json(['message' => "There's no \"{$data['access_type']}\" action for {$data['resource']} management."], 422);
         }
 
@@ -46,7 +47,7 @@ class ViolationAccessController extends Controller
             'status' => 'pending',
         ]);
 
-        $label = "\"{$data['access_type']}\" access to " . ucfirst($data['resource']) . ' Management';
+        $label = "\"{$data['access_type']}\" access to ".ucfirst($data['resource']).' Management';
 
         foreach (User::where('role', 'sub_admin')->get() as $prefect) {
             notify_single_user([
@@ -55,12 +56,12 @@ class ViolationAccessController extends Controller
                 'receiver_id' => $prefect->id,
                 'content' => json_encode([
                     'sender_notif_message' => "Requested $label.",
-                    'receiver_notif_message' => auth()->user()->username . " is requesting $label.",
+                    'receiver_notif_message' => auth()->user()->username." is requesting $label.",
                 ]),
                 'read_since' => null,
             ], [
                 'title' => 'Violation Access Request',
-                'body' => auth()->user()->username . " is requesting $label.",
+                'body' => auth()->user()->username." is requesting $label.",
                 'url' => '',
                 'icon' => '',
             ]);
@@ -110,7 +111,7 @@ class ViolationAccessController extends Controller
     public function approve($id)
     {
         $accessRequest = self::authorizedPendingRequest($id);
-        if ($accessRequest instanceof \Illuminate\Http\JsonResponse) {
+        if ($accessRequest instanceof JsonResponse) {
             return $accessRequest;
         }
 
@@ -122,7 +123,7 @@ class ViolationAccessController extends Controller
             'expires_at' => now()->addMinutes(ViolationAccessRequest::ACCESS_DURATION_MINUTES),
         ]);
 
-        self::notifyRequester($accessRequest, 'Your "' . $accessRequest->access_type . '" request for ' . ucfirst($accessRequest->resource) . ' Management was approved for ' . ViolationAccessRequest::ACCESS_DURATION_MINUTES . ' minutes.');
+        self::notifyRequester($accessRequest, 'Your "'.$accessRequest->access_type.'" request for '.ucfirst($accessRequest->resource).' Management was approved for '.ViolationAccessRequest::ACCESS_DURATION_MINUTES.' minutes.');
 
         return response()->json(['message' => 'Access request approved.']);
     }
@@ -130,7 +131,7 @@ class ViolationAccessController extends Controller
     public function deny(Request $request, $id)
     {
         $accessRequest = self::authorizedPendingRequest($id);
-        if ($accessRequest instanceof \Illuminate\Http\JsonResponse) {
+        if ($accessRequest instanceof JsonResponse) {
             return $accessRequest;
         }
 
@@ -146,7 +147,7 @@ class ViolationAccessController extends Controller
             'denied_at' => now(),
         ]);
 
-        self::notifyRequester($accessRequest, 'Your "' . $accessRequest->access_type . '" request for ' . ucfirst($accessRequest->resource) . ' Management was denied: ' . $data['response_reason']);
+        self::notifyRequester($accessRequest, 'Your "'.$accessRequest->access_type.'" request for '.ucfirst($accessRequest->resource).' Management was denied: '.$data['response_reason']);
 
         return response()->json(['message' => 'Access request denied.']);
     }
@@ -168,7 +169,7 @@ class ViolationAccessController extends Controller
             ->whereIn('status', ['pending', 'approved'])
             ->first();
 
-        if ($user->role !== 'super_admin' || !$accessRequest) {
+        if ($user->role !== 'super_admin' || ! $accessRequest) {
             return response()->json(['message' => 'No pending or active request of yours was found to revoke.'], 404);
         }
 
@@ -189,7 +190,7 @@ class ViolationAccessController extends Controller
         }
 
         $accessRequest = ViolationAccessRequest::where('id', $id)->where('status', 'pending')->first();
-        if (!$accessRequest) {
+        if (! $accessRequest) {
             return response()->json(['message' => 'This request is no longer pending.'], 404);
         }
 

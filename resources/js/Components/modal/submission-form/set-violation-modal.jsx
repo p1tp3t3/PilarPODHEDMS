@@ -15,7 +15,10 @@ const SetViolationModal = (props) => {
         id: "",
         violation_name: "",
         offense_status: "1",
+        keywords: [],
     })
+
+    const [keywordInput, setKeywordInput] = useState("")
 
     const [penalties, setPenalties] = useState([
         { occurrence: 1, list: [{ penalty_id: "" }] },
@@ -31,6 +34,8 @@ const SetViolationModal = (props) => {
         violation_nameAsterisk: false,
         offense_status: "",
         offense_statusAsterisk: false,
+        keywords: "",
+        keywordsAsterisk: false,
         penalties: "",
     })
 
@@ -41,6 +46,7 @@ const SetViolationModal = (props) => {
                 id: editData.id || "",
                 violation_name: editData.violation_name || "",
                 offense_status: editData.offense_status != null ? String(editData.offense_status) : "1",
+                keywords: Array.isArray(editData.keywords) ? editData.keywords : [],
             });
 
             if (editData.penalties) {
@@ -67,6 +73,8 @@ const SetViolationModal = (props) => {
             violation_nameAsterisk: false,
             offense_status: "",
             offense_statusAsterisk: false,
+            keywords: "",
+            keywordsAsterisk: false,
             penalties: "",
         };
 
@@ -78,6 +86,11 @@ const SetViolationModal = (props) => {
         if (data.offense_status !== "0" && data.offense_status !== "1") {
             err.offense_status = "Please select Major or Minor.";
             err.offense_statusAsterisk = true;
+        }
+
+        if (!data.keywords || data.keywords.length === 0) {
+            err.keywords = "Please add at least one keyword.";
+            err.keywordsAsterisk = true;
         }
 
         // 🔥 CORRECT PENALTY VALIDATION RULE
@@ -98,13 +111,48 @@ const SetViolationModal = (props) => {
         }
 
         setValidationErr(err);
-        return !(err.violation_name || err.offense_status || err.penalties);
+        return !(err.violation_name || err.offense_status || err.keywords || err.penalties);
     };
 
     // ------------------ INPUT HANDLERS ------------------
     const handleChange = (e) => {
         change(e, setData)
         validate()
+    }
+
+    // ------------------ KEYWORDS (list input) ------------------
+    const validateKeywords = (list) => {
+        setValidationErr(prev => ({
+            ...prev,
+            keywords: list.length === 0 ? "Please add at least one keyword." : "",
+            keywordsAsterisk: list.length === 0,
+        }))
+    }
+
+    const addKeyword = () => {
+        const trimmed = keywordInput.trim()
+        if (!trimmed) return
+        if (data.keywords.some(k => k.toLowerCase() === trimmed.toLowerCase())) {
+            setKeywordInput("")
+            return
+        }
+        const updated = [...data.keywords, trimmed]
+        setData(prev => ({ ...prev, keywords: updated }))
+        setKeywordInput("")
+        validateKeywords(updated)
+    }
+
+    const removeKeyword = (index) => {
+        const updated = data.keywords.filter((_, i) => i !== index)
+        setData(prev => ({ ...prev, keywords: updated }))
+        validateKeywords(updated)
+    }
+
+    const handleKeywordKeyDown = (e) => {
+        if (e.key === "Enter" || e.key === ",") {
+            e.preventDefault()
+            addKeyword()
+        }
     }
 
     const handlePenaltyChange = (occIndex, pIndex, value) => {
@@ -205,6 +253,55 @@ const SetViolationModal = (props) => {
                                 error={validationErr.violation_name}
                                 errorAsterisk={validationErr.violation_nameAsterisk}
                             />
+
+                            <div className="grid gap-2">
+                                <label className="text-[0.9em] font-medium text-gray-700">
+                                    Keywords {validationErr.keywordsAsterisk && <span className="text-red-600">*</span>}
+                                </label>
+
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        value={keywordInput}
+                                        onChange={(e) => setKeywordInput(e.target.value)}
+                                        onKeyDown={handleKeywordKeyDown}
+                                        placeholder="e.g. bully, then press Enter to add"
+                                        className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-[0.9em] focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={addKeyword}
+                                        className="bg-blue-500 text-white px-3 py-2 rounded-md hover:bg-blue-600 text-[0.9em]"
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+
+                                {data.keywords.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                        {data.keywords.map((kw, i) => (
+                                            <span
+                                                key={i}
+                                                className="flex items-center gap-1 px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded-full"
+                                            >
+                                                {kw}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeKeyword(i)}
+                                                    className="ml-1 text-gray-500 hover:text-red-600 font-bold leading-none"
+                                                    aria-label={`Remove ${kw}`}
+                                                >
+                                                    ×
+                                                </button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {validationErr.keywords && (
+                                    <p className="text-red-600 text-sm">{validationErr.keywords}</p>
+                                )}
+                            </div>
 
                             <RadioButton
                                 label="Status"

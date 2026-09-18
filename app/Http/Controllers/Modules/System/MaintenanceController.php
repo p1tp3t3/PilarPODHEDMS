@@ -28,16 +28,16 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
-use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Excel as ExcelFormat;
-
+use Maatwebsite\Excel\Facades\Excel;
 
 class MaintenanceController extends Controller
 {
-    public function index() {
+    public function index()
+    {
         return Inertia::render('itrc/system-maintenance', [
             'user' => auth()->user(),
-            'maintenance_mode' => Cache::get('maintenance_mode', false)
+            'maintenance_mode' => Cache::get('maintenance_mode', false),
         ]);
     }
 
@@ -48,7 +48,8 @@ class MaintenanceController extends Controller
      * so it reflects the real state even when viewed by a super admin whose
      * own session bypasses the maintenance block.
      */
-    public function preview() {
+    public function preview()
+    {
         return view('maintenance-preview', [
             'enabled' => Cache::get('maintenance_mode', false),
         ]);
@@ -60,11 +61,12 @@ class MaintenanceController extends Controller
      * "Student Violations" tab's data (folded in from the old standalone
      * /prefect/violation page, which duplicated this same section).
      */
-    public function violationManagementIndex() {
+    public function violationManagementIndex()
+    {
         $violations = Violation::query()
-                        ->with(['penalties.penalty'])
-                        ->latest('created_at')
-                        ->get();
+            ->with(['penalties.penalty'])
+            ->latest('created_at')
+            ->get();
 
         return Inertia::render('other/violation-management', [
             'user' => auth()->user(),
@@ -84,46 +86,47 @@ class MaintenanceController extends Controller
     private function getStudentViolationList()
     {
         return ComplaintSubject::with([
-                    'complaint',
-                    'offenses.violation',
-                    'user.profile',
-                    'user.program',
-                    'user.enrollments.schoolYear',
-                    'user.teachingStaff.program',
-                ])
-                ->whereHas('complaint', function ($q) {
-                    $q->where('complaint_status', 'resolved');
-                })
-                ->get()
-                ->groupBy(fn ($d) => $d->user->id)
-                ->map(function ($group) {
-                    // ComplaintSubject::offenses() is only scoped by complaint_id (a
-                    // hasMany can't also be matched against the parent's own
-                    // student_id column) — must filter by student_id here too, or a
-                    // complaint with multiple student subjects double-counts every
-                    // other subject's offenses onto this one.
-                    $allOffenses = $group->flatMap(fn ($item) => $item->offenses->where('student_id', $item->student_id));
-                    $majorCount = $allOffenses
-                        ->filter(fn ($offense) => optional($offense->violation)->offense_status === 1)
-                        ->count();
-                    $minorCount = $allOffenses
-                        ->filter(fn ($offense) => optional($offense->violation)->offense_status === 0)
-                        ->count();
+            'complaint',
+            'offenses.violation',
+            'user.profile',
+            'user.program',
+            'user.enrollments.schoolYear',
+            'user.teachingStaff.program',
+        ])
+            ->whereHas('complaint', function ($q) {
+                $q->where('complaint_status', 'resolved');
+            })
+            ->get()
+            ->groupBy(fn ($d) => $d->user->id)
+            ->map(function ($group) {
+                // ComplaintSubject::offenses() is only scoped by complaint_id (a
+                // hasMany can't also be matched against the parent's own
+                // student_id column) — must filter by student_id here too, or a
+                // complaint with multiple student subjects double-counts every
+                // other subject's offenses onto this one.
+                $allOffenses = $group->flatMap(fn ($item) => $item->offenses->where('student_id', $item->student_id));
+                $majorCount = $allOffenses
+                    ->filter(fn ($offense) => optional($offense->violation)->offense_status === 1)
+                    ->count();
+                $minorCount = $allOffenses
+                    ->filter(fn ($offense) => optional($offense->violation)->offense_status === 0)
+                    ->count();
 
-                    return [
-                        'student_id' => $group->first()->user->id,
-                        'user' => $group->first()->user,
-                        'violation_count' => $allOffenses->count(),
-                        'major_count' => $majorCount,
-                        'minor_count' => $minorCount,
-                        'penalty_count' => $group->count(),
-                    ];
-                })
-                ->filter(fn ($item) => $item['violation_count'] > 0)
-                ->values();
+                return [
+                    'student_id' => $group->first()->user->id,
+                    'user' => $group->first()->user,
+                    'violation_count' => $allOffenses->count(),
+                    'major_count' => $majorCount,
+                    'minor_count' => $minorCount,
+                    'penalty_count' => $group->count(),
+                ];
+            })
+            ->filter(fn ($item) => $item['violation_count'] > 0)
+            ->values();
     }
 
-    public function toggleMaintenanceMode(Request $request) {
+    public function toggleMaintenanceMode(Request $request)
+    {
         $enabled = $request->boolean('enabled');
 
         Cache::forever('maintenance_mode', $enabled);
@@ -132,10 +135,12 @@ class MaintenanceController extends Controller
 
         return response()->json(['maintenance_mode' => $enabled]);
     }
-    public function programIndex() {
+
+    public function programIndex()
+    {
         return Inertia::render('itrc/program', [
             'user' => auth()->user(),
-            'program' => ProgramResource::collection(self::programsWithUserCount())
+            'program' => ProgramResource::collection(self::programsWithUserCount()),
         ]);
     }
 
@@ -146,26 +151,28 @@ class MaintenanceController extends Controller
     private static function programsWithUserCount()
     {
         return Program::withCount([
-                'enrollments as students_count' => fn ($q) => $q->where('status', 'enrolled'),
-                'teachingStaff as teaching_staff_count',
-            ])
+            'enrollments as students_count' => fn ($q) => $q->where('status', 'enrolled'),
+            'teachingStaff as teaching_staff_count',
+        ])
             ->latest('created_at')
             ->get();
     }
-    public function programUsersIndex($id) {
+
+    public function programUsersIndex($id)
+    {
         $program = Program::with('programHead.user.profile')->findOrFail($id);
 
         $faculty = User::with(['profile', 'teachingStaff.program'])
-                    ->where('role', 'teaching_staff')
-                    ->whereHas('teachingStaff', fn($q) => $q->where('program_id', $id)->where('position_id', '!=', Position::idFor('program_head')))
-                    ->latest('created_at')
-                    ->get();
+            ->where('role', 'teaching_staff')
+            ->whereHas('teachingStaff', fn ($q) => $q->where('program_id', $id)->where('position_id', '!=', Position::idFor('program_head')))
+            ->latest('created_at')
+            ->get();
 
         $students = User::with(['profile', 'program', 'enrollments'])
-                    ->where('role', 'student')
-                    ->whereHas('enrollments', fn($q) => $q->where('program_id', $id)->where('status', 'enrolled'))
-                    ->latest('created_at')
-                    ->get();
+            ->where('role', 'student')
+            ->whereHas('enrollments', fn ($q) => $q->where('program_id', $id)->where('status', 'enrolled'))
+            ->latest('created_at')
+            ->get();
 
         return Inertia::render('itrc/program-users', [
             'user' => auth()->user(),
@@ -174,16 +181,17 @@ class MaintenanceController extends Controller
             'students' => UserResource::collection($students),
         ]);
     }
+
     public function programStore(StoreProgramRequest $request)
     {
         $data = [
             'name' => Str::upper($request->name),
             'description' => ucwords($request->description),
-            'color_code' => $request->color
+            'color_code' => $request->color,
         ];
 
         if ($request->hasFile('logo')) {
-            $fileName = time() . '_' . $request->file('logo')->getClientOriginalName();
+            $fileName = time().'_'.$request->file('logo')->getClientOriginalName();
             Storage::disk('public')->putFileAs('program-logos', $request->file('logo'), $fileName);
             $data['logo'] = $fileName;
         }
@@ -196,7 +204,7 @@ class MaintenanceController extends Controller
         /* =============================
         FACULTY CSV EXPORT (EMPTY)
         ============================= */
-        $facultyHeader = ['id','name','program','username','password'];
+        $facultyHeader = ['id', 'name', 'program', 'username', 'password'];
         $facultyFile = "zips/faculty-account-{$programId}-{$programName}.csv";
 
         Excel::store(
@@ -205,7 +213,6 @@ class MaintenanceController extends Controller
             'public',
             ExcelFormat::CSV
         );
-
 
         /* =============================
         STUDENT 4 CSVs -> ZIP EXPORT
@@ -216,7 +223,7 @@ class MaintenanceController extends Controller
 
         // directory for zips
         $zipsDir = storage_path('app/private/zips');
-        if (!File::exists($zipsDir)) {
+        if (! File::exists($zipsDir)) {
             File::makeDirectory($zipsDir, 0775, true, true);
         }
 
@@ -225,30 +232,31 @@ class MaintenanceController extends Controller
             File::delete($zipPath);
         }
 
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
         $openStatus = $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
 
         if ($openStatus !== true) {
-            Log::error("ZIP FAILED", ['zipPath' => $zipPath, 'openStatus' => $openStatus]);
+            Log::error('ZIP FAILED', ['zipPath' => $zipPath, 'openStatus' => $openStatus]);
             throw new \Exception("Cannot create ZIP file: {$zipPath}");
         }
 
         // CSV headers
-        $studentHeader = ['id','name','program','year_level','username','password'];
+        $studentHeader = ['id', 'name', 'program', 'year_level', 'username', 'password'];
 
         // Write 4 CSV files directly into ZIP
-        foreach ([1,2,3,4] as $yearLevel) {
+        foreach ([1, 2, 3, 4] as $yearLevel) {
             $csvName = "student-account-{$programId}-{$programSlug}-year-{$yearLevel}.csv";
-            $csvContent = implode(",", $studentHeader) . "\n";
+            $csvContent = implode(',', $studentHeader)."\n";
             $zip->addFromString($csvName, $csvContent);
         }
 
         $zip->close();
 
-        Log::info("ZIP CREATED SUCCESSFULLY", ['zipPath' => $zipPath]);
+        Log::info('ZIP CREATED SUCCESSFULLY', ['zipPath' => $zipPath]);
 
         return ProgramResource::collection(self::programsWithUserCount());
     }
+
     public function updateProgram(UpdateProgramRequest $request)
     {
         $data = $request->validated();
@@ -269,11 +277,11 @@ class MaintenanceController extends Controller
         $updateFields = [
             'name' => $data['name'],
             'description' => $data['description'],
-            'color_code' => $data['color']
+            'color_code' => $data['color'],
         ];
 
         if ($request->hasFile('logo')) {
-            $fileName = time() . '_' . $request->file('logo')->getClientOriginalName();
+            $fileName = time().'_'.$request->file('logo')->getClientOriginalName();
             Storage::disk('public')->putFileAs('program-logos', $request->file('logo'), $fileName);
 
             if ($program->logo) {
@@ -312,13 +320,13 @@ class MaintenanceController extends Controller
         if ($studentCount > 0 || $facultyCount > 0) {
             return response()->json([
                 'status' => false,
-                'message' => 'Program cannot be deleted. Users are still assigned to this program.'
+                'message' => 'Program cannot be deleted. Users are still assigned to this program.',
             ], 409);
         }
 
         // File paths
         $facultyFile = storage_path("app/private/zips/faculty-account-{$program->id}-{$programSlug}.csv");
-        $studentZip  = storage_path("app/private/zips/student-{$program->id}-{$programSlug}.zip");
+        $studentZip = storage_path("app/private/zips/student-{$program->id}-{$programSlug}.zip");
 
         if ($program->logo) {
             Storage::disk('public')->delete("program-logos/{$program->logo}");
@@ -328,27 +336,42 @@ class MaintenanceController extends Controller
         $program->delete();
 
         // Delete files if exist
-        if (file_exists($facultyFile)) unlink($facultyFile);
-        if (file_exists($studentZip)) unlink($studentZip);
+        if (file_exists($facultyFile)) {
+            unlink($facultyFile);
+        }
+        if (file_exists($studentZip)) {
+            unlink($studentZip);
+        }
 
         return ProgramResource::collection(self::programsWithUserCount());
     }
 
+    // Python's CSV/tokenizer expects a flat comma-separated string, while
+    // Laravel stores keywords as a proper array column — flatten here only
+    // for the outbound sync payload.
+    private static function flattenKeywords(array $keywords): string
+    {
+        $cleaned = array_map(fn ($k) => preg_replace('/[^\w\s]/', ' ', $k), $keywords);
 
+        return implode(', ', $cleaned);
+    }
 
-    public function offenseStore(Request $request) {
+    public function offenseStore(Request $request)
+    {
         // Validate violation
         $data = $request->validate([
             'violation_name' => 'required|string|max:191',
             'offense_status' => 'required|in:1,0',
             'penalties' => 'required|array',
+            'keywords' => 'required|array|min:1',
+            'keywords.*' => 'string|max:100',
         ]);
-        
 
         // Create violation
         $violation = Violation::create([
             'violation_name' => $data['violation_name'],
             'offense_status' => $data['offense_status'],
+            'keywords' => $data['keywords'],
         ]);
 
         // =============================
@@ -367,32 +390,46 @@ class MaintenanceController extends Controller
 
                 ViolationPenalty::insert([
                     'violation_id' => $violation->id,
-                    'occurrence'   => $occurrence,
-                    'penalty_id'   => $p['penalty_id']
+                    'occurrence' => $occurrence,
+                    'penalty_id' => $p['penalty_id'],
                 ]);
             }
         }
 
         Http::withoutVerifying()->post('https://pitpete-violation-risk-predictor-api.hf.space/python/violation/add', [
             'violation' => preg_replace('/[^\w\s]/', ' ', $data['violation_name']),
-            'id' => $violation->id
+            'keywords' => self::flattenKeywords($data['keywords'] ?? []),
+            'id' => $violation->id,
         ]);
 
         return self::getViolation();
     }
+
     public function updateOffense(Request $request)
     {
         // VALIDATION
         $data = $request->validate([
             'violation_name' => 'required|string|max:191',
             'offense_status' => 'required|in:1,0',
-            'penalties'      => 'required|array',
+            'penalties' => 'required|array',
+            'keywords' => 'required|array|min:1',
+            'keywords.*' => 'string|max:100',
         ]);
 
         // UPDATE VIOLATION RECORD
         Violation::where('id', $request->id)->update([
             'violation_name' => $data['violation_name'],
             'offense_status' => $data['offense_status'],
+            'keywords' => $data['keywords'],
+        ]);
+
+        // Keep the Python AI/ML API's violation dataset in sync — previously
+        // only create/delete synced, so an edited name/keywords silently
+        // never reached the Word2Vec matching feature at all.
+        Http::withoutVerifying()->post('https://pitpete-violation-risk-predictor-api.hf.space/python/violation/update', [
+            'violation' => preg_replace('/[^\w\s]/', ' ', $data['violation_name']),
+            'keywords' => self::flattenKeywords($data['keywords'] ?? []),
+            'id' => $request->id,
         ]);
 
         // =============================
@@ -416,8 +453,8 @@ class MaintenanceController extends Controller
 
                 ViolationPenalty::insert([
                     'violation_id' => $request->id,
-                    'occurrence'   => $occurrence,
-                    'penalty_id'   => $p['penalty_id'],
+                    'occurrence' => $occurrence,
+                    'penalty_id' => $p['penalty_id'],
                 ]);
             }
         }
@@ -426,7 +463,8 @@ class MaintenanceController extends Controller
         return self::getViolation();
     }
 
-    public function destroyOffense(Request $request) {
+    public function destroyOffense(Request $request)
+    {
         $violation = Violation::where('id', $request->id)->first();
 
         // Check related records
@@ -435,21 +473,21 @@ class MaintenanceController extends Controller
         if ($complaintCount > 0) {
             return response()->json([
                 'status' => false,
-                'message' => 'Violation cannot be deleted. It is still assigned to complaint subjects.'
+                'message' => 'Violation cannot be deleted. It is still assigned to complaint subjects.',
             ], 409);
         }
 
         Http::withoutVerifying()->post('https://pitpete-violation-risk-predictor-api.hf.space/python/violation/delete', [
-            'id' => $violation->id
+            'id' => $violation->id,
         ]);
         // Delete violation
         $violation->delete();
 
-
         return self::getViolation();
     }
-    
-    public function penaltyStore(Request $request) {
+
+    public function penaltyStore(Request $request)
+    {
         $data = $request->validate([
             'description' => 'required|string|max:191',
         ]);
@@ -458,7 +496,9 @@ class MaintenanceController extends Controller
 
         return Penalty::latest('created_at')->get();
     }
-    public function destroyPenalty(Request $request) {
+
+    public function destroyPenalty(Request $request)
+    {
         $penalty = Penalty::where('id', $request->id)->first();
 
         // Delete violation
@@ -466,50 +506,62 @@ class MaintenanceController extends Controller
 
         return Penalty::latest('created_at')->get();
     }
-    public function update($id, Request $request) {
-        if($request->type == 'program') {
+
+    public function update($id, Request $request)
+    {
+        if ($request->type == 'program') {
             $data = $request->validate([
                 'name' => 'required|string',
-                'description' => 'required|string'
+                'description' => 'required|string',
             ]);
 
             Program::where('id', $id)->update($data);
+
             return Program::latest('created_at')->get();
-        }if($request->type == 'violation') {
+        }if ($request->type == 'violation') {
             $data = $request->validate([
                 'violation_name' => 'required|string|max:191',
-                'offense_status' => 'required|in:1,0'
+                'offense_status' => 'required|in:1,0',
             ]);
 
             Violation::where('id', $id)->update($data);
+
             return Violation::latest('created_at')->get();
         }
+
         return response()->json(['message' => 'error'], 400);
     }
-    public function toggle($id, Request $request) {
-        if($request->type == 'program') {
+
+    public function toggle($id, Request $request)
+    {
+        if ($request->type == 'program') {
             Program::where('id', $id)->update([
-                'is_delete' => $request->delete
+                'is_delete' => $request->delete,
             ]);
+
             return Program::latest('created_at')->get();
-        }if($request->type == 'violation') {
+        }if ($request->type == 'violation') {
             Violation::where('id', $id)->update([
-                'is_delete' => $request->delete
+                'is_delete' => $request->delete,
             ]);
+
             return Violation::latest('created_at')->get();
         }
+
         return response()->json(['message' => 'error'], 400);
     }
-    public function getViolation() {
+
+    public function getViolation()
+    {
         return Violation::query()
-                        ->with(['penalties' => function ($q) {
-                            $q->join('penalty', 'penalty.id', '=', 'violation_penalty.penalty_id')
-                            ->select(
-                                'violation_penalty.*',
-                                'penalty.description as penalty_description'
-                            );
-                        }])
-                        ->latest('created_at')
-                        ->get();
+            ->with(['penalties' => function ($q) {
+                $q->join('penalty', 'penalty.id', '=', 'violation_penalty.penalty_id')
+                    ->select(
+                        'violation_penalty.*',
+                        'penalty.description as penalty_description'
+                    );
+            }])
+            ->latest('created_at')
+            ->get();
     }
 }

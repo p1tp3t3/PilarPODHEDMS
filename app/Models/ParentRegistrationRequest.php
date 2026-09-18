@@ -2,15 +2,18 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Database\Factories\ParentRegistrationRequestFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class ParentRegistrationRequest extends Model
 {
-    /** @use HasFactory<\Database\Factories\ParentRegistrationRequestFactory> */
+    /** @use HasFactory<ParentRegistrationRequestFactory> */
     use HasFactory;
 
-    public $table = 'parent_registration_request',
-           $fillable = ['name', 'email', 'parent_details', 'reason'],
-           $timestamps = false;
+    protected $table = 'parent_registration_request';
+
+    protected $fillable = ['name', 'email', 'parent_details', 'reason'];
+
+    public $timestamps = false;
 }

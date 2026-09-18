@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class CsvImportRowResult extends Model
 {
-    public $table = 'csv_import_row_results',
-           $timestamps = false;
+    protected $table = 'csv_import_row_results';
 
-    public $fillable = [
+    public $timestamps = false;
+
+    protected $fillable = [
         'batch_id',
         'row_index',
         'id_number',
@@ -19,7 +20,10 @@ class CsvImportRowResult extends Model
         'export_data',
     ];
 
-    protected $casts = [
-        'export_data' => 'array',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'export_data' => 'array',
+        ];
+    }
 }

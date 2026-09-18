@@ -2,18 +2,23 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class Penalty extends Model
 {
     use HasFactory;
 
-    public $table = 'penalty',
-           $fillable = ['ref_number', 'name', 'description'];
+    protected $table = 'penalty';
+
+    protected $fillable = ['ref_number', 'name', 'description'];
+
     public $timestamps = false;
 
-    protected $casts = [
-        'id' => 'string',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'id' => 'string',
+        ];
+    }
 }

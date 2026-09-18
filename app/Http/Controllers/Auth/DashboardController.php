@@ -4,29 +4,30 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Modules\Appointment\AppointmentController;
-use App\Models\ActionLog;
 use App\Models\Absence;
+use App\Models\ActionLog;
 use App\Models\Appointment;
 use App\Models\Complaint;
 use App\Models\Enrollment;
 use App\Models\FamilyMember;
 use App\Models\GatePass;
+use App\Models\NonTeachingStaff;
 use App\Models\Penalty;
 use App\Models\Program;
 use App\Models\Referral;
 use App\Models\Student;
 use App\Models\TeachingStaff;
-use App\Models\Violation;
-use Inertia\Inertia;
 use App\Models\User;
+use App\Models\Violation;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
-
-    public function index() {
-        switch(auth()->user()->role) {
+    public function index()
+    {
+        switch (auth()->user()->role) {
             case 'super_admin':
                 return self::itrcDashboard();
             case 'sub_admin':
@@ -45,37 +46,38 @@ class DashboardController extends Controller
         }
     }
 
-    private function isGuidance() {
-        return \App\Models\NonTeachingStaff::where('user_id', auth()->id())->first()?->position === 'Guidance';
+    private function isGuidance()
+    {
+        return NonTeachingStaff::where('user_id', auth()->id())->first()?->position === 'Guidance';
     }
 
-    private function isGuard() {
-        return \App\Models\NonTeachingStaff::where('user_id', auth()->id())->first()?->position === 'Guard';
+    private function isGuard()
+    {
+        return NonTeachingStaff::where('user_id', auth()->id())->first()?->position === 'Guard';
     }
-
-
 
     /**
      * Lightweight, role-scoped "who's currently active" lookup, re-fetched by the
      * dashboard's active-user widgets whenever the online-presence channel changes,
      * so the list updates in real time without a full page refresh.
      */
-    public function getActiveUsers() {
+    public function getActiveUsers()
+    {
         switch (auth()->user()->role) {
             case 'super_admin':
                 return response()->json([
                     'active' => User::with('profile')
-                                    ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
-                                    ->whereNot('id', auth()->id())
-                                    ->get()
+                        ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
+                        ->whereNot('id', auth()->id())
+                        ->get(),
                 ]);
             case 'sub_admin':
                 return response()->json([
                     'active' => User::with('profile')
-                                    ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
-                                    ->where('role', 'student')
-                                    ->whereNot('id', auth()->id())
-                                    ->get()
+                        ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
+                        ->where('role', 'student')
+                        ->whereNot('id', auth()->id())
+                        ->get(),
                 ]);
             case 'teaching_staff':
                 $id = auth()->id();
@@ -86,24 +88,24 @@ class DashboardController extends Controller
 
                 $data = [
                     'active_student' => User::with('profile')
-                                            ->where('role', 'student')
-                                            ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
-                                            ->whereNot('id', $id)
-                                            ->whereHas('enrollments', function ($q) use ($programIds) {
-                                                $q->whereIn('program_id', $programIds);
-                                            })
-                                            ->get()
+                        ->where('role', 'student')
+                        ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
+                        ->whereNot('id', $id)
+                        ->whereHas('enrollments', function ($q) use ($programIds) {
+                            $q->whereIn('program_id', $programIds);
+                        })
+                        ->get(),
                 ];
 
                 if ($isProgramHead) {
                     $data['active_faculty'] = User::with('profile')
-                                                ->where('role', 'teaching_staff')
-                                                ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
-                                                ->whereNot('id', $id)
-                                                ->whereHas('teachingStaff', function ($q) use ($programIds) {
-                                                    $q->whereIn('program_id', $programIds);
-                                                })
-                                                ->get();
+                        ->where('role', 'teaching_staff')
+                        ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
+                        ->whereNot('id', $id)
+                        ->whereHas('teachingStaff', function ($q) use ($programIds) {
+                            $q->whereIn('program_id', $programIds);
+                        })
+                        ->get();
                 }
 
                 return response()->json($data);
@@ -112,73 +114,85 @@ class DashboardController extends Controller
         }
     }
 
-    public function itrcDashboard() {
+    public function itrcDashboard()
+    {
         $itrcProps = array_merge([
             'user' => auth()->user(),
         ], self::getITRCStatistics());
 
         return Inertia::render('itrc/dashboard', $itrcProps);
     }
-    public function studentDashboard() {
+
+    public function studentDashboard()
+    {
         $studentProps = array_merge([
             'user' => auth()->user(),
         ], self::getStudentStatistics());
 
         return Inertia::render('student/dashboard', $studentProps);
     }
-    public function prefectDashboard() {
-        $appointment = new AppointmentController();
+
+    public function prefectDashboard()
+    {
+        $appointment = new AppointmentController;
         $prefectProps = array_merge([
             'user' => auth()->user(),
             'students' => User::with(['program', 'profile', 'enrollments'])
-                              ->where('role', 'student')
-                              ->whereDate('created_at', now()->toDateString())
-                              ->latest('created_at')
-                              ->get(),
+                ->where('role', 'student')
+                ->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
+                ->latest('created_at')
+                ->get(),
+            'students_week_start' => now()->startOfWeek()->toDateString(),
+            'students_week_end' => now()->endOfWeek()->toDateString(),
             'appointment_today' => $appointment->getAppointmentToday(),
             'incident_risk_list' => [],
             'active' => User::with('profile')
-                            ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
-                            ->where('role', 'student')
-                            ->whereNot('id', auth()->id())
-                            ->get()
+                ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
+                ->where('role', 'student')
+                ->whereNot('id', auth()->id())
+                ->get(),
         ], self::getPrefectDataStatistics());
-
 
         return Inertia::render('prefect/dashboard', $prefectProps);
     }
-    public function teachingStaffDashboard() {
+
+    public function teachingStaffDashboard()
+    {
         $teachingStaffProps = array_merge([
             'user' => auth()->user(),
         ], self::getTeachingStaffStatistics());
 
         return Inertia::render('teaching-staff/dashboard', $teachingStaffProps);
     }
-    public function nonTeachingStaffDashboard() {
+
+    public function nonTeachingStaffDashboard()
+    {
         $staffProps = array_merge([
             'user' => auth()->user(),
         ], self::getStaffStatictics());
 
         return Inertia::render('staff/dashboard', $staffProps);
     }
-    public function parentDashboard() {
+
+    public function parentDashboard()
+    {
         $parentProps = array_merge([
             'user' => auth()->user(),
         ], self::getParentStatistics());
 
         return Inertia::render('parent/dashboard', $parentProps);
     }
+
     // Guidance's one real task is reviewing referrals from the prefect —
     // rather than a separate landing page, send them straight there.
-    public function guidanceDashboard() {
+    public function guidanceDashboard()
+    {
         return redirect('/guidance/referral');
     }
 
-
-
-
-    public function getITRCStatistics() {
-        $account = new User();
+    public function getITRCStatistics()
+    {
+        $account = new User;
 
         $complaint = Complaint::where('complainant_id', auth()->id())->count('case_number');
 
@@ -216,12 +230,14 @@ class DashboardController extends Controller
             'bargraph' => array_values($monthlyData),
             'role' => $roles,
             'active' => User::with('profile')
-                            ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
-                            ->whereNot('id', auth()->id())
-                            ->get()
+                ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
+                ->whereNot('id', auth()->id())
+                ->get(),
         ];
     }
-    public function getPrefectDataStatistics() {
+
+    public function getPrefectDataStatistics()
+    {
         $complaint = Complaint::count();
         $pendingComplaint = Complaint::where('complaint_status', 'pending')->count();
         $ongoingComplaint = Complaint::where('complaint_status', 'ongoing')->count();
@@ -238,7 +254,7 @@ class DashboardController extends Controller
             'reported' => Complaint::where($currentDate, now()->toDateString())->count(),
             'pending' => Complaint::where('complaint_status', 'pending')->where($currentDate, now()->toDateString())->count(),
             'ongoing' => Complaint::where('complaint_status', 'ongoing')->where($currentDate, now()->toDateString())->count(),
-            'resolved' => Complaint::where('complaint_status', 'resolved')->where($currentDate, now()->toDateString())->count()
+            'resolved' => Complaint::where('complaint_status', 'resolved')->where($currentDate, now()->toDateString())->count(),
         ];
 
         // NOTE: archived-document count computed directly here rather than via ArchiveController,
@@ -265,63 +281,65 @@ class DashboardController extends Controller
             'penalty_list' => Penalty::latest('created_at')->get(),
             'countLastMonthUnresolvedComplaint' => $countUnresolvedComplaints->count(),
             'label' => self::getDynamicComplaintLabel($countUnresolvedComplaints
-                                                      ->orderBy('created_at', 'asc')
-                                                      ->value('created_at')
-                        )
+                ->orderBy('created_at', 'asc')
+                ->value('created_at')
+            ),
         ];
     }
-    function getDynamicComplaintLabel($oldest)
+
+    public function getDynamicComplaintLabel($oldest)
     {
-        if (!$oldest) {
+        if (! $oldest) {
             return 'no unresolved complaints';
         }
 
         $now = now();
         $created = Carbon::parse($oldest);
 
-        $diffDays   = $created->diffInDays($now);
-        $diffWeeks  = $created->diffInWeeks($now);
+        $diffDays = $created->diffInDays($now);
+        $diffWeeks = $created->diffInWeeks($now);
         $diffMonths = $created->diffInMonths($now);
-        $diffYears  = $created->diffInYears($now);
+        $diffYears = $created->diffInYears($now);
 
         if ($diffDays === 0) {
-            return "unresolved complaints today";
+            return 'unresolved complaints today';
         }
 
         if ($diffDays === 1) {
-            return "unresolved complaints yesterday";
+            return 'unresolved complaints yesterday';
         }
 
         if ($diffDays < 7) {
-            return "unresolved complaints this week";
+            return 'unresolved complaints this week';
         }
 
         if ($diffWeeks < 4) {
-            return "unresolved complaints last few weeks";
+            return 'unresolved complaints last few weeks';
         }
 
         if ($diffMonths === 1) {
-            return "unresolved complaints last month";
+            return 'unresolved complaints last month';
         }
 
         if ($diffMonths < 12) {
-            return "unresolved complaints in previous months";
+            return 'unresolved complaints in previous months';
         }
 
         if ($diffYears === 1) {
-            return "unresolved complaints last year";
+            return 'unresolved complaints last year';
         }
 
-        return "unresolved complaints in previous years";
+        return 'unresolved complaints in previous years';
     }
 
-    public function getStudentStatistics() {
+    public function getStudentStatistics()
+    {
         $id = auth()->id();
 
         $complaint = Complaint::where('complainant_id', $id)->count();
 
         $appointmentCount = Appointment::where('user_id', $id)->count();
-        $appointment = new AppointmentController();
+        $appointment = new AppointmentController;
 
         $gatepass = GatePass::where('user_id', $id)->count();
         $absentForm = Absence::where('student_id', $id)->count();
@@ -331,7 +349,7 @@ class DashboardController extends Controller
             'appointment' => $appointmentCount,
             'gatepass' => $gatepass,
             'absent_form' => $absentForm,
-            'upcoming_appointment' =>  $appointment->getUpcomingAppointmentList($id)
+            'upcoming_appointment' => $appointment->getUpcomingAppointmentList($id),
 
         ];
     }
@@ -345,7 +363,8 @@ class DashboardController extends Controller
      * program", not restricted to the most recent term only — a simplification
      * for this pass.
      */
-    public function getTeachingStaffStatistics() {
+    public function getTeachingStaffStatistics()
+    {
         $id = auth()->id();
         $teachingStaff = TeachingStaff::where('user_id', $id)->first(['user_id', 'program_id', 'position_id']);
         $programId = $teachingStaff?->program_id;
@@ -387,7 +406,8 @@ class DashboardController extends Controller
         return $props;
     }
 
-    public function getStaffStatictics() {
+    public function getStaffStatictics()
+    {
         $complaint = Complaint::where('complainant_id', auth()->id())->count();
 
         return [
@@ -396,29 +416,32 @@ class DashboardController extends Controller
             'is_guard' => self::isGuard(),
         ];
     }
-    public function getParentStatistics() {
+
+    public function getParentStatistics()
+    {
         $id = auth()->id();
         $complaint = Complaint::where('complainant_id', $id)->count();
         $appointmentCount = Appointment::where('user_id', $id)->count();
-        $appointment = new AppointmentController();
+        $appointment = new AppointmentController;
 
         $familyId = FamilyMember::where('member_id', $id)->value('family_id');
         $children = $familyId
             ? User::whereIn('id', FamilyMember::where('family_id', $familyId)->pluck('member_id'))
-                  ->where('role', 'student')
-                  ->count()
+                ->where('role', 'student')
+                ->count()
             : 0;
 
         return [
             'complaint' => $complaint,
             'children' => $children,
             'appointment' => $appointmentCount,
-            'upcoming_appointment' =>  $appointment->getUpcomingAppointmentList($id)
+            'upcoming_appointment' => $appointment->getUpcomingAppointmentList($id),
         ];
     }
 
-    public function getPrefectBarGraph() {
-       // Filter: [dimension, scope, period]
+    public function getPrefectBarGraph()
+    {
+        // Filter: [dimension, scope, period]
         $filter = request()->has('filter') ? request('filter') : ['', '', ''];
         [$dimension, $scope, $period] = $filter;
 
@@ -492,12 +515,11 @@ class DashboardController extends Controller
          * BUILD FINAL RESULT ARRAY
          * ============================================
          */
-
         $result = [];
 
         if ($scope === 'monthly') {
 
-            $daysInMonth = \Carbon\Carbon::createFromDate($year, $month, 1)->daysInMonth;
+            $daysInMonth = Carbon::createFromDate($year, $month, 1)->daysInMonth;
 
             // Initialize structure
             for ($d = 1; $d <= $daysInMonth; $d++) {
@@ -525,7 +547,7 @@ class DashboardController extends Controller
             // Yearly 1–12
             for ($m = 1; $m <= 12; $m++) {
                 $result[$m] = [
-                    'label' => \Carbon\Carbon::create()->month($m)->format('M'),
+                    'label' => Carbon::create()->month($m)->format('M'),
                     'count' => array_fill(0, count($programs), 0),
                     'others' => 0,
                 ];
@@ -545,6 +567,7 @@ class DashboardController extends Controller
 
         // Reset indexing
         $data = array_values($result);
+
         return $data;
 
     }

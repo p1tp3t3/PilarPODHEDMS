@@ -45,7 +45,7 @@ class BackupController extends Controller
                 'file' => basename($path),
             ]);
         } catch (\Throwable $e) {
-            return response()->json(['message' => 'Database backup failed: ' . $e->getMessage()], 500);
+            return response()->json(['message' => 'Database backup failed: '.$e->getMessage()], 500);
         }
     }
 
@@ -61,7 +61,7 @@ class BackupController extends Controller
                 'file' => basename($path),
             ]);
         } catch (\Throwable $e) {
-            return response()->json(['message' => 'Storage backup failed: ' . $e->getMessage()], 500);
+            return response()->json(['message' => 'Storage backup failed: '.$e->getMessage()], 500);
         }
     }
 
@@ -72,14 +72,14 @@ class BackupController extends Controller
         try {
             $dbPath = $this->dumpDatabase();
             $timestamp = now()->format('Y-m-d_His');
-            $zipPath = $this->backupDir() . "/full-backup-{$timestamp}.zip";
+            $zipPath = $this->backupDir()."/full-backup-{$timestamp}.zip";
 
-            $zip = new ZipArchive();
+            $zip = new ZipArchive;
             if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
                 throw new \Exception('Unable to create backup archive.');
             }
 
-            $zip->addFile($dbPath, 'database/' . basename($dbPath));
+            $zip->addFile($dbPath, 'database/'.basename($dbPath));
             $this->addDirectoryToZip($zip, storage_path('app'), 'storage');
             $zip->close();
 
@@ -91,16 +91,16 @@ class BackupController extends Controller
                 'file' => basename($zipPath),
             ]);
         } catch (\Throwable $e) {
-            return response()->json(['message' => 'Full system backup failed: ' . $e->getMessage()], 500);
+            return response()->json(['message' => 'Full system backup failed: '.$e->getMessage()], 500);
         }
     }
 
     public function download($filename)
     {
         $filename = basename($filename);
-        $path = $this->backupDir() . '/' . $filename;
+        $path = $this->backupDir().'/'.$filename;
 
-        if (!File::exists($path)) {
+        if (! File::exists($path)) {
             abort(404);
         }
 
@@ -110,7 +110,7 @@ class BackupController extends Controller
     public function destroy($filename)
     {
         $filename = basename($filename);
-        $path = $this->backupDir() . '/' . $filename;
+        $path = $this->backupDir().'/'.$filename;
 
         if (File::exists($path)) {
             File::delete($path);
@@ -123,7 +123,7 @@ class BackupController extends Controller
     {
         $dir = storage_path('app/private/backups');
 
-        if (!File::exists($dir)) {
+        if (! File::exists($dir)) {
             File::makeDirectory($dir, 0755, true, true);
         }
 
@@ -136,7 +136,7 @@ class BackupController extends Controller
         $config = config("database.connections.{$connection}");
 
         $timestamp = now()->format('Y-m-d_His');
-        $path = $this->backupDir() . "/db-backup-{$timestamp}.sql";
+        $path = $this->backupDir()."/db-backup-{$timestamp}.sql";
 
         $command = [
             'mysqldump',
@@ -151,13 +151,13 @@ class BackupController extends Controller
         $process = new Process($command);
         $process->setTimeout(600);
 
-        if (!empty($config['password'])) {
+        if (! empty($config['password'])) {
             $process->setEnv(['MYSQL_PWD' => $config['password']]);
         }
 
         $process->run();
 
-        if (!$process->isSuccessful()) {
+        if (! $process->isSuccessful()) {
             throw new ProcessFailedException($process);
         }
 
@@ -169,9 +169,9 @@ class BackupController extends Controller
     private function zipStorage(): string
     {
         $timestamp = now()->format('Y-m-d_His');
-        $zipPath = $this->backupDir() . "/storage-backup-{$timestamp}.zip";
+        $zipPath = $this->backupDir()."/storage-backup-{$timestamp}.zip";
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             throw new \Exception('Unable to create backup archive.');
         }
@@ -202,11 +202,11 @@ class BackupController extends Controller
 
             $filePath = $file->getRealPath();
 
-            if (str_contains($filePath, DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR)) {
+            if (str_contains($filePath, DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR)) {
                 continue;
             }
 
-            $relativePath = $zipRoot . '/' . substr($filePath, strlen($sourceDir) + 1);
+            $relativePath = $zipRoot.'/'.substr($filePath, strlen($sourceDir) + 1);
             $zip->addFile($filePath, $relativePath);
         }
     }

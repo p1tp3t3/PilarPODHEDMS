@@ -3,13 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AbsenceRevision extends Model
 {
-    public $table = 'absence_revision',
-           $timestamps = false;
+    protected $table = 'absence_revision';
 
-    public $fillable = [
+    public $timestamps = false;
+
+    protected $fillable = [
         'absence_id',
         'reason',
         'date_from',
@@ -18,7 +20,7 @@ class AbsenceRevision extends Model
         'created_at',
     ];
 
-    public function absence()
+    public function absence(): BelongsTo
     {
         return $this->belongsTo(Absence::class, 'absence_id', 'id');
     }

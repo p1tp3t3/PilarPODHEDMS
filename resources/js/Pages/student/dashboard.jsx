@@ -20,7 +20,7 @@ const StudentDashboard = (props) => {
 
   const optionTab = [
     { key: "overview", label: "Overview" },
-    { key: "offense", label: "List of Offenses" },
+    { key: "offense", label: "List of Violations" },
     { key: "penalty", label: "List of Penalties" },
   ];
 

@@ -205,6 +205,7 @@ Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(functi
     Route::get('/prefect/report', [ReportController::class, 'index']);
     Route::post('/prefect/analytic-report/generate', [ReportController::class, 'generateAnalyticReport']);
     Route::get('/prefect/analytics/preview', [ReportController::class, 'analyticsPreview']);
+    Route::get('/prefect/analytics/program-detail', [ReportController::class, 'programViolationDetail']);
     Route::post('/prefect/report/generate', [ReportController::class, 'store']);
     Route::get('/prefect/report/download/{id}', [ReportController::class, 'downloadReport'])->name('prefect.report.download');
     Route::get('/prefect/report/view/{id}', [ReportController::class, 'viewReport'])->name('prefect.report.view');
@@ -331,6 +332,7 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/violation-occurence/list/{id}', [ViolationController::class, 'getStudentViolationOccurence']);
      Route::get('/incident/student/{id}', [ViolationController::class, 'getStudentRiskStatus']);
      Route::get('/api/student/violation/{violation}/{studentId}', [ViolationController::class, 'getStudentBehaviourAnalysisResult']);
+     Route::get('/api/offense-list', [ViolationController::class, 'getOffenseList']);
 
      Route::post('/profile/{username}/edit', [ProfileController::class, 'update']);
      Route::get('/profile/{username}/edit', [ProfileController::class, 'edit']);

@@ -13,7 +13,7 @@ import ViewGatePassModal from "@/Components/modal/view/view-gatepass-modal"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
 import { router } from "@inertiajs/react"
 import { showOutputModal, showWarningModal } from "@/others/function"
-import { Clock, CheckCircle2, XCircle, Ban, Undo2 } from "lucide-react"
+import { List, Clock, CheckCircle2, XCircle, Ban, Undo2 } from "lucide-react"
 
 const PrefectGatePass = (props) => {
     const url = new URLSearchParams(window.location.search)
@@ -35,6 +35,7 @@ const PrefectGatePass = (props) => {
     })
 
     const optionTab = [
+      { key: "all", label: "All", icon: List },
       { key: "req-current", label: "Pending", icon: Clock },
       { key: "confirmed-users", label: "Approved", icon: CheckCircle2 },
       { key: "expired-users", label: "Expired", icon: XCircle },
@@ -242,6 +243,14 @@ const PrefectGatePass = (props) => {
                         <div className="w-full bg-white rounded-md shadow-sm shadow-black/20 min-w-0">
                                 {url.has("status") ? (
                                     <>
+                                    {
+                                    url.get("status") === "all" && (
+                                        <GatePassRequestList
+                                            list={gatepassRequestList}
+                                            events={setEvents}
+                                            view={setId}
+                                        />
+                                    )}
                                     {
                                     url.get("status") === "req-current" && (
                                         <GatePassRequestList

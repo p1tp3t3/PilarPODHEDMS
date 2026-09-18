@@ -187,7 +187,7 @@ const PrefectDashBoard = (props) => {
 
   const optionTab = [
     { key: "overview", label: "Overview" },
-    { key: "offense", label: "List of Offenses" },
+    { key: "offense", label: "List of Violations" },
     { key: "penalty", label: "List of Penalties" },
   ]
 
@@ -353,7 +353,7 @@ const PrefectDashBoard = (props) => {
                       <TabSwitcher tabs={optionTab1} value={choose} onChange={handleSelect} />
                     </div>
                     {choose == "student" && (
-                      <NewStudentList list={props.students} />
+                      <NewStudentList list={props.students} weekStart={props.students_week_start} weekEnd={props.students_week_end} />
                     )}
                     {choose == "appointment" && (
                       <AppointmentTodayList list={props.appointment_today} />

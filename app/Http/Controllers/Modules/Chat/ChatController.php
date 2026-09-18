@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Modules\Chat;
 
+use App\Events\MessageEdited;
 use App\Events\MessageSent;
 use App\Events\MessagesRead;
 use App\Events\MessageUnsent;
-use App\Events\MessageEdited;
 use App\Http\Controllers\Controller;
 use App\Models\Message;
 use App\Models\MessageEdit;
@@ -51,8 +51,8 @@ class ChatController extends Controller
             $contactIds = User::where('id', '!=', $me->id)
                 ->where(function ($q) use ($me) {
                     $q->whereIn('role', ['sub_admin', 'super_admin'])
-                      ->orWhereIn('id', Message::where('receiver_id', $me->id)->select('sender_id'))
-                      ->orWhereIn('id', Message::where('sender_id', $me->id)->select('receiver_id'));
+                        ->orWhereIn('id', Message::where('receiver_id', $me->id)->select('sender_id'))
+                        ->orWhereIn('id', Message::where('sender_id', $me->id)->select('receiver_id'));
                 })
                 ->pluck('id');
         } else {
@@ -66,8 +66,8 @@ class ChatController extends Controller
 
         return $contacts->map(function ($contact) use ($me) {
             $lastMessage = Message::where(function ($q) use ($me, $contact) {
-                    $q->where('sender_id', $me->id)->where('receiver_id', $contact->id);
-                })
+                $q->where('sender_id', $me->id)->where('receiver_id', $contact->id);
+            })
                 ->orWhere(function ($q) use ($me, $contact) {
                     $q->where('sender_id', $contact->id)->where('receiver_id', $me->id);
                 })
@@ -101,7 +101,7 @@ class ChatController extends Controller
         $me = auth()->user();
         $contact = User::with(['profile', 'program', 'enrollments', 'teachingStaff.program', 'nonTeachingStaff'])->findOrFail($userId);
 
-        if (!$this->canChat($me, $contact)) {
+        if (! $this->canChat($me, $contact)) {
             return response()->json(['message' => 'You cannot message this user.'], 403);
         }
 
@@ -153,7 +153,7 @@ class ChatController extends Controller
     {
         $message = Message::find($id);
 
-        if (!$message) {
+        if (! $message) {
             return response()->json(['message' => 'Message not found.'], 404);
         }
         if ($message->sender_id !== auth()->id()) {
@@ -178,7 +178,7 @@ class ChatController extends Controller
 
         $message = Message::find($id);
 
-        if (!$message) {
+        if (! $message) {
             return response()->json(['message' => 'Message not found.'], 404);
         }
         if ($message->sender_id !== auth()->id()) {
@@ -243,7 +243,7 @@ class ChatController extends Controller
         $me = auth()->user();
         $receiver = User::findOrFail($request->receiver_id);
 
-        if (!$this->canChat($me, $receiver)) {
+        if (! $this->canChat($me, $receiver)) {
             return response()->json(['message' => 'You cannot message this user.'], 403);
         }
 

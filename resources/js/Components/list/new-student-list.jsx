@@ -4,11 +4,14 @@ import ListSkeleton from "../reload/list-skeleton"
 import { Link } from "@inertiajs/react"
 import { AlertCircle } from "lucide-react"
 
-const NewStudentList = ({ list = null }) => {
+const NewStudentList = ({ list = null, weekStart = null, weekEnd = null }) => {
     return (
         <div className="w-full h-[22rem]">
             <div className="w-full flex justify-between items-center px-5 py-2">
                 <b>{list.length} New Students</b>
+                <span className="text-xs text-gray-500">
+                    This Week{weekStart && weekEnd && ` (${readableDate(weekStart)} - ${readableDate(weekEnd)})`}
+                </span>
             </div>
             <div className="overflow-hidden overflow-y-auto h-[19rem] w-full flex flex-col px-5">
                 {(list != null)

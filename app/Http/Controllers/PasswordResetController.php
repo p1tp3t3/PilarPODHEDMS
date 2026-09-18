@@ -13,17 +13,19 @@ use Inertia\Inertia;
 
 class PasswordResetController extends Controller
 {
-    public function requestIndex() {
+    public function requestIndex()
+    {
         return Inertia::render('other/password-recovery');
     }
 
-    public function sendLink(Request $request) {
+    public function sendLink(Request $request)
+    {
         $request->validate(['username' => 'required|string']);
 
         $user = User::where('username', $request->username)
             ->orWhere('id_number', $request->username)
             ->first();
-        if (!$user || !$user->email) {
+        if (! $user || ! $user->email) {
             return response()->json(['message' => 'No account found with that username.'], 404);
         }
 
@@ -43,6 +45,7 @@ class PasswordResetController extends Controller
             ));
         } catch (\Throwable $e) {
             Log::error('Failed to send password reset link', ['error' => $e->getMessage()]);
+
             return response()->json(['message' => 'Failed to send reset link.'], 500);
         }
 
@@ -53,7 +56,8 @@ class PasswordResetController extends Controller
     // tamper-proof) — once it's validated here, a short-lived cache flag
     // authorizes the follow-up POST (reset()) without needing to re-derive
     // the Laravel signature across a GET->POST verb change.
-    public function resetForm(Request $request, $username) {
+    public function resetForm(Request $request, $username)
+    {
         $valid = $request->hasValidSignature();
 
         if ($valid) {
@@ -66,8 +70,9 @@ class PasswordResetController extends Controller
         ]);
     }
 
-    public function reset(Request $request, $username) {
-        if (!cache("password_reset_authorized_{$username}")) {
+    public function reset(Request $request, $username)
+    {
+        if (! cache("password_reset_authorized_{$username}")) {
             return response()->json(['message' => 'This reset link is invalid or has expired.'], 400);
         }
 
@@ -76,7 +81,7 @@ class PasswordResetController extends Controller
         ]);
 
         $user = User::where('username', $username)->first();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Account not found.'], 404);
         }
 

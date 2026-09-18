@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Resource;
 use App\Http\Controllers\Controller;
 use App\Models\Position;
 use App\Models\TeachingStaff;
+use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\Settings;
 use PhpOffice\PhpWord\TemplateProcessor;
 use ZipArchive;
@@ -18,19 +21,21 @@ class FileController extends Controller
         $path = self::getUserAssets($username, $type);
         $file = "$path/$fileName";
 
-        if (!file_exists($file)) {
+        if (! file_exists($file)) {
             abort(404);
-        };
+        }
 
         $mime = mime_content_type($file);
+
         return response()->file($file, ['Content-Type' => $mime]);
     }
+
     public function getProfilePicture()
     {
         $decrypt = self::cryptoJsAesDecrypt($_GET['ref']);
         $path = storage_path("app/private/user-assets/$decrypt/profile-$decrypt.jpg");
 
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             abort(404);
         }
 
@@ -40,9 +45,11 @@ class FileController extends Controller
             'Content-Type' => $mimeType,
         ]);
     }
-    public function getUserAssets($username, $type) {
+
+    public function getUserAssets($username, $type)
+    {
         $userFolder = storage_path("app/private/user-assets/$username");
-        switch($type) {
+        switch ($type) {
             case 'complaint':
                 return "$userFolder/complaint";
             case 'gatepass':
@@ -51,10 +58,13 @@ class FileController extends Controller
                 return "$userFolder/profile";
         }
     }
-    public function downloadAccountFile($fileName) {
+
+    public function downloadAccountFile($fileName)
+    {
         self::authorizeAccountFile($fileName);
 
         $filePath = Storage::disk('local')->path("zips/$fileName");
+
         return response()->download($filePath);
     }
 
@@ -63,11 +73,12 @@ class FileController extends Controller
      * to rows; a .zip is opened and its entry names are listed so the
      * caller can then request one via previewZipEntry().
      */
-    public function previewAccountFile($fileName) {
+    public function previewAccountFile($fileName)
+    {
         self::authorizeAccountFile($fileName);
 
         $path = Storage::disk('local')->path("zips/$fileName");
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             abort(404);
         }
 
@@ -81,7 +92,7 @@ class FileController extends Controller
         }
 
         if ($extension === 'zip') {
-            $zip = new ZipArchive();
+            $zip = new ZipArchive;
             if ($zip->open($path) !== true) {
                 abort(500, 'Unable to open zip file.');
             }
@@ -101,17 +112,18 @@ class FileController extends Controller
     /**
      * Preview one CSV entry inside a .zip default-account file.
      */
-    public function previewAccountFileEntry($fileName, \Illuminate\Http\Request $request) {
+    public function previewAccountFileEntry($fileName, Request $request)
+    {
         self::authorizeAccountFile($fileName);
 
         $entry = $request->query('entry');
-        if (!$entry || strtolower(pathinfo($entry, PATHINFO_EXTENSION)) !== 'csv') {
+        if (! $entry || strtolower(pathinfo($entry, PATHINFO_EXTENSION)) !== 'csv') {
             abort(400, 'A csv entry name is required.');
         }
 
         $path = Storage::disk('local')->path("zips/$fileName");
-        $zip = new ZipArchive();
-        if (!file_exists($path) || $zip->open($path) !== true || $zip->locateName($entry) === false) {
+        $zip = new ZipArchive;
+        if (! file_exists($path) || $zip->open($path) !== true || $zip->locateName($entry) === false) {
             abort(404);
         }
 
@@ -130,8 +142,9 @@ class FileController extends Controller
      * its id_number — the CSV's own "name" column is only a snapshot from
      * generation time and can go stale once a profile is edited.
      */
-    private function parseAccountCsvContents($contents) {
-        $lines = array_filter(preg_split('/\r\n|\r|\n/', trim($contents ?? '')), fn($l) => $l !== '');
+    private function parseAccountCsvContents($contents)
+    {
+        $lines = array_filter(preg_split('/\r\n|\r|\n/', trim($contents ?? '')), fn ($l) => $l !== '');
         $rows = array_map('str_getcsv', $lines);
 
         $header = array_map('trim', array_shift($rows) ?? []);
@@ -141,14 +154,15 @@ class FileController extends Controller
             foreach ($header as $i => $key) {
                 $row[$key] = $line[$i] ?? null;
             }
+
             return $row;
         }, $rows);
 
         $idNumbers = array_filter(array_column($parsedRows, 'id'));
-        $users = \App\Models\User::whereIn('id_number', $idNumbers)
+        $users = User::whereIn('id_number', $idNumbers)
             ->with('profile')
             ->get()
-            ->keyBy(fn($u) => strtolower($u->id_number));
+            ->keyBy(fn ($u) => strtolower($u->id_number));
 
         return array_map(function ($row) use ($users) {
             $user = $users->get(strtolower($row['id'] ?? ''));
@@ -166,7 +180,8 @@ class FileController extends Controller
      * A program head may only reach files belonging to their own program —
      * super_admin/sub_admin are trusted with every file.
      */
-    private function authorizeAccountFile($fileName) {
+    private function authorizeAccountFile($fileName)
+    {
         $user = auth()->user();
 
         if (in_array($user->role, ['super_admin', 'sub_admin'])) {
@@ -176,8 +191,8 @@ class FileController extends Controller
         if ($user->role === 'teaching_staff') {
             $programIds = self::programHeadProgramIds($user);
 
-            if (!empty($programIds)) {
-                $pattern = '/^(student|faculty-account)-(' . implode('|', array_map('preg_quote', $programIds)) . ')-/';
+            if (! empty($programIds)) {
+                $pattern = '/^(student|faculty-account)-('.implode('|', array_map('preg_quote', $programIds)).')-/';
 
                 if (preg_match($pattern, basename($fileName))) {
                     return;
@@ -193,7 +208,8 @@ class FileController extends Controller
      * responsible for 2+ programs, see program_head_program), else an
      * empty array.
      */
-    private function programHeadProgramIds($user) {
+    private function programHeadProgramIds($user)
+    {
         $teachingStaff = TeachingStaff::where('user_id', $user->id)
             ->where('position_id', Position::idFor('program_head'))
             ->first();
@@ -201,10 +217,13 @@ class FileController extends Controller
         return $teachingStaff?->programsHandled->pluck('id')->all() ?? [];
     }
 
-    private function addFolderToZip($folder, $zip, $parentFolder = '') {
+    private function addFolderToZip($folder, $zip, $parentFolder = '')
+    {
         $files = scandir($folder);
         foreach ($files as $file) {
-            if ($file === '.' || $file === '..') continue;
+            if ($file === '.' || $file === '..') {
+                continue;
+            }
 
             $filePath = "$folder/$file";
             $localPath = $parentFolder ? "$parentFolder/$file" : $file;
@@ -216,8 +235,10 @@ class FileController extends Controller
                 $zip->addFile($filePath, $localPath);
             }
         }
-    } 
-    public function getUserAccountZipFileList() {
+    }
+
+    public function getUserAccountZipFileList()
+    {
         return response()->json(self::scopedAccountFiles());
     }
 
@@ -228,10 +249,11 @@ class FileController extends Controller
      * (e.g. AccountController) that need this as an Inertia page prop
      * instead of a separate api call.
      */
-    public static function scopedAccountFiles() {
+    public static function scopedAccountFiles()
+    {
         $user = auth()->user();
 
-        if (!in_array($user->role, ['super_admin', 'sub_admin', 'teaching_staff'])) {
+        if (! in_array($user->role, ['super_admin', 'sub_admin', 'teaching_staff'])) {
             abort(403);
         }
 
@@ -242,7 +264,7 @@ class FileController extends Controller
         }
 
         $files = Storage::disk('local')->files('zips');
-        $csvFiles = array_filter($files, function($file) use ($programIds) {
+        $csvFiles = array_filter($files, function ($file) use ($programIds) {
             $fileInfo = pathinfo($file, PATHINFO_EXTENSION);
 
             if ($fileInfo !== 'zip' && $fileInfo !== 'csv') {
@@ -253,30 +275,32 @@ class FileController extends Controller
                 return true;
             }
 
-            $pattern = '/^(student|faculty-account)-(' . implode('|', array_map('preg_quote', $programIds)) . ')-/';
+            $pattern = '/^(student|faculty-account)-('.implode('|', array_map('preg_quote', $programIds)).')-/';
 
             return (bool) preg_match($pattern, basename($file));
         });
 
-        $fileDetails = array_map(function($file) {
+        $fileDetails = array_map(function ($file) {
             return [
                 'name' => basename($file),
                 'path' => $file,
                 'size' => Storage::disk('local')->size($file),
-                'last_modified' => date("F d Y H:i:s", Storage::disk('local')->lastModified($file)),
+                'last_modified' => date('F d Y H:i:s', Storage::disk('local')->lastModified($file)),
             ];
         }, $csvFiles);
 
         return array_values($fileDetails);
     }
-    public function generatePDFEvidence($fileName, $placeHolderList, $output) {
+
+    public function generatePDFEvidence($fileName, $placeHolderList, $output)
+    {
 
         $caseNumber = $placeHolderList['case-number'];
 
-        if($placeHolderList['image_block']) {
-            $data = [ 
+        if ($placeHolderList['image_block']) {
+            $data = [
                 'case_number' => $caseNumber,
-                'img_list' => $placeHolderList['image_block']
+                'img_list' => $placeHolderList['image_block'],
             ];
             $pdf = Pdf::loadView('pdf.evidence', $data);
             $p = str_replace('.docx', '.pdf', $output);
@@ -285,11 +309,13 @@ class FileController extends Controller
             $pdf->save($p);
         }
     }
-    public function generateDocx($templatePath, $output, $placeHolderList) {
+
+    public function generateDocx($templatePath, $output, $placeHolderList)
+    {
         $template = new TemplateProcessor($templatePath);
-        
-        foreach($placeHolderList as $key => $plc) {
-            if($plc != null) {
+
+        foreach ($placeHolderList as $key => $plc) {
+            if ($plc != null) {
                 $template->setValue($key, $plc);
             }
         }
@@ -299,29 +325,33 @@ class FileController extends Controller
 
         return response()->json(['status' => 'success']);
     }
-    public function printFile($filePath) {
+
+    public function printFile($filePath)
+    {
         $pdfPath = str_replace('.docx', '.pdf', $filePath);
 
         Settings::setPdfRendererName(Settings::PDF_RENDERER_DOMPDF);
         Settings::setPdfRendererPath(base_path('vendor/dompdf/dompdf'));
 
-        $phpWord = \PhpOffice\PhpWord\IOFactory::load($filePath);
-        $pdfWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'PDF');
+        $phpWord = IOFactory::load($filePath);
+        $pdfWriter = IOFactory::createWriter($phpWord, 'PDF');
         $pdfWriter->save($pdfPath);
 
         return response()->file($pdfPath);
     }
-    public function generatePDF($type = '', $view = '', $fileName = '', $placeHolderList = [], $output = '') {
-        if($type == 'evidence') {
-            if($placeHolderList['image_block']) {
+
+    public function generatePDF($type = '', $view = '', $fileName = '', $placeHolderList = [], $output = '')
+    {
+        if ($type == 'evidence') {
+            if ($placeHolderList['image_block']) {
                 $caseNumber = $placeHolderList['id'];
 
-                $data = [ 
+                $data = [
                     'case_number' => $caseNumber,
-                    'img_list' => $placeHolderList['image_block']
+                    'img_list' => $placeHolderList['image_block'],
                 ];
                 $pdf = Pdf::loadView('pdf.evidence', $data);
-            }else {
+            } else {
                 $pdf = Pdf::loadView("pdf.$view", $placeHolderList);
             }
         }
@@ -333,24 +363,26 @@ class FileController extends Controller
         return response()->json(['status' => 'success']);
     }
 
-    public function destroy() {
+    public function destroy()
+    {
         $fileName = request()->fileName;
         $filePath = "zips/$fileName";
 
         if (Storage::disk('local')->exists($filePath)) {
             Storage::disk('local')->delete($filePath);
-            
+
             return self::getUserAccountZipFileList();
         } else {
             return response()->json(['message' => 'File not found.'], 404);
         }
     }
 
-    public function cryptoJsAesDecrypt($jsonString) {
+    public function cryptoJsAesDecrypt($jsonString)
+    {
         $data = base64_decode($jsonString);
 
         // Check for OpenSSL-style salt prefix ("Salted__")
-        $salted = substr($data, 0, 8) === "Salted__";
+        $salted = substr($data, 0, 8) === 'Salted__';
         $salt = $salted ? substr($data, 8, 8) : null;
         $ciphertext = $salted ? substr($data, 16) : $data;
 
@@ -373,17 +405,18 @@ class FileController extends Controller
         return false;
     }
 
-    public function evpBytesToKey($salt, $keyLen = 32, $ivLen = 16) {
+    public function evpBytesToKey($salt, $keyLen = 32, $ivLen = 16)
+    {
         $dtot = '';
         $d = '';
         while (strlen($dtot) < ($keyLen + $ivLen)) {
-            $d = md5($d . 'gh4mdvcf' . $salt, true);
+            $d = md5($d.'gh4mdvcf'.$salt, true);
             $dtot .= $d;
         }
+
         return [
             'key' => substr($dtot, 0, $keyLen),
-            'iv'  => substr($dtot, $keyLen, $ivLen)
+            'iv' => substr($dtot, $keyLen, $ivLen),
         ];
     }
-    
 }

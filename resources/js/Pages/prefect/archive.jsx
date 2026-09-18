@@ -8,11 +8,9 @@ import ViewComplaintModal from "@/Components/modal/view/view-complaint-modal"
 import ViewReferralModal from "@/Components/modal/view/view-referral-modal"
 import ViewAbsentFormModal from "@/Components/modal/view/view-absent-form-modal"
 import ViewGatePassModal from "@/Components/modal/view/view-gatepass-modal"
-import PaginationButton from "@/Components/button/pagination-btn"
 import { useReload } from "@/context-provider/reload-provider"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
 import { router } from "@inertiajs/react"
-import SearchUserBar from "@/Components/input/search-user-bar"
 import NoteAbsentFormModal from "@/Components/modal/submission-form/note-absent-form-modal"
 import BulkArchiveModal from "@/Components/modal/submission-form/bulk-archive-modal"
 import Btn from "@/Components/button/normal-btn"
@@ -30,16 +28,16 @@ const PrefectArchive = (props) => {
     const url = new URLSearchParams(window.location.search)
     const [choose, setChoose] = useState(url.has("type") ? url.get("type") : "all"),
           [schoolYear, setSchoolYear] = useState(url.get("school_year") ?? ''),
+          [semester, setSemester] = useState(url.get("semester") ?? ''),
           [complaint, openViewComplaint] = useState(false),
           [referral, openViewReferral] = useState(false),
           [absent, openAbsentForm] = useState(false),
           [gatepass, openViewGatepass] = useState(false),
           [id, setDocId] = useState(''),
 
-          [archive_list, setArchiveList] = useState(props.document.data)
+          [archive_list, setArchiveList] = useState(props.document)
 
     const { loadRegister } = useReload()
-    const [search, setSearch] = useState("")
     const [noteAbsent, openNoteAbsent] = useState(false)
     const [bulkArchive, openBulkArchive] = useState(false)
 
@@ -67,8 +65,11 @@ const PrefectArchive = (props) => {
         setSchoolYear(value)
         updateQuery({ school_year: value })
     }
-  const handleSearch = (e) => setSearch(e.target.value)
-
+    const handleSemesterChange = (e) => {
+        const value = e.target.value
+        setSemester(value)
+        updateQuery({ semester: value })
+    }
     const setId = (id, type) => {
         setDocId(id)
         if(type == 'c') {
@@ -181,20 +182,6 @@ const PrefectArchive = (props) => {
             >
                     <div className="grid gap-3">
                         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-                            <div className="w-full sm:w-[20rem] relative flex-shrink-0">
-                                <SearchUserBar
-                                    setSearch={setSearch}
-                                    name="search"
-                                    search={search}
-                                    plc="Search Student"
-                                    handleSearch={handleSearch}
-                                    def="Student Not Found"
-                                    withLink={true}
-                                    link="/prefect/archive"
-                                    param={true}
-                                    apiLink="/api/all-users/archive-student"
-                                />
-                            </div>
                             <div className="w-full sm:w-[14rem] flex-shrink-0">
                                 <DropdownField
                                     default={{ val: '', label: 'All School Years' }}
@@ -202,6 +189,18 @@ const PrefectArchive = (props) => {
                                     onChange={handleSchoolYearChange}
                                     name="school_year"
                                     val={schoolYear}
+                                />
+                            </div>
+                            <div className="w-full sm:w-[14rem] flex-shrink-0">
+                                <DropdownField
+                                    default={{ val: '', label: 'All Semesters' }}
+                                    list={[
+                                        { val: '1', label: '1st Semester' },
+                                        { val: '2', label: '2nd Semester' },
+                                    ]}
+                                    onChange={handleSemesterChange}
+                                    name="semester"
+                                    val={semester}
                                 />
                             </div>
                         </div>
@@ -216,7 +215,6 @@ const PrefectArchive = (props) => {
                             recoverDocument={recoverDocument}
                             deleteDocument={deleteDocument}
                         />
-                        <PaginationButton meta={props.document.meta} />
                     </div>
             </PageLayout>
         </>

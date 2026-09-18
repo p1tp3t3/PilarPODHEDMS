@@ -42,7 +42,7 @@ class AccountSetupController extends Controller
      */
     public function showStep($username)
     {
-        if (!session('force_account_setup')) {
+        if (! session('force_account_setup')) {
             abort(404);
         }
 
@@ -53,7 +53,7 @@ class AccountSetupController extends Controller
     {
         $user = auth()->user();
 
-        if (!$user->hasVerifiedEmail()) {
+        if (! $user->hasVerifiedEmail()) {
             $user->sendEmailVerificationNotification();
         }
 
@@ -69,7 +69,7 @@ class AccountSetupController extends Controller
     {
         $user = auth()->user();
 
-        if (!session('force_account_setup')) {
+        if (! session('force_account_setup')) {
             abort(404);
         }
 
@@ -100,7 +100,7 @@ class AccountSetupController extends Controller
             'permanent_zipcode' => 'required|string',
         ]);
 
-        if (!Hash::check($request->current_password, $user->password)) {
+        if (! Hash::check($request->current_password, $user->password)) {
             return response()->json(['error' => 'Current password is incorrect'], 422);
         }
 

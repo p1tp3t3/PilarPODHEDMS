@@ -7,9 +7,9 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 
-#[Signature('app:train-logistic-model-command')]
+#[Signature('app:notify-student-violation-prediction-command')]
 #[Description('Command description')]
-class TrainLogisticModelCommand extends Command
+class NotifyStudentViolationPredictionCommand extends Command
 {
     /**
      * Execute the console command.

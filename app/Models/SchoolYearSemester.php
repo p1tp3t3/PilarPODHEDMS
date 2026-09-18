@@ -3,17 +3,23 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 class SchoolYearSemester extends Model
 {
-    public $table = 'school_year_semester',
-           $fillable = ['school_year_id', 'semester', 'is_active'];
+    protected $table = 'school_year_semester';
 
-    protected $casts = [
-        'is_active' => 'boolean',
-    ];
+    protected $fillable = ['school_year_id', 'semester', 'is_active'];
 
-    public function schoolYear()
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+        ];
+    }
+
+    public function schoolYear(): BelongsTo
     {
         return $this->belongsTo(SchoolYear::class, 'school_year_id');
     }
@@ -45,11 +51,11 @@ class SchoolYearSemester extends Model
      */
     public static function idForDate($date): ?int
     {
-        $date = \Illuminate\Support\Carbon::parse($date);
+        $date = Carbon::parse($date);
         $startYear = $date->month >= 8 ? $date->year : $date->year - 1;
         $semester = $date->month >= 8 ? 1 : 2;
 
-        return self::whereHas('schoolYear', fn ($q) => $q->where('year', "{$startYear}-" . ($startYear + 1)))
+        return self::whereHas('schoolYear', fn ($q) => $q->where('year', "{$startYear}-".($startYear + 1)))
             ->where('semester', $semester)
             ->value('id');
     }

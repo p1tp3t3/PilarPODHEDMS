@@ -3,19 +3,21 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class GatePassRevision extends Model
 {
-    public $table = 'gate_pass_revision',
-           $timestamps = false;
+    protected $table = 'gate_pass_revision';
 
-    public $fillable = [
+    public $timestamps = false;
+
+    protected $fillable = [
         'gate_pass_id',
         'reason',
         'created_at',
     ];
 
-    public function gatepass()
+    public function gatepass(): BelongsTo
     {
         return $this->belongsTo(GatePass::class, 'gate_pass_id', 'id');
     }

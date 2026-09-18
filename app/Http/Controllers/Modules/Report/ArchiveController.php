@@ -14,12 +14,14 @@ use App\Models\Referral;
 use App\Models\Report;
 use App\Models\SchoolYear;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use ZipArchive;
-use Illuminate\Support\Str;
 
 class ArchiveController extends Controller
 {
@@ -52,10 +54,11 @@ class ArchiveController extends Controller
         };
     }
 
-    public function index() {
+    public function index()
+    {
         return Inertia::render('prefect/archive', [
             'user' => auth()->user(),
-            'document' => self::getDocuments(),
+            'document' => self::getDocuments('all'),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
         ]);
     }
@@ -64,7 +67,8 @@ class ArchiveController extends Controller
      * Manually move one record into the archive, regardless of its
      * current status — the per-row "Archive" action on each list page.
      */
-    public function transfer(Request $request) {
+    public function transfer(Request $request)
+    {
         $request->validate([
             'type' => 'required|in:complaint,referral,absent form,gate pass',
             'id' => 'required|integer',
@@ -73,20 +77,21 @@ class ArchiveController extends Controller
         $model = self::$archivable[$request->type]['model'];
         $doc = $model::find($request->id);
 
-        if (!$doc) {
+        if (! $doc) {
             return response()->json(['message' => 'Document not found.'], 404);
         }
 
         $doc->update(['archived_at' => archive_retention_date()]);
 
-        return response()->json(['message' => ucfirst($request->type) . ' archived successfully.']);
+        return response()->json(['message' => ucfirst($request->type).' archived successfully.']);
     }
 
     /**
      * Archive every not-yet-archived record (of one type, or all 5)
      * created within a date range or a school year.
      */
-    public function bulkArchive(Request $request) {
+    public function bulkArchive(Request $request)
+    {
         $request->validate([
             'type' => 'required|in:complaint,referral,absent form,gate pass,all',
             'school_year' => 'nullable|string',
@@ -103,7 +108,7 @@ class ArchiveController extends Controller
             $dateTo = $request->date_to;
         }
 
-        if (!$dateFrom || !$dateTo) {
+        if (! $dateFrom || ! $dateTo) {
             return response()->json(['message' => 'Please provide a valid date range or school year.'], 400);
         }
 
@@ -125,20 +130,21 @@ class ArchiveController extends Controller
         ]);
     }
 
-    public function destroy(DestroyDocumentRequest $request) {
+    public function destroy(DestroyDocumentRequest $request)
+    {
         $model = self::$archivable[$request->type]['model'];
         $doc = $model::find($request->id);
 
-        if (!$doc) {
+        if (! $doc) {
             return response()->json(['message' => 'Document not found.'], 404);
         }
         // archived_at isn't cast to Carbon on these models — it's a plain
         // string from the DB, so it's parsed explicitly here.
-        $archivedAt = $doc->archived_at ? \Carbon\Carbon::parse($doc->archived_at) : null;
-        if (!$archivedAt || now()->lt($archivedAt)) {
+        $archivedAt = $doc->archived_at ? Carbon::parse($doc->archived_at) : null;
+        if (! $archivedAt || now()->lt($archivedAt)) {
             return response()->json([
-                'message' => 'This record cannot be deleted until ' .
-                    ($archivedAt ? $archivedAt->format('F j, Y') : 'it is archived') . '.',
+                'message' => 'This record cannot be deleted until '.
+                    ($archivedAt ? $archivedAt->format('F j, Y') : 'it is archived').'.',
             ], 403);
         }
 
@@ -151,105 +157,104 @@ class ArchiveController extends Controller
         return self::getDocuments();
     }
 
-    public function recoverDocument(RecoverDocumentRequest $request) {
-        if($request->type == 'complaint') {
+    public function recoverDocument(RecoverDocumentRequest $request)
+    {
+        if ($request->type == 'complaint') {
             // Safely get the latest case number
             $lastCaseNumber = Complaint::whereNotNull('case_number')
-                                        ->orderByDesc('case_number')
-                                        ->value('case_number');
+                ->orderByDesc('case_number')
+                ->value('case_number');
 
             // If no previous record, start at 1
             $nextCaseNumber = ($lastCaseNumber ?? 0) + 1;
             Complaint::where('id', $request->id)->update([
-                'archived_at' => NULL,
-                'rejected_reason' => NULL,
+                'archived_at' => null,
+                'rejected_reason' => null,
                 'complaint_status' => 'ongoing',
-                'case_number' => $nextCaseNumber
+                'case_number' => $nextCaseNumber,
             ]);
             $complaint = Complaint::with('user.profile')->where('id', $request->id)->first();
 
             $webpushNotif = [
                 'title' => 'Complaint Recovered',
-                'body'  => 'Your complaint has been recovered from archive and is now ongoing.',
-                'icon'  => '',
-                'url'   => '/student/complaint/view/' . $complaint->id,
+                'body' => 'Your complaint has been recovered from archive and is now ongoing.',
+                'icon' => '',
+                'url' => '/student/complaint/view/'.$complaint->id,
             ];
 
             notify_single_user(
                 [
-                    'sender_id'   => auth()->user()->id,
+                    'sender_id' => auth()->user()->id,
                     'receiver_id' => $complaint->user->id,
-                    'notif_type'  => 'complaint',
-                    'content'     => json_encode([
-                        'sender_id'   => auth()->user()->id,
+                    'notif_type' => 'complaint',
+                    'content' => json_encode([
+                        'sender_id' => auth()->user()->id,
                         'receiver_id' => $complaint->user->id,
-                        'message'     => 'Your complaint has been recovered from archive and is now ongoing.',
+                        'message' => 'Your complaint has been recovered from archive and is now ongoing.',
                     ]),
                 ],
                 $webpushNotif
             );
 
-        }if($request->type == 'referral') {
+        }if ($request->type == 'referral') {
             // "Recover" means "put it back in an active, actionable
             // state" — mirrors exactly what complaint's recovery does,
             // just without a case-number-style field to reassign.
             Referral::where('id', $request->id)->update([
-                'archived_at' => NULL,
-                'rejected_reason' => NULL,
-                'revoked_at' => NULL,
+                'archived_at' => null,
+                'rejected_reason' => null,
+                'revoked_at' => null,
                 'referral_status' => 'pending',
             ]);
-        }if($request->type == 'absent form') {
+        }if ($request->type == 'absent form') {
             Absence::where('id', $request->id)->update([
-                'archived_at' => NULL,
+                'archived_at' => null,
             ]);
             $student = Absence::with(['user.profile', 'user.program'])->where('id', $request->id)->first();
 
-
-            //generate pdf file with watermark as approved absent form
+            // generate pdf file with watermark as approved absent form
             // File path setup
-            $folderPath = storage_path('app/private/absent-forms/absent-form-' . $student->form_number);
-            $pdfPath    = $folderPath . '/absent-form-approval-' . $student->user->id . '-' . $student->form_number . '.pdf';
+            $folderPath = storage_path('app/private/absent-forms/absent-form-'.$student->form_number);
+            $pdfPath = $folderPath.'/absent-form-approval-'.$student->user->id.'-'.$student->form_number.'.pdf';
 
-            if (!is_dir($folderPath)) {
+            if (! is_dir($folderPath)) {
                 File::makeDirectory($folderPath, 0755, true, true);
             }
 
             // --- Generate PDF (must succeed) ---
-            $prefectName = auth()->user()->profile?->first_name . ' ' . auth()->user()->profile?->middle_name . ' ' . auth()->user()->profile?->last_name;
-            $studentName = $student->user->profile?->first_name . ' ' . $student->user->profile?->middle_name . ' ' . $student->user->profile?->last_name;
+            $prefectName = auth()->user()->profile?->first_name.' '.auth()->user()->profile?->middle_name.' '.auth()->user()->profile?->last_name;
+            $studentName = $student->user->profile?->first_name.' '.$student->user->profile?->middle_name.' '.$student->user->profile?->last_name;
             $pdfData = [
                 'sender_name' => $studentName,
                 'prefect_name' => $prefectName,
-                'date_from'    => $student->date_from,
-                'date_to'      => $student->date_to,
-                'reason'       => implode(', ', json_decode($student->reason, true)),
+                'date_from' => $student->date_from,
+                'date_to' => $student->date_to,
+                'reason' => implode(', ', json_decode($student->reason, true)),
                 'date_approve' => now()->toFormattedDateString(),
                 'status' => 'Approved',
-                'note'         => $student->note,
-                'program'      => $student->user->program?->name,
-                'student_id'   => $student->user->id_number
+                'note' => $student->note,
+                'program' => $student->user->program?->name,
+                'student_id' => $student->user->id_number,
             ];
 
             try {
-                $pdf = Pdf::loadView("pdf.absent-form-approval", $pdfData);
+                $pdf = Pdf::loadView('pdf.absent-form-approval', $pdfData);
                 $pdf->save($pdfPath);
             } catch (\Exception $pdfErr) {
-                throw new \Exception("PDF generation error: " . $pdfErr->getMessage());
+                throw new \Exception('PDF generation error: '.$pdfErr->getMessage());
             }
 
             // --- Email must succeed ---
 
-
             $emailData = [
-                'sender_name'  => $prefectName,
+                'sender_name' => $prefectName,
                 'student_name' => $studentName,
                 'prefect_name' => $prefectName,
-                'date_from'    => $student->date_from,
-                'date_to'      => $student->date_to,
-                'reason'       => implode(', ', json_decode($student->reason, true)),
+                'date_from' => $student->date_from,
+                'date_to' => $student->date_to,
+                'reason' => implode(', ', json_decode($student->reason, true)),
                 'confirmed_at' => now()->toFormattedDateString(),
-                'file'         => 'absent-forms/absent-form-' . $student->form_number . '/absent-form-approval-' . $student->user->id . '-' . $student->form_number . '.pdf',
+                'file' => 'absent-forms/absent-form-'.$student->form_number.'/absent-form-approval-'.$student->user->id.'-'.$student->form_number.'.pdf',
             ];
 
             try {
@@ -257,12 +262,12 @@ class ArchiveController extends Controller
                     ->send(
                         (new AbsentFormMail($emailData))
                             ->attach($pdfPath, [
-                                'as'   => 'APPROVED-ABSENT-FORM.pdf',
+                                'as' => 'APPROVED-ABSENT-FORM.pdf',
                                 'mime' => 'application/pdf',
                             ])
                     );
             } catch (\Exception $mailErr) {
-                throw new \Exception("Email sending error: " . $mailErr->getMessage());
+                throw new \Exception('Email sending error: '.$mailErr->getMessage());
             }
         }
 
@@ -273,6 +278,7 @@ class ArchiveController extends Controller
     {
         $filterType = request()->input('type', 'all');
         $search = strtolower(request()->input('search', ''));
+        $semester = request()->input('semester');
 
         $schoolYearRange = Report::resolveSchoolYearDates([
             'school_year' => request()->input('school_year'),
@@ -284,18 +290,18 @@ class ArchiveController extends Controller
         // 1. COMPLAINT
         // -----------------------
         $complaint = Complaint::with([
-                'user.profile',
-                'user.program',
-                'user.enrollments',
-                'subject.profile',
-                'subject.program',
-                'subject.enrollments',
-                'subject.teachingStaff.program',
-                'complaintSubject.user.profile',
-                'complaintSubject.user.program',
-                'complaintSubject.user.enrollments',
-                'complaintSubject.user.teachingStaff.program'
-            ])
+            'user.profile',
+            'user.program',
+            'user.enrollments',
+            'subject.profile',
+            'subject.program',
+            'subject.enrollments',
+            'subject.teachingStaff.program',
+            'complaintSubject.user.profile',
+            'complaintSubject.user.program',
+            'complaintSubject.user.enrollments',
+            'complaintSubject.user.teachingStaff.program',
+        ])
             ->whereNotNull('archived_at')
             ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
             ->get();
@@ -311,21 +317,20 @@ class ArchiveController extends Controller
             $item->type = 'complaint';
         });
 
-
         // -----------------------
         // 2. REFERRAL
         // -----------------------
         $referral = Referral::with([
-                'user.profile',
-                'user.program',
-                'user.enrollments',
-                'referredStudent.profile',
-                'referredStudent.program',
-                'referredStudent.enrollments',
-                'referralReferredStudent.user.profile',
-                'referralReferredStudent.user.program',
-                'referralReferredStudent.user.enrollments'
-            ])
+            'user.profile',
+            'user.program',
+            'user.enrollments',
+            'referredStudent.profile',
+            'referredStudent.program',
+            'referredStudent.enrollments',
+            'referralReferredStudent.user.profile',
+            'referralReferredStudent.user.program',
+            'referralReferredStudent.user.enrollments',
+        ])
             ->whereNotNull('archived_at')
             ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
             ->get();
@@ -340,7 +345,6 @@ class ArchiveController extends Controller
 
             $item->type = 'referral';
         });
-
 
         // -----------------------
         // 3. ABSENT FORM
@@ -357,7 +361,6 @@ class ArchiveController extends Controller
             $item->type = 'absent form';
         });
 
-
         // -----------------------
         // 4. GATE PASS
         // -----------------------
@@ -373,7 +376,6 @@ class ArchiveController extends Controller
             $item->type = 'gate pass';
         });
 
-
         // -----------------------
         // 5. MERGE
         // -----------------------
@@ -383,7 +385,6 @@ class ArchiveController extends Controller
             ->concat($gatePass)
             ->sortByDesc('archived_at')
             ->values();
-
 
         // -----------------------
         // 5. FILTER BY TYPE
@@ -395,9 +396,18 @@ class ArchiveController extends Controller
         }
 
         // -----------------------
+        // 6. FILTER BY SEMESTER
+        // -----------------------
+        if (! empty($semester)) {
+            $merged = $merged->filter(function ($item) use ($semester) {
+                return self::effectiveSemester($item) == $semester;
+            })->values();
+        }
+
+        // -----------------------
         // 8. SEARCH FILTER
         // -----------------------
-        if (!empty($search)) {
+        if (! empty($search)) {
 
             $search = trim(strtolower($search));
             $parts = explode(' ', $search);
@@ -444,11 +454,8 @@ class ArchiveController extends Controller
             })->values();
         }
 
-
-
-
         $paginated = $merged;
-        if($type == 'paginate') {
+        if ($type == 'paginate') {
             // -----------------------
             // 9. PAGINATION
             // -----------------------
@@ -456,26 +463,50 @@ class ArchiveController extends Controller
             $perPage = request()->input('per_page', 10);
             $offset = ($page - 1) * $perPage;
 
-            $paginated = new \Illuminate\Pagination\LengthAwarePaginator(
+            $paginated = new LengthAwarePaginator(
                 $merged->slice($offset, $perPage)->values(),
                 $merged->count(),
                 $perPage,
                 $page,
                 [
                     'path' => request()->url(),
-                    'query' => request()->query()
+                    'query' => request()->query(),
                 ]
             );
         }
 
         return ArchivedDocumentResource::collection($paginated);
     }
+
+    /**
+     * Mirrors archive-list.jsx's semesterValueFor() — whichever status a
+     * record last transitioned into is the semester tag shown/filtered on,
+     * falling back to the filing-time semester for still-pending rows.
+     */
+    private static function effectiveSemester($item): ?int
+    {
+        if ($item->revoked_at && $item->revokedSchoolYearSemester) {
+            return $item->revokedSchoolYearSemester->semester;
+        }
+        if ($item->rejected_at && $item->rejectedSchoolYearSemester) {
+            return $item->rejectedSchoolYearSemester->semester;
+        }
+        if ($item->type === 'complaint' && $item->complaint_status === 'resolved' && $item->resolvedSchoolYearSemester) {
+            return $item->resolvedSchoolYearSemester->semester;
+        }
+        if ($item->confirmed_at && $item->confirmedSchoolYearSemester) {
+            return $item->confirmedSchoolYearSemester->semester;
+        }
+
+        return $item->schoolYearSemester?->semester;
+    }
+
     public function matchStudentSearch($user, $search, $parts)
     {
         $profile = $user->profile;
-        $first  = strtolower($profile->first_name ?? '');
+        $first = strtolower($profile->first_name ?? '');
         $middle = strtolower($profile->middle_name ?? '');
-        $last   = strtolower($profile->last_name ?? '');
+        $last = strtolower($profile->last_name ?? '');
         $userId = strtolower($user->id_number ?? '');
 
         $full1 = trim("$first $middle $last");
@@ -543,23 +574,23 @@ class ArchiveController extends Controller
                 break;
 
             default:
-                abort(404, "Invalid type.");
+                abort(404, 'Invalid type.');
         }
 
-        if (!is_dir($folderPath)) {
-            abort(404, "Document folder not found.");
+        if (! is_dir($folderPath)) {
+            abort(404, 'Document folder not found.');
         }
 
         // Create ZIP in temp directory
-        $tempZipPath = storage_path("app/temp/" . Str::random(20) . ".zip");
+        $tempZipPath = storage_path('app/temp/'.Str::random(20).'.zip');
 
-        if (!file_exists(dirname($tempZipPath))) {
+        if (! file_exists(dirname($tempZipPath))) {
             mkdir(dirname($tempZipPath), 0775, true);
         }
 
         $zip = new ZipArchive;
         if ($zip->open($tempZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            abort(500, "Cannot create ZIP file.");
+            abort(500, 'Cannot create ZIP file.');
         }
 
         // Add all files inside folder

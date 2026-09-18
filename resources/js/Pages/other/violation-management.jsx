@@ -9,6 +9,7 @@ import StudentViolationList from "@/Components/list/student-violation-list";
 import ViolationAccessRequests from "../itrc/maintenance/violation-access-requests";
 import { useReload } from "@/context-provider/reload-provider";
 import { ViolationAccessService } from "@/others/services/violation-access-service";
+import PageLayout from "@/Layouts/page-layout";
 
 const ViolationManagement = (props) => {
     const isSuperAdmin = props.user?.role === 'super_admin';
@@ -80,70 +81,56 @@ const ViolationManagement = (props) => {
             setClickOk={setClickOk}
             setter={setPenaltyList}
         />
-        <div className="grid gap-8 min-w-0">
-            <div className="flex-shrink-0 h-full min-w-0">
-                <div className="pt-6 sm:pt-10 min-w-0">
-                    <div className="grid w-full gap-3 min-w-0">
+        <PageLayout title="VIOLATION MANAGEMENT">
+            <TabSwitcher
+                tabs={[
+                    { key: "violations", label: "Manage Violations" },
+                    { key: "penalty", label: "Manage Penalties" },
+                    ...(isSuperAdmin ? [] : [{ key: "student-violations", label: "Student Violations" }]),
+                    { key: "access-requests", label: isSuperAdmin ? "Edit Access" : "Access Requests" },
+                ]}
+                value={activeTab}
+                onChange={setActiveTab}
+            />
 
-                        {/* Page Title */}
-                        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
-                            Violation Management
-                        </h1>
+            {/* Content */}
+            <div className="py-6 sm:py-10 min-w-0">
+                {activeTab === "violations" && (
+                    <ManageViolation
+                        list={violation_list}
+                        original_list={props.violation}
+                        setter={setViolationList}
+                        reload={loadRegister}
+                        events={[openActionModal]}
+                        canAdd={access.violation.add}
+                        canEditRow={access.violation.edit}
+                        canDelete={access.violation.delete}
+                    />
+                )}
 
-                        {/* Tabs */}
-                        <TabSwitcher
-                            tabs={[
-                                { key: "violations", label: "Manage Violations" },
-                                { key: "penalty", label: "Manage Penalties" },
-                                ...(isSuperAdmin ? [] : [{ key: "student-violations", label: "Student Violations" }]),
-                                { key: "access-requests", label: isSuperAdmin ? "Edit Access" : "Access Requests" },
-                            ]}
-                            value={activeTab}
-                            onChange={setActiveTab}
-                        />
+                {activeTab === "penalty" && (
+                    <ManagePenalty
+                        list={penalty_list}
+                        original_list={props.penalty}
+                        setter={setPenaltyList}
+                        reload={loadRegister}
+                        events={[openActionModal]}
+                        canAdd={access.penalty.add}
+                        canDelete={access.penalty.delete}
+                    />
+                )}
 
-                        {/* Content */}
-                        <div className="py-6 sm:py-10 min-w-0">
-                            {activeTab === "violations" && (
-                                <ManageViolation
-                                    list={violation_list}
-                                    original_list={props.violation}
-                                    setter={setViolationList}
-                                    reload={loadRegister}
-                                    events={[openActionModal]}
-                                    canAdd={access.violation.add}
-                                    canEditRow={access.violation.edit}
-                                    canDelete={access.violation.delete}
-                                />
-                            )}
-
-                            {activeTab === "penalty" && (
-                                <ManagePenalty
-                                    list={penalty_list}
-                                    original_list={props.penalty}
-                                    setter={setPenaltyList}
-                                    reload={loadRegister}
-                                    events={[openActionModal]}
-                                    canAdd={access.penalty.add}
-                                    canDelete={access.penalty.delete}
-                                />
-                            )}
-
-                            {activeTab === "student-violations" && !isSuperAdmin && (
-                                <div className="grid gap-4">
-                                    <StudentViolationList list={props.student_violation_list} />
-                                </div>
-                            )}
-
-                            {activeTab === "access-requests" && (
-                                <ViolationAccessRequests user={props.user} />
-                            )}
-                        </div>
+                {activeTab === "student-violations" && !isSuperAdmin && (
+                    <div className="grid gap-4">
+                        <StudentViolationList list={props.student_violation_list} />
                     </div>
-                </div>
-            </div>
-        </div>
+                )}
 
+                {activeTab === "access-requests" && (
+                    <ViolationAccessRequests user={props.user} />
+                )}
+            </div>
+        </PageLayout>
         </>
     );
 };

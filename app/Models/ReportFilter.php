@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ReportFilter extends Model
 {
@@ -10,11 +11,14 @@ class ReportFilter extends Model
 
     protected $fillable = ['user_id', 'report_type', 'name', 'filters'];
 
-    protected $casts = [
-        'filters' => 'array',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'filters' => 'array',
+        ];
+    }
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }

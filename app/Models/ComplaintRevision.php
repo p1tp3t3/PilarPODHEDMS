@@ -3,13 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ComplaintRevision extends Model
 {
-    public $table = 'complaint_revision',
-           $timestamps = false;
+    protected $table = 'complaint_revision';
 
-    public $fillable = [
+    public $timestamps = false;
+
+    protected $fillable = [
         'complaint_id',
         'incident',
         'complaint_description',
@@ -18,7 +20,7 @@ class ComplaintRevision extends Model
         'created_at',
     ];
 
-    public function complaint()
+    public function complaint(): BelongsTo
     {
         return $this->belongsTo(Complaint::class, 'complaint_id', 'id');
     }

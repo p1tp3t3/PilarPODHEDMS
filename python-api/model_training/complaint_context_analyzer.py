@@ -118,8 +118,16 @@ class ComplaintContextAnalyzer:
         self.violation_vectors = {}
         print("📌 Computing violation embeddings...")
 
-        for text in self.df["violation_text"]:
-            tokens = self._tokenize(text)
+        # A violation's title alone is a short, weak signal (2-5 words) to
+        # compare against a full complaint paragraph. Averaging in its
+        # keywords too gives it a richer embedding — same pretrained model,
+        # no retraining, keywords are just more tokens fed into the average.
+        has_keywords = "keywords" in self.df.columns
+
+        for _, row in self.df.iterrows():
+            text = row["violation_text"]
+            keywords = row["keywords"] if has_keywords else ""
+            tokens = self._tokenize(f"{text} {keywords}")
             vectors = [self.model[w] for w in tokens if w in self.model]
 
             if vectors:
@@ -164,34 +172,35 @@ class ComplaintContextAnalyzer:
         elif score >= 0.25: return "Possibly Related"
         return "Unclear / Needs Review"
     
-    def add_violation(self, id, violation_text):
+    def add_violation(self, id, violation_text, keywords=""):
         # Append to CSV
-        new_entry = pd.DataFrame({"id": [id], "violation_text": [violation_text] })
+        new_entry = pd.DataFrame({"id": [id], "violation_text": [violation_text], "keywords": [keywords]})
         new_entry.to_csv(self.file_name, mode='a', header=False, index=False)
 
         # Update internal dataframe
-        self.df = pd.read_csv(self.file_name)
+        self.df = pd.read_csv(self.file_name).fillna("")
         # Recompute vector
         self._compute_violation_vectors()
-    
-    def update_violation(self, id, new_violation_text):
+
+    def update_violation(self, id, new_violation_text, keywords=""):
         # Update in CSV
         self.df.loc[self.df['id'] == id, 'violation_text'] = new_violation_text
+        self.df.loc[self.df['id'] == id, 'keywords'] = keywords
         self.df.to_csv(self.file_name, index=False)
 
         # Update internal dataframe
-        self.df = pd.read_csv(self.file_name)
+        self.df = pd.read_csv(self.file_name).fillna("")
         # Recompute vectors
         #self._load_google_word2vec()
-        self._compute_violation_vectors()    
-    
+        self._compute_violation_vectors()
+
     def delete_violation(self, id):
         # Remove from CSV
         self.df = self.df[self.df['id'] != id]
         self.df.to_csv(self.file_name, index=False)
 
         # Update internal dataframe
-        self.df = pd.read_csv(self.file_name)
+        self.df = pd.read_csv(self.file_name).fillna("")
         # Recompute vectors
         #self._load_google_word2vec()
         self._compute_violation_vectors()

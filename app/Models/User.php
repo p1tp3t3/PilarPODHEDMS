@@ -2,16 +2,22 @@
 
 namespace App\Models;
 
+use App\Http\Resources\UserResource;
+use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use NotificationChannels\WebPush\HasPushSubscriptions;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasPushSubscriptions, \Illuminate\Auth\MustVerifyEmail;
+    /** @use HasFactory<UserFactory> */
+    use HasFactory, HasPushSubscriptions, \Illuminate\Auth\MustVerifyEmail, Notifiable;
 
     public $timestamps = true;
 
@@ -53,17 +59,17 @@ class User extends Authenticatable implements MustVerifyEmail
         ];
     }
 
-    public function profile()
+    public function profile(): HasOne
     {
         return $this->hasOne(Profile::class, 'user_id', 'id');
     }
 
-    public function permissions()
+    public function permissions(): HasOne
     {
         return $this->hasOne(UserPermission::class, 'user_id', 'id');
     }
 
-    public function enrollments()
+    public function enrollments(): HasMany
     {
         // Every consumer of this relation (showUserType() on the frontend,
         // and its several inline re-implementations across list components)
@@ -73,14 +79,14 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Enrollment::class, 'student_id', 'id')->orderBy('id');
     }
 
-    public function enrollment()
+    public function enrollment(): HasOne
     {
         return $this->hasOne(Enrollment::class, 'student_id', 'id')
             ->where('status', 'enrolled')
             ->latestOfMany('id');
     }
 
-    public function program()
+    public function program(): HasOneThrough
     {
         return $this->hasOneThrough(
             Program::class,
@@ -92,57 +98,57 @@ class User extends Authenticatable implements MustVerifyEmail
         )->where('enrollment.status', 'enrolled')->latestOfMany('id');
     }
 
-    public function teachingStaff()
+    public function teachingStaff(): HasOne
     {
         return $this->hasOne(TeachingStaff::class, 'user_id', 'id');
     }
 
-    public function nonTeachingStaff()
+    public function nonTeachingStaff(): HasOne
     {
         return $this->hasOne(NonTeachingStaff::class, 'user_id', 'id');
     }
 
-    public function parent()
+    public function parent(): HasOne
     {
         return $this->hasOne(Parents::class, 'user_id', 'id');
     }
 
-    public function child()
+    public function child(): HasMany
     {
         return $this->hasMany(FamilyMember::class, 'member_id', 'id');
     }
 
-    public function educationBackground()
+    public function educationBackground(): HasMany
     {
         return $this->hasMany(EducationBackground::class, 'student_id', 'id');
     }
 
-    public function actionLog()
+    public function actionLog(): HasMany
     {
         return $this->hasMany(ActionLog::class, 'user_id', 'id');
     }
 
-    public function complainant()
+    public function complainant(): HasMany
     {
         return $this->hasMany(Complaint::class, 'complainant_id', 'id');
     }
 
-    public function complaintSubject()
+    public function complaintSubject(): HasMany
     {
         return $this->hasMany(Complaint::class, 'student_id', 'id');
     }
 
-    public function absent()
+    public function absent(): HasMany
     {
         return $this->hasMany(Absence::class, 'student_id', 'id');
     }
 
-    public function referral()
+    public function referral(): HasMany
     {
         return $this->hasMany(Referral::class, 'teaching_staff_id', 'id');
     }
 
-    public function referralReferred()
+    public function referralReferred(): HasManyThrough
     {
         return $this->hasManyThrough(
             Referral::class,
@@ -154,22 +160,22 @@ class User extends Authenticatable implements MustVerifyEmail
         );
     }
 
-    public function appointment()
+    public function appointment(): HasMany
     {
         return $this->hasMany(Appointment::class, 'user_id', 'id');
     }
 
-    public function gatepass()
+    public function gatepass(): HasMany
     {
         return $this->hasMany(GatePass::class, 'user_id', 'id');
     }
 
-    public function notificationSender()
+    public function notificationSender(): HasMany
     {
         return $this->hasMany(Notifications::class, 'sender_id', 'id');
     }
 
-    public function notificationReceiver()
+    public function notificationReceiver(): HasMany
     {
         return $this->hasMany(Notifications::class, 'receiver_id', 'id');
     }
@@ -255,7 +261,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'user' => auth()->user(),
             'account_list' => [
-                'data' => \App\Http\Resources\UserResource::collection($data),
+                'data' => UserResource::collection($data),
             ],
         ];
     }

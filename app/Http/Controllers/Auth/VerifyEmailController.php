@@ -18,7 +18,7 @@ class VerifyEmailController extends Controller
     {
         $user = $request->user();
 
-        if (!$user->hasVerifiedEmail() && $user->markEmailAsVerified()) {
+        if (! $user->hasVerifiedEmail() && $user->markEmailAsVerified()) {
             event(new Verified($user));
         }
 

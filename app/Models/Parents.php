@@ -2,20 +2,24 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Database\Factories\ParentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Parents extends Model
 {
-    /** @use HasFactory<\Database\Factories\ParentFactory> */
+    /** @use HasFactory<ParentFactory> */
     use HasFactory;
 
     public $timestamps = false;
-    public $table = 'parent', 
-           $fillable = ['user_id', 'parent_role', 'work_occupation'];
 
-    public function user() {
+    protected $table = 'parent';
+
+    protected $fillable = ['user_id', 'parent_role', 'work_occupation'];
+
+    public function user(): BelongsTo
+    {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
 }

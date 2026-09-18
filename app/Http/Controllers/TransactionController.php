@@ -7,7 +7,6 @@ use App\Http\Controllers\Modules\Appointment\AppointmentController;
 use App\Http\Controllers\Modules\Complaint\ComplaintController;
 use App\Http\Controllers\Modules\GatePass\GatePassController;
 use App\Http\Controllers\Modules\Referral\ReferralController;
-use App\Http\Controllers\Controller;
 use App\Models\Admission;
 use App\Models\AppointmentRequest;
 use App\Models\Complaint;
@@ -18,14 +17,15 @@ use Illuminate\Support\Facades\DB;
 
 class TransactionController extends Controller
 {
-    public function getRequests($type) {
-        $complaint = new ComplaintController();
-        $referral = new ReferralController();
-        $admission = new AbsentFormController();
-        $appointment = new AppointmentController();
-        $gatepass = new GatePassController();
+    public function getRequests($type)
+    {
+        $complaint = new ComplaintController;
+        $referral = new ReferralController;
+        $admission = new AbsentFormController;
+        $appointment = new AppointmentController;
+        $gatepass = new GatePassController;
 
-        switch($type) {
+        switch ($type) {
             case 'complaint':
                 return $complaint->getSentComplaints();
             case 'referral':
@@ -38,34 +38,34 @@ class TransactionController extends Controller
                 return $gatepass->getAllGatePassRequest()->toArray();
         }
     }
-    public function getRequestStatus() {
-        $id =  auth()->user()->user_id;
+
+    public function getRequestStatus()
+    {
+        $id = auth()->user()->user_id;
 
         $complaint = Complaint::where('complainant_id', $id)
-                              ->where('confirmed_at', NULL)
-                              ->where(DB::raw("DATE_FORMAT(created_at, '%Y-%m-%d')"), DB::raw("DATE_FORMAT(NOW(), '%Y-%m-%d')"));
-        $referral =  Referral::where('faculty_id', $id)
-                             ->where('created_at', now());
+            ->where('confirmed_at', null)
+            ->where(DB::raw("DATE_FORMAT(created_at, '%Y-%m-%d')"), DB::raw("DATE_FORMAT(NOW(), '%Y-%m-%d')"));
+        $referral = Referral::where('faculty_id', $id)
+            ->where('created_at', now());
         $admission = Admission::where('student_id', $id)
-                              ->where('confirmed', NULL)
-                              ->where(DB::raw("DATE_FORMAT(created_at, '%Y-%m-%d')"), DB::raw("DATE_FORMAT(NOW(), '%Y-%m-%d')"));
+            ->where('confirmed', null)
+            ->where(DB::raw("DATE_FORMAT(created_at, '%Y-%m-%d')"), DB::raw("DATE_FORMAT(NOW(), '%Y-%m-%d')"));
         $appointment = AppointmentRequest::where('user_id', $id)
-                                         ->where('created_at', now());
+            ->where('created_at', now());
         $gatepass = GatePass::where('user_id', $id)
-                            ->where(DB::raw("DATE_FORMAT(created_at, '%Y-%m-%d')"), DB::raw("DATE_FORMAT(NOW(), '%Y-%m-%d')"));
-        
+            ->where(DB::raw("DATE_FORMAT(created_at, '%Y-%m-%d')"), DB::raw("DATE_FORMAT(NOW(), '%Y-%m-%d')"));
+
         $status = [];
 
         $status['complaint'] = ($complaint->exists()) ? 'pending' : 'ongoing';
         $admissionNull = $admission->where('confirmed', 1)->exists();
         $admissionApproved = $admission->where('confirmed', 1)->exists();
 
-        $gatepassNull = $gatepass->whereNot('confirmed_at', NULL)->exists();
-        $gatepassApproved = $gatepass->whereNot('confirmed_at', NULL)->exists();
+        $gatepassNull = $gatepass->whereNot('confirmed_at', null)->exists();
+        $gatepassApproved = $gatepass->whereNot('confirmed_at', null)->exists();
 
-
-
-        switch(auth()->user()->user_type) {
+        switch (auth()->user()->user_type) {
             case 'itrc':
                 $status['gatepass'] = (($gatepassNull) ? ($gatepassApproved ? 'approve' : 'pending') : 'none');
                 break;
@@ -89,25 +89,25 @@ class TransactionController extends Controller
         return response()->json($status);
     }
 
-    public function getLimit() {
-        $limit = Prefect::with(['user' => function($q) {
+    public function getLimit()
+    {
+        $limit = Prefect::with(['user' => function ($q) {
             $q->where('activate', 1);
         }])->get()->toArray();
 
         $complaint = Complaint::where(DB::raw("DATE_FORMAT(created_at, '%Y-%m-%d')"), DB::raw("DATE_FORMAT(NOW(), '%Y-%m-%d')"))->count();
         $gatepass = GatePass::where(DB::raw("DATE_FORMAT(created_at, '%Y-%m-%d')"), DB::raw("DATE_FORMAT(NOW(), '%Y-%m-%d')"))->count();
 
-
-        switch(auth()->user()->user_type) {
+        switch (auth()->user()->user_type) {
             case 'itrc':
                 $limit = [
                     'complaint' => [
                         'limit' => $limit[0]['complaint_report_limit'],
-                        'requested' => $complaint
+                        'requested' => $complaint,
                     ],
                     'gatepass' => [
                         'limit' => $limit[0]['gatepass_request_limit'],
-                        'requested' => $gatepass
+                        'requested' => $gatepass,
                     ],
                 ];
                 break;
@@ -115,15 +115,15 @@ class TransactionController extends Controller
                 $limit = [
                     'complaint' => [
                         'limit' => $limit[0]['complaint_report_limit'],
-                        'requested' => $complaint
+                        'requested' => $complaint,
                     ],
                     'gatepass' => [
                         'limit' => $limit[0]['gatepass_request_limit'],
-                        'requested' => $gatepass
+                        'requested' => $gatepass,
                     ],
                     'admission' => [
                         'limit' => $limit[0]['admission_request_limit'],
-                        'requested' => Admission::get()->count()
+                        'requested' => Admission::get()->count(),
                     ],
                 ];
                 break;
@@ -131,7 +131,7 @@ class TransactionController extends Controller
                 $limit = [
                     'complaint' => [
                         'limit' => $limit[0]['complaint_report_limit'],
-                        'requested' => $complaint
+                        'requested' => $complaint,
                     ],
                     'gatepass' => $limit[0]['gatepass_request_limit'],
                     'referral' => $limit[0]['referral_report_limit'],
@@ -141,7 +141,7 @@ class TransactionController extends Controller
                 $limit = [
                     'complaint' => [
                         'limit' => $limit[0]['complaint_report_limit'],
-                        'requested' => $complaint
+                        'requested' => $complaint,
                     ],
                     'gatepass' => $limit[0]['gatepass_request_limit'],
                     'referral' => $limit[0]['referral_report_limit'],
@@ -151,7 +151,7 @@ class TransactionController extends Controller
                 $limit = [
                     'complaint' => [
                         'limit' => $limit[0]['complaint_report_limit'],
-                        'requested' => $complaint
+                        'requested' => $complaint,
                     ],
                     'gatepass' => $limit[0]['gatepass_request_limit'],
                 ];
@@ -160,20 +160,19 @@ class TransactionController extends Controller
                 $limit = [
                     'complaint' => [
                         'limit' => $limit[0]['complaint_report_limit'],
-                        'requested' => $complaint
+                        'requested' => $complaint,
                     ],
                 ];
                 break;
         }
 
-
         return $limit;
     }
 
-
-    public function validateAllowableUserRequests($type) {
+    public function validateAllowableUserRequests($type)
+    {
         $prefectAllow = Prefect::where('activate', 1)->get([$type])->toArray();
         $prefectAllow = $prefectAllow[$type];
-        
+
     }
 }

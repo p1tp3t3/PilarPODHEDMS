@@ -71,7 +71,11 @@ const PrefectReport = (props) => {
 
     const hasUsableFilter = filterBy === 'date' ? (dateFrom && dateTo) : !!schoolYearId
 
-    useEffect(() => {
+    // Filter fields no longer submit on every change — the user sets the
+    // date range/school year (+semester) first, then explicitly clicks
+    // "Apply Filter" to reload the list with it, instead of firing a
+    // request on each click.
+    const applyFilter = () => {
         if (!hasUsableFilter) return
 
         router.get(window.location.pathname, {
@@ -81,7 +85,16 @@ const PrefectReport = (props) => {
             school_year_id: filterBy === 'school_year' ? schoolYearId : '',
             semester: filterBy === 'school_year' ? semester : '',
         }, { preserveState: true, preserveScroll: true, replace: true })
-    }, [filterBy, dateFrom, dateTo, schoolYearId, semester])
+    }
+
+    const clearFilter = () => {
+        setFilterBy('date')
+        setDateFrom('')
+        setDateTo('')
+        setSchoolYearId('')
+        setSemester('')
+        router.get(window.location.pathname, {}, { preserveState: true, preserveScroll: true, replace: true })
+    }
     const [choose2, setChoose2] = useState('all'),
           [complaint, openViewComplaint] = useState(false),
           [absent, openAbsentForm] = useState(false),
@@ -283,6 +296,28 @@ const PrefectReport = (props) => {
                                     />
                                 </div>
                             </div>}
+
+                            <div className="flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={applyFilter}
+                                    disabled={!hasUsableFilter}
+                                    className={`text-[0.85em] px-3 py-1.5 rounded text-white ${
+                                        hasUsableFilter ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-300 cursor-not-allowed"
+                                    }`}
+                                >
+                                    Apply Filter
+                                </button>
+
+                                {hasUsableFilter &&
+                                <button
+                                    type="button"
+                                    onClick={clearFilter}
+                                    className="text-[0.85em] text-gray-600 hover:text-gray-900 underline"
+                                >
+                                    Clear Filter
+                                </button>}
+                            </div>
                         </div>}
                         {choose == 'incident-report' &&
                         <IncidentReport
@@ -315,8 +350,11 @@ const PrefectReport = (props) => {
                             quantity={[props.incident, props.resolved, props.violation_count]}
                             top5Student={props.top5_students}
                             incidentLineGraph={props.incident_line_graph}
+                            incidentTrendSeries={props.incident_trend_series}
+                            incidentTrendLabels={props.incident_trend_labels}
                             violationProgram={props.violation_program}
                             userId={props.user.id}
+                            schoolYears={props.school_years}
                         />}
                         {choose == 'saved-filters' &&
                         <div className="grid gap-3">

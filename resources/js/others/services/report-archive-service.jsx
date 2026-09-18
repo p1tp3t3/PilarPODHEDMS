@@ -37,6 +37,11 @@ export const ReportArchiveService = {
         const api = new APIRequest(`/prefect/analytics/preview?${query}`, "get", {}, setter);
         api.fetchData();
     },
+    getProgramViolationDetail(data, setter) {
+        const query = new URLSearchParams(data).toString();
+        const api = new APIRequest(`/prefect/analytics/program-detail?${query}`, "get", {}, setter);
+        api.fetchData();
+    },
     getAccountStatisticsPreview(data, setter) {
         const query = new URLSearchParams(data).toString();
         const api = new APIRequest(`/super-admin/report/statistics-preview?${query}`, "get", {}, setter);

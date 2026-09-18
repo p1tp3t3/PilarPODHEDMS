@@ -2,65 +2,68 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Modules\Account\RegisteredUserController;
 use App\Http\Controllers\Modules\AbsentForm\AbsentFormController;
+use App\Http\Controllers\Modules\Account\RegisteredUserController;
 use App\Http\Controllers\Modules\Complaint\ComplaintController;
 use App\Http\Controllers\Modules\GatePass\GatePassController;
 use App\Http\Controllers\Modules\Referral\ReferralController;
 use App\Http\Controllers\Modules\Violation\ViolationController;
-use App\Http\Requests\ProfileUpdateRequest;
 use App\Models\ActionLog;
 use App\Models\ComplaintSubject;
 use App\Models\EducationBackground;
-use App\Models\Family;
-use App\Models\FamilyMember;
 use App\Models\Enrollment;
+use App\Models\Faculty;
+use App\Models\Family;
 use App\Models\Profile;
 use App\Models\Program;
 use App\Models\SchoolYear;
 use App\Models\User;
-use Exception;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Redirect;
-use Inertia\Inertia;
-use Inertia\Response;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Inertia\Inertia;
 
 class ProfileController extends Controller
 {
     protected $apiKey = [
-        'pexels' => 'tXInTzEb1j3w0U1sEosQn6vWS7wfFmW53IihHaZ2jL2GkNYpKDKRZqKf'
+        'pexels' => 'tXInTzEb1j3w0U1sEosQn6vWS7wfFmW53IihHaZ2jL2GkNYpKDKRZqKf',
     ];
-    private $src, $id;
+
+    private $src;
+
+    private $id;
 
     // Lets search results link to a profile by id instead of exposing
     // username (treated as sensitive) in search API responses.
-    public function redirectById($id) {
+    public function redirectById($id)
+    {
         $username = User::where('id', $id)->value('username');
 
-        if (!$username) {
+        if (! $username) {
             abort(404, 'User not found.');
         }
 
         return redirect("/profile/{$username}");
     }
 
-    public function index($id) {
-        $account = new User();
+    public function index($id)
+    {
+        $account = new User;
 
         $account = $account->findAccount($id);
 
-        if (!$account) {
+        if (! $account) {
             abort(404, 'User not found.');
         }
 
-        $props =  [
+        $props = [
             // teachingStaff loaded so the frontend can tell a program head
             // apart from regular faculty (position === 'program_head'),
             // used to gate seeing a student's enrollment history below.
@@ -71,15 +74,15 @@ class ProfileController extends Controller
         ];
         $family = $account->role == 'student' || $account->role == 'parent';
 
-        if($family) {
+        if ($family) {
             $userId = $account->id;
-            $parentStudent = new RegisteredUserController();
+            $parentStudent = new RegisteredUserController;
 
             $props = array_merge($props, [
                 'family' => self::getFamilyBackground($userId),
                 'education_background' => EducationBackground::where('student_id', $userId)
-                                                             ->get()
-                                                             ->toArray(),
+                    ->get()
+                    ->toArray(),
             ], $parentStudent->getParentAndStudent());
         }
 
@@ -93,7 +96,7 @@ class ProfileController extends Controller
         if ($account->role == 'student' && $canViewIncidents) {
             $props = array_merge($props, [
                 'incident_groups' => self::getStudentIncidentGroups($account->id),
-                'violation_occurrences' => (new ViolationController())->getStudentViolationOccurence($account->id),
+                'violation_occurrences' => (new ViolationController)->getStudentViolationOccurence($account->id),
             ]);
         }
 
@@ -108,17 +111,17 @@ class ProfileController extends Controller
         $canViewOwnComplaints = auth()->user()->role === 'sub_admin' || auth()->id() === $account->id;
 
         if ($canViewOwnComplaints) {
-            $props['complaints_filed'] = (new ComplaintController())->getComplainantComplaint($account->id);
+            $props['complaints_filed'] = (new ComplaintController)->getComplainantComplaint($account->id);
         }
 
         if ($canViewOwnFilings) {
             if ($account->role === 'teaching_staff') {
-                $props['referrals_filed'] = (new ReferralController())->getReferrerReferral($account->id);
+                $props['referrals_filed'] = (new ReferralController)->getReferrerReferral($account->id);
             }
 
             if ($account->role === 'student') {
-                $props['absent_forms_filed'] = (new AbsentFormController())->getStudentAbsentForms($account->id);
-                $props['gatepass_requested'] = (new GatePassController())->getUserGatePassRequests($account->id);
+                $props['absent_forms_filed'] = (new AbsentFormController)->getStudentAbsentForms($account->id);
+                $props['gatepass_requested'] = (new GatePassController)->getUserGatePassRequests($account->id);
             }
         }
 
@@ -132,7 +135,8 @@ class ProfileController extends Controller
      * client-side from /api/student/incident/{id}, a route that doesn't
      * exist.
      */
-    public function getStudentIncidentGroups($id) {
+    public function getStudentIncidentGroups($id)
+    {
         $subjects = ComplaintSubject::with(['complaint.violation', 'offenses'])
             ->where('student_id', $id)
             ->whereHas('complaint', fn ($q) => $q->where('complaint_status', 'resolved'))
@@ -161,26 +165,28 @@ class ProfileController extends Controller
             })
             ->values();
     }
+
     public function edit($id)
     {
-        $account = new User();
+        $account = new User;
 
         $account = $account->findAccount($id);
 
-        if (!$account) {
+        if (! $account) {
             abort(404, 'User not found.');
         }
 
         $userId = $account->id;
 
-        $props =  [
+        $props = [
             'user' => auth()->user(),
             'otherUserProfile' => $account,
             'program' => Program::latest('created_at')->get(['id', 'description']),
             'education_background' => EducationBackground::where('student_id', $userId)
-                                                         ->get()
-                                                         ->toArray()
+                ->get()
+                ->toArray(),
         ];
+
         return Inertia::render('student/edit-profile-form', $props);
     }
 
@@ -194,12 +200,12 @@ class ProfileController extends Controller
         // else's profile just by changing a form field.
         $targetUser = User::where('username', $username)->first();
 
-        if (!$targetUser) {
+        if (! $targetUser) {
             abort(404, 'User not found.');
         }
 
         $isSelf = $targetUser->id === auth()->id();
-        if (!$isSelf && !in_array(auth()->user()->role, ['super_admin', 'sub_admin'])) {
+        if (! $isSelf && ! in_array(auth()->user()->role, ['super_admin', 'sub_admin'])) {
             abort(403);
         }
 
@@ -214,7 +220,7 @@ class ProfileController extends Controller
         }
 
         $diffFields = ['religion', 'citizenship', 'civil_status', 'date_of_birth', 'place_of_birth', 'current_address', 'permanent_address', 'sex', 'contact_number'];
-        $oldProfile = \Illuminate\Support\Arr::only($targetUser->profile?->toArray() ?? [], $diffFields);
+        $oldProfile = Arr::only($targetUser->profile?->toArray() ?? [], $diffFields);
         $oldEmail = $targetUser->email;
 
         self::applyProfileFields($targetUser, $request);
@@ -223,16 +229,16 @@ class ProfileController extends Controller
         if ($request->filled('email')) {
             $userFields['email'] = strtolower($request->email);
         }
-        if ($isSelf && !$targetUser->already_update_profile) {
+        if ($isSelf && ! $targetUser->already_update_profile) {
             $userFields['already_update_profile'] = true;
         }
-        if (!empty($userFields)) {
+        if (! empty($userFields)) {
             $targetUser->update($userFields);
         }
 
         // Log action — a field-level before/after diff instead of just a
         // sentence, so a viewer can see exactly what changed.
-        $newProfile = \Illuminate\Support\Arr::only(Profile::where('user_id', $targetUser->id)->first()?->toArray() ?? [], $diffFields);
+        $newProfile = Arr::only(Profile::where('user_id', $targetUser->id)->first()?->toArray() ?? [], $diffFields);
         $changes = [];
         foreach ($diffFields as $field) {
             $from = $oldProfile[$field] ?? null;
@@ -273,7 +279,7 @@ class ProfileController extends Controller
 
         // If new picture uploaded → new filename
         if ($request->hasFile('profile_picture')) {
-            $newFileName = time() . '_' . $request->file('profile_picture')->getClientOriginalName();
+            $newFileName = time().'_'.$request->file('profile_picture')->getClientOriginalName();
             $account['profile_picture'] = $newFileName;
         } else {
             // No new upload → keep old filename
@@ -302,6 +308,7 @@ class ProfileController extends Controller
             self::updateEducationBackground($request);
         }
     }
+
     public function updateIdInFile($newId, $user)
     {
         try {
@@ -318,7 +325,9 @@ class ProfileController extends Controller
 
             if ($userType === 'student') {
                 $enrollment = Enrollment::where('student_id', $newId)->where('status', 'enrolled')->latest('id')->first();
-                if (!$enrollment) return;
+                if (! $enrollment) {
+                    return;
+                }
                 $programId = $enrollment->program_id;
                 $yearLevel = $enrollment->year_level;
 
@@ -326,18 +335,19 @@ class ProfileController extends Controller
                 $zipPath = storage_path("app/private/zips/student-{$programId}-{$programName}.zip");
                 $csvName = "student-account-{$programId}-{$programName}-year-{$yearLevel}.csv";
 
-                if (!file_exists($zipPath)) {
+                if (! file_exists($zipPath)) {
                     Log::warning("Student ZIP not found: $zipPath");
+
                     return;
                 }
 
-                $extractDir = storage_path("app/tmp_zip_edit");
+                $extractDir = storage_path('app/tmp_zip_edit');
                 if (File::exists($extractDir)) {
                     File::deleteDirectory($extractDir);
                 }
                 File::makeDirectory($extractDir, 0777, true, true);
 
-                $zip = new \ZipArchive();
+                $zip = new \ZipArchive;
                 if ($zip->open($zipPath) === true) {
                     $zip->extractTo($extractDir);
                     $zip->close();
@@ -369,20 +379,21 @@ class ProfileController extends Controller
 
                     File::deleteDirectory($extractDir);
                 }
-            }
-
-            elseif ($userType === 'faculty') {
-                $faculty = \App\Models\Faculty::where('user_id', $newId)->first();
-                if (!$faculty) return;
+            } elseif ($userType === 'faculty') {
+                $faculty = Faculty::where('user_id', $newId)->first();
+                if (! $faculty) {
+                    return;
+                }
                 $programId = $faculty->program_id;
-                $programName = \Illuminate\Support\Str::slug(
+                $programName = Str::slug(
                     Program::where('id', $programId)->value('name') ?? 'unknown',
                     '-'
                 );
                 $csvPath = storage_path("app/private/zips/faculty-account-{$programId}-{$programName}.csv");
 
-                if (!file_exists($csvPath)) {
+                if (! file_exists($csvPath)) {
                     Log::warning("Faculty CSV not found: $csvPath");
+
                     return;
                 }
 
@@ -401,12 +412,11 @@ class ProfileController extends Controller
                     fputcsv($fp, $row);
                 }
                 fclose($fp);
-            }
-
-            elseif ($userType === 'staff') {
-                $csvPath = storage_path("app/private/zips/staff-account.csv");
-                if (!file_exists($csvPath)) {
+            } elseif ($userType === 'staff') {
+                $csvPath = storage_path('app/private/zips/staff-account.csv');
+                if (! file_exists($csvPath)) {
                     Log::warning("Staff CSV not found: $csvPath");
+
                     return;
                 }
 
@@ -425,40 +435,47 @@ class ProfileController extends Controller
                     fputcsv($fp, $row);
                 }
                 fclose($fp);
-            }else {
+            } else {
                 User::where('user_id', $user->user_id)->update([
-                    'user_id' => $newId
+                    'user_id' => $newId,
                 ]);
             }
 
         } catch (\Throwable $e) {
-            Log::error("Failed to update ID in CSV/ZIP for {$user->user_id}: " . $e->getMessage());
+            Log::error("Failed to update ID in CSV/ZIP for {$user->user_id}: ".$e->getMessage());
         }
     }
 
-
-    public function getPicture($query) {
+    public function getPicture($query)
+    {
         $response = Http::withHeaders([
-            'Authorization' => $this->apiKey['pexels']
+            'Authorization' => $this->apiKey['pexels'],
         ])->get('https://api.pexels.com/v1/search', [
             'query' => $query,
             'per_page' => 15,
-            'page' => 1
+            'page' => 1,
         ]);
+
         return $response->json();
     }
-    public function generatePicture($username, $userFolder, $photo, $seed = true) {
-        $rand = ($seed) ? random_int(0, sizeof($photo['photos']) - 1) : 0;
+
+    public function generatePicture($username, $userFolder, $photo, $seed = true)
+    {
+        $rand = ($seed) ? random_int(0, count($photo['photos']) - 1) : 0;
         $src = ($seed) ? $photo['photos'][$rand]['src']['original'] : $photo;
 
         self::createUserDirectory($userFolder);
         self::createPicture($src, "$username/profile-$username.jpg");
     }
-    public function createUserDirectory($folder) {
+
+    public function createUserDirectory($folder)
+    {
         File::makeDirectory($folder, 0755, true);
         File::makeDirectory("$folder/complaints", 0755, true);
     }
-    public function createPicture($src, $fileName) {
+
+    public function createPicture($src, $fileName)
+    {
         $imgContent = file_get_contents($src);
 
         $image = imagecreatefromstring($imgContent);
@@ -471,14 +488,15 @@ class ProfileController extends Controller
         imagedestroy($image);
         imagedestroy($resizedImage);
     }
-    public function updateEducationBackground(Request $request) {
+
+    public function updateEducationBackground(Request $request)
+    {
         $educationBackground = $request->data;
         $programId = self::isKeyUndefined($educationBackground, 'college_program');
         $program = Program::where('id', $programId)->value('description');
 
-
-        if(auth()->user()->role != 'student') {
-            $latestEnrollment = \App\Models\Enrollment::where('student_id', $educationBackground['student_id'])
+        if (auth()->user()->role != 'student') {
+            $latestEnrollment = Enrollment::where('student_id', $educationBackground['student_id'])
                 ->latest('id')
                 ->first();
             if ($latestEnrollment) {
@@ -486,33 +504,33 @@ class ProfileController extends Controller
             }
         }
         EducationBackground::where('education_type', 'senior_high_school')
-                               ->where('student_id', $educationBackground['student_id'])
-                               ->update([
-                                'school_name' => self::isKeyUndefined($educationBackground, 'sh_school_name'),
-                                'school_address' => self::isKeyUndefined($educationBackground, 'sh_school_address'),
-                                'year_graduated' => self::isKeyUndefined($educationBackground, 'sh_year_graduated'),
-                               ]);
+            ->where('student_id', $educationBackground['student_id'])
+            ->update([
+                'school_name' => self::isKeyUndefined($educationBackground, 'sh_school_name'),
+                'school_address' => self::isKeyUndefined($educationBackground, 'sh_school_address'),
+                'year_graduated' => self::isKeyUndefined($educationBackground, 'sh_year_graduated'),
+            ]);
         EducationBackground::where('education_type', 'college')
-                               ->where('student_id', $educationBackground['student_id'])
-                               ->where('transferee', 0)
-                               ->update([
-                                'school_name' => self::isKeyUndefined($educationBackground, 'college_school_name'),
-                                'school_address' => self::isKeyUndefined($educationBackground, 'college_school_address'),
-                                'year_graduated' => self::isKeyUndefined($educationBackground, 'college_year_graduated'),
-                                'program' =>  $program,
-                               ]);
+            ->where('student_id', $educationBackground['student_id'])
+            ->where('transferee', 0)
+            ->update([
+                'school_name' => self::isKeyUndefined($educationBackground, 'college_school_name'),
+                'school_address' => self::isKeyUndefined($educationBackground, 'college_school_address'),
+                'year_graduated' => self::isKeyUndefined($educationBackground, 'college_year_graduated'),
+                'program' => $program,
+            ]);
         EducationBackground::where('education_type', 'college')
-                               ->where('student_id', $educationBackground['student_id'])
-                               ->where('transferee', 1)
-                               ->update([
-                                'school_name' => self::isKeyUndefined($educationBackground, 'tr_college_school_name'),
-                                'school_address' => self::isKeyUndefined($educationBackground, 'tr_college_school_address'),
-                                'year_graduated' => self::isKeyUndefined($educationBackground, 'tr_college_year_graduated'),
-                                'program' => self::isKeyUndefined($educationBackground, 'tr_college_program'),
-                                'date_attended' => self::isKeyUndefined($educationBackground, 'date_last_attended'),
-                                'transferee' => 1,
-                                'year_level' => self::isKeyUndefined($educationBackground, 'year_level'),
-                               ]);
+            ->where('student_id', $educationBackground['student_id'])
+            ->where('transferee', 1)
+            ->update([
+                'school_name' => self::isKeyUndefined($educationBackground, 'tr_college_school_name'),
+                'school_address' => self::isKeyUndefined($educationBackground, 'tr_college_school_address'),
+                'year_graduated' => self::isKeyUndefined($educationBackground, 'tr_college_year_graduated'),
+                'program' => self::isKeyUndefined($educationBackground, 'tr_college_program'),
+                'date_attended' => self::isKeyUndefined($educationBackground, 'date_last_attended'),
+                'transferee' => 1,
+                'year_level' => self::isKeyUndefined($educationBackground, 'year_level'),
+            ]);
     }
 
     /**
@@ -535,19 +553,21 @@ class ProfileController extends Controller
 
         return Redirect::to('/');
     }
-    public function getFamilyBackground($id) {
+
+    public function getFamilyBackground($id)
+    {
         self::setId($id);
         $family = Family::whereHas('familyMember', function ($q) {
-                    $q->where('member_id', self::getId());
-                })
-                ->with(['familyMember.member' => function($q) {
-                            $q->with(['profile', 'parent', 'program']);
-                        }])
-                        ->first();
+            $q->where('member_id', self::getId());
+        })
+            ->with(['familyMember.member' => function ($q) {
+                $q->with(['profile', 'parent', 'program']);
+            }])
+            ->first();
 
         $members = [
             'parent' => [],
-            'child' => []
+            'child' => [],
         ];
 
         $seenParents = [];
@@ -556,13 +576,15 @@ class ProfileController extends Controller
         if ($family) {
             foreach ($family->familyMember as $familyMember) {
                 $member = $familyMember->member;
-                if (!$member) continue;
+                if (! $member) {
+                    continue;
+                }
 
-                if ($member->role === 'parent' && !in_array($member->id, $seenParents)) {
+                if ($member->role === 'parent' && ! in_array($member->id, $seenParents)) {
                     $seenParents[] = $member->id;
                     $members['parent'][] = $member;
                 }
-                if ($member->role === 'student' && !in_array($member->id, $seenChildren)) {
+                if ($member->role === 'student' && ! in_array($member->id, $seenChildren)) {
                     $seenChildren[] = $member->id;
                     $members['child'][] = $member;
                 }
@@ -570,12 +592,14 @@ class ProfileController extends Controller
         }
 
         return [
-            'family_code' => !is_null($family) ? $family->family_code : null,
-            'members' => $members
+            'family_code' => ! is_null($family) ? $family->family_code : null,
+            'members' => $members,
         ];
 
     }
-    public function getUserFields($request) {
+
+    public function getUserFields($request)
+    {
         $currentAddress = "{$request->current_place},{$request->current_city},{$request->current_province},{$request->current_zipcode}";
         $permanentAddress = "{$request->permanent_place},{$request->permanent_city},{$request->permanent_province},{$request->permanent_zipcode}";
 
@@ -583,7 +607,7 @@ class ProfileController extends Controller
             'religion' => ucwords($request->religion ?? ''),
             'citizenship' => ucwords($request->citizenship ?? ''),
             'civil_status' => $request->civil_status,
-            'date_of_birth' => (empty($request->date_of_birth)) ? NULL : $request->date_of_birth,
+            'date_of_birth' => (empty($request->date_of_birth)) ? null : $request->date_of_birth,
             'place_of_birth' => ucwords($request->place_of_birth ?? ''),
             'current_address' => $currentAddress,
             'permanent_address' => $permanentAddress,
@@ -591,20 +615,31 @@ class ProfileController extends Controller
             'contact_number' => $request->phone_number,
         ];
     }
-    public function setSrc($s) {
+
+    public function setSrc($s)
+    {
         $this->src = $s;
     }
-    public function setId($s) {
+
+    public function setId($s)
+    {
         $this->id = $s;
     }
-    public function getSrc() {
-        $rand = random_int(0, sizeof($this->src['photos']) - 1);
+
+    public function getSrc()
+    {
+        $rand = random_int(0, count($this->src['photos']) - 1);
+
         return $this->src['photos'][$rand]['src']['original'];
     }
-    public function getId() {
+
+    public function getId()
+    {
         return $this->id;
     }
-    private function isKeyUndefined($arr, $key) {
-        return array_key_exists($key, $arr) ? $arr[$key] : NULL;
+
+    private function isKeyUndefined($arr, $key)
+    {
+        return array_key_exists($key, $arr) ? $arr[$key] : null;
     }
 }

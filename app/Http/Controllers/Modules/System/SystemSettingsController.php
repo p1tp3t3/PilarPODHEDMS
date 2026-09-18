@@ -16,10 +16,10 @@ class SystemSettingsController extends Controller
     {
         return Inertia::render('itrc/system-settings', [
             'user' => auth()->user(),
-            'has_login_portal_password' => !empty(config('app.maintenance_login_secret')),
+            'has_login_portal_password' => ! empty(config('app.maintenance_login_secret')),
             'mail_config' => [
                 'username' => config('mail.mailers.smtp.username') ?? '',
-                'has_password' => !empty(config('mail.mailers.smtp.password')),
+                'has_password' => ! empty(config('mail.mailers.smtp.password')),
             ],
             'app_name' => config('app.name'),
             'archive_retention_years' => config('app.archive_retention_years'),
@@ -102,11 +102,11 @@ class SystemSettingsController extends Controller
         $this->applyMailConfig();
 
         try {
-            Mail::raw('This is a test email from ' . config('app.name') . '. Your mail configuration is working correctly.', function ($message) use ($request) {
-                $message->to($request->test_email)->subject('Test Email - ' . config('app.name'));
+            Mail::raw('This is a test email from '.config('app.name').'. Your mail configuration is working correctly.', function ($message) use ($request) {
+                $message->to($request->test_email)->subject('Test Email - '.config('app.name'));
             });
         } catch (\Throwable $e) {
-            return response()->json(['message' => 'Failed to send test email: ' . $e->getMessage()], 422);
+            return response()->json(['message' => 'Failed to send test email: '.$e->getMessage()], 422);
         }
 
         return response()->json(['message' => 'Test email sent successfully. Please check the inbox.']);
@@ -131,7 +131,7 @@ class SystemSettingsController extends Controller
         $path = base_path('.env');
         $content = File::get($path);
 
-        $escaped = preg_match('/[\s"\'#$]/', $value) ? '"' . str_replace('"', '\\"', $value) . '"' : $value;
+        $escaped = preg_match('/[\s"\'#$]/', $value) ? '"'.str_replace('"', '\\"', $value).'"' : $value;
         $line = "{$key}={$escaped}";
 
         // preg_replace's replacement string treats "$1"/"$2" etc as
@@ -140,7 +140,7 @@ class SystemSettingsController extends Controller
         // built inside a callback instead, where it's used literally.
         $content = preg_match("/^{$key}=.*/m", $content)
             ? preg_replace_callback("/^{$key}=.*/m", fn () => $line, $content)
-            : rtrim($content) . "\n{$line}\n";
+            : rtrim($content)."\n{$line}\n";
 
         File::put($path, $content);
     }

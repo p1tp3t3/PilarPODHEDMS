@@ -17,12 +17,25 @@ def add_violation():
     data = request.get_json()
     if not data or 'violation' not in data:
         return jsonify({"status": "error", "message": "Invalid payload"}), 400
-    
-    model_cca.add_violation(data['id'], data['violation'])
-        
+
+    model_cca.add_violation(data['id'], data['violation'], data.get('keywords', ''))
+
     return jsonify({
         'status': 'success',
         'message': 'Violation added successfully'
+    })
+
+@app.route('/python/violation/update', methods=['POST'])
+def update_violation():
+    data = request.get_json()
+    if not data or 'id' not in data or 'violation' not in data:
+        return jsonify({"status": "error", "message": "Invalid payload"}), 400
+
+    model_cca.update_violation(data['id'], data['violation'], data.get('keywords', ''))
+
+    return jsonify({
+        'status': 'success',
+        'message': 'Violation updated successfully'
     })
 
 @app.route('/python/violation/delete', methods=['POST'])

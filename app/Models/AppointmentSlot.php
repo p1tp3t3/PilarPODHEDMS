@@ -3,12 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AppointmentSlot extends Model
 {
-    public $table = 'appointment_slot', $fillable = ['date_available', 'maximum_slots'];
+    protected $table = 'appointment_slot';
 
-    public function appointment() {
+    protected $fillable = ['date_available', 'maximum_slots'];
+
+    public function appointment(): HasMany
+    {
         return $this->hasMany(Appointment::class, 'appointment_slot_id', 'id');
     }
 }

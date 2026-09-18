@@ -34,12 +34,26 @@ class ViolationController extends Controller
     }
 
     /**
+     * The violation/penalty catalog for OffenseList's client-side fetch
+     * fallback (used wherever it's rendered without a `list` prop already
+     * supplied, e.g. the student dashboard's "List of Violations" tab) —
+     * same query the prefect dashboard already passes down directly.
+     */
+    public function getOffenseList()
+    {
+        return response()->json(
+            Violation::with(['penalties.penalty'])->latest('created_at')->get()
+        );
+    }
+
+    /**
      * The reverse of studentViolationIndex() — given a violation type,
      * every student who has committed it (via a resolved complaint) plus
      * how many times each of them has, for the "View" action on the
      * Manage Violations list.
      */
-    public function violationStudentsIndex($id) {
+    public function violationStudentsIndex($id)
+    {
         $violation = Violation::with(['penalties.penalty'])->findOrFail($id);
 
         $students = ComplaintSubjectViolation::with(['user.profile', 'user.program', 'user.enrollments', 'user.teachingStaff.program'])
@@ -83,48 +97,51 @@ class ViolationController extends Controller
         ]);
     }
 
-    public function studentViolationIndex($id) {
+    public function studentViolationIndex($id)
+    {
         if (self::isSuperAdmin()) {
             return redirect('/violation-management');
         }
 
-        $studentViolations = ComplaintSubjectViolation::with(['violation', 'complaint'])->whereHas('complaint', function($d) {
+        $studentViolations = ComplaintSubjectViolation::with(['violation', 'complaint'])->whereHas('complaint', function ($d) {
             $d->latest('offense_issued_at');
         })
-        ->where('student_id', $id);
+            ->where('student_id', $id);
         $violationNames = ComplaintSubjectViolation::join(
-        'violation',
-        'complaint_subject_violation.violation_id',
-        '=',
-        'violation.id'
-    )
-    ->where('complaint_subject_violation.student_id', $id)
-    ->distinct()
-    ->get(['violation.id', 'violation.violation_name']);
+            'violation',
+            'complaint_subject_violation.violation_id',
+            '=',
+            'violation.id'
+        )
+            ->where('complaint_subject_violation.student_id', $id)
+            ->distinct()
+            ->get(['violation.id', 'violation.violation_name']);
 
         return Inertia::render('other/student-violation', [
             'user' => auth()->user(),
             'student' => User::with(['profile', 'program', 'enrollments.schoolYear'])->where('id', $id)->first(),
             'student_violations' => $studentViolations->get(),
-            'violations' => $violationNames
+            'violations' => $violationNames,
         ]);
     }
-    public function studentRiskIndex($id) {
+
+    public function studentRiskIndex($id)
+    {
         if (self::isSuperAdmin()) {
             return redirect('/violation-management');
         }
 
         return Inertia::render('other/student-risk-prediction', [
             'user' => auth()->user(),
-            'student' => User::with('program')->where('id',  $id)->first()
+            'student' => User::with('program')->where('id', $id)->first(),
         ]);
     }
-
 
     public function store(Request $request)
     {
         return self::multipleViolationStore($request);
     }
+
     private function multipleViolationStore($request)
     {
         DB::beginTransaction();
@@ -134,7 +151,7 @@ class ViolationController extends Controller
             $subjects = json_decode($request->subjects, true);
             $summary = $request->incident_summary;
 
-            if (!is_array($subjects) || empty($subjects)) {
+            if (! is_array($subjects) || empty($subjects)) {
                 return response()->json(['message' => 'No subjects provided.'], 400);
             }
             if (empty(trim((string) $summary))) {
@@ -150,7 +167,7 @@ class ViolationController extends Controller
             $complaintFolder = storage_path("app/private/complaints/complaint-{$complaintNumber}");
 
             // Ensure folder exists
-            if (!File::isDirectory($complaintFolder)) {
+            if (! File::isDirectory($complaintFolder)) {
                 File::makeDirectory($complaintFolder, 0777, true, true);
             }
 
@@ -163,7 +180,7 @@ class ViolationController extends Controller
                 // ----------------------------------------------------------------------
                 ComplaintSubject::firstOrCreate([
                     'complaint_id' => $complaintId,
-                    'student_id'   => $studentId,
+                    'student_id' => $studentId,
                 ]);
                 // ----------------------------------------------------------------------
                 // 2. DELETE OLD OFFENSES for this student (fresh update)
@@ -179,30 +196,31 @@ class ViolationController extends Controller
                 ComplaintSubjectViolation::where(
                     'complaint_id', $complaintId
                 )
-                ->where(
-                    'student_id', $studentId
-                )
-                ->delete();
+                    ->where(
+                        'student_id', $studentId
+                    )
+                    ->delete();
 
                 // ----------------------------------------------------------------------
                 // 3. INSERT NEW OFFENSES
                 // ----------------------------------------------------------------------
                 foreach ($sub['offenses'] as $off) {
 
-                    if ($off['violation'] === "none") {
+                    if ($off['violation'] === 'none') {
                         // Special case: no offense committed
                         ComplaintSubjectViolation::create([
                             'complaint_id' => $complaintId,
                             'student_id' => $studentId,
-                            'violation_id' => null
+                            'violation_id' => null,
                         ]);
+
                         continue;
                     } else {
                         // Normal violation
                         ComplaintSubjectViolation::create([
                             'complaint_id' => $complaintId,
                             'student_id' => $studentId,
-                            'violation_id' => $off['violation']
+                            'violation_id' => $off['violation'],
                         ]);
                     }
                 }
@@ -231,7 +249,7 @@ class ViolationController extends Controller
 
             $complaintWithSubjects = Complaint::with(['user.profile', 'subject.profile', 'complaintSubject.user.profile'])
                 ->find($complaintId);
-            $field = (new ComplaintController())->getComplaintDocumentField($complaintWithSubjects, $summary);
+            $field = (new ComplaintController)->getComplaintDocumentField($complaintWithSubjects, $summary);
             Pdf::loadView('pdf.complaint-subject', $field)->save($filePath);
 
             $generatedFiles[] = $filePath;
@@ -257,7 +275,9 @@ class ViolationController extends Controller
 
             // Remove generated files
             foreach ($generatedFiles as $file) {
-                if (File::exists($file)) File::delete($file);
+                if (File::exists($file)) {
+                    File::delete($file);
+                }
             }
 
             Log::error('Complaint resolution failed', [
@@ -267,13 +287,10 @@ class ViolationController extends Controller
 
             return response()->json([
                 'message' => 'An error occurred while resolving the complaint.',
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
-
-
-
 
     public function getStudentIncident($studentId)
     {
@@ -282,28 +299,28 @@ class ViolationController extends Controller
         }
 
         $incidents = ComplaintSubject::with([
-        'complaint',
-        'offenses.violation' // optional if you need violation data
-    ])
-    ->where('student_id', $studentId)
-    ->whereHas('complaint', function ($q) {
-        $q->where('complaint_status', 'resolved');
-    })
-    ->orderByDesc(
-        Complaint::select('created_at')
-            ->whereColumn('complaint.id', 'complaint_subject.complaint_id')
-            ->limit(1)
-    )
-    ->get();
+            'complaint',
+            'offenses.violation', // optional if you need violation data
+        ])
+            ->where('student_id', $studentId)
+            ->whereHas('complaint', function ($q) {
+                $q->where('complaint_status', 'resolved');
+            })
+            ->orderByDesc(
+                Complaint::select('created_at')
+                    ->whereColumn('complaint.id', 'complaint_subject.complaint_id')
+                    ->limit(1)
+            )
+            ->get();
 
-    // Prefer the complaint-level summary (one shared narrative per
-    // complaint); fall back to this subject's own for complaints resolved
-    // before the summary moved to the complaint.
-    $incidents->each(function ($cs) {
-        $cs->incident_summary = $cs->complaint->incident_summary ?? $cs->incident_summary;
-    });
+        // Prefer the complaint-level summary (one shared narrative per
+        // complaint); fall back to this subject's own for complaints resolved
+        // before the summary moved to the complaint.
+        $incidents->each(function ($cs) {
+            $cs->incident_summary = $cs->complaint->incident_summary ?? $cs->incident_summary;
+        });
 
-return response()->json($incidents);
+        return response()->json($incidents);
 
     }
 
@@ -314,9 +331,9 @@ return response()->json($incidents);
         }
 
         $incidents = ComplaintSubject::with([
-                'complaint',
-                'offenses.violation',
-            ])
+            'complaint',
+            'offenses.violation',
+        ])
             ->where('student_id', $studentId)
             ->whereHas('complaint', function ($q) {
                 $q->where('complaint_status', 'resolved');
@@ -336,35 +353,35 @@ return response()->json($incidents);
                     ->map(function ($offense) use ($incident, $studentId) {
                         $violation = $offense->violation;
 
-                        if (!$violation) {
+                        if (! $violation) {
                             return null;
                         }
 
                         return [
-                            'violation_id'   => $violation->id,
+                            'violation_id' => $violation->id,
                             'violation_name' => $violation->violation_name,
 
                             // ✅ incident must be a list
                             'incidents' => ComplaintSubject::with('complaint.violation')
-                                                           ->whereHas('complaint', function($q) use($violation) {
-                                                               $q->where('incident_id', $violation->id);
-                                                           })
-                                                           ->where('student_id', $studentId)
-                                                           ->get()
-                                                           ->map(fn($d) => [
-                                                               'case_number' => $d->complaint->case_number,
-                                                               'incident' => $d->complaint->violation?->violation_name,
-                                                               'summary' => $d->incident_summary,
-                                                               'created_at' => $d->complaint->created_at,
-                                                               'resolved_since' => $d->complaint->offense_issued_at,
-                                                               'status' => $d->complaint->complaint_status
-                                                           ]),
+                                ->whereHas('complaint', function ($q) use ($violation) {
+                                    $q->where('incident_id', $violation->id);
+                                })
+                                ->where('student_id', $studentId)
+                                ->get()
+                                ->map(fn ($d) => [
+                                    'case_number' => $d->complaint->case_number,
+                                    'incident' => $d->complaint->violation?->violation_name,
+                                    'summary' => $d->incident_summary,
+                                    'created_at' => $d->complaint->created_at,
+                                    'resolved_since' => $d->complaint->offense_issued_at,
+                                    'status' => $d->complaint->complaint_status,
+                                ]),
                             'offenses' => $incident->offenses
                                 ->where('student_id', $incident->student_id)
                                 ->where('violation_id', $violation->id)
                                 ->map(function ($o) {
                                     return [
-                                        'id'           => $o->id,
+                                        'id' => $o->id,
                                         'violation_id' => $o->violation_id,
                                     ];
                                 })
@@ -392,11 +409,6 @@ return response()->json($incidents);
 
         return $grouped;
     }
-
-
-
-
-
 
     public function getStudentViolationOccurence($id)
     {
@@ -452,8 +464,8 @@ return response()->json($incidents);
                     ?? $rec->complaint?->created_at,
                 'penalty' => $penaltyRecord ? [
                     'occurrence_used' => $penaltyRecord->occurrence,
-                    'penalty_id'      => $penaltyRecord->penalty_id,
-                    'description'     => $penaltyRecord->penalty->description ?? null,
+                    'penalty_id' => $penaltyRecord->penalty_id,
+                    'description' => $penaltyRecord->penalty->description ?? null,
                 ] : null,
             ];
         }
@@ -463,27 +475,26 @@ return response()->json($incidents);
             $result[] = [
                 'offense' => [
                     'violation_id' => $violationId,
-                    'violation'    => $data['violation'],
-                    'occurrences'  => count($data['occurrences']),
+                    'violation' => $data['violation'],
+                    'occurrences' => count($data['occurrences']),
                 ],
                 'total_occurrence' => count($data['occurrences']),
-                'occurrence_list'  => $data['occurrences'],
+                'occurrence_list' => $data['occurrences'],
             ];
         }
 
         return $result;
     }
 
-
-
-    public function getStudentBehaviourAnalysisResult($violation, $studentId) {
+    public function getStudentBehaviourAnalysisResult($violation, $studentId)
+    {
         if (self::isSuperAdmin()) {
             return response()->json(['message' => 'Not authorized to view student violation data.'], 403);
         }
 
         $baseQuery = self::getModelInput($violation)
-                        ->where('cs.student_id', $studentId)
-                        ->groupBy('cs.student_id');
+            ->where('cs.student_id', $studentId)
+            ->groupBy('cs.student_id');
         $rows = $baseQuery->get();
 
         // offense_issued_at is only set once a prefect formally issues the
@@ -492,15 +503,15 @@ return response()->json($incidents);
         // Fall back through the same complaint-lifecycle timestamps used
         // elsewhere (getModelInput()'s SQL, the frontend's bestComplaintDate).
         $violationTimeline = ComplaintSubjectViolation::with(['violation', 'complaint.complaintSubject'])
-                                                    ->where('violation_id', $violation)
-                                                    ->where('student_id', $studentId)
-                                                    ->orderByDesc(
-                                                        Complaint::selectRaw('COALESCE(offense_issued_at, resolved_at, confirmed_at, created_at)')
-                                                            ->whereColumn('complaint.id', 'complaint_subject_violation.complaint_id')
-                                                            ->limit(1)
-                                                    )
-                                                    ->get()
-                                                    ->toArray();
+            ->where('violation_id', $violation)
+            ->where('student_id', $studentId)
+            ->orderByDesc(
+                Complaint::selectRaw('COALESCE(offense_issued_at, resolved_at, confirmed_at, created_at)')
+                    ->whereColumn('complaint.id', 'complaint_subject_violation.complaint_id')
+                    ->limit(1)
+            )
+            ->get()
+            ->toArray();
 
         // A violation can appear in the student's selectable list from a
         // still-pending/ongoing complaint (studentViolationIndex() doesn't
@@ -522,10 +533,10 @@ return response()->json($incidents);
         // array explicitly rather than relying on json_encode() happening to
         // serialize a stdClass the same way it would a real array.
         $studentData = (array) $rows->first();
-        $api = Http::withoutVerifying()->post("http://127.0.0.1:5032/python/model/predict", $studentData);
+        $api = Http::withoutVerifying()->post('http://127.0.0.1:5032/python/model/predict', $studentData);
         $data = $api->json();
 
-        if (!$api->successful() || !is_array($data) || !array_key_exists('prediction', $data)) {
+        if (! $api->successful() || ! is_array($data) || ! array_key_exists('prediction', $data)) {
             return [
                 'prediction' => 'Unavailable',
                 'binary' => 0,
@@ -540,12 +551,13 @@ return response()->json($incidents);
             'binary' => $data['prediction'],
             'insights' => $data['insights'],
             'recommendations' => $data['reco'],
-            'violation_timeline' => $violationTimeline
+            'violation_timeline' => $violationTimeline,
         ];
     }
+
     public function getModelInput($violation)
     {
-        $recentDays  = 90;
+        $recentDays = 90;
         $ongoingDays = 30; // only used if you switch to time-window logic (optional)
 
         $query = DB::table('complaint as c')
@@ -558,7 +570,7 @@ return response()->json($incidents);
             ->where('c.complaint_status', 'resolved')
             ->where('cso.violation_id', $violation)
             ->groupBy('cs.student_id', 'o.violation_name', 'cso.violation_id')
-            ->selectRaw("
+            ->selectRaw('
                 cs.student_id,
                 o.violation_name AS violation_type,
 
@@ -585,7 +597,7 @@ return response()->json($incidents);
                 CASE WHEN COUNT(*) = 1 THEN 120 ELSE
                     TIMESTAMPDIFF(MONTH, MAX(COALESCE(c.offense_issued_at, c.resolved_at, c.confirmed_at, c.created_at)), CURDATE())
                 END AS months_since_last_same_violation
-            ", [$recentDays]);
+            ', [$recentDays]);
 
         return $query;
     }

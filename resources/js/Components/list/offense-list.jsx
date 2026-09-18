@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import ListSkeleton from "../reload/list-skeleton";
 import SearchBar from "@/Components/input/search-bar";
+import DropdownField from "@/Components/input/dropdown";
 import { ViolationService } from "@/others/services/violation-service";
 import { toTitleCase, ordinal } from "@/others/function";
 import {
@@ -15,10 +16,15 @@ import {
     Box,
 } from "@mui/material";
 
+const STATUS_OPTIONS = [
+    { val: "1", label: "Major" },
+    { val: "0", label: "Minor" },
+]
+
 const OffenseList = ({ list = null }) => {
     const [offenseList, setOffenseList] = useState(list);
-    const [filteredList, setFilteredList] = useState(list ?? []);
     const [search, setSearch] = useState("");
+    const [status, setStatus] = useState("");
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -31,27 +37,31 @@ const OffenseList = ({ list = null }) => {
 
         ViolationService.getOffenseList((data) => {
             setOffenseList(data);
-            setFilteredList(data);
         });
     }, []);
 
-    // SEARCH HANDLER
+    // SEARCH + STATUS FILTER
+    const filteredList = useMemo(() => {
+        if (!offenseList) return []
+
+        return offenseList.filter((item) => {
+            const matchesSearch = !search.trim() ||
+                item.violation_name?.toLowerCase().includes(search.toLowerCase())
+            const matchesStatus = !status || String(item.offense_status) === status
+
+            return matchesSearch && matchesStatus
+        })
+    }, [offenseList, search, status])
+
     const handleSearch = (e) => {
-        const value = e.target.value.toLowerCase();
-        setSearch(value);
-        setCurrentPage(1);
+        setSearch(e.target.value)
+        setCurrentPage(1)
+    }
 
-        if (!value.trim()) {
-            setFilteredList(offenseList);
-            return;
-        }
-
-        const filtered = offenseList.filter((item) =>
-            item.violation_name?.toLowerCase().includes(value)
-        );
-
-        setFilteredList(filtered);
-    };
+    const handleStatusChange = (e) => {
+        setStatus(e.target.value)
+        setCurrentPage(1)
+    }
 
     // PAGINATION LOGIC
     const indexOfLast = currentPage * itemsPerPage;
@@ -62,8 +72,8 @@ const OffenseList = ({ list = null }) => {
     return (
         <div className="w-full p-4 sm:p-5 bg-white rounded-md shadow">
 
-            {/* SEARCH BAR */}
-            <div className="mb-5">
+            {/* SEARCH BAR + STATUS FILTER */}
+            <div className="mb-5 flex flex-col sm:flex-row gap-3">
                 <SearchBar
                     plc="Search Offense"
                     w="w-full sm:w-[25rem]"
@@ -71,6 +81,15 @@ const OffenseList = ({ list = null }) => {
                     setSearch={setSearch}
                     handleSearch={handleSearch}
                 />
+                <div className="w-full sm:w-[12rem]">
+                    <DropdownField
+                        default={{ val: "", label: "All Status" }}
+                        list={STATUS_OPTIONS}
+                        onChange={handleStatusChange}
+                        name="status"
+                        val={status}
+                    />
+                </div>
             </div>
 
             {/* LOADING */}
@@ -135,15 +154,24 @@ const OffenseListItem = ({ i, data, isLast }) => {
             <ListItem alignItems="flex-start" sx={{ py: 2, px: { xs: 1, sm: 2 } }}>
                 <ListItemText
                     primary={
-                        <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" useFlexGap>
-                            <Typography component="span" sx={{ fontWeight: 700 }}>
-                                {i + 1}. {toTitleCase(data.violation_name)}
-                            </Typography>
-                            <Chip
-                                label={isMajor ? "Major" : "Minor"}
-                                size="small"
-                                color={isMajor ? "error" : "warning"}
-                            />
+                        <Stack direction="column" spacing={1}>
+                            <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" useFlexGap>
+                                <Typography component="span" sx={{ fontWeight: 700 }}>
+                                    {i + 1}. {toTitleCase(data.violation_name)}
+                                </Typography>
+                                <Chip
+                                    label={isMajor ? "Major" : "Minor"}
+                                    size="small"
+                                    color={isMajor ? "error" : "warning"}
+                                />
+                            </Stack>
+                            {data.keywords?.length > 0 && (
+                                <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                                    {data.keywords.map((kw, j) => (
+                                        <Chip key={j} label={kw} size="small" variant="outlined" />
+                                    ))}
+                                </Stack>
+                            )}
                         </Stack>
                     }
                     secondary={

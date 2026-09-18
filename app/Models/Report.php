@@ -3,18 +3,24 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Report extends Model
 {
-    public $fillable = ['user_id', 'report_name', 'report_type', 'file_type', 'filters', 'filters_hash'],
-           $table = 'report',
-           $timestamps = false;
+    protected $fillable = ['user_id', 'report_name', 'report_type', 'file_type', 'filters', 'filters_hash'];
 
-    protected $casts = [
-        'filters' => 'array',
-    ];
+    protected $table = 'report';
 
-    public function user()
+    public $timestamps = false;
+
+    protected function casts(): array
+    {
+        return [
+            'filters' => 'array',
+        ];
+    }
+
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
@@ -38,7 +44,7 @@ class Report extends Model
 
         ksort($relevant);
 
-        return md5($reportType . '|' . $fileType . '|' . json_encode($relevant));
+        return md5($reportType.'|'.$fileType.'|'.json_encode($relevant));
     }
 
     /**
@@ -59,12 +65,26 @@ class Report extends Model
             return $filters;
         }
 
-        if (!preg_match('/^(\d{4})-(\d{4})$/', $filters['school_year'], $m)) {
+        if (! preg_match('/^(\d{4})-(\d{4})$/', $filters['school_year'], $m)) {
             return $filters;
         }
 
         $filters['date_from'] = "{$m[1]}-06-01";
         $filters['date_to'] = "{$m[2]}-05-31 23:59:59";
+
+        // Optional narrowing to one semester — same Aug-Dec/Jan-Jul academic
+        // year convention as SchoolYearSemester::idForDate(). Only applied
+        // when a semester is actually given, so every existing caller that
+        // never passes one (Archive page, other report types) keeps the
+        // full Jun-May span unchanged.
+        if (! empty($filters['semester'])) {
+            $filters['date_from'] = (int) $filters['semester'] === 1
+                ? "{$m[1]}-08-01"
+                : "{$m[2]}-01-01";
+            $filters['date_to'] = (int) $filters['semester'] === 1
+                ? "{$m[1]}-12-31 23:59:59"
+                : "{$m[2]}-07-31 23:59:59";
+        }
 
         return $filters;
     }

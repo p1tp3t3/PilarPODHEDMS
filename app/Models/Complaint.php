@@ -2,19 +2,23 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Database\Factories\ComplaintFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 
 class Complaint extends Model
 {
-    /** @use HasFactory<\Database\Factories\ComplaintFactory> */
+    /** @use HasFactory<ComplaintFactory> */
     use HasFactory;
 
-    public $table = 'complaint',
-           $timestamps = false;
+    protected $table = 'complaint';
 
-    public $fillable = [
+    public $timestamps = false;
+
+    protected $fillable = [
         'complaint_number',
         'case_number',
         'complainant_id',
@@ -38,6 +42,7 @@ class Complaint extends Model
         'rejected_school_year_semester_id',
         'revoked_school_year_semester_id',
     ];
+
     protected $dates = ['created_at', 'confirmed_at'];
 
     // Eager-loaded on every fetch so the school year/semester tags show up
@@ -51,26 +56,38 @@ class Complaint extends Model
         'revokedSchoolYearSemester.schoolYear',
     ];
 
-    public function user() {
+    public function user(): BelongsTo
+    {
         return $this->belongsTo(User::class, 'complainant_id', 'id');
     }
 
-    public function schoolYearSemester() {
+    public function schoolYearSemester(): BelongsTo
+    {
         return $this->belongsTo(SchoolYearSemester::class);
     }
-    public function confirmedSchoolYearSemester() {
+
+    public function confirmedSchoolYearSemester(): BelongsTo
+    {
         return $this->belongsTo(SchoolYearSemester::class, 'confirmed_school_year_semester_id');
     }
-    public function resolvedSchoolYearSemester() {
+
+    public function resolvedSchoolYearSemester(): BelongsTo
+    {
         return $this->belongsTo(SchoolYearSemester::class, 'resolved_school_year_semester_id');
     }
-    public function rejectedSchoolYearSemester() {
+
+    public function rejectedSchoolYearSemester(): BelongsTo
+    {
         return $this->belongsTo(SchoolYearSemester::class, 'rejected_school_year_semester_id');
     }
-    public function revokedSchoolYearSemester() {
+
+    public function revokedSchoolYearSemester(): BelongsTo
+    {
         return $this->belongsTo(SchoolYearSemester::class, 'revoked_school_year_semester_id');
     }
-    public function subject() {
+
+    public function subject(): HasOneThrough
+    {
         return $this->hasOneThrough(
             User::class,
             ComplaintSubject::class,
@@ -80,19 +97,29 @@ class Complaint extends Model
             'student_id'    // local key on complaint_subject
         );
     }
-    public function complaintSubject() {
+
+    public function complaintSubject(): HasMany
+    {
         return $this->hasMany(ComplaintSubject::class, 'complaint_id', 'id');
     }
-    public function complaintSubjectViolation() {
+
+    public function complaintSubjectViolation(): HasMany
+    {
         return $this->hasMany(ComplaintSubjectViolation::class, 'complaint_id', 'id');
     }
-    public function violation() {
+
+    public function violation(): BelongsTo
+    {
         return $this->belongsTo(Violation::class, 'incident_id', 'id');
     }
-    public function complaintEvidenceFile() {
+
+    public function complaintEvidenceFile(): HasMany
+    {
         return $this->hasMany(ComplaintEvidenceFile::class, 'complaint_case_number', 'case_number');
     }
-    public function revisions() {
+
+    public function revisions(): HasMany
+    {
         return $this->hasMany(ComplaintRevision::class, 'complaint_id', 'id')->latest('created_at');
     }
 }

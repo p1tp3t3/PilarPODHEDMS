@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ViolationAccessRequest extends Model
 {
@@ -13,6 +14,7 @@ class ViolationAccessRequest extends Model
     public const ACCESS_DURATION_MINUTES = 60;
 
     public const RESOURCES = ['violation', 'penalty'];
+
     public const ACCESS_TYPES = ['add', 'edit', 'delete'];
 
     /**
@@ -52,12 +54,12 @@ class ViolationAccessRequest extends Model
         ];
     }
 
-    public function requester()
+    public function requester(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
 
-    public function responder()
+    public function responder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'responded_by', 'id');
     }

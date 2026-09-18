@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Modules\Referral;
 use App\Events\SendReferral;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Referral\StoreReferralRequest;
+use App\Http\Requests\Referral\UpdateReferralRequest;
 use App\Http\Resources\ReferralResource;
 use App\Mail\ReferralMail;
 use App\Models\ActionLog;
+use App\Models\NonTeachingStaff;
 use App\Models\Position;
 use App\Models\Referral;
 use App\Models\ReferralReferredStudent;
@@ -30,21 +32,22 @@ class ReferralController extends Controller
 {
     use GeneratesSequenceCode;
 
-    public function index() {
+    public function index()
+    {
         $isPrefect = self::isPrefect() ? 'prefect' : 'other';
         $user = auth()->user();
         $user->allow_referral = $user->permissions?->allow_referral;
         $props = [
             'user' => $user,
             'students' => User::with(['profile', 'program'])
-                            ->where('role', 'student')
-                            ->where('id', '!=', auth()->user()->id)
-                            ->get(),
+                ->where('role', 'student')
+                ->where('id', '!=', auth()->user()->id)
+                ->get(),
             'referral' => self::getAllReferral(),
             'program_name' => is_program_head(),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
         ];
-        $props = !self::isPrefect() ? $props : array_merge($props, [
+        $props = ! self::isPrefect() ? $props : array_merge($props, [
             'referral_request' => self::getReferralRequest(),
         ]);
 
@@ -56,8 +59,9 @@ class ReferralController extends Controller
      * read-only view of every referral the prefect has sent — no submit
      * form, since guidance never files a referral themselves.
      */
-    public function guidanceIndex() {
-        if (!self::isGuidance()) {
+    public function guidanceIndex()
+    {
+        if (! self::isGuidance()) {
             return redirect('/dashboard');
         }
 
@@ -74,9 +78,9 @@ class ReferralController extends Controller
 
         try {
 
-            if(auth()->user()->permissions?->allow_referral != 1) {
+            if (auth()->user()->permissions?->allow_referral != 1) {
                 return response()->json([
-                    'message' => 'You are being restricted for submitting referral'
+                    'message' => 'You are being restricted for submitting referral',
                 ], 400);
             }
 
@@ -90,21 +94,21 @@ class ReferralController extends Controller
             // 🧍 If the user is not a sub_admin (prefect)
             if (auth()->user()->role != 'sub_admin') {
                 $prefect = User::where('role', 'sub_admin')
-                            ->where('activate', true)
-                            ->firstOrFail();
+                    ->where('activate', true)
+                    ->firstOrFail();
 
                 $lastIndex = Referral::insertGetId($field);
 
                 foreach ($request->referred_students as $s) {
                     ReferralReferredStudent::insert([
                         'referral_id' => $lastIndex,
-                        'student_id' => $s
+                        'student_id' => $s,
                     ]);
                 }
 
                 $referral = Referral::with(['user.profile', 'referredStudent.profile'])
-                                    ->where('id', $lastIndex)
-                                    ->first();
+                    ->where('id', $lastIndex)
+                    ->first();
 
                 $name = $referral->user->profile?->first_name;
                 $studentName = $referral->referredStudent->profile?->first_name;
@@ -125,28 +129,29 @@ class ReferralController extends Controller
                 ActionLog::create([
                     'user_id' => auth()->user()->id,
                     'action_type' => 'referral',
-                    'details' => 'Reports a referral to the prefect'
+                    'details' => 'Reports a referral to the prefect',
                 ]);
 
                 DB::commit(); // ✅ Everything succeeded
+
                 return response()->json($studentName);
             }
 
             // 👮 If user is a sub_admin (prefect)
             $prefect = User::with('profile')
-                            ->where('role', 'sub_admin')
-                            ->firstOrFail();
+                ->where('role', 'sub_admin')
+                ->firstOrFail();
             $prefectName = trim("{$prefect->profile?->first_name} {$prefect->profile?->middle_name} {$prefect->profile?->last_name}");
 
             $lastIndex = Referral::insertGetId(array_merge($field, [
                 'confirmed_at' => DB::raw('NOW()'),
-                'archived_at' => archive_retention_date()
+                'archived_at' => archive_retention_date(),
             ]));
 
             foreach ($request->referred_students as $s) {
                 ReferralReferredStudent::insert([
                     'referral_id' => $lastIndex,
-                    'student_id' => $s
+                    'student_id' => $s,
                 ]);
             }
 
@@ -160,10 +165,11 @@ class ReferralController extends Controller
             ActionLog::create([
                 'user_id' => auth()->user()->id,
                 'action_type' => 'referral',
-                'details' => 'Reports a referral against a student'
+                'details' => 'Reports a referral against a student',
             ]);
 
             DB::commit(); // ✅ Success
+
             return self::getAllReferral();
 
         } catch (\Throwable $e) {
@@ -175,37 +181,38 @@ class ReferralController extends Controller
                     File::delete($output);
                     Log::warning("Cleaned up partial referral file: {$output}");
                 } catch (\Throwable $cleanupError) {
-                    Log::error("Failed to delete partial file after rollback", [
+                    Log::error('Failed to delete partial file after rollback', [
                         'file' => $output,
-                        'cleanup_error' => $cleanupError->getMessage()
+                        'cleanup_error' => $cleanupError->getMessage(),
                     ]);
                 }
             }
 
-            Log::error("Referral store failed", [
+            Log::error('Referral store failed', [
                 'error' => $e->getMessage(),
                 'line' => $e->getLine(),
-                'file' => $e->getFile()
+                'file' => $e->getFile(),
             ]);
 
             return response()->json([
                 'message' => 'An error occurred while creating the referral.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
 
-    public function getAllReferral() {
+    public function getAllReferral()
+    {
         $status = request()->get('status');
 
         $referrals = Referral::with([
             'user.teachingStaff.program',
-            'referredStudent.program'
+            'referredStudent.program',
         ]);
 
         // Prefect sees everything; so does guidance (a non_teaching_staff
         // position, not a role) — everyone else only sees what they filed.
-        if (auth()->user()->role != 'sub_admin' && !self::isGuidance()) {
+        if (auth()->user()->role != 'sub_admin' && ! self::isGuidance()) {
             $referrals->where('teaching_staff_id', auth()->user()->id);
         }
 
@@ -241,12 +248,14 @@ class ReferralController extends Controller
 
         return ReferralResource::collection($referrals->paginate(20));
     }
+
     /**
      * Every referral a teaching staff member (faculty or program head) has
      * filed as the referrer — surfaced as the "Referral Filed" tab on their
      * own profile, mirroring ComplaintController::getComplainantComplaint().
      */
-    public function getReferrerReferral($id) {
+    public function getReferrerReferral($id)
+    {
         return ['data' => ReferralResource::collection(
             Referral::with(['user.profile', 'referredStudent.profile', 'referredStudent.program', 'schoolYearSemester.schoolYear'])
                 ->where('teaching_staff_id', $id)
@@ -255,22 +264,25 @@ class ReferralController extends Controller
         )];
     }
 
-    public function getReferralRequest() {
+    public function getReferralRequest()
+    {
         return ReferralResource::collection(Referral::with([
-                    'user.profile',
-                    'user.teachingStaff.program',
-                    'referredStudent.profile',
-                    'referredStudent.program',
-                ])
-                ->whereNot('confirmed_at', NULL)
-                ->whereNull('archived_at')
-                ->latest('created_at')
-                ->get());
+            'user.profile',
+            'user.teachingStaff.program',
+            'referredStudent.profile',
+            'referredStudent.program',
+        ])
+            ->whereNot('confirmed_at', null)
+            ->whereNull('archived_at')
+            ->latest('created_at')
+            ->get());
     }
-    public function confirmReferral($id)  {
+
+    public function confirmReferral($id)
+    {
 
         Referral::where('id', $id)->update([
-            'confirmed_at'  => now(),
+            'confirmed_at' => now(),
             'archived_at' => archive_retention_date(),
             'confirmed_school_year_semester_id' => SchoolYearSemester::currentId(),
         ]);
@@ -288,7 +300,7 @@ class ReferralController extends Controller
         $referral = Referral::with(['user.profile', 'referredStudent.profile'])->where('id', $id)->first();
         $webpushNotif = [
             'title' => 'Referral Report',
-            'body' => "Your Referral Has Already Approved.",
+            'body' => 'Your Referral Has Already Approved.',
             'icon' => '',
             'url' => '',
         ];
@@ -297,18 +309,21 @@ class ReferralController extends Controller
             self::getReferralNotifMessageResponseFields($referral),
             $webpushNotif,
         );
+
         return self::getAllReferral();
     }
+
     /**
      * Lets the referrer withdraw their own referral. Soft delete, not a
      * hard delete — same archived_at retention convention as the prefect's
      * own reject (destroy()) uses, so it still shows up for the prefect via
      * the Archive page instead of disappearing outright.
      */
-    public function revokeReferral($id) {
+    public function revokeReferral($id)
+    {
         $referral = Referral::where('id', $id)->first();
 
-        if (!$referral) {
+        if (! $referral) {
             return response()->json(['message' => 'Referral not found.'], 404);
         }
         if ($referral->teaching_staff_id !== auth()->id()) {
@@ -342,10 +357,11 @@ class ReferralController extends Controller
      * while it's still pending (before the prefect has approved/rejected
      * it).
      */
-    public function updateReferral(\App\Http\Requests\Referral\UpdateReferralRequest $request, $id) {
+    public function updateReferral(UpdateReferralRequest $request, $id)
+    {
         $referral = Referral::where('id', $id)->first();
 
-        if (!$referral) {
+        if (! $referral) {
             return response()->json(['message' => 'Referral not found.'], 404);
         }
         if ($referral->teaching_staff_id !== auth()->id()) {
@@ -406,9 +422,11 @@ class ReferralController extends Controller
             );
 
             DB::commit();
+
             return self::getAllReferral();
         } catch (\Throwable $e) {
             DB::rollBack();
+
             return response()->json(['message' => 'Error updating referral', 'error' => $e->getMessage()], 500);
         }
     }
@@ -420,12 +438,13 @@ class ReferralController extends Controller
      * route; it used to hard-delete the row (no reason recorded at all)
      * until this was fixed to keep it around like every other reject flow.
      */
-    public function destroy(Request $request, $id)  {
+    public function destroy(Request $request, $id)
+    {
         $request->validate(['reason' => 'required|string|max:500']);
 
         $record = Referral::with(['user.profile', 'referredStudent.profile'])->where('id', $id)->first();
 
-        if (!$record) {
+        if (! $record) {
             return response()->json(['message' => 'Referral not found.'], 404);
         }
 
@@ -443,7 +462,7 @@ class ReferralController extends Controller
             self::getReferralNotifMessageResponseFields($record, 'reject'),
             [
                 'title' => 'Referral Report',
-                'body' => "Your Referral Has Been Rejected.",
+                'body' => 'Your Referral Has Been Rejected.',
                 'icon' => '',
                 'url' => '',
             ]
@@ -452,7 +471,7 @@ class ReferralController extends Controller
         ActionLog::log(
             auth()->user()->id,
             'referral',
-            'Rejected the referral of ' . $record->user?->profile?->first_name,
+            'Rejected the referral of '.$record->user?->profile?->first_name,
             ['referral_status' => ['from' => $oldStatus, 'to' => 'rejected']]
         );
 
@@ -468,7 +487,7 @@ class ReferralController extends Controller
     private function generateReferralDocuments(Referral $referral, $referredStudents, string $prefectName): array
     {
         $folder = storage_path("app/private/referrals/referral-{$referral->referral_number}");
-        if (!File::isDirectory($folder)) {
+        if (! File::isDirectory($folder)) {
             File::makeDirectory($folder, 0755, true);
         }
 
@@ -478,10 +497,10 @@ class ReferralController extends Controller
             $student = $item->user;
             $filePath = "{$folder}/referral-student-{$student->id}-{$referral->referral_number}.pdf";
 
-            if (!file_exists($filePath)) {
+            if (! file_exists($filePath)) {
                 $studentName = trim("{$student->profile?->first_name} {$student->profile?->middle_name} {$student->profile?->last_name}");
                 $enrollment = $student->enrollments?->sortByDesc('id')->first();
-                $program = trim(($student->program?->name ?? '') . ' ' . ($enrollment?->year_level ?? ''));
+                $program = trim(($student->program?->name ?? '').' '.($enrollment?->year_level ?? ''));
 
                 $data = [
                     'date_issued' => Carbon::parse($item->referral->created_at ?? $referral->created_at)->format('F d, Y'),
@@ -508,15 +527,18 @@ class ReferralController extends Controller
      * email every non_teaching_staff user holding that position, and hand
      * the prefect a zip of the same documents.
      */
-    public function printReferralGuidance($id)  {
+    public function printReferralGuidance($id)
+    {
         return $this->sendReferralToPosition($id, 'Guidance');
     }
 
-    public function printReferralToItStaff($id)  {
+    public function printReferralToItStaff($id)
+    {
         return $this->sendReferralToPosition($id, 'IT Staff');
     }
 
-    private function sendReferralToPosition($id, string $positionName) {
+    private function sendReferralToPosition($id, string $positionName)
+    {
         $referral = Referral::findOrFail($id);
         $referredStudents = ReferralReferredStudent::with(['referral', 'user.profile', 'user.program', 'user.enrollments'])
             ->where('referral_id', $id)
@@ -528,7 +550,7 @@ class ReferralController extends Controller
         $files = self::generateReferralDocuments($referral, $referredStudents, $prefectName);
 
         $studentNames = $referredStudents
-            ->map(fn($item) => trim("{$item->user->profile?->first_name} {$item->user->profile?->last_name}"))
+            ->map(fn ($item) => trim("{$item->user->profile?->first_name} {$item->user->profile?->last_name}"))
             ->implode(', ');
 
         // Email to the target office — one attachment per referred student's
@@ -549,8 +571,8 @@ class ReferralController extends Controller
         }
 
         // Build a temporary, non-persisted zip purely for this download response.
-        $zipPath = storage_path('app/private/referrals/tmp-' . uniqid() . '.zip');
-        $zip = new ZipArchive();
+        $zipPath = storage_path('app/private/referrals/tmp-'.uniqid().'.zip');
+        $zip = new ZipArchive;
         $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
         foreach ($files as $file) {
             $zip->addFile($file, basename($file));
@@ -560,29 +582,38 @@ class ReferralController extends Controller
         return response()->download($zipPath, "referral-{$referral->referral_number}.zip")->deleteFileAfterSend(true);
     }
 
-    public function get($id) {
+    public function get($id)
+    {
         return new ReferralResource(Referral::with([
-                    'user.profile',
-                    'user.teachingStaff.program',
-                    'referredStudent.profile',
-                    'referredStudent.program',
-                    'referralReferredStudent.user.profile',
-                    'referralReferredStudent.user.program',
-                    'revisions',
-                ])
-               ->where('id', $id)
-               ->first());
+            'user.profile',
+            'user.teachingStaff.program',
+            'referredStudent.profile',
+            'referredStudent.program',
+            'referralReferredStudent.user.profile',
+            'referralReferredStudent.user.program',
+            'revisions',
+        ])
+            ->where('id', $id)
+            ->first());
     }
-    public function getSendReferral() {
+
+    public function getSendReferral()
+    {
         return ReferralResource::collection(Referral::all());
     }
-    private function isPrefect() {
+
+    private function isPrefect()
+    {
         return auth()->user()->role == 'sub_admin';
     }
-    private function isGuidance() {
-        return \App\Models\NonTeachingStaff::where('user_id', auth()->id())->first()?->position === 'Guidance';
+
+    private function isGuidance()
+    {
+        return NonTeachingStaff::where('user_id', auth()->id())->first()?->position === 'Guidance';
     }
-    private function getReferralNotifMessageReportFields($request, $prefect, $complaintId, $referral) {
+
+    private function getReferralNotifMessageReportFields($request, $prefect, $complaintId, $referral)
+    {
         return [
             'notif_type' => 'referral',
             'sender_id' => $request->referrer_id,
@@ -592,38 +623,43 @@ class ReferralController extends Controller
                 'sender_notif_message' => "You Have Reported A Referral Against {$referral->referredStudent->profile?->first_name}.",
                 'receiver_notif_message' => "{$referral->user->profile?->first_name} Has Reported A Referral Against {$referral->referredStudent->profile?->first_name}.",
             ]),
-            'read_since' => NULL
+            'read_since' => null,
         ];
     }
-    private function getReferralNotifMessageResponseFields($referral, $type = 'confirm', $staff = null) {
+
+    private function getReferralNotifMessageResponseFields($referral, $type = 'confirm', $staff = null)
+    {
         $content = '';
 
-        if($type == 'confirm')
+        if ($type == 'confirm') {
             $content = json_encode([
                 'id' => $referral->id,
                 'sender_notif_message' => "You Have Reported A Referral Against {$referral->referredStudent->profile?->first_name}.",
                 'receiver_notif_message' => "Your Referral Against {$referral->referredStudent->profile?->first_name} Is Already Approved.",
             ]);
-        if($type == 'send-guidance')
+        }
+        if ($type == 'send-guidance') {
             $content = json_encode([
                 'id' => $referral->id,
                 'sender_notif_message' => "You Have Reported A Referral Against {$referral->referredStudent->profile?->first_name}.",
                 'receiver_notif_message' => "The Prefect Sends A Referral Referred By {$referral->user->profile?->first_name}.",
                 'document' => "referral-no-{$referral->id}.pdf",
             ]);
-        if($type == 'reject')
+        }
+        if ($type == 'reject') {
             $content = json_encode([
                 'id' => $referral->id,
                 'sender_notif_message' => "You Have Reported A Referral Against {$referral->referredStudent->profile?->first_name}.",
                 'receiver_notif_message' => "Your Referral Against {$referral->referredStudent->profile?->first_name} Has Been Rejected.",
             ]);
+        }
 
         return [
             'notif_type' => 'referral',
             'sender_id' => auth()->user()->id,
             'receiver_id' => ($type != 'send-guidance') ? $referral->user->id : $staff,
             'content' => $content,
-            'read_since' => NULL
+            'read_since' => null,
         ];
     }
 }

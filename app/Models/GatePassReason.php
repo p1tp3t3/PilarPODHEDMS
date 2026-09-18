@@ -3,14 +3,18 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class GatePassReason extends Model
 {
-    public $table = 'gate_pass_reason',
-           $fillable = ['gatepass_id', 'reason'],
-           $timestamps = false;
+    protected $table = 'gate_pass_reason';
 
-    public function gatepass() {
+    protected $fillable = ['gatepass_id', 'reason'];
+
+    public $timestamps = false;
+
+    public function gatepass(): BelongsTo
+    {
         return $this->belongsTo(GatePass::class, 'gatepass_id', 'id');
     }
 }

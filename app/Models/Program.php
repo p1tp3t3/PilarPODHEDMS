@@ -2,19 +2,23 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 
 class Program extends Model
 {
     use HasFactory;
 
-    public $table = 'program',
-           $fillable = ['name', 'description', 'logo', 'color_code', 'is_deleted'];
+    protected $table = 'program';
+
+    protected $fillable = ['name', 'description', 'logo', 'color_code', 'is_deleted'];
+
     public $timestamps = false;
 
-
-    public function teachingStaff() {
+    public function teachingStaff(): HasMany
+    {
         return $this->hasMany(TeachingStaff::class, 'program_id', 'id');
     }
 
@@ -24,7 +28,8 @@ class Program extends Model
      * (see TeachingStaff::programsHandled()), but each program still has at
      * most one head (enforced by the pivot's unique(program_id)).
      */
-    public function programHead() {
+    public function programHead(): HasOneThrough
+    {
         return $this->hasOneThrough(
             TeachingStaff::class,
             ProgramHeadProgram::class,
@@ -35,7 +40,8 @@ class Program extends Model
         );
     }
 
-    public function enrollments() {
+    public function enrollments(): HasMany
+    {
         return $this->hasMany(Enrollment::class, 'program_id', 'id');
     }
 }

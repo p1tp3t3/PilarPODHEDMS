@@ -3,14 +3,17 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MessageEdit extends Model
 {
-    public $table = 'message_edit',
-           $fillable = ['message_id', 'body'],
-           $timestamps = false;
+    protected $table = 'message_edit';
 
-    public function message()
+    protected $fillable = ['message_id', 'body'];
+
+    public $timestamps = false;
+
+    public function message(): BelongsTo
     {
         return $this->belongsTo(Message::class, 'message_id', 'id');
     }

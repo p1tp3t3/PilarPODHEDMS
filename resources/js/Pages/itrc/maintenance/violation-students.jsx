@@ -34,6 +34,19 @@ const ViolationStudents = ({ user, violation, students, occurrence_breakdown = [
                                 {students.length} student{students.length !== 1 ? "s" : ""} with this violation
                             </span>
                         </div>
+
+                        {violation.keywords?.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                {violation.keywords.map((kw, i) => (
+                                    <span
+                                        key={i}
+                                        className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs rounded-full"
+                                    >
+                                        {kw}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
                     </div>
                     <Link href="/violation-management" className="text-[0.85em] text-gray-600 hover:text-gray-900">
                         <i className="fa-solid fa-arrow-left"></i> Back to Violation Management

@@ -5,16 +5,11 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\ActionLog;
-use Illuminate\Container\Attributes\Cache;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
-use Inertia\Response;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -24,12 +19,19 @@ class AuthenticatedSessionController extends Controller
     public function create()
     {
         $password = Hash::make('password');
-        if(auth()->check()) return Inertia::location('/dashboard');
+        if (auth()->check()) {
+            return Inertia::location('/dashboard');
+        }
+
         return Inertia::render('login', ['password' => $password]);
     }
+
     public function gatepassLogin()
     {
-        if(auth()->check()) return back()->withErrors(['message' => 'you are log in already']);
+        if (auth()->check()) {
+            return back()->withErrors(['message' => 'you are log in already']);
+        }
+
         return Inertia::render('gatepass-login');
     }
 
@@ -105,8 +107,9 @@ class AuthenticatedSessionController extends Controller
 
         return self::startSession($request, $user);
     }
-    private function startSession($request, $user) 
-    {        
+
+    private function startSession($request, $user)
+    {
         if ($user->activate) {
             $intended = $request->session()->pull('url.intended');
             $request->session()->regenerate();
@@ -118,27 +121,27 @@ class AuthenticatedSessionController extends Controller
             // "guard"/"guidance" aren't separate roles — every
             // non_teaching_staff position is already covered by that entry.
             $forcedRoles = ['student', 'teaching_staff', 'non_teaching_staff'];
-            if (in_array($user->role, $forcedRoles, true) && (!$user->already_update_profile || !$user->already_update_password)) {
+            if (in_array($user->role, $forcedRoles, true) && (! $user->already_update_profile || ! $user->already_update_password)) {
                 $request->session()->put('force_account_setup', true);
 
-                if (!$user->hasVerifiedEmail()) {
+                if (! $user->hasVerifiedEmail()) {
                     $user->sendEmailVerificationNotification();
                 }
             }
 
             ActionLog::create([
-                'user_id' =>  $user->id,
+                'user_id' => $user->id,
                 'action_type' => 'login',
-                'details' => 'logs in to the system'
+                'details' => 'logs in to the system',
             ]);
+
             return Inertia::location($intended ?: route('auth.dashboard'));
         }
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-    
+
         return response()->json(['username' => 'This account has been deactivated.'], 400);
     }
-
 
     public function destroy(Request $request)
     {
@@ -160,14 +163,14 @@ class AuthenticatedSessionController extends Controller
         ActionLog::create([
             'user_id' => $user->id,
             'action_type' => 'logout',
-            'details' => 'logs out of the system'
+            'details' => 'logs out of the system',
         ]);
 
         // Destroy session and regenerate token
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return Inertia::location(route("type.user"));
+        return Inertia::location(route('type.user'));
 
     }
 }

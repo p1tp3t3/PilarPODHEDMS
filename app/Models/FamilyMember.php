@@ -2,22 +2,29 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Database\Factories\FamilyMemberFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class FamilyMember extends Model
 {
-    /** @use HasFactory<\Database\Factories\FamilyMemberFactory> */
+    /** @use HasFactory<FamilyMemberFactory> */
     use HasFactory;
 
-    public $table = 'family_member',
-           $fillable = ['family_id', 'member_id'],
-           $timestamps = false;
+    protected $table = 'family_member';
 
-    public function family() {
+    protected $fillable = ['family_id', 'member_id'];
+
+    public $timestamps = false;
+
+    public function family(): BelongsTo
+    {
         return $this->belongsTo(Family::class, 'family_id', 'id');
     }
-    public function member() {
+
+    public function member(): BelongsTo
+    {
         return $this->belongsTo(User::class, 'member_id', 'id');
     }
 }

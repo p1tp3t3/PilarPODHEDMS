@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Complaint\BulkComplaintActionRequest;
 use App\Http\Requests\Complaint\CancelComplaintRequest;
 use App\Http\Requests\Complaint\StoreComplaintRequest;
+use App\Http\Requests\Complaint\UpdateComplaintRequest;
 use App\Http\Resources\ComplaintResource;
 use App\Models\ActionLog;
 use App\Models\Complaint;
@@ -21,7 +22,6 @@ use App\Models\Violation;
 use App\Traits\GeneratesSequenceCode;
 use Carbon\Carbon;
 use Exception;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
@@ -33,67 +33,70 @@ class ComplaintController extends Controller
 {
     use GeneratesSequenceCode;
 
-    public function index() {
-        $prefect = (!self::isPrefect()) ? 'other' : 'prefect';
+    public function index()
+    {
+        $prefect = (! self::isPrefect()) ? 'other' : 'prefect';
         $complaints = self::isPrefect()
                     ? self::allComplaints()
-                    :  self::allUserComplaint();
+                    : self::allUserComplaint();
         $user = auth()->user();
         $user->allow_complaint = $user->permissions?->allow_complaint;
         $props = [
             'user' => $user,
             'program' => Program::latest('id')
-                                ->get(['id', 'name']),
+                ->get(['id', 'name']),
             'students' => User::with(['profile', 'program'])
-                            ->where('role', 'student')
-                            ->where('id', '!=', auth()->user()->id)
-                            ->get(),
+                ->where('role', 'student')
+                ->where('id', '!=', auth()->user()->id)
+                ->get(),
             'program_name' => is_program_head(),
             'complaint_list' => $complaints,
             'incident_list' => Violation::select([DB::raw('id AS val'), DB::raw('violation_name AS label')])->get(),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
         ];
-        if(self::isPrefect()) {
+        if (self::isPrefect()) {
             $props = array_merge($props, [
                 'reported_complaint_list' => Complaint::with('user.profile')
-                                             ->where('confirmed_at', NULL)
-                                             ->latest('created_at')
-                                             ->get(),
+                    ->where('confirmed_at', null)
+                    ->latest('created_at')
+                    ->get(),
                 'violation_list' => Violation::select('id', 'violation_name', 'offense_status')
-                                            ->latest('created_at')
-                                            ->get(),
-                'all_users' => User::with('profile')->get()
+                    ->latest('created_at')
+                    ->get(),
+                'all_users' => User::with('profile')->get(),
             ]);
         }
 
         return Inertia::render("$prefect/complaint", $props);
     }
-    public function store(StoreComplaintRequest $request) {
+
+    public function store(StoreComplaintRequest $request)
+    {
         DB::beginTransaction(); // start transaction
         try {
             $isPrefect = self::isPrefect();
             $complainant = User::with('profile')->where('id', $request->complainant)->first();
             $profile = ($complainant && $complainant->profile?->profile_picture)
                     ? Storage::disk('public')->url("profile-pictures/{$complainant->profile->profile_picture}")
-                    : asset("default-pic/profile-" . ($complainant?->profile?->sex === 'f' ? 'f' : 'm') . "-pic.jpg");
+                    : asset('default-pic/profile-'.($complainant?->profile?->sex === 'f' ? 'f' : 'm').'-pic.jpg');
             $prefect = User::where('role', 'sub_admin')
-                                    ->where('activate', true);
+                ->where('activate', true);
             $lastIndex = null;
 
-            if (auth()->user()->permissions?->allow_complaint != 1)
+            if (auth()->user()->permissions?->allow_complaint != 1) {
                 return response()->json(['message' => 'You are restricted to report a complaint.'], 400);
-            if (!$prefect->exists() && !$isPrefect)
+            }
+            if (! $prefect->exists() && ! $isPrefect) {
                 return response()->json(['message' => 'The prefect is not available in the system.'], 400);
+            }
 
-
-
-            if (!$isPrefect) {
+            if (! $isPrefect) {
                 $prefect = $prefect->first();
                 $lastIndex = self::generateComplaint($request);  // <-- creates complaint
 
                 $complaintNotif = Complaint::with(['user.profile', 'subject.profile'])
-                                        ->where('id', $lastIndex)
-                                        ->first();
+                    ->where('id', $lastIndex)
+                    ->first();
                 $complaintNotifField = self::getComplaintNotifMessageReportFields(
                     $request,
                     $prefect,
@@ -101,7 +104,7 @@ class ComplaintController extends Controller
                     $complaintNotif
                 );
                 $webpushNotif = [
-                    'title' => "Complaint Report!!!",
+                    'title' => 'Complaint Report!!!',
                     'body' => "{$complaintNotif->user?->profile?->first_name} Reported a Complaint on {$complaintNotif->subject?->profile?->first_name}",
                     'icon' => $profile,
                     'url' => url('/prefect/complaint'),
@@ -114,12 +117,13 @@ class ComplaintController extends Controller
                 );
 
                 ActionLog::create([
-                    'user_id' =>  auth()->user()->id,
+                    'user_id' => auth()->user()->id,
                     'action_type' => 'complaint',
-                    'details' => 'reports a complaint to the prefect'
+                    'details' => 'reports a complaint to the prefect',
                 ]);
 
                 DB::commit(); // ✅ commit here — success
+
                 return response()->json(['message' => $lastIndex]);
 
             } else {
@@ -127,14 +131,14 @@ class ComplaintController extends Controller
                 $prefect = $prefect->first();
                 $lastIndex = self::generateComplaint($request);
 
-                if ($request->complainant != NULL) {
+                if ($request->complainant != null) {
                     $complaint = Complaint::with(['user.profile', 'subject.profile', 'complaintSubject.user.profile'])
-                                    ->where('id', $lastIndex)
-                                    ->first();
+                        ->where('id', $lastIndex)
+                        ->first();
                     if (($request->has('complainant_name') && $request->complainant_name == '' && is_null($request->complainant_name) && $isPrefect)) {
                         $complaintNotifField = self::getComplaintNotifMessageResponseFields($complaint);
                         $webpushNotif = [
-                            'title' => "Complaint Report!!!",
+                            'title' => 'Complaint Report!!!',
                             'body' => "{$complaint->user?->profile?->first_name} Reported a Complaint on {$complaint->subject?->profile?->first_name}",
                             'icon' => $profile,
                             'url' => url('/complaints'),
@@ -148,12 +152,13 @@ class ComplaintController extends Controller
                 }
 
                 ActionLog::create([
-                    'user_id' =>  auth()->user()->id,
+                    'user_id' => auth()->user()->id,
                     'action_type' => 'complaint',
-                    'details' => 'reports a direct complaint against a student'
+                    'details' => 'reports a direct complaint against a student',
                 ]);
 
                 DB::commit(); // ✅ commit here — success
+
                 return response()->json(['complaint' => self::allComplaints(), 'req' => self::getComplaintInsertFields($request, self::isPrefect())]);
             }
 
@@ -161,29 +166,31 @@ class ComplaintController extends Controller
             DB::rollBack(); // ❌ rollback on any error
 
             // Clean up — remove complaint folder if created
-            if (!empty($lastIndex)) {
+            if (! empty($lastIndex)) {
                 $complaintNumber = Complaint::where('id', $lastIndex)->value('complaint_number');
                 $complaintFolderPath = storage_path("app/private/complaints/complaint-{$complaintNumber}");
                 if (File::exists($complaintFolderPath)) {
                     File::deleteDirectory($complaintFolderPath);
                 }
             }
-            Log::error('Error processing complaint: ' . $e->getMessage());
+            Log::error('Error processing complaint: '.$e->getMessage());
 
             return response()->json(['message' => 'Error processing complaint', 'error' => $e->getMessage(), 'line' => $e->getLine(),
                 'file' => $e->getFile()], 500);
         }
     }
-    private function generateComplaint($request) {
+
+    private function generateComplaint($request)
+    {
         $evidence = $request->file('evidence');
 
         $lastIndex = Complaint::insertGetId(self::getComplaintInsertFields($request, self::isPrefect()));
         $complaintNumber = Complaint::where('id', $lastIndex)->value('complaint_number');
 
-        foreach($request->student_subjects as $s) {
+        foreach ($request->student_subjects as $s) {
             ComplaintSubject::insert([
                 'complaint_id' => $lastIndex,
-                'student_id' => $s
+                'student_id' => $s,
             ]);
         }
 
@@ -192,12 +199,12 @@ class ComplaintController extends Controller
         File::makeDirectory("{$complaintFolderPath}/subjects", 0755, true);
         File::makeDirectory("{$complaintFolderPath}/evidences", 0755, true);
 
-        if($evidence) {
+        if ($evidence) {
             $evidencesFolder = "{$complaintFolderPath}/evidences";
             $json = [];
             $i = 1;
 
-            foreach($evidence as $e) {
+            foreach ($evidence as $e) {
                 $extension = $e->getClientOriginalExtension();
                 $type = str_contains($e->getMimeType(), 'image') ? 'pic' : 'vid';
                 $fileName = "{$i}-{$complaintNumber}.{$extension}";
@@ -212,12 +219,13 @@ class ComplaintController extends Controller
         return $lastIndex;
     }
 
-    public function downloadEvidence($id, $fileName) {
+    public function downloadEvidence($id, $fileName)
+    {
         $fileName = basename($fileName);
         $complaintNumber = Complaint::where('id', $id)->value('complaint_number');
         $path = storage_path("app/private/complaints/complaint-{$complaintNumber}/evidences/$fileName");
 
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             abort(404);
         }
 
@@ -228,12 +236,13 @@ class ComplaintController extends Controller
 
     // Evidence that existed before the complaint's one-time edit — copied
     // into its own folder at edit time, see updateComplaint().
-    public function downloadPreviousEvidence($id, $fileName) {
+    public function downloadPreviousEvidence($id, $fileName)
+    {
         $fileName = basename($fileName);
         $complaintNumber = Complaint::where('id', $id)->value('complaint_number');
         $path = storage_path("app/private/complaints/complaint-{$complaintNumber}/previous_evidences/$fileName");
 
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             abort(404);
         }
 
@@ -242,12 +251,13 @@ class ComplaintController extends Controller
         ]);
     }
 
-    public function downloadSubjectDocument($id, $fileName) {
+    public function downloadSubjectDocument($id, $fileName)
+    {
         $fileName = basename($fileName);
         $complaintNumber = Complaint::where('id', $id)->value('complaint_number');
         $path = storage_path("app/private/complaints/complaint-{$complaintNumber}/subjects/$fileName");
 
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             abort(404);
         }
 
@@ -256,17 +266,17 @@ class ComplaintController extends Controller
         ]);
     }
 
-
-    public function confirmComplaint($id) {
+    public function confirmComplaint($id)
+    {
         $complaint = Complaint::with(['user.profile', 'subject.profile'])
-                              ->where('id', $id)
-                              ->first();
+            ->where('id', $id)
+            ->first();
         $complainantName = $complaint->user?->profile?->first_name;
         $webpushNotif = [
-            'title' => "Complaint Report!!!",
+            'title' => 'Complaint Report!!!',
             'body' => "{$complaint->user?->profile?->first_name} Report An Complaint {$complaint->subject?->profile?->first_name}",
             'icon' => '',
-            'url' => url('/complaints')
+            'url' => url('/complaints'),
         ];
         $complaint2 = $complaint;
         $oldStatus = $complaint->complaint_status;
@@ -275,44 +285,44 @@ class ComplaintController extends Controller
         $complaint = self::getComplaintNotifMessageResponseFields($complaint);
         $complaintNotifField = self::getComplaintNotifMessageResponseFields($complaint2);
 
-
         Complaint::where('id', $id)
-                 ->update([
-                        'case_number' => $count,
-                        'confirmed_at' => DB::raw('NOW()'),
-                        'complaint_status' => 'ongoing',
-                        'confirmed_school_year_semester_id' => SchoolYearSemester::currentId(),
-                 ]);
+            ->update([
+                'case_number' => $count,
+                'confirmed_at' => DB::raw('NOW()'),
+                'complaint_status' => 'ongoing',
+                'confirmed_school_year_semester_id' => SchoolYearSemester::currentId(),
+            ]);
         notify_single_user(
             $complaintNotifField,
             $webpushNotif,
             new SendComplaintConfirmation(self::getSentComplaints())
         );
-        if(self::isPrefect()) {
+        if (self::isPrefect()) {
             return response()->json([
-                'complaint' => self::allComplaints()
+                'complaint' => self::allComplaints(),
             ]);
-        }else {
+        } else {
             ActionLog::log(
                 auth()->user()->id,
                 'complaint',
-                'Approved the complaint of ' . $complainantName,
+                'Approved the complaint of '.$complainantName,
                 ['complaint_status' => ['from' => $oldStatus, 'to' => 'ongoing']]
             );
         }
+
         return response()->json([
-            'complaint' => self::allComplaints()
+            'complaint' => self::allComplaints(),
         ]);
     }
 
-
-    public function cancelComplaint(CancelComplaintRequest $request, $id) {
+    public function cancelComplaint(CancelComplaintRequest $request, $id)
+    {
 
         DB::beginTransaction();
         try {
             $complaint = Complaint::with(['user.profile', 'subject.profile'])
-                              ->where('id', $id)
-                              ->first();
+                ->where('id', $id)
+                ->first();
             $oldStatus = $complaint->complaint_status;
 
             $complaint->update([
@@ -326,12 +336,11 @@ class ComplaintController extends Controller
             $complainantName = $complaint->user?->profile?->first_name;
             $complaintNotifField = self::getComplaintNotifMessageResponseFields($complaint, 'rejected');
             $webpushNotif = [
-                'title' => "Complaint Report!!!",
+                'title' => 'Complaint Report!!!',
                 'body' => "Your Complaint Against {$complaint->subject?->profile?->first_name} {$complaint->subject?->profile?->last_name} Has Been Rejected",
                 'icon' => '',
-                'url' => url('/complaints')
+                'url' => url('/complaints'),
             ];
-
 
             notify_single_user(
                 $complaintNotifField,
@@ -341,19 +350,20 @@ class ComplaintController extends Controller
             ActionLog::log(
                 auth()->user()->id,
                 'complaint',
-                'Rejected the complaint of ' . $complainantName,
+                'Rejected the complaint of '.$complainantName,
                 ['complaint_status' => ['from' => $oldStatus, 'to' => 'rejected']]
             );
             DB::commit();
+
             return response()->json([
-                'complaint' => self::allComplaints()
+                'complaint' => self::allComplaints(),
             ]);
-        }catch(Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
+
             return response()->json(['message' => 'Error processing complaint', 'error' => $e->getMessage()], 500);
         }
     }
-
 
     /**
      * Lets the complainant edit their own complaint exactly once, and only
@@ -362,12 +372,13 @@ class ComplaintController extends Controller
      * additive (existing files are kept, new ones are appended) so a
      * partial edit can't accidentally wipe out prior uploads.
      */
-    public function updateComplaint(\App\Http\Requests\Complaint\UpdateComplaintRequest $request, $id) {
+    public function updateComplaint(UpdateComplaintRequest $request, $id)
+    {
         DB::beginTransaction();
         try {
             $complaint = Complaint::where('id', $id)->first();
 
-            if (!$complaint) {
+            if (! $complaint) {
                 return response()->json(['message' => 'Complaint not found.'], 404);
             }
             if ($complaint->complainant_id !== auth()->id()) {
@@ -427,7 +438,7 @@ class ComplaintController extends Controller
             $previousEvidencesFolder = "{$complaintFolderPath}/previous_evidences";
             $existing = $complaint->complaint_evidences ? json_decode($complaint->complaint_evidences, true) : [];
 
-            if (!empty($existing)) {
+            if (! empty($existing)) {
                 File::ensureDirectoryExists($previousEvidencesFolder);
                 foreach ($existing as $e) {
                     $src = "{$evidencesFolder}/{$e['file']}";
@@ -444,11 +455,11 @@ class ComplaintController extends Controller
                         File::delete("{$evidencesFolder}/{$e['file']}");
                     }
                 }
-                $existing = array_values(array_filter($existing, fn ($e) => !in_array($e['file'], $hiddenFiles)));
+                $existing = array_values(array_filter($existing, fn ($e) => ! in_array($e['file'], $hiddenFiles)));
             }
 
             $evidence = array_filter($request->file('evidence') ?? []);
-            if (!empty($evidence)) {
+            if (! empty($evidence)) {
                 File::ensureDirectoryExists($evidencesFolder);
 
                 $i = count($existing) + 1;
@@ -471,11 +482,13 @@ class ComplaintController extends Controller
             ]);
 
             DB::commit();
+
             return response()->json([
-                'complaint' => self::allUserComplaint()
+                'complaint' => self::allUserComplaint(),
             ]);
         } catch (Exception $e) {
             DB::rollBack();
+
             return response()->json(['message' => 'Error updating complaint', 'error' => $e->getMessage()], 500);
         }
     }
@@ -487,12 +500,13 @@ class ComplaintController extends Controller
      * set 5 years out, same retention convention as cancelComplaint()),
      * so the prefect can still see it.
      */
-    public function revokeComplaint($id) {
+    public function revokeComplaint($id)
+    {
         $complaint = Complaint::with(['user.profile', 'subject.profile'])
-                              ->where('id', $id)
-                              ->first();
+            ->where('id', $id)
+            ->first();
 
-        if (!$complaint) {
+        if (! $complaint) {
             return response()->json(['message' => 'Complaint not found.'], 404);
         }
         if ($complaint->complainant_id !== auth()->id()) {
@@ -514,12 +528,12 @@ class ComplaintController extends Controller
         ActionLog::log(
             auth()->id(),
             'complaint',
-            'Revoked their own complaint against ' . $this->formatComplaintSubjectNames($complaint),
+            'Revoked their own complaint against '.$this->formatComplaintSubjectNames($complaint),
             ['complaint_status' => ['from' => $oldStatus, 'to' => 'revoked']]
         );
 
         return response()->json([
-            'complaint' => self::isPrefect() ? self::allComplaints() : self::allUserComplaint()
+            'complaint' => self::isPrefect() ? self::allComplaints() : self::allUserComplaint(),
         ]);
     }
 
@@ -538,11 +552,13 @@ class ComplaintController extends Controller
                 case 'approve':
                     foreach ($ids as $id) {
                         $complaint = Complaint::with(['user.profile', 'subject.profile'])->find($id);
-                        if (!$complaint) continue;
+                        if (! $complaint) {
+                            continue;
+                        }
 
                         $count = Complaint::whereNotNull('case_number')
-                                        ->latest('case_number')
-                                        ->value('case_number') ?? 0;
+                            ->latest('case_number')
+                            ->value('case_number') ?? 0;
                         $count++;
 
                         Complaint::where('id', $id)->update([
@@ -553,10 +569,10 @@ class ComplaintController extends Controller
                         ]);
 
                         $webpushNotif = [
-                            'title' => "Complaint Approved",
-                            'body'  => "Your complaint against {$complaint->subject?->profile?->first_name} {$complaint->subject?->profile?->last_name} is now under investigation.",
-                            'icon'  => '',
-                            'url'   => url('/complaints')
+                            'title' => 'Complaint Approved',
+                            'body' => "Your complaint against {$complaint->subject?->profile?->first_name} {$complaint->subject?->profile?->last_name} is now under investigation.",
+                            'icon' => '',
+                            'url' => url('/complaints'),
                         ];
 
                         notify_single_user(
@@ -572,16 +588,17 @@ class ComplaintController extends Controller
                     ActionLog::log(
                         auth()->user()->id,
                         'complaint',
-                        "Approved {$processedCount} complaint(s): " . implode(', ', $userNames),
+                        "Approved {$processedCount} complaint(s): ".implode(', ', $userNames),
                         ['complaint_status' => ['from' => 'pending', 'to' => 'ongoing']]
                     );
                     break;
 
-
                 case 'reject':
                     foreach ($ids as $id) {
                         $complaint = Complaint::with(['user.profile', 'subject.profile'])->find($id);
-                        if (!$complaint) continue;
+                        if (! $complaint) {
+                            continue;
+                        }
 
                         Complaint::where('id', $id)->update([
                             'complaint_status' => 'rejected',
@@ -591,10 +608,10 @@ class ComplaintController extends Controller
                         ]);
 
                         $webpushNotif = [
-                            'title' => "Complaint Rejected",
-                            'body'  => "Your complaint against {$complaint->subject?->profile?->first_name} {$complaint->subject?->profile?->last_name} has been rejected.",
-                            'icon'  => '',
-                            'url'   => url('/complaints')
+                            'title' => 'Complaint Rejected',
+                            'body' => "Your complaint against {$complaint->subject?->profile?->first_name} {$complaint->subject?->profile?->last_name} has been rejected.",
+                            'icon' => '',
+                            'url' => url('/complaints'),
                         ];
 
                         notify_single_user(
@@ -610,11 +627,10 @@ class ComplaintController extends Controller
                     ActionLog::log(
                         auth()->user()->id,
                         'complaint',
-                        "Rejected {$processedCount} complaint(s): " . implode(', ', $userNames),
+                        "Rejected {$processedCount} complaint(s): ".implode(', ', $userNames),
                         ['complaint_status' => ['from' => 'pending', 'to' => 'rejected']]
                     );
                     break;
-
 
                 default:
                     return response()->json(['message' => 'Invalid action'], 400);
@@ -623,37 +639,39 @@ class ComplaintController extends Controller
             DB::commit();
 
             return response()->json([
-                'complaint' => self::allComplaints()
+                'complaint' => self::allComplaints(),
             ]);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'message' => 'Error processing bulk action',
-                'error'   => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
 
+    // -------------------------------------------------------------------------------------------------------------------------------------
 
-//-------------------------------------------------------------------------------------------------------------------------------------
-
-
-    private function checkComplaintLimit($userId) {
+    private function checkComplaintLimit($userId)
+    {
 
         $complaint = Complaint::where('complainant_id', $userId)
-                              ->where(DB::raw("DATE_FORMAT(created_at, '%Y-%m-%d')"), DB::raw("DATE_FORMAT(NOW(), '%Y-%m-%d')"))
-                              ->count();
+            ->where(DB::raw("DATE_FORMAT(created_at, '%Y-%m-%d')"), DB::raw("DATE_FORMAT(NOW(), '%Y-%m-%d')"))
+            ->count();
 
         return $complaint > 10;
     }
-    public function allComplaints() {
+
+    public function allComplaints()
+    {
         $status = isset($_GET['status']) ? $_GET['status'] : 'ongoing';
         $data = Complaint::whereIn('complaint_status', ['pending', 'ongoing', 'resolved', 'rejected', 'revoked'])
-                         ->with(['user.profile', 'user.program', 'user.enrollments', 'subject.profile', 'subject.program', 'subject.enrollments', 'complaintSubject.user.profile', 'complaintSubject.user.program', 'complaintSubject.user.enrollments']);
+            ->with(['user.profile', 'user.program', 'user.enrollments', 'subject.profile', 'subject.program', 'subject.enrollments', 'complaintSubject.user.profile', 'complaintSubject.user.program', 'complaintSubject.user.enrollments']);
         $search = $_GET['search'] ?? null;
         $date = $_GET['date'] ?? null;
-        $role   = $_GET['role'] ?? null;  // ✅ new filter
+        $role = $_GET['role'] ?? null;  // ✅ new filter
 
         $appendList = [
             'status' => $status,
@@ -664,17 +682,15 @@ class ComplaintController extends Controller
             'semester' => $_GET['semester'] ?? null,
         ];
 
-
-
         if (request()->has('date')) {
             $data->whereDate('created_at', $_GET['date']);
         }
         if ($search) {
             $data->whereHas('user', function ($q) use ($search) {
-                $q->where("id_number", 'like', "%$search%");
+                $q->where('id_number', 'like', "%$search%");
             });
         }
-        if ($role != 'all' && !is_null($role)) {
+        if ($role != 'all' && ! is_null($role)) {
             $data->whereHas('user', function ($q) use ($role) {
                 $q->where('role', $role);
             });
@@ -701,7 +717,7 @@ class ComplaintController extends Controller
         } elseif (isset($_GET['status']) && in_array($_GET['status'], ['pending', 'ongoing'])) {
             $data = (auth()->user()->role == 'sub_admin')
                     ? $data->where('complaint_status', $status)
-                           ->whereNull('archived_at')
+                        ->whereNull('archived_at')
                     : $data->whereNull('archived_at');
         } else {
             $data = $data->whereNull('archived_at');
@@ -717,7 +733,9 @@ class ComplaintController extends Controller
 
         return ['data' => ComplaintResource::collection($data->get())];
     }
-    public function allUserComplaint() {
+
+    public function allUserComplaint()
+    {
         $data = Complaint::where('complainant_id', auth()->user()->id);
         $status = isset($_GET['status']) ? $_GET['status'] : null;
 
@@ -736,27 +754,31 @@ class ComplaintController extends Controller
             $data = $data->where('complaint_status', $status);
         } elseif (isset($_GET['status']) && in_array($_GET['status'], ['pending', 'ongoing', 'resolved'])) {
             $data = $data->where('complaint_status', $status)
-                           ->whereNull('archived_at');
+                ->whereNull('archived_at');
         } else {
             $data = $data->whereNull('archived_at');
         }
 
         $data = $data->latest('created_at');
 
-
         return ['data' => ComplaintResource::collection($data->get())];
     }
-    public function isPrefect() {
-        return (auth()->user()->role == 'sub_admin');
+
+    public function isPrefect()
+    {
+        return auth()->user()->role == 'sub_admin';
     }
-    public function getSentComplaints() {
+
+    public function getSentComplaints()
+    {
         return Complaint::with('user.profile')
-                        ->whereNull('confirmed_at')
-                        ->whereNull('archived_at')
-                        ->latest('created_at')
-                        ->get()
-                        ->toArray();
+            ->whereNull('confirmed_at')
+            ->whereNull('archived_at')
+            ->latest('created_at')
+            ->get()
+            ->toArray();
     }
+
     /**
      * Powers the "Complaints Filed" tab on a profile (ProfileController::index),
      * visible to the prefect/admin — the same list shape ComplaintList already
@@ -764,7 +786,8 @@ class ComplaintController extends Controller
      * Loads every complaint regardless of status/archived state — the status
      * dropdown on that tab filters client-side, not via a reload.
      */
-    public function getComplainantComplaint($id) {
+    public function getComplainantComplaint($id)
+    {
         return ['data' => ComplaintResource::collection(
             Complaint::with(['user.profile', 'schoolYearSemester.schoolYear'])
                 ->where('complainant_id', $id)
@@ -772,37 +795,39 @@ class ComplaintController extends Controller
                 ->get()
         )];
     }
-    public function get($id) {
+
+    public function get($id)
+    {
         $complaint = Complaint::with([
-                        // COMPLAINT OWNER (User)
-                        'user.profile',
-                        'user.program',
-                        'user.teachingStaff.program',
-                        'user.parent',
+            // COMPLAINT OWNER (User)
+            'user.profile',
+            'user.program',
+            'user.teachingStaff.program',
+            'user.parent',
 
-                        // SUBJECTS + USER + STUDENT + PROGRAM
-                        'subject.profile',
-                        'subject.program',
-                        'subject.teachingStaff.program',
-                        'complaintSubject.user.profile',
-                        'complaintSubject.user.program',
-                        'complaintSubject.user.teachingStaff.program',
+            // SUBJECTS + USER + STUDENT + PROGRAM
+            'subject.profile',
+            'subject.program',
+            'subject.teachingStaff.program',
+            'complaintSubject.user.profile',
+            'complaintSubject.user.program',
+            'complaintSubject.user.teachingStaff.program',
 
-                        // SUBJECT OFFENSES + VIOLATION DETAILS
-                        'complaintSubjectViolation.violation',
-                        'violation',
+            // SUBJECT OFFENSES + VIOLATION DETAILS
+            'complaintSubjectViolation.violation',
+            'violation',
 
-                        // PREVIOUS VERSION (if this complaint was edited)
-                        'revisions',
-                    ])
-                    ->where('id', $id)
-                    ->first();
+            // PREVIOUS VERSION (if this complaint was edited)
+            'revisions',
+        ])
+            ->where('id', $id)
+            ->first();
 
-        if (!$complaint) {
+        if (! $complaint) {
             abort(404, 'Complaint not found.');
         }
 
-        if(auth()->user()->role == 'sub_admin') {
+        if (auth()->user()->role == 'sub_admin') {
             // Third-party model host (free-tier Hugging Face Space) — prone to
             // cold-start delays/downtime, so this must never take the whole
             // page down; context analysis is a nice-to-have, not required.
@@ -810,7 +835,7 @@ class ComplaintController extends Controller
             // always does JSON.parse() on this field.
             try {
                 $api = Http::withoutVerifying()->timeout(10)->post('https://pitpete-violation-risk-predictor-api.hf.space/python/complaint/context', [
-                    'complaint_text' => $complaint->complaint_description
+                    'complaint_text' => $complaint->complaint_description,
                 ]);
                 $predictions = $api->successful() ? $api->json() : [];
             } catch (Exception $e) {
@@ -823,8 +848,10 @@ class ComplaintController extends Controller
             $rawData = $predictions['data'] ?? '[]';
             $complaint->context_analysis = is_string($rawData) ? $rawData : json_encode($rawData);
         }
+
         return new ComplaintResource($complaint);
     }
+
     private function getComplaintInsertFields($request, $isPrefect)
     {
         // Safely get the latest case number
@@ -836,22 +863,22 @@ class ComplaintController extends Controller
 
         // Determine complainant_id
         $complainantId = null;
-        if (!$request->has('complainant_name') || is_null($request->complainant_name)) {
+        if (! $request->has('complainant_name') || is_null($request->complainant_name)) {
             $complainantId = $request->complainant;
         }
 
         $fields = [
-            'complaint_number'      => self::generateComplaintNumber(),
-            'complainant_id'        => $complainantId,
-            'incident_id'           => $request->incident_id,
+            'complaint_number' => self::generateComplaintNumber(),
+            'complainant_id' => $complainantId,
+            'incident_id' => $request->incident_id,
             'complaint_description' => $request->complaint_description,
-            'complaint_status'      => $isPrefect ? 'ongoing' : 'pending',
-            'confirmed_at'          => $isPrefect ? now() : null,
-            'case_number'           => $isPrefect ? $nextCaseNumber : null,
+            'complaint_status' => $isPrefect ? 'ongoing' : 'pending',
+            'confirmed_at' => $isPrefect ? now() : null,
+            'case_number' => $isPrefect ? $nextCaseNumber : null,
             'school_year_semester_id' => SchoolYearSemester::currentId(),
         ];
 
-        if ($request->has('complainant_name') && !empty($request->complainant_name)) {
+        if ($request->has('complainant_name') && ! empty($request->complainant_name)) {
             $fields['complainant_name'] = $request->complainant_name;
         }
 
@@ -872,12 +899,12 @@ class ComplaintController extends Controller
         // Determine complainant name dynamically
         $complainantName = null;
 
-        if (!is_null($newComplaint->user)) {
+        if (! is_null($newComplaint->user)) {
             // Registered user in the system
             $profile = $newComplaint->user->profile;
             $complainantName = trim(
-                ($profile->first_name ?? '') . ' ' .
-                ($profile->middle_name ?? '') . ' ' .
+                ($profile->first_name ?? '').' '.
+                ($profile->middle_name ?? '').' '.
                 ($profile->last_name ?? '')
             );
         } else {
@@ -887,10 +914,11 @@ class ComplaintController extends Controller
 
         $subjects = ($newComplaint->complaintSubject ?? collect())->map(function ($cs) {
             $profile = $cs->user?->profile;
+
             return [
                 'name' => trim(
-                    ($profile->first_name ?? '') . ' ' .
-                    ($profile->middle_name ?? '') . ' ' .
+                    ($profile->first_name ?? '').' '.
+                    ($profile->middle_name ?? '').' '.
                     ($profile->last_name ?? '')
                 ),
                 'user_type' => strtoupper($cs->user?->role ?? 'STUDENT'),
@@ -921,15 +949,15 @@ class ComplaintController extends Controller
             : ($complaintNotif->complainant_name ?? 'Someone');
 
         return [
-            'notif_type'  => 'complaint',
-            'sender_id'   => $request->complainant,
+            'notif_type' => 'complaint',
+            'sender_id' => $request->complainant,
             'receiver_id' => $prefect->id,
-            'content'     => json_encode([
-                'id'                     => $complaintId,
-                'sender_notif_message'   => "You have reported a complaint against {$subjectDisplay}.",
-                'receiver_notif_message' => "{$complainantName} has reported a complaint against {$subjectDisplay}."
+            'content' => json_encode([
+                'id' => $complaintId,
+                'sender_notif_message' => "You have reported a complaint against {$subjectDisplay}.",
+                'receiver_notif_message' => "{$complainantName} has reported a complaint against {$subjectDisplay}.",
             ]),
-            'read_since' => null
+            'read_since' => null,
         ];
     }
 
@@ -942,15 +970,15 @@ class ComplaintController extends Controller
             : "Your complaint against {$subjectDisplay} has been rejected.";
 
         return [
-            'notif_type'  => 'complaint',
-            'sender_id'   => auth()->user()->id,
+            'notif_type' => 'complaint',
+            'sender_id' => auth()->user()->id,
             'receiver_id' => optional($complaint->user)->id,
-            'content'     => json_encode([
-                'id'                     => $complaint->id,
-                'sender_notif_message'   => "",
-                'receiver_notif_message' => $receiverMessage
+            'content' => json_encode([
+                'id' => $complaint->id,
+                'sender_notif_message' => '',
+                'receiver_notif_message' => $receiverMessage,
             ]),
-            'read_since' => null
+            'read_since' => null,
         ];
     }
 
@@ -959,21 +987,22 @@ class ComplaintController extends Controller
         $subjects = $complaint->complaintSubject;
         $subject = $complaint->subject;
 
-        if (sizeOf($subjects) === 0) {
-            return "the student";
+        if (count($subjects) === 0) {
+            return 'the student';
         }
 
-        if (sizeOf($subjects) === 1) {
+        if (count($subjects) === 1) {
             $s = $subject?->profile;
+
             return trim("{$s?->first_name} {$s?->last_name}");
         }
 
-        if (sizeOf($subjects) === 2) {
+        if (count($subjects) === 2) {
             return $subjects
-                ->map(fn($s) => trim(($s->user?->profile?->first_name ?? '') . ' ' . ($s->user?->profile?->last_name ?? '')))
+                ->map(fn ($s) => trim(($s->user?->profile?->first_name ?? '').' '.($s->user?->profile?->last_name ?? '')))
                 ->implode(' and ');
         }
 
-        return sizeOf($subjects) . " students";
+        return count($subjects).' students';
     }
 }

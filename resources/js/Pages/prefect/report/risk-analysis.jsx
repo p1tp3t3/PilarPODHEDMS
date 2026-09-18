@@ -5,40 +5,90 @@ import Box from "@mui/material/Box"
 import LineGraph from "@/Components/card/line-graph-statistic"
 import BarGraph from "@/Components/card/bar-graph-statistic-card"
 import ProfilePic from "@/Components/other/profile-pic"
-import { change, getProfilePic, showUserType, configBroadcast } from "@/others/function"
+import RadioButton from "@/Components/input/radio"
+import DropdownField from "@/Components/input/dropdown"
+import BetweenTextfield from "@/Components/input/between-input"
+import { getProfilePic, showUserType, configBroadcast } from "@/others/function"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
 import { router } from "@inertiajs/react"
 import { UserX } from "lucide-react"
+import ViewProgramViolationModal from "@/Components/modal/view/view-program-violation-modal"
 
 const monthNames = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sept", "Oct", "Nov", "Dec",
 ]
 
+// One color per incident-type line — the backend caps series at 6 types
+// plus "Other", so 7 distinct colors cover every case without repeats.
+const TREND_COLORS = [
+  '#1a237e', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#06b6d4', '#6b7280',
+]
+
+const semesterList = [
+  { val: 1, label: "1st Semester" },
+  { val: 2, label: "2nd Semester" },
+]
+
 const AnalyticalReport = (props) => {
-  const [data, setData] = useState({
-    date_from: "",
-    date_to: "",
-  })
+  const [filterBy, setFilterBy] = useState('date')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [schoolYear, setSchoolYear] = useState('')
+  const [semester, setSemester] = useState('')
+
+  const data = {
+    filter_by: filterBy,
+    date_from: filterBy === 'date' ? dateFrom : '',
+    date_to: filterBy === 'date' ? dateTo : '',
+    school_year: filterBy === 'school_year' ? schoolYear : '',
+    semester: filterBy === 'school_year' ? semester : '',
+  }
+
+  const hasUsableFilter = filterBy === 'date' ? (dateFrom && dateTo) : !!schoolYear
 
   // On-screen preview data. Defaults to what the controller already
   // computed for the current year; refreshed from /prefect/analytics/preview
   // once both dates are picked, so the filter actually affects the screen
   // instead of only the PDF export.
-  const [preview, setPreview] = useState({
+  const defaultPreview = () => ({
     quantity: props.quantity,
     violationProgram: props.violationProgram,
     top5Student: props.top5Student,
-    incidentTrendLabels: monthNames.slice(0, props.incidentLineGraph.length),
-    incidentTrendValues: props.incidentLineGraph,
+    incidentTrendLabels: (props.incidentTrendLabels ?? []).length
+      ? props.incidentTrendLabels
+      : monthNames.slice(0, props.incidentLineGraph.length),
+    incidentTrendSeries: props.incidentTrendSeries ?? [],
   })
+
+  const [preview, setPreview] = useState(defaultPreview)
+
+  const clearFilter = () => {
+    setFilterBy('date')
+    setDateFrom('')
+    setDateTo('')
+    setSchoolYear('')
+    setSemester('')
+    setPreview(defaultPreview())
+  }
 
   const [exportStatus, setExportStatus] = useState('idle') // idle | queued | ready | failed
   const [exportUrl, setExportUrl] = useState(null)
   const [exportViewUrl, setExportViewUrl] = useState(null)
 
-  useEffect(() => {
-    if (!data.date_from || !data.date_to) return
+  const [programModal, setProgramModal] = useState(false)
+  const [selectedProgram, setSelectedProgram] = useState(null)
+
+  const openProgramDetail = (program) => {
+    setSelectedProgram(program)
+    setProgramModal(true)
+  }
+
+  // Filter fields no longer fetch on every change — the user sets
+  // date range/school year (+semester) first, then explicitly clicks
+  // "Apply Filter" to submit it, instead of a request firing on each click.
+  const applyFilter = () => {
+    if (!hasUsableFilter) return
 
     ReportArchiveService.getAnalyticsPreview(data, (res) => {
       setPreview({
@@ -48,10 +98,10 @@ const AnalyticalReport = (props) => {
         incidentTrendLabels: (res.incidentTrendLabels ?? []).length
           ? res.incidentTrendLabels
           : monthNames,
-        incidentTrendValues: res.incidentTrendValues ?? [],
+        incidentTrendSeries: res.incidentTrendSeries ?? [],
       })
     })
-  }, [data.date_from, data.date_to])
+  }
 
   useEffect(() => {
     if (!props.userId) return
@@ -74,7 +124,7 @@ const AnalyticalReport = (props) => {
   }, [props.userId])
 
   const handleExport = () => {
-    if (!data.date_from || !data.date_to) return
+    if (!hasUsableFilter) return
 
     setExportStatus('queued')
     setExportUrl(null)
@@ -86,50 +136,108 @@ const AnalyticalReport = (props) => {
   return (
     <div className="w-full">
       {/* Filter Section */}
-      <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-3 mb-6">
-        <div className="grid gap-3 w-full">
-          <div className="flex flex-wrap gap-3 items-center text-[1em]">
-            <input
-              type="date"
-              name="date_from"
-              value={data.date_from}
-              onChange={(e) => change(e, setData)}
-              className="border border-gray-300 rounded px-2 py-1 text-sm"
-            />
-            <span className="text-gray-700">To</span>
-            <input
-              type="date"
-              name="date_to"
-              value={data.date_to}
-              onChange={(e) => change(e, setData)}
-              className="border border-gray-300 rounded px-2 py-1 text-sm"
+      <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm p-4 sm:p-5 grid gap-4 mb-6">
+        <RadioButton
+          list={[
+            { val: "date", label: "Date Range" },
+            { val: "school_year", label: "School Year" },
+          ]}
+          id="analytics_filter_by"
+          name="analytics_filter_by"
+          val={filterBy}
+          change={(e) => {
+            setFilterBy(e.target.value)
+            setDateFrom("")
+            setDateTo("")
+            setSchoolYear("")
+            setSemester("")
+          }}
+        />
+
+        {filterBy === "date" &&
+        <div className="max-w-md">
+          <BetweenTextfield
+            type="date"
+            labels={["Date From", "Date To"]}
+            name={["date_from", "date_to"]}
+            id={["date_from", "date_to"]}
+            data={[dateFrom, dateTo]}
+            setData={(updater) => {
+              const next = typeof updater === "function" ? updater({ date_from: dateFrom, date_to: dateTo }) : updater
+              setDateFrom(next.date_from ?? "")
+              setDateTo(next.date_to ?? "")
+            }}
+          />
+        </div>}
+
+        {filterBy === "school_year" &&
+        <div className="flex flex-col sm:flex-row gap-3 max-w-xl">
+          <div className="w-full">
+            <DropdownField
+              default={{ val: "", label: "Select School Year" }}
+              list={(props.schoolYears ?? []).map((y) => ({ val: y, label: y }))}
+              onChange={(e) => setSchoolYear(e.target.value)}
+              name="school_year"
+              val={schoolYear}
             />
           </div>
-          <div className="flex items-center gap-3">
-            <Btn onclick={handleExport}>
-              {exportStatus === 'queued' ? 'Generating…' : 'Export as PDF'}
-            </Btn>
-            {exportStatus === 'ready' && exportUrl &&
-            <>
-              {exportViewUrl &&
-              <a
-                href={exportViewUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="px-3 py-1.5 rounded border border-green-600 text-green-700 text-[0.9em] hover:bg-green-50"
-              >
-                View
-              </a>}
-              <a
-                href={exportUrl}
-                className="px-3 py-1.5 rounded bg-green-600 text-white text-[0.9em] hover:bg-green-700"
-              >
-                Download
-              </a>
-            </>}
-            {exportStatus === 'failed' &&
-            <span className="text-red-600 text-[0.85em]">Failed to generate report.</span>}
+          <div className="w-full">
+            <DropdownField
+              default={{ val: "", label: "All Semesters" }}
+              list={semesterList}
+              onChange={(e) => setSemester(e.target.value)}
+              name="semester"
+              val={semester}
+            />
           </div>
+        </div>}
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={applyFilter}
+            disabled={!hasUsableFilter}
+            className={`text-[0.85em] px-3 py-1.5 rounded text-white ${
+              hasUsableFilter ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-300 cursor-not-allowed"
+            }`}
+          >
+            Apply Filter
+          </button>
+
+          {hasUsableFilter &&
+          <button
+            type="button"
+            onClick={clearFilter}
+            className="text-[0.85em] text-gray-600 hover:text-gray-900 underline"
+          >
+            Clear Filter
+          </button>}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Btn onclick={handleExport}>
+            {exportStatus === 'queued' ? 'Generating…' : 'Export as PDF'}
+          </Btn>
+          {exportStatus === 'ready' && exportUrl &&
+          <>
+            {exportViewUrl &&
+            <a
+              href={exportViewUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-1.5 rounded border border-green-600 text-green-700 text-[0.9em] hover:bg-green-50"
+            >
+              View
+            </a>}
+            <a
+              href={exportUrl}
+              className="px-3 py-1.5 rounded bg-green-600 text-white text-[0.9em] hover:bg-green-700"
+            >
+              Download
+            </a>
+          </>}
+          {exportStatus === 'failed' &&
+          <span className="text-red-600 text-[0.85em]">Failed to generate report.</span>}
         </div>
       </div>
 
@@ -157,19 +265,19 @@ const AnalyticalReport = (props) => {
           </div>
         </div>
 
-        {/* Incident Trend */}
-        <div className="mb-8 h-[20rem]">
+        {/* Incident Trend (per incident type) */}
+        <div className="mb-8 h-[22rem]">
           <LineGraph
             label={preview.incidentTrendLabels}
-            dataset={[{
-              label: 'Incidents',
-              data: preview.incidentTrendValues,
-              borderColor: '#1a237e',
-              backgroundColor: 'rgba(26,35,126,0.15)',
-              fill: true,
+            dataset={preview.incidentTrendSeries.map((s, i) => ({
+              label: s.label,
+              data: s.data,
+              borderColor: TREND_COLORS[i % TREND_COLORS.length],
+              backgroundColor: TREND_COLORS[i % TREND_COLORS.length],
+              fill: false,
               tension: 0.3,
-            }]}
-            title="Incident Trend"
+            }))}
+            title="Incident Trend Per Type"
             xTitle="Month"
             yTitle="Incidents"
             withBorder
@@ -206,9 +314,20 @@ const AnalyticalReport = (props) => {
               hideFooter
               disableRowSelectionOnClick
               showToolbar
+              onRowClick={(params) => openProgramDetail(params.row.program)}
+              sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
             />
           </Box>
         </div>
+
+        <ViewProgramViolationModal
+          close={programModal}
+          closeModal={setProgramModal}
+          isEnableOuterClose={true}
+          program={selectedProgram}
+          dateFrom={data.date_from}
+          dateTo={data.date_to}
+        />
 
 
         {/* Top Violators */}
