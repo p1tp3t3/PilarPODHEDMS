@@ -92,7 +92,7 @@ const Body = ({ data, usr, type }) => {
     const d = {
       student_id: user.id,
       risk_score: Math.round(data.risk_score * 100),
-      program: user.program.id,
+      program: user.program?.id,
       program_head: notifyProgramHead ? 1 : 0,
       faculty: notifyFaculty ? 1 : 0,
     }
@@ -106,7 +106,7 @@ const Body = ({ data, usr, type }) => {
     if (notifyFaculty || notifyProgramHead) {
       setErr("")
       showWarningModal(
-        `Are you sure you want to notify the ${label} of the ${user.program.name} program?`,
+        `Are you sure you want to notify the ${label} of the ${user.program?.name ?? "student's"} program?`,
         `Notify ${label}`,
         "Cancel",
         () => {

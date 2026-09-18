@@ -56,6 +56,21 @@ const Body = (props) => {
     [validationErr, setValidationError] = useState({}),
     [existUserId, setExistUserId] = useState(false);
 
+  // Teaching and non-teaching staff only need picture, sex, contact number,
+  // and address — religion/citizenship/date of birth/place of birth/civil
+  // status are hidden entirely for these roles (see
+  // Validator.validateUpdateProfileForm for the matching required-field set).
+  const isStaffRole = ['teaching_staff', 'non_teaching_staff'].includes(props.data.user_type);
+
+  // Validator/canEdit() speak a separate "itrc"/"prefect" alias vocabulary
+  // for the two admin roles (see others/function.jsx canEdit()) rather than
+  // the raw super_admin/sub_admin role column — props.user is the raw auth
+  // User model (only has .role), so translate it here once.
+  const currentUserRoleAlias =
+    props.user.role === "super_admin" ? "itrc"
+    : props.user.role === "sub_admin" ? "prefect"
+    : props.user.role;
+
   const handleFileChange = (event) => {
     fileChange(event, setPreview, props.profileChange, true);
   };
@@ -95,11 +110,11 @@ const Body = (props) => {
 
     if (!preview) {
       const validator = new Validator(d, d.user_type);
-      const errors = validator.validateUpdateProfileForm(props.user.user_type);
+      const errors = validator.validateUpdateProfileForm(currentUserRoleAlias);
       const isErrorFree = Object.values(errors).every((err) => err === "");
       setValidationError(errors);
 
-      if (props.user.user_type == "itrc") {
+      if (currentUserRoleAlias == "itrc") {
         if (!isErrorFree || existUserId) return;
       } else {
         if (!isErrorFree) return;
@@ -109,8 +124,8 @@ const Body = (props) => {
   };
 
   const itrcAccessField = (type) => {
-    return (props.user.user_type == "itrc" && props.data.user_type == type) ||
-           (props.user.user_type == "prefect" && props.data.user_type == type);
+    return (currentUserRoleAlias == "itrc" && props.data.user_type == type) ||
+           (currentUserRoleAlias == "prefect" && props.data.user_type == type);
   };
 
   const showUserAccessibility = () => {
@@ -141,18 +156,18 @@ const Body = (props) => {
 
   const handleCheck = (e) => check(e, props.setData, "bool");
   const checkEdit = () => {
-    if(props.user.user_type == 'itrc')
+    if(currentUserRoleAlias == 'itrc')
       return (
-        props.user.user_type == 'itrc' || 
-        (canEdit('itrc', 'student') || 
+        currentUserRoleAlias == 'itrc' ||
+        (canEdit('itrc', 'student') ||
         canEdit('itrc', 'prefect') ||
         canEdit('itrc', 'faculty') ||
         canEdit('itrc', 'administrative') ||
         canEdit('itrc', 'staff') ||
         canEdit('itrc', 'parent'))
       )
-    if(props.user.user_type == 'prefect')
-      return (canEdit('prefect', 'student') || props.user.user_type == 'prefect')
+    if(currentUserRoleAlias == 'prefect')
+      return (canEdit('prefect', 'student') || currentUserRoleAlias == 'prefect')
 
     return false
   }
@@ -228,76 +243,85 @@ const Body = (props) => {
               />
             </div>}*/}
 
-            <FormTextfield
-              label="Date Of Birth"
-              name="date_of_birth"
-              type="date"
-              id="date_of_birth"
-              val={props.data.date_of_birth}
-              change={props.change}
-              req={true}
-              error={validationErr.date_of_birth}
-              errorAsterisk={validationErr.date_of_birthAsterisk}
-            />
+            {!isStaffRole && (
+              <FormTextfield
+                label="Date Of Birth"
+                name="date_of_birth"
+                type="date"
+                id="date_of_birth"
+                val={props.data.date_of_birth}
+                change={props.change}
+                req={true}
+                error={validationErr.date_of_birth}
+                errorAsterisk={validationErr.date_of_birthAsterisk}
+              />
+            )}
 
             <RadioButton
-              label={<b>Sex</b>}
+              label={<b>Sex{isStaffRole && <span className="text-[#d12323]"> *</span>}</b>}
               name="sex"
               id="sex"
               change={props.change}
               val={props.data.sex}
+              error={validationErr.sex}
               list={[
                 { value: "m", label: "Male" },
                 { value: "f", label: "Female" },
               ]}
             />
-            <RadioButton
-              label={<b>Civil Status</b>}
-              name="civil_status"
-              id="civil_status"
-              change={props.change}
-              val={props.data.civil_status}
-              list={[
-                { value: "single", label: "Single" },
-                { value: "married", label: "Married" },
-                { value: "separated", label: "Separated" },
-              ]}
-            />
+            {!isStaffRole && (
+              <RadioButton
+                label={<b>Civil Status</b>}
+                name="civil_status"
+                id="civil_status"
+                change={props.change}
+                val={props.data.civil_status}
+                list={[
+                  { value: "single", label: "Single" },
+                  { value: "married", label: "Married" },
+                  { value: "separated", label: "Separated" },
+                ]}
+              />
+            )}
 
             {/* Religion + Citizenship */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <FormTextfield
-                label="Religion"
-                name="religion"
-                id="religion"
-                val={props.data.religion}
-                change={props.change}
-                req={true}
-                error={validationErr.religion}
-                errorAsterisk={validationErr.religionAsterisk}
-              />
-              <FormTextfield
-                label="Citizenship"
-                name="citizenship"
-                id="citizenship"
-                val={props.data.citizenship}
-                change={props.change}
-                req={true}
-                error={validationErr.citizenship}
-                errorAsterisk={validationErr.citizenshipAsterisk}
-              />
-            </div>
+            {!isStaffRole && (
+              <div className="flex flex-col sm:flex-row gap-4">
+                <FormTextfield
+                  label="Religion"
+                  name="religion"
+                  id="religion"
+                  val={props.data.religion}
+                  change={props.change}
+                  req={true}
+                  error={validationErr.religion}
+                  errorAsterisk={validationErr.religionAsterisk}
+                />
+                <FormTextfield
+                  label="Citizenship"
+                  name="citizenship"
+                  id="citizenship"
+                  val={props.data.citizenship}
+                  change={props.change}
+                  req={true}
+                  error={validationErr.citizenship}
+                  errorAsterisk={validationErr.citizenshipAsterisk}
+                />
+              </div>
+            )}
 
-            <FormTextfield
-              label="Place of Birth"
-              name="place_of_birth"
-              id="place_of_birth"
-              val={props.data.place_of_birth}
-              change={props.change}
-              req={true}
-              error={validationErr.place_of_birth}
-              errorAsterisk={validationErr.place_of_birthAsterisk}
-            />
+            {!isStaffRole && (
+              <FormTextfield
+                label="Place of Birth"
+                name="place_of_birth"
+                id="place_of_birth"
+                val={props.data.place_of_birth}
+                change={props.change}
+                req={true}
+                error={validationErr.place_of_birth}
+                errorAsterisk={validationErr.place_of_birthAsterisk}
+              />
+            )}
 
             {/* Email + Contact */}
             <div className="flex flex-col sm:flex-row gap-4">
@@ -308,6 +332,7 @@ const Body = (props) => {
                 type="number"
                 val={props.data.phone_number}
                 change={props.change}
+                req={isStaffRole}
                 error={validationErr.contact_number}
                 errorAsterisk={validationErr.contact_numberAsterisk}
               />

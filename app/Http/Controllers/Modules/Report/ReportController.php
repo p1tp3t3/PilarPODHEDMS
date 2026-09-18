@@ -12,6 +12,7 @@ use App\Models\Appointment;
 use App\Models\Complaint;
 use App\Models\ComplaintSubjectViolation;
 use App\Models\ComplaintSubject;
+use App\Models\Enrollment;
 use App\Models\GatePass;
 use App\Models\Program;
 use App\Models\Report;
@@ -29,6 +30,52 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
 {
+    /**
+     * Shared "Date Range" / "School Year" filter for the whole prefect
+     * Report page — one filter card in report.jsx covers every tab instead
+     * of each report list having its own copy. Date Range narrows by a raw
+     * timestamp column (the caller passes which one); School Year narrows
+     * by the record's own `school_year_semester_id` tag (exact, since it's
+     * stamped at filing time) rather than a guessed calendar span, and
+     * "semester" further narrows within that school year when picked.
+     */
+    /**
+     * Generated report files live under generated-reports/{super-admin|sub-admin}/{userId}
+     * — a top-level split by role (matching each role's own GenerateReportJob/
+     * GenerateAccountStatisticsReportJob output dir) so the two report
+     * systems' files never mix, on top of the existing per-user scoping.
+     */
+    private function reportRoleDir(): string {
+        return auth()->user()->role === 'super_admin' ? 'super-admin' : 'sub-admin';
+    }
+
+    private function applyReportFilter($query, string $dateColumn, ?string $relation = null) {
+        $filterBy = request('filter_by');
+        $dateFrom = request('date_from');
+        $dateTo = request('date_to');
+        $schoolYearId = request('school_year_id');
+        $semester = request('semester');
+
+        $constrain = null;
+
+        if ($filterBy === 'date' && $dateFrom && $dateTo) {
+            $constrain = fn ($q) => $q->whereBetween($dateColumn, [$dateFrom, "$dateTo 23:59:59"]);
+        } elseif ($filterBy === 'school_year' && $schoolYearId) {
+            $constrain = fn ($q) => $q->whereHas('schoolYearSemester', function ($sq) use ($schoolYearId, $semester) {
+                $sq->where('school_year_id', $schoolYearId);
+                if ($semester) {
+                    $sq->where('semester', $semester);
+                }
+            });
+        }
+
+        if (!$constrain) {
+            return $query;
+        }
+
+        return $relation ? $query->whereHas($relation, $constrain) : $constrain($query);
+    }
+
     public function index() {
         $top5Students = ComplaintSubjectViolation::select(
                                             'student_id',
@@ -124,13 +171,13 @@ class ReportController extends Controller
             'resolved' => $resolved,
             'violation_count' => $violationCount,
             'top5_students' => $top5Students,
-            'report' => self::getAllReport()
+            'report' => $this->applyReportFilter(self::getAllReport(), 'created_at', 'complaint')
                             ->orderByDesc(
                                 Complaint::select('created_at')
                                     ->whereColumn('complaint.id', 'complaint_subject.complaint_id')
                             )
                             ->paginate(request('report_per_page', 20), ['*'], 'report_page'),
-            'violation_report' => self::getAllReport('violation')
+            'violation_report' => $this->applyReportFilter(self::getAllReport('violation'), 'offense_issued_at', 'complaint')
                             ->orderByDesc(
                                 Complaint::select('offense_issued_at')
                                     ->whereColumn('complaint.id', 'complaint_subject_violation.complaint_id')
@@ -141,18 +188,28 @@ class ReportController extends Controller
             'programs' => Program::all(['id', 'name']),
             'students' => User::with(['profile', 'program'])->where('role', 'student')->get(),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
+            'school_years_full' => SchoolYear::orderByDesc('year')->get(['id', 'year']),
             'violation_program' => $data,
-            'tardy_report' => Absence::with(['user.profile', 'user.program', 'user.enrollments'])
-                            ->whereNotNull('confirmed_at')
-                            ->whereJsonContains('reason', 'Excused Tardiness')
+            'tardy_report' => $this->applyReportFilter(
+                                Absence::with(['user.profile', 'user.program', 'user.enrollments'])
+                                    ->whereNotNull('confirmed_at')
+                                    ->whereJsonContains('reason', 'Excused Tardiness'),
+                                'confirmed_at'
+                            )
                             ->latest('confirmed_at')
                             ->get(),
-            'appointment_report' => Appointment::with(['user.profile', 'user.program', 'user.enrollments'])
-                            ->where('appointment_status', 'accepted')
+            'appointment_report' => $this->applyReportFilter(
+                                Appointment::with(['user.profile', 'user.program', 'user.enrollments'])
+                                    ->where('appointment_status', 'accepted'),
+                                'confirmed_at'
+                            )
                             ->latest('confirmed_at')
                             ->get(),
-            'gatepass_report' => GatePass::with(['user.profile', 'user.program', 'user.enrollments'])
-                            ->whereNotNull('confirmed_at')
+            'gatepass_report' => $this->applyReportFilter(
+                                GatePass::with(['user.profile', 'user.program', 'user.enrollments'])
+                                    ->whereNotNull('confirmed_at'),
+                                'confirmed_at'
+                            )
                             ->latest('confirmed_at')
                             ->get(),
         ]);
@@ -161,9 +218,93 @@ class ReportController extends Controller
         return Inertia::render('itrc/report', [
             'user' => auth()->user(),
             'students' => User::with(['profile', 'program', 'teachingStaff.program', 'parent'])->get(),
-            'action_log_list' => self::getAllActionLogs()
+            'action_log_list' => self::getAllActionLogs(),
+            'statistics' => self::buildAccountStatistics('date', null, null, null, null),
+            'school_years' => SchoolYear::orderByDesc('year')->get(['id', 'year']),
         ]);
     }
+
+    public function accountStatisticsPreview(Request $request) {
+        return response()->json(self::buildAccountStatistics(
+            $request->filter_by,
+            $request->date_from,
+            $request->date_to,
+            $request->school_year_id,
+            $request->semester
+        ));
+    }
+
+    public function generateAccountStatisticsReport(Request $request) {
+        \App\Jobs\GenerateAccountStatisticsReportJob::dispatch($request->all(), auth()->id());
+
+        return response()->json(['message' => 'queued']);
+    }
+
+    /**
+     * Super admin's own statistics domain: account/enrollment counts, not
+     * the discipline data (complaints/referrals/absences/gate passes/
+     * appointments) that belongs to the sub_admin's Analytical Report.
+     *
+     * "School Year" filters every role by their account's created_at
+     * falling within that school year's calendar span (reusing
+     * Report::resolveSchoolYearDates()) — the only school-year signal a
+     * teaching_staff/non_teaching_staff/parent account has. "Semester"
+     * additionally narrows the student breakdown via a direct Enrollment
+     * match (school_year_id + semester), since only students actually have
+     * enrollment records — it has no effect on the other roles.
+     */
+    public static function buildAccountStatistics($filterBy, $dateFrom, $dateTo, $schoolYearId, $semester) {
+        $from = $dateFrom;
+        $to = $dateTo;
+
+        if ($filterBy === 'school_year' && $schoolYearId) {
+            $year = SchoolYear::where('id', $schoolYearId)->value('year');
+            $resolved = Report::resolveSchoolYearDates(['school_year' => $year]);
+            $from = $resolved['date_from'] ?? null;
+            $to = $resolved['date_to'] ?? null;
+        }
+
+        $hasRange = $from && $to;
+
+        $countByRole = fn($role) => User::where('role', $role)
+            ->when($hasRange, fn($q) => $q->whereBetween('created_at', [$from, $to]))
+            ->count();
+
+        if ($filterBy === 'school_year' && $schoolYearId) {
+            $studentQuery = Enrollment::where('school_year_id', $schoolYearId)
+                ->when($semester, fn($q) => $q->where('semester', $semester));
+
+            $studentCount = (clone $studentQuery)->distinct('student_id')->count('student_id');
+
+            $studentsPerProgram = (clone $studentQuery)
+                ->join('program', 'program.id', '=', 'enrollment.program_id')
+                ->select('program.name as program', DB::raw('COUNT(DISTINCT enrollment.student_id) as total'))
+                ->groupBy('program.name')
+                ->orderByDesc('total')
+                ->get();
+        } else {
+            $studentCount = $countByRole('student');
+
+            $studentsPerProgram = User::where('role', 'student')
+                ->when($hasRange, fn($q) => $q->whereBetween('created_at', [$from, $to]))
+                ->with('program')
+                ->get()
+                ->groupBy(fn($u) => $u->program?->name ?? 'Unassigned')
+                ->map(fn($group, $name) => ['program' => $name, 'total' => $group->count()])
+                ->values();
+        }
+
+        return [
+            'students' => $studentCount,
+            'teaching_staff' => $countByRole('teaching_staff'),
+            'non_teaching_staff' => $countByRole('non_teaching_staff'),
+            'parents' => $countByRole('parent'),
+            'students_per_program' => $studentsPerProgram,
+            'from' => $from,
+            'to' => $to,
+        ];
+    }
+
     /**
      * Report generation is queued (GenerateReportJob) instead of running
      * inline: dompdf/PhpSpreadsheet rendering blocked the request for
@@ -207,9 +348,64 @@ class ReportController extends Controller
         return response()->json([
             'exists' => true,
             'report' => $existing,
-            'download_url' => route('prefect.report.download', ['fileName' => $existing->file_name]),
-            'view_url' => $existing->file_type === 'pdf' ? route('prefect.report.view', ['fileName' => $existing->file_name]) : null,
+            'download_url' => route('prefect.report.download', ['id' => $existing->id]),
+            'view_url' => $existing->file_type === 'pdf' ? route('prefect.report.view', ['id' => $existing->id]) : null,
         ]);
+    }
+
+    /**
+     * Saved report filters — a reusable preset (date range or school
+     * year+semester, program/individual/type/file-type) that can be
+     * generated repeatedly, edited, or deleted, instead of the old flow
+     * where the "Generate Report" modal always produced a file right away.
+     */
+    public function reportFilterIndex() {
+        return \App\Models\ReportFilter::where('user_id', auth()->id())
+            ->latest('created_at')
+            ->get();
+    }
+
+    public function storeReportFilter(Request $request) {
+        $filters = $request->all();
+        $type = $filters['type'] ?? 'incident';
+
+        $filter = \App\Models\ReportFilter::create([
+            'user_id' => auth()->id(),
+            'report_type' => $type,
+            'name' => $filters['report_name'] ?: (ucfirst($type) . ' Filter'),
+            'filters' => $filters,
+        ]);
+
+        return response()->json(['filter' => $filter]);
+    }
+
+    public function updateReportFilterRequest(Request $request, $id) {
+        $filter = \App\Models\ReportFilter::where('user_id', auth()->id())->findOrFail($id);
+
+        $filters = $request->all();
+        $type = $filters['type'] ?? $filter->report_type;
+
+        $filter->update([
+            'report_type' => $type,
+            'name' => $filters['report_name'] ?: (ucfirst($type) . ' Filter'),
+            'filters' => $filters,
+        ]);
+
+        return response()->json(['filter' => $filter]);
+    }
+
+    public function destroyReportFilter($id) {
+        \App\Models\ReportFilter::where('user_id', auth()->id())->findOrFail($id)->delete();
+
+        return response()->json(['message' => 'deleted']);
+    }
+
+    public function generateFromFilter($id) {
+        $filter = \App\Models\ReportFilter::where('user_id', auth()->id())->findOrFail($id);
+
+        GenerateReportJob::dispatch($filter->filters, auth()->id());
+
+        return response()->json(['message' => 'queued']);
     }
 
     public function reportHistory() {
@@ -217,15 +413,71 @@ class ReportController extends Controller
             ->latest('created_at')
             ->get()
             ->map(fn ($r) => array_merge($r->toArray(), [
-                'download_url' => route('prefect.report.download', ['fileName' => $r->file_name]),
-                'view_url' => $r->file_type === 'pdf' ? route('prefect.report.view', ['fileName' => $r->file_name]) : null,
+                'download_url' => route('prefect.report.download', ['id' => $r->id]),
+                'view_url' => $r->file_type === 'pdf' ? route('prefect.report.view', ['id' => $r->id]) : null,
+                'filters_summary' => $this->summarizeReportFilters($r->filters ?? [], $r->report_type),
             ]));
+    }
+
+    /**
+     * The file name is no longer stored — it's always {id}-{report_type}-report.{ext}
+     * (see GenerateReportJob::finalizeFileName / GenerateAccountStatisticsReportJob),
+     * so downloadReport/viewReport/destroyReport rebuild it from the row alone.
+     */
+    private function reportFileName(Report $report): string {
+        $ext = match ($report->file_type) {
+            'excel' => 'xlsx',
+            'word' => 'docx',
+            default => 'pdf',
+        };
+
+        return "{$report->id}-{$report->report_type}-report.{$ext}";
+    }
+
+    /**
+     * Human-readable recap of what a generated report was actually filtered
+     * by, so the Generated Reports history lists the filters that produced
+     * each file instead of just its file name/type — a prefect scanning the
+     * list can tell two rows apart (and avoid re-generating the same thing)
+     * without opening either file.
+     */
+    private function summarizeReportFilters(array $filters, string $reportType): string {
+        $parts = [];
+
+        if (!empty($filters['school_year'])) {
+            $parts[] = "SY {$filters['school_year']}";
+        } elseif (!empty($filters['date_from']) && !empty($filters['date_to'])) {
+            $parts[] = Carbon::parse($filters['date_from'])->format('M j, Y') . ' – ' . Carbon::parse($filters['date_to'])->format('M j, Y');
+        }
+
+        if ($reportType === 'analytics') {
+            return $parts ? implode(' • ', $parts) : 'All Time';
+        }
+
+        if (filter_var($filters['individual'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+            $student = User::with('profile')->find($filters['student_id'] ?? null);
+            $name = $student ? trim(($student->profile->first_name ?? '') . ' ' . ($student->profile->last_name ?? '')) : null;
+            $parts[] = 'Student: ' . ($name ?: 'Unknown');
+        } elseif (!empty($filters['program']) && $filters['program'] !== 'all') {
+            $parts[] = 'Program: ' . (Program::find($filters['program'])->name ?? 'Unknown');
+        } else {
+            $parts[] = 'All Programs';
+        }
+
+        if (in_array($reportType, ['incident', 'violation']) && !empty($filters['report_type']) && $filters['report_type'] !== 'all') {
+            $label = Violation::find($filters['report_type'])?->violation_name;
+            if ($label) {
+                $parts[] = $label;
+            }
+        }
+
+        return $parts ? implode(' • ', $parts) : 'All Records';
     }
 
     public function destroyReport($id) {
         $report = Report::where('user_id', auth()->id())->findOrFail($id);
 
-        $path = storage_path('app/private/generated-reports/' . auth()->id() . '/' . $report->file_name);
+        $path = storage_path('app/private/generated-reports/' . $this->reportRoleDir() . '/' . auth()->id() . '/' . $this->reportFileName($report));
         if (file_exists($path)) {
             unlink($path);
         }
@@ -383,9 +635,10 @@ class ReportController extends Controller
      * requester. Files live under a per-user folder, so this doubles as the
      * authorization check.
      */
-    public function downloadReport($fileName) {
-        $fileName = basename($fileName);
-        $path = storage_path('app/private/generated-reports/' . auth()->id() . "/$fileName");
+    public function downloadReport($id) {
+        $report = Report::where('user_id', auth()->id())->findOrFail($id);
+        $fileName = $this->reportFileName($report);
+        $path = storage_path('app/private/generated-reports/' . $this->reportRoleDir() . '/' . auth()->id() . "/$fileName");
 
         if (!file_exists($path)) {
             abort(404);
@@ -403,9 +656,10 @@ class ReportController extends Controller
      * Inline preview (no Content-Disposition: attachment) — PDFs only, the
      * frontend doesn't offer this for Excel since browsers can't render it.
      */
-    public function viewReport($fileName) {
-        $fileName = basename($fileName);
-        $path = storage_path('app/private/generated-reports/' . auth()->id() . "/$fileName");
+    public function viewReport($id) {
+        $report = Report::where('user_id', auth()->id())->findOrFail($id);
+        $fileName = $this->reportFileName($report);
+        $path = storage_path('app/private/generated-reports/' . $this->reportRoleDir() . '/' . auth()->id() . "/$fileName");
 
         if (!file_exists($path)) {
             abort(404);
@@ -415,6 +669,31 @@ class ReportController extends Controller
             'Content-Type' => mime_content_type($path),
         ]);
     }
+    /**
+     * ActionLog::log() stores a field-level before/after diff as JSON
+     * (see ActionLog::detailsParsed()) — this turns that back into a
+     * readable "Summary — Field: old → new" line for the action log
+     * report; a plain-sentence row (login, a brand-new record with no
+     * "previous" version, or any not-yet-converted call site) round-trips
+     * unchanged.
+     */
+    private function formatActionLogDetails(?string $details): string {
+        $decoded = json_decode($details ?? '', true);
+
+        if (!is_array($decoded) || !array_key_exists('summary', $decoded)) {
+            return ucwords($details ?? '');
+        }
+
+        $changes = collect($decoded['changes'] ?? [])
+            ->map(fn ($change, $field) => ucwords(str_replace('_', ' ', $field)) . ": {$change['from']} \u{2192} {$change['to']}")
+            ->values()
+            ->implode('; ');
+
+        $summary = ucwords($decoded['summary']);
+
+        return $changes ? "{$summary} \u{2014} {$changes}" : $summary;
+    }
+
     public function actionLogStore(Request $request) {
         $query = ActionLog::with('user.profile');
 
@@ -452,7 +731,7 @@ class ReportController extends Controller
                     ucwords($name),
                     ucwords($l['user']['role'] ?? ''),
                     ucwords($l['action_type']),
-                    ucwords($l['details']),
+                    $this->formatActionLogDetails($l['details']),
                     Carbon::parse($l['created_at'])->format('F j, Y g:i A')
                 ]
                 :
@@ -462,7 +741,7 @@ class ReportController extends Controller
                     'name' => ucwords($name),
                     'role' => ucwords($l['user']['role'] ?? ''),
                     'action_type' => ucwords($l['action_type']),
-                    'details' => ucwords($l['details']),
+                    'details' => $this->formatActionLogDetails($l['details']),
                     'date_time' => Carbon::parse($l['created_at'])->format('F j, Y g:i A')
                 ];
                 $i++;
@@ -482,14 +761,14 @@ class ReportController extends Controller
                 [
                     $i + 1,
                     ucwords($l['action_type']),
-                    ucwords($l['details']),
+                    $this->formatActionLogDetails($l['details']),
                     Carbon::parse($l['created_at'])->format('F j, Y g:i A')
                 ]
                 :
                 [
                     'i' => $i + 1,
                     'action_type' => ucwords($l['action_type']),
-                    'details' => ucwords($l['details']),
+                    'details' => $this->formatActionLogDetails($l['details']),
                     'date_time' => Carbon::parse($l['created_at'])->format('F j, Y g:i A')
                 ];
                 $i++;

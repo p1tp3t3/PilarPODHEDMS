@@ -7,7 +7,7 @@ use App\Http\Controllers\Modules\Account\AccountController;
 use App\Models\CsvImportRowResult;
 use App\Models\Enrollment;
 use App\Models\Program;
-use App\Models\SchoolYear;
+use App\Models\SchoolYearSemester;
 use App\Models\User;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -56,7 +56,13 @@ class ProcessEnrollmentUpdateCsvRow implements ShouldQueue
         $student = User::where('id_number', $idNumber)->where('role', 'student')->first();
         $fullName = trim(($student->profile->first_name ?? '') . ' ' . ($student->profile->last_name ?? ''));
         $program = Program::whereRaw('LOWER(name) = ?', [strtolower(trim($row['program']))])->first();
-        $schoolYearId = SchoolYear::where('year', $row['school_year'])->value('id');
+
+        $currentSemester = SchoolYearSemester::current();
+
+        if (!$currentSemester) {
+            $this->recordResult('error', $idNumber, $fullName, 'No active school year/semester is configured. Set one in School Year Management before importing.');
+            return;
+        }
 
         DB::beginTransaction();
         try {
@@ -64,10 +70,10 @@ class ProcessEnrollmentUpdateCsvRow implements ShouldQueue
                 [
                     'student_id' => $student->id,
                     'program_id' => $program->id,
-                    'school_year_id' => $schoolYearId,
+                    'school_year_id' => $currentSemester->school_year_id,
                 ],
                 [
-                    'semester' => $row['semester'],
+                    'semester' => $currentSemester->semester,
                     'year_level' => $row['year_level'],
                     'enrolled_at' => $row['enrolled_at'],
                     'status' => 'enrolled',
@@ -81,8 +87,8 @@ class ProcessEnrollmentUpdateCsvRow implements ShouldQueue
                 'name' => $fullName,
                 'program' => $program->name,
                 'year_level' => $row['year_level'],
-                'semester' => $row['semester'],
-                'school_year' => $row['school_year'],
+                'semester' => $currentSemester->semester,
+                'school_year' => $currentSemester->schoolYear?->year,
                 'enrolled_at' => $row['enrolled_at'],
             ]);
         } catch (\Throwable $e) {

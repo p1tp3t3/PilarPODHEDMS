@@ -1,6 +1,6 @@
 import UpModal from "../up-modal";
 import { showWarningModal, showOutputModal, toTitleCase } from "../../../others/function";
-import FormTextfield from "@/Components/input/form-input";
+import RichTextEditor from "@/Components/input/rich-text-editor";
 import FormButton from "../../button/button";
 import CheckBoxButton from "@/Components/input/checkbox";
 import PicVidUpload from "@/Components/input/pic-vid-upload";
@@ -164,13 +164,11 @@ const EditAbsentFormModal = (props) => {
                             )}
                         </div>
 
-                        <FormTextfield
-                            type="textarea"
+                        <RichTextEditor
                             label="State Your Reason"
-                            name="other_reason"
-                            id="edit_other_reason"
-                            change={(e) => setOtherReason(e.target.value)}
+                            change={setOtherReason}
                             val={otherReason}
+                            minHeight="10rem"
                         />
 
                         <div className="grid gap-2">

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import UpModal from "../up-modal"
-import { change, showOutputModal, getProfilePic, configBroadcast } from "@/others/function"
+import { change, showOutputModal, getProfilePic, toTitleCase } from "@/others/function"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
 import BetweenTextfield from "@/Components/input/between-input"
 import FormTextfield from "@/Components/input/form-input"
@@ -11,63 +11,57 @@ import SearchUserBar from "@/Components/input/search-user-bar"
 import SelectedUser from "@/Components/other/selected-user"
 import RadioButton from "@/Components/input/radio"
 
+const DEFAULT_DATA = {
+    type: 'incident',
+    report_type: '',
+    program: '',
+    individual: false,
+    file_type: 'pdf',
+    date_from: '',
+    date_to: '',
+    school_year: '',
+    student_id: '',
+    report_name: ''
+}
+
+// Creates or edits a saved, reusable report filter — this used to generate
+// a file immediately, but generating is now a separate step from the
+// Saved Filters page (see report-filter-list.jsx) so the same filter can
+// be re-run later, edited, or deleted instead of retyped every time.
 const GenerateReportModal = (props) => {
+    const editingFilter = props.editingFilter ?? null
+    const isEditing = !!editingFilter
 
-    const [data, setData] = useState({
-        type: 'incident',
-        report_type: '',
-        program: '',
-        individual: false,
-        file_type: 'pdf',
-        date_from: '',
-        date_to: '',
-        school_year: '',
-        student_id: '',
-        report_name: ''
-    })
-
+    const [data, setData] = useState(DEFAULT_DATA)
     const [filterBy, setFilterBy] = useState('date') // 'date' | 'school_year'
-    const [duplicate, setDuplicate] = useState(null) // { report, download_url } | null
-
     const [individual, setIndividual] = useState(false),
-
           [searchComplainant, setSearchComplainant] = useState(""),
           [searchedComplainant, setSearchedComplainant] = useState(null),
-          [reload, setReload] = useState(false),
-
-          // 'idle' -> 'queued' -> 'ready' | 'failed'
-          [status, setStatus] = useState('idle'),
-          [downloadUrl, setDownloadUrl] = useState(null),
-          [viewUrl, setViewUrl] = useState(null),
-          [errorMessage, setErrorMessage] = useState(null)
+          [reload, setReload] = useState(false)
 
     useEffect(() => {
-        if (!props.close || !props.userId) return
+        if (!props.close) return
 
-        setStatus('idle')
-        setDownloadUrl(null)
-        setViewUrl(null)
-        setErrorMessage(null)
-        setDuplicate(null)
-
-        configBroadcast(
-            'private',
-            `job-status.progress.user.${props.userId}`,
-            'Report generation status',
-            '.ReportGenerated',
-            (e) => {
-                if (e.status === 'ready') {
-                    setStatus('ready')
-                    setDownloadUrl(e.download_url)
-                    setViewUrl(e.view_url)
-                } else if (e.status === 'failed') {
-                    setStatus('failed')
-                    setErrorMessage(e.message || 'Failed to generate report.')
-                }
-                setReload(false)
-            }
-        )
-    }, [props.close, props.userId])
+        if (editingFilter) {
+            const filters = editingFilter.filters ?? {}
+            setData({ ...DEFAULT_DATA, ...filters })
+            setFilterBy(filters.school_year ? 'school_year' : 'date')
+            setIndividual(!!filters.individual)
+            setSearchedComplainant(
+                filters.individual && filters.student_id
+                    ? (props.students ?? []).filter((s) => s.id == filters.student_id)
+                    : null
+            )
+        } else {
+            // Which report type this filter is for comes from whichever
+            // tab "Create Filter" was clicked on — not a choice made here.
+            setData({ ...DEFAULT_DATA, type: props.defaultType || DEFAULT_DATA.type })
+            setFilterBy('date')
+            setIndividual(false)
+            setSearchedComplainant(null)
+        }
+        setSearchComplainant("")
+    }, [props.close, editingFilter, props.defaultType])
 
     const handleSearchComplainant = (e) => {
         const val = e.target.value;
@@ -75,24 +69,6 @@ const GenerateReportModal = (props) => {
     }
     const handleChange = (e) => {
         change(e, setData)
-    }
-    const dispatchGeneration = () => {
-        setReload(true)
-        setDuplicate(null)
-        setStatus('idle')
-        setDownloadUrl(null)
-        setViewUrl(null)
-        setErrorMessage(null)
-
-        ReportArchiveService.generateReport(data, () => {
-            setStatus('queued')
-        }, () => {
-            setReload(false)
-            showOutputModal(
-                'Failed to Queue Report Generation',
-                'e'
-            )
-        })
     }
     const handleSubmit = (e) => {
         e.preventDefault()
@@ -103,18 +79,22 @@ const GenerateReportModal = (props) => {
         }
 
         setReload(true)
-        setDuplicate(null)
 
-        ReportArchiveService.checkDuplicateReport(data, (res) => {
+        const onSuccess = () => {
             setReload(false)
+            props.closeModal(false)
+            props.onSaved?.()
+        }
+        const onError = () => {
+            setReload(false)
+            showOutputModal(`Failed to ${isEditing ? 'update' : 'create'} filter.`, 'e')
+        }
 
-            if (res?.exists) {
-                setDuplicate(res)
-                return
-            }
-
-            dispatchGeneration()
-        })
+        if (isEditing) {
+            ReportArchiveService.updateReportFilter(editingFilter.id, data, onSuccess, onError)
+        } else {
+            ReportArchiveService.createReportFilter(data, onSuccess, onError)
+        }
     }
     const getSearchedComplainant = (s) => {
         const f = props.students.filter((e, i) => e.id == s)
@@ -156,21 +136,24 @@ const GenerateReportModal = (props) => {
             w="w-[30rem]"
         >
             <div className="w-full grid gap-3">
-                <div className="pt-3 text-[1.2em] text-center">
-                    <h1><b>Generate New Report</b></h1>
+                <div className="pt-3 text-[1.2em] text-center grid gap-1">
+                    <h1><b>{isEditing ? 'Edit Report Filter' : 'Create Report Filter'}</b></h1>
+                    {!props.allowTypeChoice &&
+                    <p className="text-[0.6em] text-gray-500">{toTitleCase(data.type)} Report</p>}
                 </div>
                 <div className="py-3 w-full">
                     <form onSubmit={handleSubmit} method="post">
                         <div className="grid gap-5">
                             <div>
                                 <FormTextfield
-                                    label="Report Name (Optional)"
+                                    label="Filter Name (Optional)"
                                     name="report_name"
                                     id="report_name"
                                     val={data.report_name}
                                     change={handleChange}
                                 />
                             </div>
+                            {props.allowTypeChoice &&
                             <div>
                                 <RadioButton
                                     list={[
@@ -185,7 +168,7 @@ const GenerateReportModal = (props) => {
                                     val={data.type}
                                     change={handleChange}
                                 />
-                            </div>
+                            </div>}
                             <div className="grid gap-2">
                                 <CheckBoxButton.CheckBox
                                     label='Individual Student Report'
@@ -195,7 +178,7 @@ const GenerateReportModal = (props) => {
                                     change={(e) => {
                                         setIndividual(e.target.checked)
                                         setData((prev) => ({
-                                            ...prev, 
+                                            ...prev,
                                             individual: e.target.checked
                                         }))
                                     }}
@@ -305,75 +288,13 @@ const GenerateReportModal = (props) => {
                                     val={data.file_type}
                                 />
                             </div>
-                            {duplicate &&
-                            <div className="px-3 py-2 rounded bg-amber-50 text-amber-800 text-[0.85em] grid gap-2">
-                                <span>
-                                    A matching report was already generated on{' '}
-                                    {new Date(duplicate.report.created_at).toLocaleString()}.
-                                </span>
-                                <div className="flex gap-2">
-                                    {duplicate.view_url &&
-                                    <a
-                                        href={duplicate.view_url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="px-3 py-1 rounded border border-amber-600 text-amber-700 hover:bg-amber-100"
-                                    >
-                                        View Existing
-                                    </a>}
-                                    <a
-                                        href={duplicate.download_url}
-                                        className="px-3 py-1 rounded bg-amber-600 text-white hover:bg-amber-700"
-                                    >
-                                        Download Existing
-                                    </a>
-                                    <button
-                                        type="button"
-                                        onClick={dispatchGeneration}
-                                        className="px-3 py-1 rounded border border-amber-600 text-amber-700 hover:bg-amber-100"
-                                    >
-                                        Generate New Anyway
-                                    </button>
-                                </div>
-                            </div>}
-                            {status === 'ready' && downloadUrl &&
-                            <div className="px-3 py-2 rounded bg-green-50 text-green-700 text-[0.85em] flex items-center justify-between gap-2">
-                                <span>Your report is ready.</span>
-                                <div className="flex gap-2">
-                                    {viewUrl &&
-                                    <a
-                                        href={viewUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="px-3 py-1 rounded border border-green-600 text-green-700 hover:bg-green-100"
-                                    >
-                                        View
-                                    </a>}
-                                    <a
-                                        href={downloadUrl}
-                                        className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700"
-                                    >
-                                        Download
-                                    </a>
-                                </div>
-                            </div>}
-                            {status === 'failed' &&
-                            <div className="px-3 py-2 rounded bg-red-50 text-red-700 text-[0.85em]">
-                                {errorMessage || 'Failed to generate report.'}
-                            </div>}
-                            {status === 'queued' &&
-                            <div className="px-3 py-2 rounded bg-blue-50 text-blue-700 text-[0.85em]">
-                                Generating your report… this will only take a moment.
-                            </div>}
-                            {!duplicate &&
                             <div className="grid">
                                 <FormButton
                                     type="submit"
-                                    label={status === 'queued' ? 'Generating…' : 'Export File'}
+                                    label={isEditing ? 'Save Changes' : 'Create Filter'}
                                     loading={reload}
-                                    disabled={status === 'queued'}
                                 />
-                            </div>}
+                            </div>
                         </div>
                     </form>
                 </div>

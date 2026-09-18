@@ -1,7 +1,10 @@
 import AuthLayout from "@/Layouts/auth-layout"
-import { useState } from "react"
+import PageLayout from "@/Layouts/page-layout"
+import { useState, useEffect } from "react"
+import DropdownField from "@/Components/input/dropdown"
 import ReferralList from "@/Components/list/referral-list"
 import ViewReferralModal from "@/Components/modal/view/view-referral-modal"
+import ReportReferralModal from "@/Components/modal/submission-form/report-referral-modal"
 import Btn from "@/Components/button/normal-btn"
 import { BroadcastManager } from "@/others/classes/broadcast-manager"
 import TabSwitcher from "@/Components/other/tab-switcher"
@@ -12,6 +15,8 @@ import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
 import { showOutputModal, showWarningModal } from "@/others/function"
 import { ArchiveService } from "@/others/services/archive-service"
+import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
+import { List, Clock, CheckCircle2, Ban, Undo2 } from "lucide-react"
 
 const PrefectReferral = (props) => {
     const MySwal = withReactContent(Swal)
@@ -19,16 +24,32 @@ const PrefectReferral = (props) => {
 
     const [viewReferral, openViewReferral] = useState(false),
           [id, setId] = useState(''),
+          [reportReferral, openReportReferral] = useState(false),
           [referral_req_list, setReferralRequestList] = useState(props.referral_request.data),
           [referral_list, setReferralList] = useState(props.referral.data),
-          [choose, setChoose] = useState((url.has('status') ? url.get('status') : 'req'))
+          [choose, setChoose] = useState((url.has('status') ? url.get('status') : 'req')),
+          [schoolYear, setSchoolYear] = useState(url.get('school-year') || 'all'),
+          [semester, setSemester] = useState(url.get('semester') || 'all'),
+          [rejectReason, openRejectReason] = useState(false),
+          [rejectId, setRejectId] = useState(''),
+          [reasonData, setReasonData] = useState({ reason: '' })
 
     const { loadRegister } = useReload()
 
     const optionTab = [
-        { key: 'req', label: 'Pending Referrals' },
-        { key: 'approve', label: 'Approved  Referrals' },
+        { key: 'all', label: 'All Referrals', icon: List },
+        { key: 'req', label: 'Pending Referrals', icon: Clock },
+        { key: 'approve', label: 'Approved Referrals', icon: CheckCircle2 },
+        { key: 'rejected', label: 'Rejected Referrals', icon: Ban },
+        { key: 'revoked', label: 'Revoked Referrals', icon: Undo2 },
     ]
+
+    // The Report Referral modal reloads via router.reload({ only: ['referral'] })
+    // instead of a full page navigation now, so referral_list (seeded once from
+    // props at mount) needs to stay in sync with that prop on its own.
+    useEffect(() => {
+        setReferralList(props.referral.data)
+    }, [props.referral])
 
     const setViewReferralId = (i) => {
         openViewReferral(true)
@@ -36,10 +57,17 @@ const PrefectReferral = (props) => {
     }
     const handleSelect = (type) => {
         if (choose != type) {
-            const url = window.location.pathname;
-            router.visit(`${url}?status=${type}`)
+            const link = window.location.pathname;
+            router.visit(`${link}?status=${type}&school-year=${schoolYear}&semester=${semester}`)
             setChoose(type)
         }
+    }
+
+    const handleFilterChange = (field, value) => {
+        const link = window.location.pathname
+        const newSchoolYear = field === 'school-year' ? value : schoolYear
+        const newSemester = field === 'semester' ? value : semester
+        router.visit(`${link}?status=${choose}&school-year=${newSchoolYear}&semester=${newSemester}`)
     }
     const setRequestActionEvent = (type, id) => {
         let route = '',
@@ -72,6 +100,12 @@ const PrefectReferral = (props) => {
             return
         }
 
+        if (type === 'cancel') {
+            setRejectId(id)
+            openRejectReason(true)
+            return
+        }
+
         switch(type) {
             case 'confirm':
                 route = `/referral/verify/${id}/confirm`
@@ -84,13 +118,6 @@ const PrefectReferral = (props) => {
                 route = `/referral/verify/${id}/send-guidance`
                 confirmTxt = 'Sending the Referral to the Guidance'
                 confirm = true
-                break
-            case 'cancel':
-                route = `/referral/verify/${id}/cancel`
-                confirmTxt = 'Cancelling the Referral'
-                label = 'Are You Sure You Want To Reject The Referral?'
-                btn = 'Reject Referral'
-                confirm = false
                 break
         }
         showWarningModal(
@@ -144,23 +171,67 @@ const PrefectReferral = (props) => {
     return (
         <>
             <ViewReferralModal
-                close={viewReferral} 
-                closeModal={openViewReferral} 
+                close={viewReferral}
+                closeModal={openViewReferral}
                 pd={['px-10', 'py-7']}
-                isEnableOuterClose={true} 
+                isEnableOuterClose={true}
                 setId={setViewReferralId}
                 referralId={id}
             />
+            <ReportReferralModal
+                close={reportReferral}
+                closeModal={openReportReferral}
+                pd={['px-10', 'py-7']}
+                isEnableOuterClose={true}
+                user={props.user}
+                students={props.students}
+                reload={loadRegister}
+            />
+            <SetReasonModal
+                close={rejectReason}
+                closeModal={openRejectReason}
+                pd={['px-10', 'py-7']}
+                isEnableOuterClose={true}
+                title='Reason to Reject this Referral'
+                data={reasonData}
+                setData={setReasonData}
+                sendData={() => {
+                    loadRegister(true, 'text-wait', 'Rejecting Referral')
+                    ReferralService.reject(rejectId, reasonData.reason, setter, successCancel, errorCancel)
+                }}
+                warning={{ title: 'Are You Sure You Want To Reject This Referral?', btn: 'Reject Referral' }}
+            />
 
-                <div className="w-full py-4">
-                    <div className="w-full grid gap-5 relative">
-                        {/* Header */}
-                        <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-3">
-                            <h1 className="text-[1.3em] sm:text-[1.5em] font-bold">REFERRAL</h1>
-                            <div className="w-full sm:w-auto">
-                                <Btn onclick={() => router.visit('/referral/report')} className="">
-                                    Report Referral
-                                </Btn>
+                <PageLayout
+                    title="REFERRAL"
+                    rightSideComponent={
+                        <div className="w-full sm:w-auto">
+                            <Btn onclick={() => openReportReferral(true)} className="">
+                                Report Referral
+                            </Btn>
+                        </div>
+                    }
+                >
+                        {/* Filters */}
+                        <div className="flex flex-wrap gap-3">
+                            <div className="w-full sm:w-56">
+                                <DropdownField
+                                    default={{ val: 'all', label: 'All School Years' }}
+                                    list={(props.school_years || []).map((y) => ({ val: y, label: y }))}
+                                    val={schoolYear}
+                                    onChange={(e) => handleFilterChange('school-year', e.target.value)}
+                                />
+                            </div>
+                            <div className="w-full sm:w-56">
+                                <DropdownField
+                                    default={{ val: 'all', label: 'All Semesters' }}
+                                    list={[
+                                        { val: 1, label: '1st Semester' },
+                                        { val: 2, label: '2nd Semester' },
+                                    ]}
+                                    val={semester}
+                                    onChange={(e) => handleFilterChange('semester', e.target.value)}
+                                />
                             </div>
                         </div>
 
@@ -170,19 +241,18 @@ const PrefectReferral = (props) => {
                         </div>
 
                         {/* Table/List */}
-                        <div className="flex w-full bg-white rounded-md shadow-black/20 shadow-sm overflow-x-auto">
-                            <div className="w-full">
-                                <ReferralList 
+                        <div className="flex w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
+                            <div className="w-full min-w-0">
+                                <ReferralList
                                     list={referral_list}
-                                    style={true} 
+                                    style={true}
                                     viewReferral={setViewReferralId}
                                     type={props.user.role}
                                     events={setRequestActionEvent}
                                 />
                             </div>
                         </div>
-                    </div>
-                </div>
+                </PageLayout>
         </>
     )
 }

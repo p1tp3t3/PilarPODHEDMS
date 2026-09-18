@@ -1,12 +1,21 @@
 import UserReportLogList from "@/Components/list/user-report-log-list"
 import AuthLayout from "@/Layouts/auth-layout"
+import PageLayout from "@/Layouts/page-layout"
 import DropdownField from "@/Components/input/dropdown"
 import Btn from "@/Components/button/normal-btn"
+import TabSwitcher from "@/Components/other/tab-switcher"
 import { router } from "@inertiajs/react"
 import { useState } from "react"
 import GenerateActionLogReportMoodal from "@/Components/modal/submission-form/generate-action-log-report-modal"
+import AccountStatistics from "./report/account-statistics"
+
+const optionTab = [
+    { key: "statistics", label: "Statistics" },
+    { key: "action-log", label: "Action Log" },
+]
 
 const ITRCReport = (props) => {
+    const [tab, setTab] = useState("statistics")
     const [action_log_list, setActionLogList] = useState(props.action_log_list)
     const actionList = [
         { val: 'login', label: 'Login' },
@@ -43,41 +52,46 @@ const ITRCReport = (props) => {
             isEnableOuterClose={true}
             students={props.students}
         />
-        <div className="w-full py-10 grid gap-10">
-            <div className="flex justify-between items-center">
-                <h1 className="text-[1.3em]">
-                    <b>Action Log Report</b>
-                </h1>
-                <div>
+        <PageLayout title="REPORT">
+            <TabSwitcher tabs={optionTab} value={tab} onChange={setTab} />
+
+            {tab === "statistics" &&
+            <AccountStatistics
+                initial={props.statistics}
+                schoolYears={props.school_years ?? []}
+                userId={props.user?.id}
+            />}
+
+            {tab === "action-log" &&
+            <div className="grid gap-6">
+                <div className="w-full flex flex-wrap justify-between items-center gap-3">
+                    <div className="flex gap-2">
+                        <DropdownField
+                            default={{ val: 'all', label: 'All Action Type' }}
+                            list={actionList}
+                            titleCase={true}
+                            onChange={(e) => handleFilterChange('action_type', e.target.value)}
+                            val={actionType}
+
+                        />
+                        <input
+                            type="date"
+                            value={date}
+                            onChange={(e) => handleFilterChange('date', e.target.value)}
+                            className="cursor-pointer border border-gray-500 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        />
+                    </div>
                     <Btn onclick={() => openGenerateReport(true)}>
                         Generate Report
                     </Btn>
                 </div>
-            </div>
-            <div className="w-full flex justify-between items-center">
-                <div className="flex gap-2">
-                    <DropdownField
-                        default={{ val: 'all', label: 'All Action Type' }}
-                        list={actionList}
-                        titleCase={true}
-                        onChange={(e) => handleFilterChange('action_type', e.target.value)}
-                        val={actionType}
-
-                    />
-                    <input
-                        type="date"
-                        value={date}
-                        onChange={(e) => handleFilterChange('date', e.target.value)}
-                        className="cursor-pointer border border-gray-500 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                <div>
+                    <UserReportLogList
+                        list={action_log_list}
                     />
                 </div>
-            </div>
-            <div>
-                <UserReportLogList
-                    list={action_log_list}
-                />
-            </div>
-        </div>
+            </div>}
+        </PageLayout>
         </>
     )
 }

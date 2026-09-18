@@ -1,9 +1,12 @@
-import NotifDisplayLayout from "@/Layouts/notif-display-layout"
+import AuthLayout from "@/Layouts/auth-layout"
+import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-read"
 import { readableDate, readableTime, parseNotifContent } from "@/others/function"
 import { PhoneCall } from "lucide-react"
 import NotifDetailCard from "@/Components/other/notif-detail-card"
 
 const CallInNotification = (props) => {
+    useMarkNotificationRead()
+
     const content = parseNotifContent(props.notif.content);
 
     return (
@@ -26,6 +29,6 @@ const CallInNotification = (props) => {
     )
 }
 
-CallInNotification.layout = (page) => <NotifDisplayLayout user={page.props.user}>{page}</NotifDisplayLayout>
+CallInNotification.layout = (page) => <AuthLayout user={page.props.user}>{page}</AuthLayout>
 
 export default CallInNotification

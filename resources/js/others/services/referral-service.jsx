@@ -13,6 +13,10 @@ export const ReferralService = {
         const api = new APIRequest(`/referral/verify/${id}/${action}`, "post", {}, setter, success, error);
         api.fetchData();
     },
+    reject(id, reason, setter, success, error) {
+        const api = new APIRequest(`/referral/verify/${id}/cancel`, "post", { reason }, setter, success, error);
+        api.fetchData();
+    },
     revoke(id, setter, success, error) {
         const api = new APIRequest(`/referral/${id}/revoke`, "post", {}, setter, success, error);
         api.fetchData();

@@ -10,7 +10,7 @@ class Appointment extends Model
     use HasFactory;
 
     public $table = 'appointment',
-           $fillable = ['user_id', 'date_time_appoint', 'appointment_status', 'rejected_reason', 'confirmed_at', 'description', 'archived_at'],
+           $fillable = ['user_id', 'date_time_appoint', 'appointment_status', 'rejected_reason', 'confirmed_at', 'description', 'archived_at', 'school_year_semester_id'],
            $timestamps = false;
 
     protected $casts = [
@@ -19,5 +19,9 @@ class Appointment extends Model
 
     public function user() {
         return $this->belongsTo(User::class, 'user_id', 'id');
+    }
+
+    public function schoolYearSemester() {
+        return $this->belongsTo(SchoolYearSemester::class);
     }
 }

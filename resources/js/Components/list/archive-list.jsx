@@ -1,7 +1,7 @@
 import { useMemo } from "react";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid } from "@/Components/other/data-grid";
 import Box from "@mui/material/Box";
-import { getProfilePic, readableDate, readableTime, showUserType, toTitleCase } from "@/others/function";
+import { getProfilePic, readableDate, readableTime, showUserType, toTitleCase, formatSchoolYearSemester } from "@/others/function";
 import ActionBtn from "../button/action-btn";
 import ProfilePic from "../other/profile-pic";
 
@@ -19,6 +19,7 @@ const referenceNumberFor = (data) => {
   if (data.type === "complaint") return data.complaint_number;
   if (data.type === "referral") return data.referral_number;
   if (data.type === "absent form") return data.form_number;
+  if (data.type === "gate pass") return data.gatepass_number;
   return data.id;
 };
 
@@ -39,6 +40,16 @@ const statusValueFor = (data) => {
   if (data.type === "complaint") return data.complaint_status;
   if (data.type === "referral") return data.referral_status;
   return null;
+};
+
+// Whichever status a record last transitioned into is the semester tag we
+// want to show — falls back to the filing-time tag for still-pending rows.
+const semesterValueFor = (data) => {
+  if (data.revoked_at && data.revoked_school_year_semester) return data.revoked_school_year_semester;
+  if (data.rejected_at && data.rejected_school_year_semester) return data.rejected_school_year_semester;
+  if (data.type === "complaint" && data.complaint_status === "resolved" && data.resolved_school_year_semester) return data.resolved_school_year_semester;
+  if (data.confirmed_at && data.confirmed_school_year_semester) return data.confirmed_school_year_semester;
+  return data.school_year_semester;
 };
 
 const downloadDocument = (type, id, data) => {
@@ -101,6 +112,9 @@ const ArchiveList = ({ list = [], viewDocument, deleteDocument, recoverDocument 
                 {person && (
                   <span className="text-[0.75em] text-gray-500 truncate">{showUserType(person, true)}</span>
                 )}
+                {formatSchoolYearSemester(semesterValueFor(row.data)) && (
+                  <span className="text-[0.75em] text-gray-500 truncate">{formatSchoolYearSemester(semesterValueFor(row.data))}</span>
+                )}
               </div>
             </div>
           );
@@ -125,7 +139,7 @@ const ArchiveList = ({ list = [], viewDocument, deleteDocument, recoverDocument 
         headerAlign: "start",
         renderCell: ({ row }) => {
           const data = row.data;
-          const t = data.type === "complaint" ? "c" : data.type === "referral" ? "r" : data.type === "absent form" ? "a" : null;
+          const t = data.type === "complaint" ? "c" : data.type === "referral" ? "r" : data.type === "absent form" ? "a" : data.type === "gate pass" ? "g" : null;
           const canDelete = data.archived_at ? new Date() >= new Date(data.archived_at) : false;
 
           return (
@@ -166,25 +180,16 @@ const ArchiveList = ({ list = [], viewDocument, deleteDocument, recoverDocument 
     [viewDocument, recoverDocument, deleteDocument]
   );
 
-  if (rows.length === 0) {
-    return (
-      <div className="flex justify-center items-center py-10 text-gray-600 bg-white rounded-md">
-        <p className="text-sm sm:text-base">No Documents Yet</p>
-      </div>
-    );
-  }
-
   return (
-    <Box sx={{ width: "100%", backgroundColor: "#fff", borderRadius: 2, boxShadow: 1, p: 2, overflowX: "auto" }}>
-      <Box sx={{ minWidth: "1140px" }}>
-        <DataGrid
-          rows={rows}
-          columns={columns}
-          hideFooter
-          disableRowSelectionOnClick
-          getRowHeight={() => "auto"}
-        />
-      </Box>
+    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", backgroundColor: "#fff", borderRadius: 2, boxShadow: 1, p: 2 }}>
+      <DataGrid
+        rows={rows}
+        columns={columns}
+        hideFooter
+        disableRowSelectionOnClick
+        getRowHeight={() => "auto"}
+        localeText={{ noRowsLabel: "No Documents Yet" }}
+      />
     </Box>
   );
 };

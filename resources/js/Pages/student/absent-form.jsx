@@ -6,7 +6,7 @@ import { useReload } from "@/context-provider/reload-provider"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import { readableDate, readableTime, showWarningModal, toTitleCase } from "@/others/function"
 import { AbsentFormService } from "@/others/services/absent-form-service"
-import { FileText, Clock, CheckCircle2, XCircle, Ban } from "lucide-react"
+import { FileText, Clock, CheckCircle2, XCircle, Ban, FolderOpen } from "lucide-react"
 import { router } from "@inertiajs/react"
 
 // revoked_at is deliberately not one of these tab keys — the requester
@@ -141,7 +141,7 @@ const AbsentForm = (props) => {
                         <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3">
                             {shownForms.length === 0 ? (
                                 <div className="py-10 text-center text-gray-500">
-                                    <i className="fa-solid fa-folder-open text-[2.5em] mb-2 opacity-60"></i>
+                                    <FolderOpen size="2.5em" className="mx-auto mb-2 opacity-60" />
                                     <p>No {STATUS_META[tab].label.toLowerCase()} absent form records found.</p>
                                 </div>
                             ) : (

@@ -32,11 +32,43 @@ class Complaint extends Model
         'complaint_status',
         'resolved_at',
         'archived_at',
+        'school_year_semester_id',
+        'confirmed_school_year_semester_id',
+        'resolved_school_year_semester_id',
+        'rejected_school_year_semester_id',
+        'revoked_school_year_semester_id',
     ];
     protected $dates = ['created_at', 'confirmed_at'];
 
+    // Eager-loaded on every fetch so the school year/semester tags show up
+    // everywhere a complaint is listed or viewed, without every controller
+    // query needing to remember to load them individually.
+    protected $with = [
+        'schoolYearSemester.schoolYear',
+        'confirmedSchoolYearSemester.schoolYear',
+        'resolvedSchoolYearSemester.schoolYear',
+        'rejectedSchoolYearSemester.schoolYear',
+        'revokedSchoolYearSemester.schoolYear',
+    ];
+
     public function user() {
         return $this->belongsTo(User::class, 'complainant_id', 'id');
+    }
+
+    public function schoolYearSemester() {
+        return $this->belongsTo(SchoolYearSemester::class);
+    }
+    public function confirmedSchoolYearSemester() {
+        return $this->belongsTo(SchoolYearSemester::class, 'confirmed_school_year_semester_id');
+    }
+    public function resolvedSchoolYearSemester() {
+        return $this->belongsTo(SchoolYearSemester::class, 'resolved_school_year_semester_id');
+    }
+    public function rejectedSchoolYearSemester() {
+        return $this->belongsTo(SchoolYearSemester::class, 'rejected_school_year_semester_id');
+    }
+    public function revokedSchoolYearSemester() {
+        return $this->belongsTo(SchoolYearSemester::class, 'revoked_school_year_semester_id');
     }
     public function subject() {
         return $this->hasOneThrough(

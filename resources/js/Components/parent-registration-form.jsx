@@ -1,4 +1,5 @@
 import FormTextfield from "./input/form-input";
+import RichTextEditor from "./input/rich-text-editor";
 import { Link } from "@inertiajs/react";
 import FormButton from "./button/button";
 import DropdownField from "./input/dropdown";
@@ -258,15 +259,13 @@ const ParentRegistrationForm = (props) => {
                 />
               </div>
               <div>
-                <FormTextfield
+                <RichTextEditor
                   label="Reason to Register"
-                  name="reason"
-                  id="reason"
-                  type="textarea"
                   val={props.data.reason}
-                  change={props.onchange}
+                  change={(html) => props.onchange({ target: { name: "reason", value: html } })}
                   error={props.validationErr.reason}
-                  errorAsterisk={props.validationErr.reasonAsterisk}
+                  req={true}
+                  minHeight="10rem"
                 />
               </div>
               <div className="w-full grid gap-1">

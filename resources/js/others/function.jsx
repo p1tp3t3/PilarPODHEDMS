@@ -27,6 +27,26 @@ export const parseNotifContent = (raw) => {
 }
 
 
+// GatePass.allow_to is stored as a JSON-encoded array (json_encode() on the
+// backend, e.g. '["go-out","enter"]') but some rows predate that and are a
+// plain comma-separated string instead — handle both, and never throw.
+const ALLOW_TO_LABELS = { 'go-out': 'Go Out', 'enter': 'Enter the Campus' }
+
+export const parseAllowTo = (raw) => {
+    if (Array.isArray(raw)) return raw
+    if (typeof raw !== 'string' || raw === '') return []
+
+    try {
+        const parsed = JSON.parse(raw)
+        return Array.isArray(parsed) ? parsed : [raw]
+    } catch {
+        return raw.includes(',') ? raw.split(',').map((e) => e.trim()) : [raw]
+    }
+}
+
+export const formatAllowTo = (raw) =>
+    parseAllowTo(raw).map((e) => ALLOW_TO_LABELS[e] ?? e).join(', ')
+
 export const showProgressBar = (label, percent) =>  {
     const Toast = Swal.mixin({
         toast: true,
@@ -89,7 +109,7 @@ export const showWarningModal = (
     });
 }
 
-export const showOutputModal = (text = "Success", type = "s", callBack, htmlContent = null) => {
+export const showOutputModal = (text = "Success", type = "s", callBack, htmlContent = null, timer = null) => {
     const modalAtt = {
         's': {
             icon: "success",
@@ -120,7 +140,10 @@ export const showOutputModal = (text = "Success", type = "s", callBack, htmlCont
             html: htmlContent
         },
     }
-    MySwal.fire(modalAtt[type])
+    MySwal.fire({
+                ...modalAtt[type],
+                ...(timer ? { timer, timerProgressBar: true } : {}),
+            })
               .then(() => {
                 if (callBack) callBack();
             });
@@ -212,11 +235,16 @@ export function ordinal(n) {
     const v = n % 100;
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
+export const formatSchoolYearSemester = (sys) =>
+    sys?.school_year?.year && sys?.semester
+        ? `SY ${sys.school_year.year}, ${ordinal(sys.semester)} Sem`
+        : null
 export function canViewEnrollmentHistory(viewer) {
     return ['super_admin', 'sub_admin'].includes(viewer?.role) ||
         viewer?.teaching_staff?.position === 'program_head';
 }
 export function toTitleCase(str) {
+    if (!str || typeof str !== 'string') return ''
     return str
             .replace(/_/g, " ")
             .toLowerCase()
@@ -476,17 +504,17 @@ export const showUserType = (user, showParentRole) => {
             return [programName, yearLevel].filter(Boolean).join(" • ") || "Student"
         }
         case 'parent':
-            return `${(showParentRole) ? `${toTitleCase(user.parent.parent_role)}` : 'Parent'}`
+            return (showParentRole && user.parent?.parent_role) ? toTitleCase(user.parent.parent_role) : 'Parent'
         case 'teaching_staff':
             return (user.teaching_staff?.position === 'program_head')
                 ? `Program Head (${user.teaching_staff?.program?.name ?? ''})`
                 : `Faculty (${user.teaching_staff?.program?.name ?? ''})`
         case 'super_admin':
-            return `System Admin`
+            return `IT Admin`
         case 'non_teaching_staff':
             return user.non_teaching_staff?.position ?? `Staff`
         case 'sub_admin':
-            return `Prefect of Discipline`
+            return `Prefect`
     }
 }
 export const clearField = (setter) => {

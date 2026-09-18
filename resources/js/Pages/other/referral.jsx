@@ -6,6 +6,7 @@ import { Head, router } from "@inertiajs/react"
 import Btn from "@/Components/button/normal-btn"
 import ViewReferralModal from "@/Components/modal/view/view-referral-modal"
 import EditReferralModal from "@/Components/modal/submission-form/edit-referral-modal"
+import ReportReferralModal from "@/Components/modal/submission-form/report-referral-modal"
 import { showWarningModal } from "@/others/function"
 import { ReferralService } from "@/others/services/referral-service"
 
@@ -13,7 +14,8 @@ const Referral = (props) => {
     const [viewReferral, openViewReferral] = useState(false),
           [id, setId] = useState(''),
           [editReferral, openEditReferral] = useState(false),
-          [editData, setEditData] = useState(null)
+          [editData, setEditData] = useState(null),
+          [reportReferral, openReportReferral] = useState(false)
 
     const { loadRegister } = useReload()
 
@@ -69,22 +71,31 @@ const Referral = (props) => {
             student_list={props.students}
             reload={loadRegister}
         />
-        <div className="w-full py-10">
-            <div className="w-full grid gap-10 relative">
+        <ReportReferralModal
+            close={reportReferral}
+            closeModal={openReportReferral}
+            pd={['px-10', 'py-7']}
+            isEnableOuterClose={true}
+            user={props.user}
+            students={props.students}
+            reload={loadRegister}
+        />
+        <div className="w-full py-10 min-w-0">
+            <div className="w-full grid gap-10 relative min-w-0">
                 <div className="flex w-full justify-between items-center">
                     <h1 className="text-[1.3em]"><b>My Referrals</b></h1>
                     {props.user.allow_referral
                     ?
                     <div>
                         <Btn
-                            onclick={() => router.visit('/referral/report')}
+                            onclick={() => openReportReferral(true)}
                         >
                             Report Referral
                         </Btn>
                     </div>
                     : ''}
                 </div>
-                <div className="w-full">
+                <div className="w-full min-w-0">
                     <ReferralList
                         list={props.referral.data}
                         style={true}

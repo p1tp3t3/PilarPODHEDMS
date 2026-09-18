@@ -1,6 +1,6 @@
 import React, { useContext, useMemo, useState, useEffect } from "react";
 import { Box } from "@mui/material";
-import { DataGrid, GridActionsCellItem } from "@mui/x-data-grid";
+import { DataGrid, GridActionsCellItem } from "@/Components/other/data-grid";
 import ProfilePic from "../other/profile-pic";
 import ActionBtn from "../button/action-btn";
 import {
@@ -9,10 +9,10 @@ import {
   readableTime,
   showUserType,
   toTitleCase,
+  formatSchoolYearSemester,
 } from "../../others/function";
 import AuthContext from "@/context-provider/auth-provider";
 import ListSkeleton from "../reload/list-skeleton";
-import { Folder } from "lucide-react";
 
 const STATUS_STYLES = {
   pending: "bg-yellow-100 text-yellow-700",
@@ -32,6 +32,7 @@ const statusFor = (e) => {
 
 const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
   const { usr } = useContext(AuthContext);
+  const urlStatus = new URLSearchParams(window.location.search).get("status");
 
   // Flatten data for DataGrid
   const rows = useMemo(() => {
@@ -52,6 +53,10 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
       note: e.note,
       archived_at: e.archived_at,
       status: statusFor(e),
+      school_year_semester: e.school_year_semester,
+      confirmed_school_year_semester: e.confirmed_school_year_semester,
+      rejected_school_year_semester: e.rejected_school_year_semester,
+      revoked_school_year_semester: e.revoked_school_year_semester,
     }));
   }, [list]);
 
@@ -97,9 +102,12 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
         headerName: "Submitted Since",
         width: 180,
         renderCell: (params) => (
-          <span className="text-[0.8em]">
-            {readableDate(params.value)} ({readableTime(params.value)})
-          </span>
+          <div className="text-[0.8em] leading-tight py-2">
+            <div>{readableDate(params.value)} ({readableTime(params.value)})</div>
+            {formatSchoolYearSemester(params.row.school_year_semester) && (
+              <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.school_year_semester)}</div>
+            )}
+          </div>
         ),
       },
     ];
@@ -110,9 +118,44 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
         headerName: "Noted Since",
         width: 180,
         renderCell: (params) => (
-          <span className="text-[0.8em]">
-            {params.value ? `${readableDate(params.value)} (${readableTime(params.value)})` : "N/A"}
-          </span>
+          <div className="text-[0.8em] leading-tight py-2">
+            <div>{params.value ? `${readableDate(params.value)} (${readableTime(params.value)})` : "N/A"}</div>
+            {formatSchoolYearSemester(params.row.confirmed_school_year_semester) && (
+              <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.confirmed_school_year_semester)}</div>
+            )}
+          </div>
+        ),
+      });
+    }
+
+    if (urlStatus === "rejected") {
+      cols.push({
+        field: "rejected_at",
+        headerName: "Rejected Since",
+        width: 180,
+        renderCell: (params) => (
+          <div className="text-[0.8em] leading-tight py-2">
+            <div>{params.value ? `${readableDate(params.value)} (${readableTime(params.value)})` : "N/A"}</div>
+            {formatSchoolYearSemester(params.row.rejected_school_year_semester) && (
+              <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.rejected_school_year_semester)}</div>
+            )}
+          </div>
+        ),
+      });
+    }
+
+    if (urlStatus === "revoked") {
+      cols.push({
+        field: "revoked_at",
+        headerName: "Revoked Since",
+        width: 180,
+        renderCell: (params) => (
+          <div className="text-[0.8em] leading-tight py-2">
+            <div>{params.value ? `${readableDate(params.value)} (${readableTime(params.value)})` : "N/A"}</div>
+            {formatSchoolYearSemester(params.row.revoked_school_year_semester) && (
+              <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.revoked_school_year_semester)}</div>
+            )}
+          </div>
         ),
       });
     }
@@ -166,7 +209,7 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
     });
 
     return cols;
-  }, [events, noted, usr]);
+  }, [events, noted, usr, urlStatus]);
 
   if (!list) {
     return (
@@ -176,31 +219,20 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
     );
   }
 
-  if (rows.length === 0) {
-    return (
-      <div className="flex justify-center items-center w-full py-10 text-gray-600 text-center">
-        <div className="text-[4em]">
-          <Folder size="1em" />
-        </div>
-        <div>No Absent Forms Found</div>
-      </div>
-    );
-  }
-
   return (
-    <Box sx={{ width: "100%", height: 550, p: 2, bgcolor: "white", borderRadius: 2, overflowX: "auto" }}>
-      <Box sx={{ minWidth: "900px" }}>
-        <DataGrid
-          rows={rows}
-          columns={columns}
-          pageSizeOptions={[5, 10, 25]}
-          pagination
-          disableRowSelectionOnClick
-          hideFooterSelectedRowCount
-          initialState={{ pagination: { paginationModel: { page: 0, pageSize: 10 } } }}
-          showToolbar
-        />
-      </Box>
+    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", height: 550, p: 2, bgcolor: "white", borderRadius: 2 }}>
+      <DataGrid
+        rows={rows}
+        columns={columns}
+        pageSizeOptions={[5, 10, 25]}
+        pagination
+        disableRowSelectionOnClick
+        hideFooterSelectedRowCount
+        getRowHeight={() => 'auto'}
+        initialState={{ pagination: { paginationModel: { page: 0, pageSize: 10 } } }}
+        localeText={{ noRowsLabel: "No Absent Forms Found" }}
+        showToolbar
+      />
     </Box>
   );
 };

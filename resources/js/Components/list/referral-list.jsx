@@ -1,20 +1,27 @@
-import { DataGrid } from "@mui/x-data-grid"
+import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
 import { useContext, useMemo } from "react"
 import AuthContext from "@/context-provider/auth-provider"
 
-import { getProfilePic, readableDate, readableTime, toTitleCase } from "../../others/function"
+import { getProfilePic, readableDate, readableTime, toTitleCase, formatSchoolYearSemester } from "../../others/function"
 import ProfilePic from "../other/profile-pic"
 import ListSkeleton from "../reload/list-skeleton"
 import ActionBtn from "../button/action-btn"
-import { Folder } from "lucide-react"
+
+const STATUS_STYLES = {
+    pending: "bg-yellow-100 text-yellow-700",
+    approved: "bg-green-100 text-green-700",
+    rejected: "bg-red-100 text-red-700",
+    revoked: "bg-gray-200 text-gray-700",
+}
 
 const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
     const { usr } = useContext(AuthContext)
 
-    const isApprovedView = useMemo(() => {
-        return new URLSearchParams(window.location.search).get("status") === "approve"
+    const urlStatus = useMemo(() => {
+        return new URLSearchParams(window.location.search).get("status")
     }, [])
+    const isApprovedView = urlStatus === "approve"
 
     const rows = useMemo(() => {
         if (!list) return []
@@ -25,6 +32,9 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
             referrer: e.user,          // used when type === 'sub_admin'
             created_at: e.created_at,
             confirmed_at: e.confirmed_at,
+            rejected_at: e.rejected_at,
+            revoked_at: e.revoked_at,
+            status: e.referral_status,
             raw: e,                    // keep entire object if you need later
         }))
     }, [list])
@@ -76,10 +86,28 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
         }
 
         cols.push({
+            field: "status",
+            headerName: "Status",
+            width: 110,
+            renderCell: (params) => (
+                <span className={`px-2 py-0.5 rounded-full text-[0.75em] font-medium ${STATUS_STYLES[params.value] ?? "bg-gray-100 text-gray-700"}`}>
+                    {toTitleCase(params.value ?? "pending")}
+                </span>
+            ),
+        })
+
+        cols.push({
             field: "created_at",
             headerName: "Reported Since",
             width: 180,
-            renderCell: (params) => `${readableDate(params.value)} (${readableTime(params.value)})`,
+            renderCell: (params) => (
+                <div className="leading-tight py-2">
+                    <div>{`${readableDate(params.value)} (${readableTime(params.value)})`}</div>
+                    {formatSchoolYearSemester(params.row.raw?.school_year_semester) && (
+                        <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.raw?.school_year_semester)}</div>
+                    )}
+                </div>
+            ),
         })
 
         if (isApprovedView) {
@@ -87,7 +115,46 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
                 field: "confirmed_at",
                 headerName: "Confirmed Since",
                 width: 180,
-                renderCell: (params) => `${readableDate(params.value)} (${readableTime(params.value)})`,
+                renderCell: (params) => (
+                    <div className="leading-tight py-2">
+                        <div>{`${readableDate(params.value)} (${readableTime(params.value)})`}</div>
+                        {formatSchoolYearSemester(params.row.raw?.confirmed_school_year_semester) && (
+                            <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.raw?.confirmed_school_year_semester)}</div>
+                        )}
+                    </div>
+                ),
+            })
+        }
+
+        if (urlStatus === "rejected") {
+            cols.push({
+                field: "rejected_at",
+                headerName: "Rejected Since",
+                width: 180,
+                renderCell: (params) => (
+                    <div className="leading-tight py-2">
+                        <div>{`${readableDate(params.value)} (${readableTime(params.value)})`}</div>
+                        {formatSchoolYearSemester(params.row.raw?.rejected_school_year_semester) && (
+                            <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.raw?.rejected_school_year_semester)}</div>
+                        )}
+                    </div>
+                ),
+            })
+        }
+
+        if (urlStatus === "revoked") {
+            cols.push({
+                field: "revoked_at",
+                headerName: "Revoked Since",
+                width: 180,
+                renderCell: (params) => (
+                    <div className="leading-tight py-2">
+                        <div>{`${readableDate(params.value)} (${readableTime(params.value)})`}</div>
+                        {formatSchoolYearSemester(params.row.raw?.revoked_school_year_semester) && (
+                            <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.raw?.revoked_school_year_semester)}</div>
+                        )}
+                    </div>
+                ),
             })
         }
 
@@ -99,15 +166,15 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
             headerAlign: 'start',
             sortable: false,
             filterable: false,
-            width: usr?.role === "sub_admin" ? 420 : 260,
+            width: usr?.role === "sub_admin" ? 640 : 300,
             renderCell: (params) => {
                 const row = params.row
-                const canModerate = usr?.role === "sub_admin" && !row.confirmed_at
+                const canModerate = usr?.role === "sub_admin" && !row.confirmed_at && !row.rejected_at && !row.revoked_at
                 const isOwner = row.raw?.teaching_staff_id === usr?.id
                 const isPending = row.raw?.referral_status === "pending" && !row.confirmed_at
 
                 return (
-                    <div className="flex items-center gap-2 text-[0.9em]">
+                    <div className="flex flex-wrap items-center gap-2 text-[0.9em] py-1">
                         <ActionBtn
                             className="bg-blue-700 hover:bg-blue-800"
                             onClick={() => viewReferral(row.id)}
@@ -128,7 +195,14 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
                                     className="bg-orange-500 hover:bg-orange-600"
                                     onClick={() => window.open(`/referral/verify/${row.id}/send-guidance`, "_blank")}
                                 >
-                                    Generate Guidance Document
+                                    Send to Guidance
+                                </ActionBtn>
+
+                                <ActionBtn
+                                    className="bg-purple-500 hover:bg-purple-600"
+                                    onClick={() => window.open(`/referral/verify/${row.id}/send-it-staff`, "_blank")}
+                                >
+                                    Send to IT Staff
                                 </ActionBtn>
 
                                 <ActionBtn
@@ -172,7 +246,7 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
         })
 
         return cols
-    }, [type, isApprovedView, usr?.role, events, viewReferral])
+    }, [type, isApprovedView, urlStatus, usr?.role, events, viewReferral])
 
     // Loading state (same logic as your table)
     if (list === null) {
@@ -180,25 +254,6 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
             <div className={style ? "w-full px-5 py-10 bg-white rounded-md shadow-black/20 shadow-sm" : ""}>
                 <div className="flex justify-center items-center w-full">
                     <ListSkeleton rows={4} />
-                </div>
-            </div>
-        )
-    }
-
-    // Empty state
-    if (list.length === 0) {
-        const colSpan = type !== "prefect" ? 3 : (isApprovedView ? 5 : 4)
-        return (
-            <div className={style ? "w-full px-5 py-10 bg-white rounded-md shadow-black/20 shadow-sm" : ""}>
-                <div className="flex justify-center items-center w-full">
-                    <div className="grid place-items-center text-gray-600">
-                        <div className="text-[4em]">
-                            <Folder size="1em" />
-                        </div>
-                        <div>
-                            <b>No Referrals Found</b>
-                        </div>
-                    </div>
                 </div>
             </div>
         )
@@ -213,26 +268,27 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
             <Box
                 sx={{
                     width: "100%",
+                    minWidth: 0,
+                    overflow: "hidden",
                     backgroundColor: "#fff",
                     borderRadius: 2,
                     boxShadow: style ? 0 : 2,
                     p: style ? 0 : 2,
-                    overflowX: "auto",
                 }}
             >
-                <Box sx={{ minWidth: "1200px" }}>
-                    <DataGrid
-                        rows={rows}
-                        columns={columns}
-                        pageSizeOptions={[5, 10, 20]}
-                        initialState={{
-                            pagination: { paginationModel: { pageSize: 10, page: 0 } },
-                        }}
-                        disableRowSelectionOnClick
-                        pagination
-                        showToolbar
-                    />
-                </Box>
+                <DataGrid
+                    rows={rows}
+                    columns={columns}
+                    pageSizeOptions={[5, 10, 20]}
+                    initialState={{
+                        pagination: { paginationModel: { pageSize: 10, page: 0 } },
+                    }}
+                    disableRowSelectionOnClick
+                    pagination
+                    getRowHeight={() => 'auto'}
+                    localeText={{ noRowsLabel: "No Referrals Found" }}
+                    showToolbar
+                />
             </Box>
         </div>
     )

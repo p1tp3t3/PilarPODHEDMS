@@ -1,5 +1,6 @@
 import UpModal from "../up-modal"
 import FormTextfield from "@/Components/input/form-input"
+import RichTextEditor from "@/Components/input/rich-text-editor"
 import FormButton from "../../button/button"
 import { useState, useEffect } from "react"
 import { change, getProfilePic, showUserType, showOutputModal, showWarningModal, toTitleCase } from "../../../others/function"
@@ -206,14 +207,13 @@ const AppointmentModal = (props) => {
                             :
                             '')}
                             <div className="w-full">
-                                <FormTextfield 
+                                <RichTextEditor
                                     label={`Reason to ${((isResched) ? 'Re-Schedule' : (isCancel) ? 'Cancel' : 'Appoint')}`}
-                                    name="reason" 
-                                    type="textarea"
                                     val={appoint.reason}
-                                    change={handleChange}   
+                                    change={(html) => setAppointment((prev) => ({ ...prev, reason: html }))}
                                     req={true}
-                                    color={{ border: 'border-blue-700', bg: 'bg-gray-200' }} />
+                                    minHeight="10rem"
+                                />
                             </div>
                         </div>
                         <div className="flex justify-end w-full">

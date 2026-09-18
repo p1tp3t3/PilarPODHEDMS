@@ -1,7 +1,7 @@
 import { ViolationService } from "@/others/services/violation-service";
 import { readableDate, readableTime, showWarningModal, toTitleCase } from "@/others/function";
 import ActionBtn from "@/Components/button/action-btn";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid } from "@/Components/other/data-grid";
 import { Box } from "@mui/material";
 
 const ManagePenalty = ({ list, events, reload, setter, canAdd = true, canDelete = true }) => {
@@ -28,7 +28,7 @@ const ManagePenalty = ({ list, events, reload, setter, canAdd = true, canDelete 
 
     return (
         <div className="flex-1 min-w-0 overflow-y-auto">
-            <div className="grid gap-5">
+            <div className="grid gap-5 min-w-0">
                 {canAdd && (
                 <div className="flex justify-end">
                     <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full sm:w-auto" onClick={() => events[0]('penalty', 'add')}>Add Penalty</button>
@@ -40,9 +40,9 @@ const ManagePenalty = ({ list, events, reload, setter, canAdd = true, canDelete 
                     </div>
                 )}
 
-                <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm overflow-x-auto">
-                    <div className="w-full px-5 py-3 min-w-[700px]">
-                        <Box sx={{ width: "100%" }}>
+                <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
+                    <div className="w-full px-5 py-3 min-w-0">
+                        <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                             <DataGrid
                                 rows={list ?? []}
                                 getRowId={(row) => row.id}

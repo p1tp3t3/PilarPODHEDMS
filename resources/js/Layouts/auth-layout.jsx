@@ -37,12 +37,12 @@ const AuthLayout = ({ children, user, program = '' }) => {
                     program={program}
                     addPicRoute={(path.includes('register')) ? '../' : ''}
                 />
-                <div className="w-full">
+                <div className="w-full min-w-0">
                     <AuthHeader
                         user={user}
                         addPicRoute={(path.includes('register')) ? '../' : ''}
                     />
-                    <div className="w-[95%]" style={{margin: '0 auto'}}>
+                    <div className="w-[95%] min-w-0 overflow-x-hidden" style={{margin: '0 auto'}}>
                         {children}
                     </div>
                 </div>

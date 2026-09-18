@@ -1,4 +1,5 @@
 import TabSwitcher from "@/Components/other/tab-switcher";
+import PageLayout from "@/Layouts/page-layout";
 import ProfilePic from "@/Components/other/profile-pic";
 import CircleReload from "@/Components/reload/circle-reload";
 import BehaviourAnalysisSkeleton from "@/Components/reload/behaviour-analysis-skeleton";
@@ -6,7 +7,7 @@ import AuthLayout from "@/Layouts/auth-layout";
 import { RiskPredictionService } from "@/others/services/risk-prediction-service";
 import { getProfilePic, getYearLevel, readableDate, readableTime } from "@/others/function";
 import { Box, Select, MenuItem } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid } from "@/Components/other/data-grid";
 import { useEffect, useMemo, useState } from "react";
 import { ShieldHalf, Clock, FolderOpen, GraduationCap, CalendarRange, AlertTriangle } from "lucide-react";
 
@@ -29,12 +30,7 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
   ]
 
   return (
-        <div className="w-full py-4">
-            <div className="w-full grid gap-5 relative">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-3">
-                    <h1 className="text-[1.3em] sm:text-[1.5em] font-bold text-gray-800">STUDENT VIOLATION</h1>
-                </div>
+        <PageLayout title="STUDENT VIOLATION">
                 <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm p-5">
                     <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
                         <ProfilePic
@@ -76,8 +72,7 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
                         )}
                     </div>
                 </div>
-            </div>
-        </div>
+        </PageLayout>
   );
 }
 
@@ -148,31 +143,29 @@ const RecentViolation = ({ violations }) => {
           {rows.length} record{rows.length === 1 ? "" : "s"}
         </div>
       </div>
-      <Box sx={{ width: "100%", overflowX: "auto" }}>
-        <Box sx={{ minWidth: "700px" }}>
-          <DataGrid
-            rows={rows}
-            columns={columns}
-            pagination
-            pageSizeOptions={[5, 10, 20]}
-            initialState={{
-              pagination: {
-                paginationModel: { pageSize: 5, page: 0 },
-              },
-            }}
-            disableRowSelectionOnClick
-            hideFooterSelectedRowCount
-            showToolbar
-            components={{
-              NoRowsOverlay: () => (
-                <div className="grid place-items-center h-full text-gray-500 py-10">
-                  <FolderOpen size="2.5em" className="mb-2 opacity-60" />
-                  <p>No recent violations found.</p>
-                </div>
-              ),
-            }}
-          />
-        </Box>
+      <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
+        <DataGrid
+          rows={rows}
+          columns={columns}
+          pagination
+          pageSizeOptions={[5, 10, 20]}
+          initialState={{
+            pagination: {
+              paginationModel: { pageSize: 5, page: 0 },
+            },
+          }}
+          disableRowSelectionOnClick
+          hideFooterSelectedRowCount
+          showToolbar
+          components={{
+            NoRowsOverlay: () => (
+              <div className="grid place-items-center h-full text-gray-500 py-10">
+                <FolderOpen size="2.5em" className="mb-2 opacity-60" />
+                <p>No recent violations found.</p>
+              </div>
+            ),
+          }}
+        />
       </Box>
     </div>
   );

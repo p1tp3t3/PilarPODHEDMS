@@ -2,7 +2,7 @@ import { useMemo, useCallback } from "react"
 import FormButton from "../button/button"
 import Btn from "../button/normal-btn"
 import ActionBtn from "../button/action-btn"
-import { DataGrid } from "@mui/x-data-grid"
+import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
 import { ArrowLeft, CheckCircle2, AlertCircle, Trash2, Plus } from "lucide-react"
 
@@ -16,7 +16,6 @@ const DEFAULT_COLUMNS = [
     { field: "email", headerName: "Email", width: 200 },
     { field: "program", headerName: "Program", width: 150 },
     { field: "year_level", headerName: "Year Level", width: 110 },
-    { field: "school_year", headerName: "School Year", width: 130 },
     { field: "enrolled_at", headerName: "Enrolled Since", width: 140 },
 ]
 
@@ -26,7 +25,7 @@ const isoFromDate = (value) => (value instanceof Date && !isNaN(value) ? value.t
 // Any field with a fixed/known set of valid values becomes a picker
 // (MUI DataGrid's date editor or a singleSelect dropdown) instead of free
 // text — fields not listed here (name, email, etc.) stay plain text edits.
-const withFieldEditor = (column, { schoolYearOptions, programOptions }) => {
+const withFieldEditor = (column, { programOptions }) => {
     switch (column.field) {
         case "enrolled_at":
             return {
@@ -37,10 +36,6 @@ const withFieldEditor = (column, { schoolYearOptions, programOptions }) => {
             }
         case "year_level":
             return { ...column, type: "singleSelect", valueOptions: [1, 2, 3, 4] }
-        case "semester":
-            return { ...column, type: "singleSelect", valueOptions: [1, 2] }
-        case "school_year":
-            return schoolYearOptions?.length ? { ...column, type: "singleSelect", valueOptions: schoolYearOptions } : column
         case "program":
             return programOptions?.length ? { ...column, type: "singleSelect", valueOptions: programOptions } : column
         default:
@@ -55,7 +50,6 @@ const CsvStudentPreviewPage = ({
     finalizeSuffix = "Account(s)",
     columns: columnsOverride,
     programOptions,
-    schoolYearOptions,
 }) => {
     const validCount = rows?.filter((r) => r.valid).length ?? 0
     const invalidCount = (rows?.length ?? 0) - validCount
@@ -77,8 +71,8 @@ const CsvStudentPreviewPage = ({
     }, [rows])
 
     const editableColumns = useMemo(
-        () => (columnsOverride ?? DEFAULT_COLUMNS).map((c) => withFieldEditor({ ...c, editable: true }, { schoolYearOptions, programOptions })),
-        [columnsOverride, schoolYearOptions, programOptions]
+        () => (columnsOverride ?? DEFAULT_COLUMNS).map((c) => withFieldEditor({ ...c, editable: true }, { programOptions })),
+        [columnsOverride, programOptions]
     )
 
     // A cell edit fixes bad data right in the review grid instead of forcing
@@ -196,7 +190,7 @@ const CsvStudentPreviewPage = ({
                     </ActionBtn>
                 </div>
 
-                <Box sx={{ width: "100%", height: "65vh" }}>
+                <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", height: "65vh" }}>
                     <DataGrid
                         rows={gridRows}
                         columns={columns}

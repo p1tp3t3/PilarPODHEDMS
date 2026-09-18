@@ -1,31 +1,32 @@
 import { getProfilePic, readableDate, readableTime, showUserType, toTitleCase } from "@/others/function";
 import ProfilePic from "../other/profile-pic";
-import ListSkeleton from "../reload/list-skeleton";
-import { AlertCircle } from "lucide-react";
+import { Card, CardContent, Chip, Typography, Skeleton, Stack } from "@mui/material";
+import { AlertCircle, LogIn, LogOut, CalendarClock } from "lucide-react";
 
 const GatePassApprovedList = ({ list = null }) => {
     return (
-        <div className="w-full px-5 py-4 bg-white border border-gray-200">
-
-            <div className="w-full grid gap-4">
+        <div className="w-full px-4 sm:px-5 py-4 bg-white">
+            <div className="w-full grid gap-3">
                 {list !== null ? (
                     list.length !== 0 ? (
                         list.map((e, i) => <Row key={i} data={e} />)
                     ) : (
-                        <div className="text-gray-500 w-full grid place-items-center py-10">
-                            <div className="grid place-items-center text-center">
-                                <div className="text-5xl mb-2">
-                                    <AlertCircle size="1em" className="text-gray-400" />
+                        <div className="text-gray-500 w-full grid place-items-center py-14">
+                            <div className="grid place-items-center text-center gap-1">
+                                <div className="w-14 h-14 rounded-full bg-gray-100 grid place-items-center mb-1">
+                                    <AlertCircle size={26} className="text-gray-400" />
                                 </div>
-                                <div className="font-semibold">No Approved Users Yet</div>
-                                <div className="text-sm">Gate pass approvals will appear here.</div>
+                                <div className="font-semibold text-gray-700">No Approved Users Yet</div>
+                                <div className="text-sm text-gray-500">Gate pass approvals will appear here.</div>
                             </div>
                         </div>
                     )
                 ) : (
-                    <div className="w-full grid place-items-center py-10">
-                        <ListSkeleton rows={4} />
-                    </div>
+                    <Stack spacing={1.5}>
+                        {[...Array(4)].map((_, i) => (
+                            <Skeleton key={i} variant="rounded" height={92} animation="wave" />
+                        ))}
+                    </Stack>
                 )}
             </div>
         </div>
@@ -33,56 +34,63 @@ const GatePassApprovedList = ({ list = null }) => {
 };
 
 const Row = ({ data }) => {
-    
     const gp = data.gatepass[0];
-    const isAllowTo = JSON.parse(gp.allow_to).length != 2 
-                      ? toTitleCase(JSON.parse(gp.allow_to)[0].replace('-', ' '))
-                      : toTitleCase(JSON.parse(gp.allow_to)[0].replace('-', ' ') + ' and ' + toTitleCase(JSON.parse(gp.allow_to)[1].replace('-', ' ')));
+    const allowTo = JSON.parse(gp.allow_to);
+    const isExpired = new Date(gp.date_expiration) <= new Date();
 
     return (
-        <div className="w-full border-b border-gray-200 py-4">
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+        <Card variant="outlined" sx={{ borderRadius: "0.75rem", borderColor: "rgb(229 231 235)" }}>
+            <CardContent>
+                <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+                    {/* LEFT: Profile + Info */}
+                    <div className="flex gap-4 items-center min-w-0">
+                        <ProfilePic
+                            src={getProfilePic(data.profile?.profile_picture, data.profile?.sex)}
+                            size={3}
+                        />
 
-                {/* LEFT: Profile + Info */}
-                <div className="flex gap-4 items-center">
-                    <ProfilePic
-                        src={getProfilePic(data.profile?.profile_picture, data.profile?.sex)}
-                        size={3}
-                    />
+                        <div className="leading-snug min-w-0">
+                            <Typography variant="subtitle1" fontWeight={700} noWrap>
+                                {data.profile?.first_name} {data.profile?.last_name}
+                            </Typography>
+                            <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mt: 0.25 }}>
+                                <Chip size="small" color="primary" variant="outlined" label={showUserType(data)} />
+                                <Chip
+                                    size="small"
+                                    color={isExpired ? "default" : "success"}
+                                    label={isExpired ? "Expired" : "Active"}
+                                />
+                            </Stack>
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                                Gate Pass No. {gp.gatepass_number}
+                            </Typography>
+                        </div>
+                    </div>
 
-                    <div className="leading-snug">
-                        <div className="text-base font-bold text-gray-800 tracking-wide">
-                            {data.profile?.first_name} {data.profile?.last_name}
-                        </div>
-                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full mt-1 inline-block font-medium">
-                            {showUserType(data)}
-                        </span>
-                        <div className="text-xs text-gray-500 mt-1">
-                            Gate Pass No. {gp.gatepass_number}
-                        </div>
+                    {/* RIGHT: Gate Pass Info */}
+                    <div className="flex md:flex-col gap-3 md:gap-1 md:items-end flex-wrap md:text-right pl-[3.75rem] md:pl-0">
+                        <Stack direction="row" spacing={0.5} alignItems="center" color="success.main">
+                            <LogIn size={14} />
+                            <Typography variant="caption" fontWeight={600}>
+                                Approved {readableDate(gp.confirmed_at)} • {readableTime(gp.confirmed_at)}
+                            </Typography>
+                        </Stack>
+                        <Stack direction="row" spacing={0.5} alignItems="center" color="info.main">
+                            <LogOut size={14} />
+                            <Typography variant="caption" fontWeight={600}>
+                                Allowed to {allowTo.map((a) => toTitleCase(a.replace('-', ' '))).join(' and ')} the Campus
+                            </Typography>
+                        </Stack>
+                        <Stack direction="row" spacing={0.5} alignItems="center" color={isExpired ? "text.disabled" : "error.main"}>
+                            <CalendarClock size={14} />
+                            <Typography variant="caption" fontWeight={600}>
+                                Expires {readableDate(gp.date_expiration)} {readableTime(gp.date_expiration)}
+                            </Typography>
+                        </Stack>
                     </div>
                 </div>
-
-                {/* RIGHT: Gate Pass Info */}
-                <div className="text-right space-y-1">
-                    <div className="text-xs font-semibold text-gray-700">
-                        Approved Since:{" "}
-                        <span className="text-green-700">
-                            {readableDate(gp.confirmed_at)} • {readableTime(gp.confirmed_at)}
-                        </span>
-                    </div>
-
-                    <div className="text-xs font-semibold text-gray-700">
-                        Allowed To:{" "}
-                        <span className="text-indigo-700">{isAllowTo + ' The Campus'}</span>
-                    </div>
-
-                    <div className="text-xs font-bold text-red-600">
-                        Expires At: {readableDate(gp.date_expiration)} {readableTime(gp.date_expiration)}
-                    </div>
-                </div>
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     );
 };
 

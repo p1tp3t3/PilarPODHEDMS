@@ -1,16 +1,19 @@
 import AuthLayout from "@/Layouts/auth-layout"
+import PageLayout from "@/Layouts/page-layout"
 import RequestGatePassModal from "@/Components/modal/submission-form/request-gatepass-modal"
+import DropdownField from "@/Components/input/dropdown"
 import { useState } from "react"
 import GatePassRequestList from "@/Components/list/gatepass-request-list"
 import GatePassList from "@/Components/list/gate-pass-list"
 import { useReload } from "@/context-provider/reload-provider"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import { GatePassService } from "@/others/services/gatepass-service"
+import { ArchiveService } from "@/others/services/archive-service"
 import ViewGatePassModal from "@/Components/modal/view/view-gatepass-modal"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
 import { router } from "@inertiajs/react"
 import { showOutputModal, showWarningModal } from "@/others/function"
-import { List, CheckCircle2, XCircle, Ban, Undo2 } from "lucide-react"
+import { Clock, CheckCircle2, XCircle, Ban, Undo2 } from "lucide-react"
 
 const PrefectGatePass = (props) => {
     const url = new URLSearchParams(window.location.search)
@@ -18,6 +21,8 @@ const PrefectGatePass = (props) => {
     const [viewGatePass, openViewGatePass] = useState(false)
     const [lstOption, setLstOption] = useState(url.has("status") ? url.get("status") : "req-current")
     const [gatepassRequestList, setGatePassRequestList] = useState(props.gatepass_request_list)
+    const [schoolYear, setSchoolYear] = useState(url.get("school-year") || "all")
+    const [semester, setSemester] = useState(url.get("semester") || "all")
     const [gatepassList, setGatePassList] = useState([])
     const { loadRegister } = useReload()
     const [id, setGatePassId] = useState("")
@@ -30,7 +35,7 @@ const PrefectGatePass = (props) => {
     })
 
     const optionTab = [
-      { key: "req-current", label: "Pending", icon: List },
+      { key: "req-current", label: "Pending", icon: Clock },
       { key: "confirmed-users", label: "Approved", icon: CheckCircle2 },
       { key: "expired-users", label: "Expired", icon: XCircle },
       { key: "rejected-requests", label: "Rejected", icon: Ban },
@@ -39,9 +44,16 @@ const PrefectGatePass = (props) => {
     const handleOption = (e) => {
         setLstOption(e)
         if (e !== lstOption) {
-            const url = window.location.pathname
-            router.visit(`${url}?status=${e}`)
+            const link = window.location.pathname
+            router.visit(`${link}?status=${e}&school-year=${schoolYear}&semester=${semester}`)
         }
+    }
+
+    const handleFilterChange = (field, value) => {
+        const link = window.location.pathname
+        const newSchoolYear = field === "school-year" ? value : schoolYear
+        const newSemester = field === "semester" ? value : semester
+        router.visit(`${link}?status=${lstOption}&school-year=${newSchoolYear}&semester=${newSemester}`)
     }
 
     const setEvents = (i, type, status) => {
@@ -70,6 +82,28 @@ const PrefectGatePass = (props) => {
                 break
             case "view":
                 console.log("vieww")
+                break
+            case "archive":
+                showWarningModal(
+                    "Are You Sure You Want To Archive This Gate Pass?",
+                    "Archive Gate Pass",
+                    "Cancel",
+                    () => {
+                        loadRegister(true, "text-wait", "Archiving Gate Pass")
+                        ArchiveService.transfer(
+                            "gate pass", i,
+                            () => {
+                                showOutputModal("Gate Pass Archived Successfully", "s", () => {
+                                    loadRegister(false)
+                                    window.location.reload()
+                                })
+                            },
+                            () => {
+                                showOutputModal("Failed to Archive Gate Pass", "e", () => loadRegister(false))
+                            }
+                        )
+                    }
+                )
                 break
         }
 
@@ -175,20 +209,37 @@ const PrefectGatePass = (props) => {
                 warning={{ title: "Are You Sure You Want To Reject This Gate Pass Request?", btn: "Reject Gate Pass Request" }}
             />
 
-                <div className="w-full py-4">
-                    <div className="w-full grid gap-5 relative">
-                        {/* Header */}
-                        <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-3">
-                            <h1 className="text-[1.3em] sm:text-[1.5em] font-bold">GATE PASS</h1>
+                <PageLayout title="GATE PASS">
+                        {/* Filters */}
+                        <div className="flex flex-wrap gap-3">
+                            <div className="w-full sm:w-56">
+                                <DropdownField
+                                    default={{ val: "all", label: "All School Years" }}
+                                    list={(props.school_years || []).map((y) => ({ val: y, label: y }))}
+                                    val={schoolYear}
+                                    onChange={(e) => handleFilterChange("school-year", e.target.value)}
+                                />
+                            </div>
+                            <div className="w-full sm:w-56">
+                                <DropdownField
+                                    default={{ val: "all", label: "All Semesters" }}
+                                    list={[
+                                        { val: 1, label: "1st Semester" },
+                                        { val: 2, label: "2nd Semester" },
+                                    ]}
+                                    val={semester}
+                                    onChange={(e) => handleFilterChange("semester", e.target.value)}
+                                />
+                            </div>
                         </div>
+
                         {/* Tabs */}
                         <div className="w-full overflow-x-auto">
                             <TabSwitcher tabs={optionTab} value={lstOption} onChange={handleOption} />
                         </div>
 
                         {/* Table / List Section */}
-                        <div className="w-full bg-white rounded-md shadow-sm shadow-black/20 overflow-x-auto">
-                            <div className="min-w-[35rem]">
+                        <div className="w-full bg-white rounded-md shadow-sm shadow-black/20 min-w-0">
                                 {url.has("status") ? (
                                     <>
                                     {
@@ -246,10 +297,8 @@ const PrefectGatePass = (props) => {
                                         view={setId}
                                     />
                                 )}
-                            </div>
                         </div>
-                    </div>
-                </div>
+                </PageLayout>
         </>
     )
 }

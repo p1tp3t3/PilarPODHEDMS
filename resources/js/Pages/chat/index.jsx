@@ -1,11 +1,12 @@
 import AuthLayout from "@/Layouts/auth-layout"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useContext } from "react"
 import { Head } from "@inertiajs/react"
 import ProfilePic from "@/Components/other/profile-pic"
-import { getProfilePic, readableDate, readableTime, toTitleCase, showWarningModal } from "@/others/function"
+import { getProfilePic, readableDate, readableTime, toTitleCase, showUserType, showWarningModal, checkActiveStatus, readableActiveDuration } from "@/others/function"
 import { ChatService } from "@/others/services/chat-service"
 import { UserService } from "@/others/services/user-service"
 import { Broadcast } from "@/others/classes/broadcast-cofiguration"
+import AuthContext from "@/context-provider/auth-provider"
 import { Send, MessageCircle, Reply, X, Check, CheckCheck, Trash2, Pencil, History, ArrowLeft, MoreVertical, Search } from "lucide-react"
 import { Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material"
 
@@ -16,6 +17,7 @@ import { Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material"
 const isAdminRole = (role) => role === 'sub_admin' || role === 'super_admin'
 
 const Chat = ({ user, contacts: initialContacts }) => {
+    const { isUserOnline } = useContext(AuthContext)
     const [contacts, setContacts] = useState(initialContacts || [])
     const [activeId, setActiveId] = useState(null)
     const [search, setSearch] = useState("")
@@ -260,6 +262,13 @@ const Chat = ({ user, contacts: initialContacts }) => {
         return isToday ? readableTime(at) : readableDate(at)
     }
 
+    // Presence (Echo channel) is the live signal; last_seen is the fallback
+    // for someone who was active moments ago but has since closed the tab
+    // (matches the same isUserOnline || checkActiveStatus pattern used for
+    // the online dot everywhere else in the app, e.g. staff-list.jsx).
+    const isOnline = (c) => isUserOnline(c.id) || checkActiveStatus(c.last_seen)
+    const statusLabel = (c) => isOnline(c) ? 'Active now' : (c.last_seen ? `Last seen ${readableActiveDuration(c.last_seen)}` : 'Offline')
+
     return (
         <>
             <Head title="Chat" />
@@ -335,7 +344,13 @@ const Chat = ({ user, contacts: initialContacts }) => {
                                     onClick={() => openContact(c.id, c)}
                                     className={`w-full text-left px-4 py-3 flex items-center gap-3 border-b border-gray-100 hover:bg-gray-50 ${activeId === c.id ? 'bg-blue-50' : ''}`}
                                 >
-                                    <ProfilePic src={getProfilePic(c.profile?.profile_picture, c.profile?.sex)} size={2.5} />
+                                    <ProfilePic
+                                        src={getProfilePic(c.profile?.profile_picture, c.profile?.sex)}
+                                        size={2.5}
+                                        showActive={true}
+                                        isActive={isOnline(c)}
+                                        activeSize={0.7}
+                                    />
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center justify-between gap-2">
                                             <div className={`text-[0.85em] truncate ${unread ? 'font-bold text-gray-900' : 'font-semibold'}`}>
@@ -348,7 +363,7 @@ const Chat = ({ user, contacts: initialContacts }) => {
                                             )}
                                         </div>
                                         <div className="flex items-center justify-between gap-2">
-                                            <div className="text-[0.7em] text-gray-500">{toTitleCase(c.role)}</div>
+                                            <div className="text-[0.7em] text-gray-500">{showUserType(c)}</div>
                                             {unread && (
                                                 <span className="shrink-0 bg-red-600 text-white text-[0.65em] font-bold rounded-full w-5 h-5 grid place-items-center">
                                                     {c.unread_count > 9 ? '9+' : c.unread_count}
@@ -378,12 +393,23 @@ const Chat = ({ user, contacts: initialContacts }) => {
                                     >
                                         <ArrowLeft size={18} />
                                     </button>
-                                    <ProfilePic src={getProfilePic(active.profile?.profile_picture, active.profile?.sex)} size={2.2} />
+                                    <ProfilePic
+                                        src={getProfilePic(active.profile?.profile_picture, active.profile?.sex)}
+                                        size={2.2}
+                                        showActive={true}
+                                        isActive={isOnline(active)}
+                                        activeSize={0.6}
+                                    />
                                     <div>
                                         <div className="text-[0.9em] font-semibold">
                                             {`${active.profile?.first_name ?? ''} ${active.profile?.last_name ?? ''}`}
                                         </div>
-                                        <div className="text-[0.7em] text-gray-500">{toTitleCase(active.role)}</div>
+                                        <div className="text-[0.7em] text-gray-500">
+                                            {showUserType(active)} &middot;{' '}
+                                            <span className={isOnline(active) ? 'text-green-600 font-medium' : ''}>
+                                                {statusLabel(active)}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
 

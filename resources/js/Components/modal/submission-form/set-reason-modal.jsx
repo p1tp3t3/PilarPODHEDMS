@@ -1,15 +1,15 @@
 import UpModal from "../up-modal"
-import FormTextfield from "@/Components/input/form-input"
+import RichTextEditor from "@/Components/input/rich-text-editor"
 import FormButton from "../../button/button"
-import { change, showWarningModal } from "../../../others/function"
+import { showWarningModal } from "../../../others/function"
 import { useState } from "react"
 
 const SetReasonModal = (props) => {
-    
+
     const [err, setErr] = useState('')
 
-    const handleChange = e => {
-        change(e, props.setData)
+    const handleChange = (html) => {
+        props.setData(prev => ({ ...prev, reason: html }))
     }
     const handleSubmit = e => {
         e.preventDefault()
@@ -41,16 +41,13 @@ const SetReasonModal = (props) => {
                         <div className="grid gap-2">
                             <div className="grid gap-3">
                                 <div>
-                                    <FormTextfield
-                                        type="textarea"
+                                    <RichTextEditor
                                         label={props.title}
-                                        name='reason'
-                                        id='reason'
                                         val={props.data.reason}
                                         error={err}
-                                        errorAsterisk={err != '' ? true : ''}
-                                        change={handleChange} 
-                                        color={{ border: 'border-blue-700', bg: 'bg-gray-200' }}
+                                        change={handleChange}
+                                        req={true}
+                                        minHeight="10rem"
                                     />
                                 </div>
                             </div>

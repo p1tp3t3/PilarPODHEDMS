@@ -31,11 +31,10 @@ use PhpOffice\PhpWord\TemplateProcessor;
 
 class GenerateReportJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, \App\Traits\GeneratesSequenceCode;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $filters;
     protected $userId;
-    protected $reportNumber;
 
     public function __construct(array $filters, $userId)
     {
@@ -55,10 +54,6 @@ class GenerateReportJob implements ShouldQueue
             // never hash the same way twice and defeat duplicate detection.
             $hash = \App\Models\Report::hashFilters($type, $fileType, $this->filters);
 
-            // Generated up front (not after the file is built) so it can be
-            // printed on the document itself, not just recorded in the DB.
-            $this->reportNumber = $this->generateSequenceCode(\App\Models\Report::class, 'report_number');
-
             $this->filters = \App\Models\Report::resolveSchoolYearDates($this->filters);
 
             $result = $type === 'analytics'
@@ -67,22 +62,21 @@ class GenerateReportJob implements ShouldQueue
 
             $report = \App\Models\Report::create([
                 'user_id' => $this->userId,
-                'report_number' => $this->reportNumber,
                 'report_name' => ($this->filters['report_name'] ?? '') ?: (ucfirst($type) . ' Report'),
                 'report_type' => $type,
                 'file_type' => $fileType,
                 'filters' => $this->filters,
                 'filters_hash' => $hash,
-                'file_name' => $result['fileName'],
             ]);
 
-            $isPdf = str_ends_with($result['fileName'], '.pdf');
+            $fileName = $this->finalizeFileName($report, $result['fileName']);
+            $isPdf = str_ends_with($fileName, '.pdf');
 
             $this->notify([
                 'status' => 'ready',
-                'download_url' => route('prefect.report.download', ['fileName' => $result['fileName']]),
-                'view_url' => $isPdf ? route('prefect.report.view', ['fileName' => $result['fileName']]) : null,
-                'file_name' => $result['fileName'],
+                'download_url' => route('prefect.report.download', ['id' => $report->id]),
+                'view_url' => $isPdf ? route('prefect.report.view', ['id' => $report->id]) : null,
+                'file_name' => $fileName,
                 'report_id' => $report->id,
             ]);
         } catch (\App\Exceptions\EmptyReportException $e) {
@@ -119,7 +113,7 @@ class GenerateReportJob implements ShouldQueue
 
     private function outputDir(): string
     {
-        $dir = storage_path('app/private/generated-reports/' . $this->userId);
+        $dir = storage_path('app/private/generated-reports/sub-admin/' . $this->userId);
 
         if (!File::exists($dir)) {
             File::makeDirectory($dir, 0755, true, true);
@@ -128,13 +122,32 @@ class GenerateReportJob implements ShouldQueue
         return $dir;
     }
 
+    /**
+     * The file is built under a throwaway UUID name before the Report row
+     * exists (buildAnalyticsFile/writeFile don't know its id yet), then
+     * renamed to a deterministic {id}-{type}-report.{ext} once it does —
+     * so download/view/delete can reconstruct the path from the Report row
+     * alone instead of needing a stored file_name column.
+     */
+    private function finalizeFileName($report, string $originalFileName): string
+    {
+        $ext = pathinfo($originalFileName, PATHINFO_EXTENSION);
+        $fileName = "{$report->id}-{$report->report_type}-report.{$ext}";
+        $dir = $this->outputDir();
+
+        if ($originalFileName !== $fileName && file_exists("{$dir}/{$originalFileName}")) {
+            rename("{$dir}/{$originalFileName}", "{$dir}/{$fileName}");
+        }
+
+        return $fileName;
+    }
+
     private function buildAnalyticsFile(): array
     {
         $from = $this->filters['date_from'];
         $to = $this->filters['date_to'];
 
         $data = ReportController::buildAnalyticsData($from, $to, true);
-        $data['report_number'] = $this->reportNumber;
 
         $pdf = Pdf::loadView('pdf.reports.analytic-report', $data);
         $fileName = Str::uuid() . '-analytics-report.pdf';
@@ -551,7 +564,7 @@ class GenerateReportJob implements ShouldQueue
             $fileName = "{$uid}-{$type}-report.xlsx";
             Excel::store(
                 $this->makeExport($type, $collection, $reportName, $individual),
-                "generated-reports/{$this->userId}/{$fileName}",
+                "generated-reports/sub-admin/{$this->userId}/{$fileName}",
                 'local'
             );
 
@@ -577,7 +590,6 @@ class GenerateReportJob implements ShouldQueue
 
         return Pdf::loadView("pdf.reports.$reportFile", array_merge($props, [
             'report_title' => $reportName,
-            'report_number' => $this->reportNumber,
             'from' => $filters['date_from'],
             'to' => $filters['date_to'],
             'school_year' => $filters['school_year'] ?? null,
@@ -636,13 +648,13 @@ class GenerateReportJob implements ShouldQueue
                 })->values()->all();
             }
 
-            return new IncidentReportExport(collect($rows), $reportName, $individual, $studentArray, $type, $this->reportNumber);
+            return new IncidentReportExport(collect($rows), $reportName, $individual, $studentArray, $type);
         }
 
         return match ($type) {
-            'tardy' => new TardyReportExport(collect($rows), $reportName, $individual, $this->reportNumber),
-            'appointment' => new AppointmentReportExport(collect($rows), $reportName, $individual, $this->reportNumber),
-            'gatepass' => new GatePassReportExport(collect($rows), $reportName, $individual, $this->reportNumber),
+            'tardy' => new TardyReportExport(collect($rows), $reportName, $individual),
+            'appointment' => new AppointmentReportExport(collect($rows), $reportName, $individual),
+            'gatepass' => new GatePassReportExport(collect($rows), $reportName, $individual),
         };
     }
 

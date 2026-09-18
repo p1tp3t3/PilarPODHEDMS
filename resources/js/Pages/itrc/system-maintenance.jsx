@@ -1,4 +1,5 @@
 import AuthLayout from "@/Layouts/auth-layout";
+import PageLayout from "@/Layouts/page-layout";
 import { useState, useEffect } from "react";
 import Switch from "@/Components/button/switch-btn";
 import ActionBtn from "@/Components/button/action-btn";
@@ -7,7 +8,7 @@ import { SystemService } from "@/others/services/system-service";
 import { Broadcast } from "@/others/classes/broadcast-cofiguration";
 import { readableDate, readableTime, showOutputModal, showWarningModal } from "@/others/function";
 import TabSwitcher from "@/Components/other/tab-switcher";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid } from "@/Components/other/data-grid";
 import Box from "@mui/material/Box";
 import { Database, Folder, Archive } from "lucide-react";
 
@@ -54,14 +55,7 @@ const SystemMaintenance = (props) => {
 
     return (
         <>
-        <div className="grid gap-8">
-            <div className="pt-6 sm:pt-10 grid w-full gap-3">
-
-                {/* Page Title */}
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
-                    System Maintenance
-                </h1>
-
+        <PageLayout title="System Maintenance">
                 {/* Tabs */}
                 <TabSwitcher
                     tabs={[
@@ -72,7 +66,7 @@ const SystemMaintenance = (props) => {
                     onChange={setActiveTab}
                 />
 
-                <div className="py-6 sm:py-10">
+                <div className="py-6 sm:py-10 min-w-0">
                     {activeTab === "maintenance_mode" && (
                         <div className="grid gap-5">
                             <div className="max-w-[35rem] flex items-center justify-between gap-4 bg-white border border-gray-200 rounded-md px-5 py-4">
@@ -113,8 +107,7 @@ const SystemMaintenance = (props) => {
                         <BackupTab reload={loadRegister} />
                     )}
                 </div>
-            </div>
-        </div>
+        </PageLayout>
         </>
     );
 };
@@ -172,7 +165,7 @@ const BackupTab = ({ reload }) => {
     };
 
     return (
-        <div className="grid gap-5">
+        <div className="grid gap-5 min-w-0">
             {/* Sub Tabs */}
             <div className="flex flex-wrap gap-2">
                 <button
@@ -230,9 +223,8 @@ const BackupTab = ({ reload }) => {
             )}
 
             {tab === "history" && (
-                <div className="bg-white border border-gray-200 rounded-md px-5 py-4">
-                    <Box sx={{ width: "100%", overflowX: "auto" }}>
-                        <Box sx={{ minWidth: "700px", height: 420 }}>
+                <div className="bg-white border border-gray-200 rounded-md px-5 py-4 min-w-0">
+                    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", height: 420 }}>
                             <DataGrid
                                 rows={backups.map((b, i) => ({ id: i, ...b }))}
                                 columns={[
@@ -287,7 +279,6 @@ const BackupTab = ({ reload }) => {
                                 showToolbar
                                 localeText={{ noRowsLabel: "No Backups Yet" }}
                             />
-                        </Box>
                     </Box>
                 </div>
             )}

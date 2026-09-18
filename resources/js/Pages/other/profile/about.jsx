@@ -1,6 +1,6 @@
 import React, { useState, useContext } from "react"
 import ProfileSectionWrapper from "@/wrapper/profile-section-wrapper"
-import { change, check, checkActiveStatus, getProfilePic, getProgramLogo, getYearLevel, readableDate, replaceUnderScoreToSpace, toTitleCase } from "@/others/function"
+import { change, check, checkActiveStatus, getProfilePic, getProgramLogo, getYearLevel, ordinal, readableDate, replaceUnderScoreToSpace, toTitleCase } from "@/others/function"
 import SelectedUser from "@/Components/other/selected-user"
 import FormTextfield from "@/Components/input/form-input"
 import FormButton from "@/Components/button/button"
@@ -16,6 +16,25 @@ const About = (props) => {
     const [editEducationBackground, enableEditEducationBackground] = useState('label'),
           [loading, setLoading] = useState(false),
           [btnLabel, setBtnLabel] = useState('save changes')
+
+    // Teaching and non-teaching staff don't collect date of birth/religion/
+    // citizenship/civil status/place of birth (see edit-profile-modal.jsx
+    // and Validator.validateUpdateProfileForm) — hide them here too rather
+    // than showing "N/A" for fields these roles never ask for.
+    const isStaffRole = ['teaching_staff', 'non_teaching_staff'].includes(props.data.user_type)
+
+    // "TEACHING STAFF (PROGRAM HEAD)" / "TEACHING STAFF (FACULTY)" for
+    // teaching staff, "NON TEACHING STAFF (GUARD)" etc. for non-teaching —
+    // same parenthetical-position treatment for both.
+    const roleSuffix = () => {
+        if (props.data.user_type === 'teaching_staff') {
+            return props.data.unique_att?.position === 'program_head' ? 'Program Head' : 'Faculty'
+        }
+        if (props.data.user_type === 'non_teaching_staff') {
+            return props.data.unique_att?.position ?? null
+        }
+        return null
+    }
 
     const clickEditEducationBackground = () => {
         enableEditEducationBackground((editEducationBackground !== 'label') ? 'label' : 'form')
@@ -120,6 +139,8 @@ const About = (props) => {
                             desc={`${props.data.sex === 'm' ? 'Male' : 'Female'}`}
                         />
 
+                        {!isStaffRole &&
+                        <>
                         <Label
                             title="Date of Birth"
                             desc={(props.data.date_of_birth != null) ? readableDate(props.data.date_of_birth) : 'N/A'}
@@ -129,20 +150,30 @@ const About = (props) => {
                             desc={(props.data.age != null) ? `${props.data.age} years old` : 'N/A'}
                         />
                         </>}
+                        </>}
                         <Label
                             title="User Role"
-                            desc={`${replaceUnderScoreToSpace(props.data.user_type.toUpperCase())}`}
+                            desc={`${replaceUnderScoreToSpace(props.data.user_type.toUpperCase())}${roleSuffix() ? ` (${roleSuffix().toUpperCase()})` : ''}`}
                         />
                         {(props.data.user_type === 'teaching_staff' && props.data.unique_att?.program != null) && (
                             <div className="border-b border-gray-200 py-3 last:border-b-0">
-                                <div className="font-semibold text-gray-700">Program:</div>
-                                <div className="text-gray-900 mt-1 flex items-center gap-2">
-                                    <img
-                                        src={getProgramLogo(props.data.unique_att.program.logo)}
-                                        alt=""
-                                        className="w-6 h-6 rounded-full object-cover"
-                                    />
-                                    <div>{props.data.unique_att.program.description ?? props.data.unique_att.program.name}</div>
+                                <div className="font-semibold text-gray-700">
+                                    {(props.data.unique_att.programs_handled?.length > 1) ? 'Programs Handled:' : 'Program:'}
+                                </div>
+                                <div className="text-gray-900 mt-1 grid gap-2">
+                                    {(props.data.unique_att.programs_handled?.length > 0
+                                        ? props.data.unique_att.programs_handled
+                                        : [props.data.unique_att.program]
+                                    ).map((p) => (
+                                        <div key={p.id} className="flex items-center gap-2">
+                                            <img
+                                                src={getProgramLogo(p.logo)}
+                                                alt=""
+                                                className="w-6 h-6 rounded-full object-cover"
+                                            />
+                                            <div>{p.description ?? p.name}</div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         )}
@@ -152,9 +183,16 @@ const About = (props) => {
                                 title="School Year"
                                 desc={props.data.unique_att.enrollments[props.data.unique_att.enrollments.length - 1].school_year?.year}
                             />
+                            <Label
+                                title="Semester"
+                                desc={(() => {
+                                    const semester = props.data.unique_att.enrollments[props.data.unique_att.enrollments.length - 1].semester
+                                    return semester ? `${ordinal(semester)} Semester` : 'N/A'
+                                })()}
+                            />
                             </>
                         )}
-                        {!['super_admin', 'sub_admin'].includes(props.data.user_type) &&
+                        {!['super_admin', 'sub_admin'].includes(props.data.user_type) && !isStaffRole &&
                         <>
                         <Label
                             title="Religion"

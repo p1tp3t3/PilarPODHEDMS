@@ -1,12 +1,13 @@
 import { useState } from "react"
 import AuthLayout from "@/Layouts/auth-layout"
+import PageLayout from "@/Layouts/page-layout"
 import Btn from "@/Components/button/normal-btn"
 import ActionBtn from "@/Components/button/action-btn"
 import SetSchoolYearModal from "@/Components/modal/submission-form/set-school-year-modal"
 import { useReload } from "@/context-provider/reload-provider"
 import { showWarningModal, readableDate, readableTime } from "@/others/function"
 import { SchoolYearService } from "@/others/services/school-year-service"
-import { DataGrid } from "@mui/x-data-grid"
+import { DataGrid } from "@/Components/other/data-grid"
 import { Box } from "@mui/material"
 import { CalendarRange } from "lucide-react"
 
@@ -73,6 +74,15 @@ const ITRCSchoolYear = (props) => {
         )
     }
 
+    const activateSemester = (semesterRow) => {
+        SchoolYearService.activateSemester(
+            semesterRow.id,
+            setSchoolYearList,
+            () => {},
+            (err) => loadRegister(true, "error", err?.response?.data?.message || "Failed to Activate Semester")
+        )
+    }
+
     const deleteSchoolYear = (row) => {
         showWarningModal(
             `Are You Sure You Want To Delete School Year ${row.year}?`,
@@ -114,6 +124,35 @@ const ITRCSchoolYear = (props) => {
                 <span className={`font-semibold ${row.activate ? "text-green-600" : "text-gray-500"}`}>
                     {row.activate ? "Active" : "Inactive"}
                 </span>
+            ),
+        },
+        {
+            field: "semesters",
+            headerName: "Semester",
+            width: 190,
+            sortable: false,
+            renderCell: ({ row }) => (
+                <div className="flex items-center h-full">
+                    <div className="inline-flex rounded-md border border-gray-300 overflow-hidden">
+                        {(row.semesters ?? []).map((s, i) => (
+                            <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => !s.is_active && activateSemester(s)}
+                                title={s.is_active ? `${s.semester === 1 ? "1st" : "2nd"} Semester is active` : `Switch to ${s.semester === 1 ? "1st" : "2nd"} Semester`}
+                                className={`min-w-[4.5rem] text-center px-3 py-1.5 text-[0.75em] font-semibold transition-colors ${
+                                    i === 1 ? "border-l border-gray-300" : ""
+                                } ${
+                                    s.is_active
+                                        ? "bg-blue-600 text-white"
+                                        : "bg-white text-gray-500 hover:bg-gray-100 cursor-pointer"
+                                }`}
+                            >
+                                {s.semester === 1 ? "1st Sem" : "2nd Sem"}
+                            </button>
+                        ))}
+                    </div>
+                </div>
             ),
         },
         {
@@ -163,15 +202,12 @@ const ITRCSchoolYear = (props) => {
                 reload={loadRegister}
                 setter={setSchoolYearList}
             />
-            <div className="grid gap-8">
-                <div className="pt-10">
-                    <div className="grid w-full gap-3">
-                        <div className="flex justify-between items-center mb-4">
-                            <h1 className="text-2xl font-bold text-gray-800">School Year Management</h1>
-                            <Btn onclick={() => openAddSchoolYear(true)}>Add School Year</Btn>
-                        </div>
-                        <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm overflow-x-auto">
-                            <div className="w-full px-5 py-3 min-w-[800px]">
+            <PageLayout
+                title="School Year Management"
+                rightSideComponent={<Btn onclick={() => openAddSchoolYear(true)}>Add School Year</Btn>}
+            >
+                        <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
+                            <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", px: 2.5, py: 1.5 }}>
                                 <DataGrid
                                     rows={school_year_list}
                                     getRowId={(row) => row.id}
@@ -186,11 +222,9 @@ const ITRCSchoolYear = (props) => {
                                         NoRowsOverlay: CustomNoRowsOverlay,
                                     }}
                                 />
-                            </div>
+                            </Box>
                         </div>
-                    </div>
-                </div>
-            </div>
+            </PageLayout>
         </>
     )
 }

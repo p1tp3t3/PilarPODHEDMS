@@ -1,15 +1,40 @@
-import SelectedUser from "@/Components/other/selected-user"
 import UpModal from "../up-modal"
 import { GatePassService } from "@/others/services/gatepass-service"
 import { useState, useEffect } from "react"
-import { change, disablePrevDate, getProfilePic, readableDate, readableTime, toTitleCase } from "@/others/function"
+import { change, disablePrevDate, readableDate, readableTime, toTitleCase, formatSchoolYearSemester } from "@/others/function"
 import CircleReload from "@/Components/reload/circle-reload"
-import ActionBtn from "@/Components/button/action-btn"
 import FormTextfield from "@/Components/input/form-input"
-import RadioButton from "@/Components/input/radio"
 import FormButton from "@/Components/button/button"
 import CheckBoxButton from "@/Components/input/checkbox"
+import { ModalHeader, Section, Stat, StatGrid, PersonList } from "./view-modal-parts"
+import {
+    CalendarClock,
+    CheckCircle2,
+    XCircle,
+    Ban,
+    Undo2,
+    UserCircle2,
+    MessageSquareText,
+    DoorOpen,
+    FileWarning,
+} from "lucide-react"
 
+const STATUS_STYLES = {
+    pending: 'bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-200',
+    approved: 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-200',
+    expired: 'bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-300',
+    rejected: 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-200',
+    revoked: 'bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-300',
+}
+
+const statusFor = (info) => {
+    if (info.revoked_at) return 'revoked'
+    if (info.rejected_at) return 'rejected'
+    if (info.confirmed_at) {
+        return (info.date_expiration && new Date(info.date_expiration) < new Date()) ? 'expired' : 'approved'
+    }
+    return 'pending'
+}
 
 const ViewGatePassModal = (props) => {
 
@@ -31,7 +56,7 @@ const ViewGatePassModal = (props) => {
             props.setApprove(false)
         }
     }, [props.close])
-    
+
     const getGatePassInfo = () => {
         GatePassService.getGatePassInfo(props.id, setData)
     }
@@ -69,28 +94,28 @@ const ViewGatePassModal = (props) => {
 
 
     return (
-        <UpModal 
-            close={props.close} 
+        <UpModal
+            close={props.close}
             closeModal={props.closeModal}
             isEnableOuterClose={props.isEnableOuterClose}
-            pd={props.pd}
+            pd={['p-0', '']}
             bgColor='bg-white'
             cntr={!props.approved}
-            w='w-[30rem]'>
+            w='w-[36rem] max-w-[90vw]'>
             <div className="w-full">
                 {(data != null)
                 ?
-                <Body 
-                    data={data} 
-                    data2={data2} 
-                    handleSubmit={handleSubmit} 
-                    setData2={setData2} 
-                    approved={props.approved} 
+                <Body
+                    data={data}
+                    data2={data2}
+                    handleSubmit={handleSubmit}
+                    setData2={setData2}
+                    approved={props.approved}
                     validationErr={validationErr}
                 />
                 :
                 reload &&
-                <div className="w-full flex justify-center">
+                <div className="w-full flex justify-center py-16">
                     <CircleReload size={3} />
                 </div>}
             </div>
@@ -100,6 +125,7 @@ const ViewGatePassModal = (props) => {
 
 const Body = ({ data, handleSubmit, approved, setData2, data2, validationErr }) => {
     const info = data[0] == undefined ? data : data[0];
+    const status = statusFor(info)
     const allowToList = Array.isArray(info.allow_to)
         ? info.allow_to
         : typeof info.allow_to === "string"
@@ -129,124 +155,109 @@ const Body = ({ data, handleSubmit, approved, setData2, data2, validationErr }) 
         }));
     };
 
-    const Section = ({ label, children }) => (
-        <div className="bg-gray-50 p-4 rounded-lg border">
-            <p className="text-sm font-semibold text-gray-700 mb-1">{label}</p>
-            <div className="text-gray-800 text-sm">{children}</div>
-        </div>
-    );
-
     return (
-        <div className="grid gap-4">
+        <div>
+            <ModalHeader
+                title={`${toTitleCase(info.user?.profile?.first_name) || 'Student'}'s Gate Pass`}
+                reference={info.gatepass_number}
+                status={status}
+                styles={STATUS_STYLES}
+            />
 
-            {/* Title */}
-            <div className="text-center mb-2">
-                <h1 className="text-xl font-bold text-gray-800">
-                    {toTitleCase(info.user.profile?.first_name)}'s Gate Pass
-                </h1>
-            </div>
+            <div className="p-6 space-y-4">
+                {/* Timeline stats */}
+                <StatGrid>
+                    <Stat icon={CalendarClock} label="Requested Since" value={`${readableDate(info.created_at)} (${readableTime(info.created_at)})`} sub={formatSchoolYearSemester(info.school_year_semester)} />
+                    {info.confirmed_at &&
+                    <Stat icon={CheckCircle2} label="Confirmed Since" value={`${readableDate(info.confirmed_at)} (${readableTime(info.confirmed_at)})`} sub={formatSchoolYearSemester(info.confirmed_school_year_semester)} />}
+                    {info.rejected_at &&
+                    <Stat icon={XCircle} label="Rejected Since" value={`${readableDate(info.rejected_at)} (${readableTime(info.rejected_at)})`} sub={formatSchoolYearSemester(info.rejected_school_year_semester)} />}
+                    {info.revoked_at &&
+                    <Stat icon={Undo2} label="Revoked Since" value={`${readableDate(info.revoked_at)} (${readableTime(info.revoked_at)})`} sub={formatSchoolYearSemester(info.revoked_school_year_semester)} />}
+                    {info.date_expiration &&
+                    <Stat icon={Ban} label="Expiration Date" value={readableDate(info.date_expiration)} />}
+                </StatGrid>
 
-            {/* Reference No. */}
-            <Section label="Reference No.">
-                {info.gatepass_number}
-            </Section>
+                {info.rejected_reason != null &&
+                <Section icon={FileWarning} title="Reason for Rejection" tone="border-red-200">
+                    <div className="text-sm h-28 overflow-y-auto rounded-md bg-red-50/60 p-3 text-red-800">
+                        {info.rejected_reason}
+                    </div>
+                </Section>}
 
-            {/* User Section */}
-            <Section label="User Information">
-                <ProfileSection title="" data={info.user} />
-            </Section>
+                {status === 'revoked' &&
+                <Section icon={Undo2} title="Revoked by Requester" tone="border-gray-200">
+                    <p className="text-sm text-gray-600">
+                        The requester withdrew this gate pass. It is kept on record and remains visible here, but is no longer active.
+                    </p>
+                </Section>}
 
-            {/* Requested */}
-            <Section label="Requested Since">
-                {readableDate(info.created_at)} ({readableTime(info.created_at)})
-            </Section>
-
-            {/* Reason */}
-            <Section label="Reason for Requesting Gate Pass">
-                {info.reason}
-            </Section>
-
-            {/* Confirmed */}
-            {info.confirmed_at && (
-                <Section label="Confirmed Since">
-                    {readableDate(info.confirmed_at)} ({readableTime(info.confirmed_at)})
+                <Section icon={UserCircle2} title="User">
+                    <PersonList data={info.user} emptyLabel="No user on record." />
                 </Section>
-            )}
 
-            {/* Expiration */}
-            {info.date_expiration && (
-                <Section label="Expiration Date">
-                    {readableDate(info.date_expiration)}
+                <Section icon={MessageSquareText} title="Reason for Requesting Gate Pass">
+                    <div className="text-sm h-24 overflow-y-auto rounded-md bg-gray-50 p-3 text-gray-700 leading-relaxed">
+                        {info.reason}
+                    </div>
                 </Section>
-            )}
 
-            {/* Allow To */}
-            {info.allow_to && (
-                <Section label="Allowed To">
+                {allowToLabel.length !== 0 &&
+                <Section icon={DoorOpen} title="Allowed To">
                     <div className="flex flex-wrap gap-2">
                         {allowToLabel.map((e, i) => (
                             <span
                                 key={i}
-                                className="px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-[0.8em] font-medium"
+                                className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-[0.8em] font-medium border border-blue-100"
                             >
                                 {e}
                             </span>
                         ))}
                     </div>
-                </Section>
-            )}
+                </Section>}
 
-            {/* Approve Mode (Inputs) */}
-            {approved && (
-                <form className="grid gap-5" onSubmit={handleSubmit}>
-                    <div className="grid gap-3 bg-gray-50 p-4 rounded-lg border">
+                {/* Approve Mode (Inputs) */}
+                {approved && (
+                    <form className="grid gap-5" onSubmit={handleSubmit}>
+                        <div className="grid gap-3 bg-gray-50 p-4 rounded-lg border border-gray-200">
 
-                        <FormTextfield
-                            label="Expiration Date"
-                            type="datetime-local"
-                            name="expiration_date"
-                            id="expiration_date"
-                            val={data2.expiration_date}
-                            change={(e) => change(e, setData2)}
-                            min={disablePrevDate()}
-                            error={validationErr?.expiration_date}      // <-- ✔ pass error here
-                            errorAsterisk={validationErr?.expiration_dateAsterisk}               // <-- ✔ asterisk
-                        />
+                            <FormTextfield
+                                label="Expiration Date"
+                                type="datetime-local"
+                                name="expiration_date"
+                                id="expiration_date"
+                                val={data2.expiration_date}
+                                change={(e) => change(e, setData2)}
+                                min={disablePrevDate()}
+                                error={validationErr?.expiration_date}      // <-- ✔ pass error here
+                                errorAsterisk={validationErr?.expiration_dateAsterisk}               // <-- ✔ asterisk
+                            />
 
-                        <CheckBoxButton
-                            label={<b>Allow To</b>}
-                            list={[
-                                { val: "go-out", label: "Go Out" },
-                                { val: "enter", label: "Enter the Campus" },
-                            ]}
-                            name="allow_to"
-                            id="allow_to"
-                            val={data2.allow_to}
-                            change={handleAllowToChange}
-                        />
-                        {validationErr?.allow_to && (
-                            <div className="text-[#d12323] text-[0.8em]">
-                                <b>{validationErr.allow_to}*</b>
-                            </div>
-                        )}
-                    </div>
+                            <CheckBoxButton
+                                label={<b>Allow To</b>}
+                                list={[
+                                    { val: "go-out", label: "Go Out" },
+                                    { val: "enter", label: "Enter the Campus" },
+                                ]}
+                                name="allow_to"
+                                id="allow_to"
+                                val={data2.allow_to}
+                                change={handleAllowToChange}
+                            />
+                            {validationErr?.allow_to && (
+                                <div className="text-[#d12323] text-[0.8em]">
+                                    <b>{validationErr.allow_to}*</b>
+                                </div>
+                            )}
+                        </div>
 
-                    <FormButton type="submit" label="Save Changes" />
-                </form>
-            )}
+                        <FormButton type="submit" label="Save Changes" />
+                    </form>
+                )}
+            </div>
         </div>
     );
 };
-const ProfileSection = ({ title, data }) => (
-    <div className="flex items-center gap-3">
-        <SelectedUser
-            src={getProfilePic(data.profile?.profile_picture, data.profile?.sex)}
-            name={[data.profile?.first_name, data.profile?.last_name]}
-            user={data}
-        />
-    </div>
-);
-
 
 ViewGatePassModal.Body = Body
 export default ViewGatePassModal

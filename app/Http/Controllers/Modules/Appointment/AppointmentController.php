@@ -15,6 +15,7 @@ use App\Models\Appointment;
 use App\Models\AppointmentSlot;
 use App\Models\FamilyMember;
 use App\Models\Notifications;
+use App\Models\SchoolYearSemester;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -240,7 +241,8 @@ class AppointmentController extends Controller
                         $lastIndex = Appointment::insertGetId([
                             'user_id' => $notifData->receiver_id,
                             'date_time_appoint' => $dateTimeAppoint,
-                            'description' => $parsed['reason']
+                            'description' => $parsed['reason'],
+                            'school_year_semester_id' => SchoolYearSemester::currentId(),
                         ]);
                         $data['id'] = $lastIndex;
                         $notifMessage = self::notifMessage($data);
@@ -363,7 +365,8 @@ class AppointmentController extends Controller
 
         try {
             // ✅ Safely parse and format date + time
-            $userId = Appointment::find($id)->user_id;
+            $existingAppointment = Appointment::find($id);
+            $userId = $existingAppointment->user_id;
             $dateTimeAppoint = Carbon::parse($request->date_appoint)
                 ->setTimeFromTimeString($request->time_start)
                 ->format('Y-m-d H:i:s');
@@ -389,11 +392,20 @@ class AppointmentController extends Controller
             $type = User::where('id', $request->user_id)->value('role') ?? 'unknown';
 
             // ✅ Log the action
-            ActionLog::create([
-                'user_id' => auth()->user()->id,
-                'action_type' => 'appointment',
-                'details' => "Rescheduled an appointment for the {$type}."
-            ]);
+            $changes = [];
+            if ((string) $existingAppointment->date_time_appoint !== (string) $dateTimeAppoint) {
+                $changes['date_time_appoint'] = ['from' => $existingAppointment->date_time_appoint, 'to' => $dateTimeAppoint];
+            }
+            if ((string) $existingAppointment->reason !== (string) $request->reason) {
+                $changes['reason'] = ['from' => $existingAppointment->reason, 'to' => $request->reason];
+            }
+
+            ActionLog::log(
+                auth()->user()->id,
+                'appointment',
+                "Rescheduled an appointment for the {$type}.",
+                $changes
+            );
 
             // ✅ Commit all DB changes
             DB::commit();
@@ -423,11 +435,12 @@ class AppointmentController extends Controller
         $date = $appointment->first()->date_time_appoint;
 
         $type = User::select('role')->where('id', $appointment->first()->user_id)->first()->role;
-        ActionLog::create([
-            'user_id' =>  auth()->user()->id,
-            'action_type' => 'appointment',
-            'details' => 'cancels an appointment for the ' . $type
-        ]);
+        ActionLog::log(
+            auth()->user()->id,
+            'appointment',
+            'Cancelled an appointment for the ' . $type,
+            ['status' => ['from' => 'pending', 'to' => 'cancelled']]
+        );
         $appointment->delete();
         return self::get($date);
     }

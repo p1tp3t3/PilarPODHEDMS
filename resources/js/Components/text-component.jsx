@@ -1,6 +1,6 @@
 import * as React from 'react';
 import Box from '@mui/material/Box';
-import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
+import { DataGrid, GridActionsCellItem } from '@/Components/other/data-grid';
 import { useMovieData } from '@mui/x-data-grid-generator';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';

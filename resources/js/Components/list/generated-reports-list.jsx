@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from "react"
-import UpModal from "../up-modal"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
 import { readableDate, readableTime, showWarningModal, toTitleCase } from "@/others/function"
-import { DataGrid } from "@mui/x-data-grid"
+import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
 import { Chip } from "@mui/material"
-import ListSkeleton from "../../reload/list-skeleton"
-import { FileText, Trash2, Download, Eye, FolderOpen } from "lucide-react"
+import ListSkeleton from "../reload/list-skeleton"
+import { Trash2, Download, Eye, FolderOpen } from "lucide-react"
 
-const GeneratedReportsModal = ({ close, closeModal, pd, isEnableOuterClose }) => {
+// The "Generated Reports" tab — every file GenerateReportJob has produced
+// for this prefect, with the filters that produced it (see
+// ReportController::summarizeReportFilters) instead of just file info.
+const GeneratedReportsList = () => {
     const [list, setList] = useState(null)
 
     const load = () => {
@@ -16,9 +18,7 @@ const GeneratedReportsModal = ({ close, closeModal, pd, isEnableOuterClose }) =>
         ReportArchiveService.getReportHistory(setList)
     }
 
-    useEffect(() => {
-        if (close) load()
-    }, [close])
+    useEffect(() => load(), [])
 
     const handleDelete = (report) => {
         showWarningModal(
@@ -37,18 +37,20 @@ const GeneratedReportsModal = ({ close, closeModal, pd, isEnableOuterClose }) =>
     }, [list])
 
     const columns = useMemo(() => [
-        { field: "report_name", headerName: "Report Name", flex: 1, minWidth: 200 },
         {
             field: "report_type",
             headerName: "Type",
-            width: 150,
+            width: 140,
             renderCell: (params) => <Chip label={toTitleCase(params.value)} size="small" variant="outlined" />,
         },
         {
-            field: "file_type",
-            headerName: "File",
-            width: 90,
-            renderCell: (params) => params.value?.toUpperCase(),
+            field: "filters_summary",
+            headerName: "Filters Used",
+            flex: 1,
+            minWidth: 220,
+            renderCell: (params) => (
+                <span className="text-[0.85em] whitespace-normal leading-snug py-2 block">{params.value}</span>
+            ),
         },
         {
             field: "created_at",
@@ -101,45 +103,29 @@ const GeneratedReportsModal = ({ close, closeModal, pd, isEnableOuterClose }) =>
     ], [])
 
     return (
-        <UpModal
-            close={close}
-            closeModal={closeModal}
-            pd={pd}
-            isEnableOuterClose={isEnableOuterClose}
-            bgColor="bg-white"
-            w="w-[45rem]"
-        >
-            <div className="w-full grid gap-4">
-                <div className="pt-3 flex items-center gap-2 text-[1.2em]">
-                    <FileText size="1em" />
-                    <h1><b>Generated Reports</b></h1>
-                </div>
+        <div className="w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm grid gap-3">
+            {list === null &&
+            <div className="py-10 flex justify-center"><ListSkeleton rows={4} /></div>}
 
-                {list === null &&
-                <div className="py-10 flex justify-center"><ListSkeleton rows={4} /></div>}
+            {list !== null && list.length === 0 &&
+            <div className="py-10 text-center text-gray-500">
+                <FolderOpen size="2.5em" className="mb-2 mx-auto opacity-60" />
+                <p>No reports generated yet.</p>
+            </div>}
 
-                {list !== null && list.length === 0 &&
-                <div className="py-10 text-center text-gray-500">
-                    <FolderOpen size="2.5em" className="mb-2 mx-auto opacity-60" />
-                    <p>No reports generated yet.</p>
-                </div>}
-
-                {list !== null && list.length > 0 &&
-                <Box sx={{ width: "100%", overflowX: "auto" }}>
-                    <Box sx={{ minWidth: "700px", height: 420 }}>
-                        <DataGrid
-                            rows={rows}
-                            columns={columns}
-                            hideFooter
-                            disableRowSelectionOnClick
-                            getRowHeight={() => "auto"}
-                            showToolbar
-                        />
-                    </Box>
-                </Box>}
-            </div>
-        </UpModal>
+            {list !== null && list.length > 0 &&
+            <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
+                <DataGrid
+                    rows={rows}
+                    columns={columns}
+                    hideFooter
+                    disableRowSelectionOnClick
+                    getRowHeight={() => "auto"}
+                    showToolbar
+                />
+            </Box>}
+        </div>
     )
 }
 
-export default GeneratedReportsModal
+export default GeneratedReportsList

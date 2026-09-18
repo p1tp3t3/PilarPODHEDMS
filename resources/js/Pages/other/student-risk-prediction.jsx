@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { RiskPredictionService } from "@/others/services/risk-prediction-service"
 import { useReload } from "@/context-provider/reload-provider"
 import AuthLayout from "@/Layouts/auth-layout"
+import { AlertCircle } from "lucide-react"
 
 const StudentRiskPrediction = (props) => {
     const [data, setData] = useState(null)
@@ -26,8 +27,8 @@ const StudentRiskPrediction = (props) => {
                     :
                     <div className="text-[1.2em] text-gray-500 w-full grid place-items-center h-full">
                         <div className="grid place-items-center">
-                            <div className="text-[4em]">
-                                <i className="fa-solid fa-circle-exclamation"></i>
+                            <div className="text-[4em] grid place-items-center">
+                                <AlertCircle size="1em" />
                             </div>
                             <h1 className="text-[1.2em]">No Student Found</h1>
                         </div>

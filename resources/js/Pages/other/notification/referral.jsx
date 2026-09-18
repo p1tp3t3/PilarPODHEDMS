@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react"
 import { ReferralService } from "@/others/services/referral-service"
-import NotifDisplayLayout from "@/Layouts/notif-display-layout"
+import AuthLayout from "@/Layouts/auth-layout"
+import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-read"
 import ViewReferralModal from "@/Components/modal/view/view-referral-modal"
 import { Share2 } from "lucide-react"
 import NotifDetailCard, { NotifEmptyState, NotifLoadingState } from "@/Components/other/notif-detail-card"
 
 const ReferralNotification = (props) => {
+    useMarkNotificationRead()
+
     const [data, setData] = useState(null)
 
     useEffect(() => {
@@ -44,6 +47,6 @@ const ReferralNotification = (props) => {
     )
 }
 
-ReferralNotification.layout = (page) => <NotifDisplayLayout user={page.props.user}>{page}</NotifDisplayLayout>
+ReferralNotification.layout = (page) => <AuthLayout user={page.props.user}>{page}</AuthLayout>
 
 export default ReferralNotification

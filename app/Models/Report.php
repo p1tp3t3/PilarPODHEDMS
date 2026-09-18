@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Report extends Model
 {
-    public $fillable = ['user_id', 'report_number', 'report_name', 'report_type', 'file_type', 'filters', 'filters_hash', 'file_name'],
+    public $fillable = ['user_id', 'report_name', 'report_type', 'file_type', 'filters', 'filters_hash'],
            $table = 'report',
            $timestamps = false;
 

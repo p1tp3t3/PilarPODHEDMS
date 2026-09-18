@@ -80,10 +80,10 @@ const ViolationManagement = (props) => {
             setClickOk={setClickOk}
             setter={setPenaltyList}
         />
-        <div className="grid gap-8">
-            <div className="flex-shrink-0 h-full">
-                <div className="pt-6 sm:pt-10">
-                    <div className="grid w-full gap-3">
+        <div className="grid gap-8 min-w-0">
+            <div className="flex-shrink-0 h-full min-w-0">
+                <div className="pt-6 sm:pt-10 min-w-0">
+                    <div className="grid w-full gap-3 min-w-0">
 
                         {/* Page Title */}
                         <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
@@ -103,7 +103,7 @@ const ViolationManagement = (props) => {
                         />
 
                         {/* Content */}
-                        <div className="py-6 sm:py-10">
+                        <div className="py-6 sm:py-10 min-w-0">
                             {activeTab === "violations" && (
                                 <ManageViolation
                                     list={violation_list}

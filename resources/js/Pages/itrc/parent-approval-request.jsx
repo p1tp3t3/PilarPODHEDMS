@@ -3,6 +3,7 @@ import RegisterFamilyModal from "@/Components/modal/submission-form/register-fam
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
 import ViewParentRequestModal from "@/Components/modal/view/view-parent-request-modal"
 import AuthLayout from "@/Layouts/auth-layout"
+import PageLayout from "@/Layouts/page-layout"
 import { FamilyService } from "@/others/services/family-service"
 import { useState } from "react"
 
@@ -100,17 +101,14 @@ const ParentApprovalRequest = (props) => {
             isEnableOuterClose={true}
             id={id}
         />}
-        <div className="w-full py-4 grid gap-4">
-            <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-3">
-                <h1 className="text-[1.3em] sm:text-[1.5em] font-bold">PARENT REQUEST LIST</h1>
-            </div>
+        <PageLayout title="PARENT REQUEST LIST">
             <div>
                 <ParentRequestList
                     list={parent_request_list}
                     event={setEvent}
                 />
             </div>
-        </div>
+        </PageLayout>
         </>
     )
 }

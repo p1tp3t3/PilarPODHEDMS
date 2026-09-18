@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Resource;
 
 use App\Http\Controllers\Controller;
+use App\Models\Position;
 use App\Models\TeachingStaff;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
@@ -173,10 +174,14 @@ class FileController extends Controller
         }
 
         if ($user->role === 'teaching_staff') {
-            $programId = self::programHeadProgramId($user);
+            $programIds = self::programHeadProgramIds($user);
 
-            if ($programId !== null && preg_match('/^(student|faculty-account)-' . $programId . '-/', basename($fileName))) {
-                return;
+            if (!empty($programIds)) {
+                $pattern = '/^(student|faculty-account)-(' . implode('|', array_map('preg_quote', $programIds)) . ')-/';
+
+                if (preg_match($pattern, basename($fileName))) {
+                    return;
+                }
             }
         }
 
@@ -184,14 +189,16 @@ class FileController extends Controller
     }
 
     /**
-     * Returns the caller's program_id if they're a program head, else null.
+     * Every program_id the caller heads (a program head can now be
+     * responsible for 2+ programs, see program_head_program), else an
+     * empty array.
      */
-    private function programHeadProgramId($user) {
+    private function programHeadProgramIds($user) {
         $teachingStaff = TeachingStaff::where('user_id', $user->id)
-            ->where('position', 'program_head')
+            ->where('position_id', Position::idFor('program_head'))
             ->first();
 
-        return $teachingStaff?->program_id;
+        return $teachingStaff?->programsHandled->pluck('id')->all() ?? [];
     }
 
     private function addFolderToZip($folder, $zip, $parentFolder = '') {
@@ -228,25 +235,27 @@ class FileController extends Controller
             abort(403);
         }
 
-        $programId = ($user->role === 'teaching_staff') ? (new self)->programHeadProgramId($user) : null;
+        $programIds = ($user->role === 'teaching_staff') ? (new self)->programHeadProgramIds($user) : null;
 
-        if ($user->role === 'teaching_staff' && $programId === null) {
+        if ($user->role === 'teaching_staff' && empty($programIds)) {
             abort(403);
         }
 
         $files = Storage::disk('local')->files('zips');
-        $csvFiles = array_filter($files, function($file) use ($programId) {
+        $csvFiles = array_filter($files, function($file) use ($programIds) {
             $fileInfo = pathinfo($file, PATHINFO_EXTENSION);
 
             if ($fileInfo !== 'zip' && $fileInfo !== 'csv') {
                 return false;
             }
 
-            if ($programId === null) {
+            if ($programIds === null) {
                 return true;
             }
 
-            return (bool) preg_match('/^(student|faculty-account)-' . $programId . '-/', basename($file));
+            $pattern = '/^(student|faculty-account)-(' . implode('|', array_map('preg_quote', $programIds)) . ')-/';
+
+            return (bool) preg_match($pattern, basename($file));
         });
 
         $fileDetails = array_map(function($file) {

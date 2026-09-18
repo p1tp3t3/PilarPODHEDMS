@@ -1,20 +1,37 @@
 import UpModal from "../up-modal"
-import ProfilePic from "../../other/profile-pic"
 import { useState, useEffect } from "react"
-import { getData, getProfilePic, readableDate, readableTime } from "../../../others/function"
+import { readableDate, readableTime, formatSchoolYearSemester } from "../../../others/function"
 import CircleReload from "@/Components/reload/circle-reload"
 import { AbsentFormService } from "@/others/services/absent-form-service"
-import { History } from "lucide-react"
+import { ModalHeader, Section, Stat, StatGrid, PersonList, safeParseArray } from "./view-modal-parts"
+import {
+    CalendarClock,
+    CheckCircle2,
+    XCircle,
+    Ban,
+    Undo2,
+    UserCircle2,
+    CalendarRange,
+    MessageSquareText,
+    ImageIcon,
+    FileWarning,
+    History,
+} from "lucide-react"
 
-const safeParseArray = (value) => {
-    if (Array.isArray(value)) return value
-    if (typeof value !== 'string' || value === '') return []
-    try {
-        const parsed = JSON.parse(value)
-        return Array.isArray(parsed) ? parsed : []
-    } catch {
-        return []
-    }
+const STATUS_STYLES = {
+    pending: 'bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-200',
+    noted: 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-200',
+    expired: 'bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-300',
+    rejected: 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-200',
+    revoked: 'bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-300',
+}
+
+const statusFor = (data) => {
+    if (data.revoked_at) return 'revoked'
+    if (data.rejected_at) return 'rejected'
+    if (data.confirmed_at) return 'noted'
+    if (data.date_to && new Date(data.date_to) < new Date()) return 'expired'
+    return 'pending'
 }
 
 const ViewAbsentFormModal = (props) => {
@@ -37,19 +54,19 @@ const ViewAbsentFormModal = (props) => {
 
     return (
         <UpModal
-            close={props.close} 
+            close={props.close}
             closeModal={props.closeModal}
             isEnableOuterClose={props.isEnableOuterClose}
-            pd={props.pd}
+            pd={['p-0', '']}
             bgColor='bg-white'
-            w='w-[38rem]'>
+            w='w-[42rem] max-w-[90vw]'>
             <div className="w-full">
                 {(data != null)
                 ?
                 <Body data={data} />
                 :
                 reload &&
-                <div className="w-full flex justify-center">
+                <div className="w-full flex justify-center py-16">
                     <CircleReload size={3} />
                 </div>}
             </div>
@@ -58,77 +75,99 @@ const ViewAbsentFormModal = (props) => {
 }
 
 const Body = ({ data }) => {
+    const status = statusFor(data)
+    const reasons = safeParseArray(data.reason)
+    const evidences = safeParseArray(data.evidences)
+
     return (
-        <div className="grid gap-3">
-            {(data != null)
-            ?
-            <>
-            <div className="text-[1.4em] text-center">
-                <h1><b>{data.user.profile?.first_name}'s Absent Form</b></h1>
-            </div>
-            <div className="grid gap-5">
-                <div>
-                    <h2 className="text-lg font-semibold">Reference No.</h2>
-                    <p className="text-sm">{data.form_number}</p>
-                </div>
-                <div>
-                    <h2 className="text-lg font-semibold">Reported Since</h2>
-                    <p className="text-sm">{readableDate(data.created_at)} ({readableTime(data.created_at)})</p>
-                </div>
-                <div className="grid gap-2">
-                    <ProfileSection
-                        title='Student'
-                        name={`${data.user.profile?.first_name ?? ""} ${data.user.profile?.last_name ?? ""}`}
-                        src={getProfilePic(data.user.profile?.profile_picture, data.user.profile?.sex)}
-                        program={`${data.user.program?.name ?? ""} ${data.user.enrollments?.[data.user.enrollments.length - 1]?.year_level ?? ""}`} />
-                </div>
-                <div>
-                    <div><b>Date of Absent</b></div>
-                    <div className="text-[0.9em]">
-                        {readableDate(data.date_from)} to {readableDate(data.date_to)}
-                    </div>
-                </div>
-                <div className="grid gap-2">
-                    <div><b>Reason</b></div>
-                    <div className="grid gap-1">
-                        {safeParseArray(data.reason).map((e, i) =>
-                            <div key={i} className="text-[0.9em]">
-                                - {e}
-                            </div>
-                        )}
-                    </div>
-                </div>
-                <div className="grid gap-2">
-                    <div><b>Evidence</b></div>
-                    <div className="grid grid-cols-3 gap-2">
-                        {safeParseArray(data.evidences).map((e, i) => (
-                            <a key={i} href={`/absent-form/${data.id}/evidence/${e.file}`} target="_blank" rel="noreferrer" className="block border rounded overflow-hidden">
-                                <img src={`/absent-form/${data.id}/evidence/${e.file}`} className="w-full h-24 object-cover" alt={`Evidence ${i + 1}`} />
-                            </a>
-                        ))}
-                    </div>
-                </div>
-                {data.note &&
-                <div className="grid gap-2">
-                    <div><b>Note From the Prefect</b></div>
-                    <div className="text-sm h-40 overflow-y-auto border rounded p-2 bg-gray-50">{data.note}</div>
+        <div>
+            <ModalHeader
+                title={`${data.user?.profile?.first_name ?? 'Student'}'s Absent Form`}
+                reference={data.form_number}
+                status={status}
+                styles={STATUS_STYLES}
+            />
+
+            <div className="p-6 space-y-4">
+                {/* Timeline stats */}
+                <StatGrid>
+                    <Stat icon={CalendarClock} label="Reported Since" value={`${readableDate(data.created_at)} (${readableTime(data.created_at)})`} sub={formatSchoolYearSemester(data.school_year_semester)} />
                     {data.confirmed_at &&
-                    <div>
-                        <div><b>Noted Since</b></div>
-                        <p className="text-sm">{readableDate(data.confirmed_at)} ({readableTime(data.confirmed_at)})</p>
-                    </div>}
-                </div>}
+                    <Stat icon={CheckCircle2} label="Noted Since" value={`${readableDate(data.confirmed_at)} (${readableTime(data.confirmed_at)})`} sub={formatSchoolYearSemester(data.confirmed_school_year_semester)} />}
+                    {data.rejected_at &&
+                    <Stat icon={XCircle} label="Rejected Since" value={`${readableDate(data.rejected_at)} (${readableTime(data.rejected_at)})`} sub={formatSchoolYearSemester(data.rejected_school_year_semester)} />}
+                    {data.revoked_at &&
+                    <Stat icon={Undo2} label="Revoked Since" value={`${readableDate(data.revoked_at)} (${readableTime(data.revoked_at)})`} sub={formatSchoolYearSemester(data.revoked_school_year_semester)} />}
+                    {status === 'expired' &&
+                    <Stat icon={Ban} label="Expired Since" value={readableDate(data.date_to)} />}
+                </StatGrid>
+
+                {data.rejected_reason != null &&
+                <Section icon={FileWarning} title="Reason for Rejection" tone="border-red-200">
+                    <div className="text-sm h-28 overflow-y-auto rounded-md bg-red-50/60 p-3 text-red-800">
+                        {data.rejected_reason}
+                    </div>
+                </Section>}
+
+                {status === 'revoked' &&
+                <Section icon={Undo2} title="Revoked by Student" tone="border-gray-200">
+                    <p className="text-sm text-gray-600">
+                        The student withdrew this absent form. It is kept on record and remains visible here, but is no longer active.
+                    </p>
+                </Section>}
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <Section icon={UserCircle2} title="Student">
+                        <PersonList data={data.user} emptyLabel="No student on record." />
+                    </Section>
+                    <Section icon={CalendarRange} title="Date of Absence">
+                        <p className="text-sm text-gray-700">
+                            {readableDate(data.date_from)} to {readableDate(data.date_to)}
+                        </p>
+                    </Section>
+                </div>
+
+                <Section icon={MessageSquareText} title="Reason for Absence">
+                    {reasons.length !== 0
+                    ? <div className="flex flex-wrap gap-2">
+                        {reasons.map((r, i) => (
+                            <span key={i} className="inline-flex items-center text-xs font-medium px-3 py-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                                {r}
+                            </span>
+                        ))}
+                      </div>
+                    : <p className="text-sm text-gray-500">No reason provided.</p>}
+                </Section>
+
+                <Section icon={ImageIcon} title={`Evidence${evidences.length ? ` (${evidences.length})` : ''}`}>
+                    {evidences.length !== 0
+                    ? <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {evidences.map((e, i) => {
+                            const src = `/absent-form/${data.id}/evidence/${e.file}`
+                            return (
+                                <a key={i} href={src} target="_blank" rel="noreferrer"
+                                   className="group block rounded-lg overflow-hidden border border-gray-200 hover:border-gray-300 hover:shadow-sm transition">
+                                    <img src={src} className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-200" alt={`Evidence ${i + 1}`} />
+                                </a>
+                            )
+                        })}
+                      </div>
+                    : <p className="text-sm text-gray-500">No evidence included.</p>}
+                </Section>
+
+                {data.note &&
+                <Section icon={MessageSquareText} title="Note From the Prefect">
+                    <div className="text-sm h-32 overflow-y-auto rounded-md bg-gray-50 p-3 text-gray-700 leading-relaxed">
+                        {data.note}
+                    </div>
+                </Section>}
 
                 {data.edited_at && data.revisions?.length > 0 && (() => {
                     const previous = data.revisions[0]
                     const previousReasons = safeParseArray(previous.reason)
                     const previousEvidences = safeParseArray(previous.evidences)
                     return (
-                        <div className="rounded-xl border border-amber-200 bg-white p-4">
-                            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                                <History size={18} className="text-gray-400" />
-                                Previous Version (Before Edit)
-                            </h2>
+                        <Section icon={History} title="Previous Version (Before Edit)" tone="border-amber-200">
                             <div className="grid gap-3 text-sm">
                                 <div>
                                     <span className="text-gray-500">Date of Absent: </span>
@@ -160,29 +199,9 @@ const Body = ({ data }) => {
                                     Edited on {readableDate(data.edited_at)} ({readableTime(data.edited_at)})
                                 </div>
                             </div>
-                        </div>
+                        </Section>
                     )
                 })()}
-            </div>
-            </>
-            :
-            reload &&
-            <div className="w-full flex justify-center">
-                <CircleReload size={3} />
-            </div>}
-        </div>
-    )
-}
-const ProfileSection = ({ title, src, name, program }) => {
-    return (
-        <div>
-            <div className="text-[1em]"><b>{title}</b></div>
-            <div className="flex gap-2">
-                <div><ProfilePic src={src} size={2.5}/></div>
-                <div className="grid content-between">
-                    <div className="text-[0.9em]"><h1>{name}</h1></div>
-                    <div className="text-[0.8em]"><p>{program}</p></div>
-                </div>
             </div>
         </div>
     )

@@ -1,4 +1,5 @@
-import NotifDisplayLayout from "@/Layouts/notif-display-layout"
+import AuthLayout from "@/Layouts/auth-layout"
+import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-read"
 import { useEffect, useState } from "react"
 import ViewComplaintModal from "@/Components/modal/view/view-complaint-modal"
 import { ComplaintService } from "@/others/services/complaint-service"
@@ -6,6 +7,8 @@ import { AlertTriangle } from "lucide-react"
 import NotifDetailCard, { NotifEmptyState, NotifLoadingState } from "@/Components/other/notif-detail-card"
 
 const ComplaintNotification = (props) => {
+    useMarkNotificationRead()
+
     const [data, setData] = useState(null)
 
     useEffect(() => {
@@ -27,6 +30,6 @@ const ComplaintNotification = (props) => {
     )
 }
 
-ComplaintNotification.layout = (page) => <NotifDisplayLayout user={page.props.user}>{page}</NotifDisplayLayout>
+ComplaintNotification.layout = (page) => <AuthLayout user={page.props.user}>{page}</AuthLayout>
 
 export default ComplaintNotification

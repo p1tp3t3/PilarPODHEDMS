@@ -5,13 +5,12 @@ import { useForm } from "@inertiajs/react";
 import { useEffect, useState } from "react";
 import { useReload } from "@/context-provider/reload-provider";
 import { ProfileService } from "@/others/services/profile-service";
-import { FormCache } from "@/others/classes/form-cache";
+import { FormCache, accountSetupCacheKey } from "@/others/classes/form-cache";
 import AuthLayout from "@/Layouts/auth-layout";
 import SetupLayout from "@/Layouts/setup-layout";
 
-const PROFILE_CACHE_KEY = "account-setup-profile";
-
 const StudentEditProfileForm = (props) => {
+    const PROFILE_CACHE_KEY = accountSetupCacheKey("account-setup-profile", props.otherUserProfile.id);
 
     const address = (address, t) => {
         if (address != null) {
@@ -91,8 +90,22 @@ const StudentEditProfileForm = (props) => {
     const isForceSetup = !!props.force_account_setup;
     const cachedDraft = isForceSetup ? FormCache.load(PROFILE_CACHE_KEY) : null;
 
+    // A cached draft restores whatever the user had typed (address, contact
+    // number, etc.) — but identity/role fields must always come from the
+    // fresh server data, never from the draft, or a draft saved under a
+    // different role mid-testing (or before this cache was scoped per
+    // account) would silently reclassify the account being edited.
     const { data, setData, post, processing, errors } = useForm(
-        cachedDraft ? { ...profileData, ...cachedDraft } : profileData
+        cachedDraft
+            ? {
+                ...profileData,
+                ...cachedDraft,
+                user_id: profileData.user_id,
+                new_user_id: profileData.new_user_id,
+                user_type: profileData.user_type,
+                username: profileData.username,
+            }
+            : profileData
     );
 
     // Autosave a draft while setup is forced, so an accidentally closed tab

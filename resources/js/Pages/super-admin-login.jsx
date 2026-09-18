@@ -60,7 +60,7 @@ const SuperAdminLoginInner = (props) => {
                     })
                     loadRegister(false)
                     window.location.reload();
-                });
+                }, null, 5000);
             })
             .catch((err) => {
                 loadRegister(false);

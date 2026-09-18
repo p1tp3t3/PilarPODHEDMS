@@ -73,15 +73,23 @@ class AccountSetupController extends Controller
             abort(404);
         }
 
+        // Teaching and non-teaching staff only fill in picture, sex, contact
+        // number, and address (resources/js/Components/modal/submission-form/edit-profile-modal.jsx
+        // hides religion/citizenship/civil status/date & place of birth for
+        // these roles) — requiring them here too would reject every staff
+        // submission outright.
+        $isStaffRole = in_array($user->role, ['teaching_staff', 'non_teaching_staff']);
+
         $request->validate([
             'current_password' => 'required|string',
             'password' => 'required|string|min:8|confirmed',
-            'religion' => 'required|string',
-            'citizenship' => 'required|string',
-            'civil_status' => 'required|string',
-            'date_of_birth' => 'required|date',
-            'place_of_birth' => 'required|string',
+            'religion' => $isStaffRole ? 'nullable|string' : 'required|string',
+            'citizenship' => $isStaffRole ? 'nullable|string' : 'required|string',
+            'civil_status' => $isStaffRole ? 'nullable|string' : 'required|string',
+            'date_of_birth' => $isStaffRole ? 'nullable|date' : 'required|date',
+            'place_of_birth' => $isStaffRole ? 'nullable|string' : 'required|string',
             'sex' => 'required|in:m,f',
+            'phone_number' => $isStaffRole ? 'required|string' : 'nullable|string',
             'current_place' => 'required|string',
             'current_city' => 'required|string',
             'current_province' => 'required|string',

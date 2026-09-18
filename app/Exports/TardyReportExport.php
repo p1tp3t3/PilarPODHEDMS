@@ -18,14 +18,12 @@ class TardyReportExport implements FromCollection, WithEvents, WithCustomStartCe
     protected $records;
     protected $title;
     protected $individual;
-    protected $reportNumber;
 
-    public function __construct(Collection $records, string $title = 'Tardy Report', bool $individual = false, ?string $reportNumber = null)
+    public function __construct(Collection $records, string $title = 'Tardy Report', bool $individual = false)
     {
         $this->records = $records;
         $this->title = $title;
         $this->individual = $individual;
-        $this->reportNumber = $reportNumber;
     }
 
     public function collection()

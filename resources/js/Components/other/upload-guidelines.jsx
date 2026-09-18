@@ -29,7 +29,6 @@ const UploadGuidelines = (props) => {
           { field: "email", value: "Email", example: "email123@gmail.com" },
           { field: "program", value: "Program enrolled, by name (e.g. BSIT, BEED)", example: "BSIT" },
           { field: "year_level", value: "Year level", example: "2" },
-          { field: "school_year", value: "School Year", example: "2024-2025" },
           { field: "enrolled_at", value: "Date enrolled (YYYY-MM-DD)", example: "2024-08-15" },
         ];
       case "faculty":
@@ -43,15 +42,13 @@ const UploadGuidelines = (props) => {
         ]);
       case "staff":
         return baseFields.concat([
-          { field: "work_type", value: "Type of work", example: "Clerical" },
+          { field: "position", value: "Assigned position, by exact name", example: props.positions?.[0]?.name ?? "Guard" },
         ]);
       case "enrollment_update":
         return [
           { field: "id", value: "School I.D of an already-registered student", example: "c2210213" },
           { field: "program", value: "Program enrolled, by name (e.g. BSIT, BEED)", example: "BSIT" },
           { field: "year_level", value: "Year level", example: "2" },
-          { field: "semester", value: "Semester", example: "1" },
-          { field: "school_year", value: "School Year", example: "2024-2025" },
           { field: "enrolled_at", value: "Date enrolled (YYYY-MM-DD)", example: "2024-08-15" },
         ];
       default:
@@ -87,11 +84,6 @@ const UploadGuidelines = (props) => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <h1 className="text-xl font-bold capitalize text-center">
-        Upload Guidelines for {typeLabel}
-      </h1>
-
       {/* Notes */}
       <div className="text-sm text-gray-700">
         <ul className="list-disc pl-6">
@@ -99,6 +91,8 @@ const UploadGuidelines = (props) => {
           <li>Accepted file name: <b>{fileName()}.csv</b></li>}
           <li>Accepted file type: <b>.csv</b></li>
           <li>The first row must contain exact field names as shown below.</li>
+          {(props.type == 'student' || props.type == 'enrollment_update') &&
+          <li>School year and semester are not part of the file — every row is enrolled under whichever school year/semester is currently active.</li>}
           {(props.type == 'student' || props.type == 'enrollment_update') &&
           <li>
             <div>Program must match one of these program names exactly:</div>
@@ -111,6 +105,13 @@ const UploadGuidelines = (props) => {
             <div>Program must be their corresponding ID</div>
             <ul>
               {props.program.map((e, i) => <li key={i}>{e.id} - {e.description}</li>)}
+            </ul>
+          </li>}
+          {props.type == 'staff' &&
+          <li>
+            <div>Position must match one of these exactly (case-sensitive):</div>
+            <ul>
+              {(props.positions ?? []).map((e, i) => <li key={i}>{e.name}</li>)}
             </ul>
           </li>}
         </ul>

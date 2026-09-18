@@ -35,16 +35,14 @@ class IncidentReportExport extends StringValueBinder implements
     protected $individual;
     protected $user;
     protected $type;
-    protected $reportNumber;
 
-    public function __construct(Collection $records, string $title = 'Incident Report', bool $individual = false, $user = null, string $type = 'violation', ?string $reportNumber = null)
+    public function __construct(Collection $records, string $title = 'Incident Report', bool $individual = false, $user = null, string $type = 'violation')
     {
         $this->records   = $records;
         $this->title     = $title;
         $this->individual = $individual;
         $this->user       = $user;
         $this->type       = $type;
-        $this->reportNumber = $reportNumber;
     }
 
     public function collection()
@@ -135,10 +133,6 @@ class IncidentReportExport extends StringValueBinder implements
     /** SHEET STYLES */
     public function styles(Worksheet $sheet)
     {
-        $sheet->setCellValue('A6', 'Reference No.:');
-        $sheet->setCellValue('B6', $this->reportNumber ?? 'N/A');
-        $sheet->getStyle('A6')->getFont()->setBold(true);
-
         if ($this->individual && !is_null($this->user)) {
             $name =  $this->user['first_name'] . ' ' . $this->user['middle_name'] . ' ' . $this->user['last_name'];
 

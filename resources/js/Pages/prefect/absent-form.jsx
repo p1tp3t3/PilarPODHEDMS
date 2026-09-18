@@ -1,5 +1,7 @@
 import AuthLayout from "@/Layouts/auth-layout"
+import PageLayout from "@/Layouts/page-layout"
 import { useState } from "react"
+import DropdownField from "@/Components/input/dropdown"
 import RequestAbsentFormModal from "@/Components/modal/submission-form/request-absent-form-modal"
 import AbsentFormList from "@/Components/list/absent-form-list"
 import AbsentFormRequestList from "@/Components/list/absent-form-request-list"
@@ -14,7 +16,7 @@ import withReactContent from "sweetalert2-react-content"
 import { showWarningModal, showOutputModal } from "@/others/function"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
 import { ArchiveService } from "@/others/services/archive-service"
-import { List, CheckCircle2, XCircle, Ban, Undo2 } from "lucide-react"
+import { List, Clock, CheckCircle2, XCircle, Ban, Undo2 } from "lucide-react"
 
 const PrefectAbsentForm = (props) => {
     const MySwal = withReactContent(Swal)
@@ -23,6 +25,8 @@ const PrefectAbsentForm = (props) => {
     const [id, setId] = useState('')
     const [lstOption, setLstOption] = useState(url.has('status') ? url.get('status') : 'req-current')
     const [absent_form_list, setAbsentFormRequestList] = useState(props.absent_form_request_list)
+    const [schoolYear, setSchoolYear] = useState(url.get('school-year') || 'all')
+    const [semester, setSemester] = useState(url.get('semester') || 'all')
     const [viewAbsentForm, openViewAbsentForm] = useState(false)
     const [noteAbsent, openNoteAbsent] = useState(false)
     const { loadRegister } = useReload()
@@ -32,7 +36,8 @@ const PrefectAbsentForm = (props) => {
     })
 
     const option = [
-        { key: 'req-current', label: 'Pending', icon: List },
+        { key: 'all', label: 'All', icon: List },
+        { key: 'req-current', label: 'Pending', icon: Clock },
         { key: 'noted', label: 'Noted', icon: CheckCircle2 },
         { key: 'expired', label: 'Expired', icon: XCircle },
         { key: 'rejected', label: 'Rejected', icon: Ban },
@@ -41,8 +46,15 @@ const PrefectAbsentForm = (props) => {
 
     const handleOption = (type) => {
         setLstOption(type)
-        const url = window.location.pathname
-        router.visit(`${url}?status=${type}`)
+        const link = window.location.pathname
+        router.visit(`${link}?status=${type}&school-year=${schoolYear}&semester=${semester}`)
+    }
+
+    const handleFilterChange = (field, value) => {
+        const link = window.location.pathname
+        const newSchoolYear = field === 'school-year' ? value : schoolYear
+        const newSemester = field === 'semester' ? value : semester
+        router.visit(`${link}?status=${lstOption}&school-year=${newSchoolYear}&semester=${newSemester}`)
     }
 
     const setEvents = (i, type) => {
@@ -123,11 +135,28 @@ const PrefectAbsentForm = (props) => {
                 isEnableOuterClose={true}
                 id={id}
             />
-                <div className="w-full py-4">
-                    <div className="w-full grid gap-5 relative">
-                        {/* Header */}
-                        <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-3">
-                            <h1 className="text-[1.3em] sm:text-[1.5em] font-bold">STUDENT ABSENT FORMS</h1>
+                <PageLayout title="STUDENT ABSENT FORMS">
+                        {/* Filters */}
+                        <div className="flex flex-wrap gap-3">
+                            <div className="w-full sm:w-56">
+                                <DropdownField
+                                    default={{ val: 'all', label: 'All School Years' }}
+                                    list={(props.school_years || []).map((y) => ({ val: y, label: y }))}
+                                    val={schoolYear}
+                                    onChange={(e) => handleFilterChange('school-year', e.target.value)}
+                                />
+                            </div>
+                            <div className="w-full sm:w-56">
+                                <DropdownField
+                                    default={{ val: 'all', label: 'All Semesters' }}
+                                    list={[
+                                        { val: 1, label: '1st Semester' },
+                                        { val: 2, label: '2nd Semester' },
+                                    ]}
+                                    val={semester}
+                                    onChange={(e) => handleFilterChange('semester', e.target.value)}
+                                />
+                            </div>
                         </div>
 
                         {/* Tabs */}
@@ -136,18 +165,15 @@ const PrefectAbsentForm = (props) => {
                         </div>
 
                         {/* Table / List Section */}
-                        <div className="w-full bg-white rounded-md shadow-sm shadow-black/20 overflow-x-auto">
-                            <div className="min-w-[35rem]">
+                        <div className="w-full bg-white rounded-md shadow-sm shadow-black/20 min-w-0">
                                 <AbsentFormRequestList
                                     style={true}
                                     list={absent_form_list.data}
                                     events={setEvents}
                                     noted={new URLSearchParams(window.location.search).get('status') === 'noted'}
                                 />
-                            </div>
                         </div>
-                    </div>
-                </div>
+                </PageLayout>
         </>
     )
 }

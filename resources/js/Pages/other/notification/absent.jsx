@@ -1,5 +1,6 @@
 import ViewAbsentFormModal from "@/Components/modal/view/view-absent-form-modal"
-import NotifDisplayLayout from "@/Layouts/notif-display-layout"
+import AuthLayout from "@/Layouts/auth-layout"
+import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-read"
 import { AbsentFormService } from "@/others/services/absent-form-service"
 import { useEffect, useState } from "react"
 import { CalendarX } from "lucide-react"
@@ -10,6 +11,8 @@ const AbsentNotification  = (props) => {
     const content = parseNotifContent(props.notif.content)
 
     const [data, setData] = useState(null)
+
+    useMarkNotificationRead()
 
     useEffect(() => {
         const id = new URLSearchParams(window.location.search).get('absent_id')
@@ -36,7 +39,7 @@ const AbsentNotification  = (props) => {
     )
 }
 
-AbsentNotification.layout = (page) => <NotifDisplayLayout user={page.props.user}>{page}</NotifDisplayLayout>
+AbsentNotification.layout = (page) => <AuthLayout user={page.props.user}>{page}</AuthLayout>
 
 const ApproveModal = ({ content }) =>  {
     return (

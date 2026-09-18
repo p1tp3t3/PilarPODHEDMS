@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid } from "@/Components/other/data-grid";
 import { Box } from "@mui/material";
 import ActionBtn from "../button/action-btn";
 import AccountFilePreviewModal from "../modal/view/account-file-preview-modal";
@@ -53,7 +53,7 @@ const UserAccountFileList = ({ list = null, deleteFile }) => {
             headerAlign: "left",
             align: "left",
             renderCell: ({ row }) => (
-                <div className="flex gap-2 items-center h-full">
+                <div className="flex flex-wrap gap-2 items-center py-1">
                     <ActionBtn onClick={() => setPreviewFile(row.name)} className="bg-gray-700 text-white hover:bg-gray-800">
                         View
                     </ActionBtn>
@@ -71,32 +71,31 @@ const UserAccountFileList = ({ list = null, deleteFile }) => {
     ];
 
     return (
-        <Box className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3 overflow-x-auto" sx={{ width: "100%" }}>
+        <Box className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3" sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
             <AccountFilePreviewModal
                 close={previewFile !== null}
                 closeModal={() => setPreviewFile(null)}
                 fileName={previewFile}
             />
-            <Box sx={{ minWidth: "700px" }}>
-                <DataGrid
-                    rows={rows}
-                    getRowId={(row) => row.name}
-                    disableRowSelectionOnClick
-                    showToolbar
-                    hideFooterSelectedRowCount
-                    pagination
-                    initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
-                    pageSizeOptions={[20, 50, 100, 200]}
-                    localeText={{ noRowsLabel: "No Files Uploaded Yet" }}
-                    sx={{
-                        "& .MuiDataGrid-toolbarContainer": {
-                            minHeight: "2.75rem",
-                            paddingBlock: "0.4rem",
-                        },
-                    }}
-                    columns={columns}
-                />
-            </Box>
+            <DataGrid
+                rows={rows}
+                getRowId={(row) => row.name}
+                disableRowSelectionOnClick
+                showToolbar
+                hideFooterSelectedRowCount
+                pagination
+                getRowHeight={() => 'auto'}
+                initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
+                pageSizeOptions={[20, 50, 100, 200]}
+                localeText={{ noRowsLabel: "No Files Uploaded Yet" }}
+                sx={{
+                    "& .MuiDataGrid-toolbarContainer": {
+                        minHeight: "2.75rem",
+                        paddingBlock: "0.4rem",
+                    },
+                }}
+                columns={columns}
+            />
         </Box>
     );
 };

@@ -2,6 +2,7 @@
 
 use App\Events\NotifyUser;
 use App\Models\Notifications;
+use App\Models\Position;
 use App\Models\TeachingStaff;
 use App\Models\User;
 use App\Notifications\WebPushGenericNotification;
@@ -70,17 +71,24 @@ if (!function_exists('send_web_push')) {
 
 if (!function_exists('is_program_head')) {
     /**
-     * The authenticated user's program name if they're a program head,
-     * else null.
+     * The authenticated user's program name(s) if they're a program head,
+     * else null — a program head can now be responsible for 2+ programs
+     * (program_head_program), so this joins every one of them rather than
+     * only their "home" teaching_staff.program_id.
      */
     function is_program_head()
     {
-        $admin = TeachingStaff::with('program')
-                            ->where('user_id', auth()->user()->id)
-                            ->where('position', 'program_head')
+        $admin = TeachingStaff::where('user_id', auth()->user()->id)
+                            ->where('position_id', Position::idFor('program_head'))
                             ->first();
 
-        return $admin?->program?->name;
+        if (!$admin) {
+            return null;
+        }
+
+        $names = $admin->programsHandled->pluck('name');
+
+        return $names->isNotEmpty() ? $names->implode(', ') : null;
     }
 }
 

@@ -10,7 +10,7 @@ use App\Models\EducationBackground;
 use App\Models\Enrollment;
 use App\Models\Profile;
 use App\Models\Program;
-use App\Models\SchoolYear;
+use App\Models\SchoolYearSemester;
 use App\Models\Student;
 use App\Models\User;
 use App\Models\UserPermission;
@@ -68,6 +68,13 @@ class ProcessStudentCsvRow implements ShouldQueue
             return;
         }
 
+        $currentSemester = SchoolYearSemester::current();
+
+        if (!$currentSemester) {
+            $this->recordResult('error', $idNumber, $fullName, 'No active school year/semester is configured. Set one in School Year Management before importing.');
+            return;
+        }
+
         DB::beginTransaction();
         try {
             $existingUser = User::where('id_number', $idNumber)->first();
@@ -109,16 +116,14 @@ class ProcessStudentCsvRow implements ShouldQueue
                 get_user_access_field([], 'student')
             );
 
-            $schoolYearId = SchoolYear::where('year', $row['school_year'])->value('id');
-
             Enrollment::updateOrInsert(
                 [
                     'student_id' => $user->id,
                     'program_id' => $program->id,
-                    'school_year_id' => $schoolYearId,
+                    'school_year_id' => $currentSemester->school_year_id,
                 ],
                 [
-                    'semester' => $row['semester'] ?? 1,
+                    'semester' => $currentSemester->semester,
                     'year_level' => $row['year_level'],
                     'enrolled_at' => $row['enrolled_at'],
                 ]

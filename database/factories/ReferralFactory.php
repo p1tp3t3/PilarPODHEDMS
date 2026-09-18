@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Referral;
+use App\Models\SchoolYearSemester;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -44,6 +45,9 @@ class ReferralFactory extends Factory
             'send_to_guidance' => $this->faker->boolean(40) ? 1 : 0,
             'confirmed_at' => $status === 'approved' ? $confirmedAt : null,
             'archived_at' => $status !== 'pending' ? Carbon::parse($confirmedAt)->addYears(5) : null,
+            'school_year_semester_id' => SchoolYearSemester::idForDate($createdAt),
+            'confirmed_school_year_semester_id' => $status === 'approved' ? SchoolYearSemester::idForDate($confirmedAt) : null,
+            'rejected_school_year_semester_id' => $status === 'rejected' ? SchoolYearSemester::idForDate($confirmedAt) : null,
             'created_at' => $createdAt,
         ];
     }

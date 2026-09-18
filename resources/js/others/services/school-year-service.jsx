@@ -13,6 +13,12 @@ export const SchoolYearService = {
         const api = new APIRequest("/super-admin/school-year/activate", "post", f, setter, success, error);
         api.fetchData();
     },
+    activateSemester(id, setter, success, error) {
+        const f = new FormData();
+        f.append("id", id);
+        const api = new APIRequest("/super-admin/school-year/semester/activate", "post", f, setter, success, error);
+        api.fetchData();
+    },
     close(id, setter, success, error) {
         const f = new FormData();
         f.append("id", id);

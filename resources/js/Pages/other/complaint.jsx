@@ -1,4 +1,5 @@
 import AuthLayout from "@/Layouts/auth-layout"
+import PageLayout from "@/Layouts/page-layout"
 import { useEffect, useState } from "react"
 import IssueComplaintModal from "@/Components/modal/submission-form/issue-complaint-modal"
 import EditComplaintModal from "@/Components/modal/submission-form/edit-complaint-modal"
@@ -10,9 +11,9 @@ import { Head, router } from "@inertiajs/react"
 import Btn from "@/Components/button/normal-btn"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import { Button, Paper } from "@mui/material"
-import { DataGrid } from '@mui/x-data-grid';
+import { DataGrid } from '@/Components/other/data-grid';
 import QuickFilteringGrid from "@/Components/text-component"
-import { List, XCircle, PauseCircle, RotateCw, Undo2 } from "lucide-react"
+import { List, Ban, Clock, RotateCw } from "lucide-react"
 import { ComplaintService } from "@/others/services/complaint-service"
 
 
@@ -39,12 +40,14 @@ const Complaint = (props) => {
     const handleChange = (e) => {
         change(e, setData)
     }
+    // No "Revoked" tab here — once a complainant revokes their own
+    // complaint it drops out of their own view entirely; only the prefect
+    // can still see it (see ComplaintController::allUserComplaint()).
     const optionTab = [
       { key: "all", label: "All Complaints", icon: List },
-      { key: "rejected", label: "Rejected", icon: XCircle },
-      { key: "pending", label: "Pending", icon: PauseCircle },
+      { key: "rejected", label: "Rejected", icon: Ban },
+      { key: "pending", label: "Pending", icon: Clock },
       { key: "ongoing", label: "Ongoing", icon: RotateCw },
-      { key: "revoked", label: "Revoked", icon: Undo2 },
     ];
     const setId = (id) => {
         setComplainantId(id)
@@ -123,26 +126,20 @@ const Complaint = (props) => {
             incident_list={props.incident_list}
         />
         : ''}
-        <div className="w-full py-4">
-            <div className="w-full grid gap-5 relative">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-3">
-                    <h1 className="text-[2em] sm:text-[1.5em] font-bold">COMPLAINT</h1>
-                    {(props.user.allow_complaint)
-                    ?
-                    <div className="flex gap-3">
-                        <Btn onclick={() => openIssueComplaint(true)} >
-                            Report Complaint
-                        </Btn>
-                    </div>
-                    : ''}
-                </div>
+        <PageLayout
+            title="COMPLAINT"
+            rightSideComponent={props.user.allow_complaint &&
+                <div className="flex gap-3">
+                    <Btn onclick={() => openIssueComplaint(true)} >
+                        Report Complaint
+                    </Btn>
+                </div>}
+        >
                 <div>
                     <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
                 </div>
                 {/* Complaint List */}
-                <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm overflow-x-auto">
-                    <div className="w-full px-5 py-3 min-w-[800px]">
+                <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3 min-w-0">
                         <ComplaintList
                             type={props.user.user_type}
                             user={props.user}
@@ -151,10 +148,8 @@ const Complaint = (props) => {
                             setId={setId}
                             actionEvent={handleAction}
                         />
-                    </div>
                 </div>
-            </div>
-        </div>
+        </PageLayout>
         </>
     )
 }

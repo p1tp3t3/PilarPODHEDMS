@@ -16,4 +16,14 @@ class SchoolYear extends Model
     {
         return $this->hasMany(Enrollment::class, 'school_year_id', 'id');
     }
+
+    public function semesters()
+    {
+        return $this->hasMany(SchoolYearSemester::class, 'school_year_id')->orderBy('semester');
+    }
+
+    public function activeSemester()
+    {
+        return $this->hasOne(SchoolYearSemester::class, 'school_year_id')->where('is_active', true);
+    }
 }

@@ -1,6 +1,6 @@
 import { Link } from "@inertiajs/react"
 import { useMemo } from "react"
-import { DataGrid } from "@mui/x-data-grid"
+import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
 import ProfilePic from "../other/profile-pic"
 import { getProfilePic, showUserType } from "@/others/function"
@@ -52,18 +52,16 @@ const ChildrenList = ({ list = null, style }) => {
 
     return (
         <div className={style && "w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm"}>
-            <Box sx={{ width: "100%", overflowX: "auto" }}>
-                <Box sx={{ minWidth: "450px" }}>
-                    <DataGrid
-                        rows={rows}
-                        columns={columns}
-                        hideFooter
-                        disableRowSelectionOnClick
-                        getRowHeight={() => "auto"}
-                        showToolbar
-                        localeText={{ noRowsLabel: list === null ? "Reloading..." : "No Child Yet" }}
-                    />
-                </Box>
+            <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
+                <DataGrid
+                    rows={rows}
+                    columns={columns}
+                    hideFooter
+                    disableRowSelectionOnClick
+                    getRowHeight={() => "auto"}
+                    showToolbar
+                    localeText={{ noRowsLabel: list === null ? "Reloading..." : "No Child Yet" }}
+                />
             </Box>
         </div>
     )

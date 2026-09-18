@@ -1,23 +1,20 @@
 import UpModal from "../up-modal"
 import CheckBoxButton from "../../input/checkbox"
-import FormTextfield from "@/Components/input/form-input"
+import RichTextEditor from "@/Components/input/rich-text-editor"
 import FormButton from "../../button/button"
-import { change, showOutputModal, showWarningModal } from "../../../others/function"
+import { showOutputModal, showWarningModal } from "../../../others/function"
 import { GatePassService } from "@/others/services/gatepass-service"
 import { useState } from "react"
 import RadioButton from "@/Components/input/radio"
 
 const RequestGatePassModal = (props) => {
-    
+
     const [data, setData] = useState({
         user_id: props.user_id,
         other_reason: "",
     });
     const [err, setErr] = useState('')
 
-    const handleChange = e => {
-        change(e, setData)
-    }
     const handleCheck = (e) => {
         const form = e.target.form || e.currentTarget.closest("form") || document;
         const checked = form.querySelectorAll('input[name="reason[]"]:checked');
@@ -89,16 +86,12 @@ const RequestGatePassModal = (props) => {
                             </div>
                             <div className="grid gap-3">
                                 <div>
-                                    <FormTextfield
-                                        type="textarea"
+                                    <RichTextEditor
                                         label='Reason to Request'
-                                        name='other_reason'
-                                        id='other_reason'
                                         val={data.other_reason}
                                         error={err}
-                                        errorAsterisk={err != '' ? true : ''}
-                                        change={handleChange} 
-                                        color={{ border: 'border-blue-700', bg: 'bg-gray-200' }}
+                                        change={(html) => setData((prev) => ({ ...prev, other_reason: html }))}
+                                        minHeight="8rem"
                                     />
                                 </div>
                             </div>

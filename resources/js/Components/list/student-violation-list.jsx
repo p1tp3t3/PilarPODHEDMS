@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { Box } from "@mui/material";
-import { DataGrid, GridActionsCellItem, GridToolbarContainer, GridToolbarQuickFilter } from "@mui/x-data-grid";
+import { DataGrid, GridActionsCellItem, GridToolbarContainer, GridToolbarQuickFilter } from "@/Components/other/data-grid";
 import ProfilePic from "../other/profile-pic";
 import { getProfilePic, getYearLevel, toTitleCase } from "@/others/function";
 import { router } from "@inertiajs/react";
@@ -100,23 +100,22 @@ const StudentViolationList = ({ list = [] }) => {
   ];
 
   return (
-    <Box sx={{ width: "100%", overflowX: "auto", p: 2, bgcolor: "white", borderRadius: 2 }}>
-      <Box sx={{ minWidth: "900px" }}>
-        <DataGrid
-          rows={rows}
-          columns={columns}
-          rowsPerPageOptions={[20, 50, 100]} // user-selectable options
-          disableSelectionOnClick
-          hideFooterSelectedRowCount
-          getRowId={(row) => row.id}
-          initialState={{
-          pagination: { paginationModel: { pageSize: 20, page: 0 } }
-          }}
-          pageSizeOptions={[20, 50, 100]}
-          pagination
-          showToolbar
-        />
-      </Box>
+    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", p: 2, bgcolor: "white", borderRadius: 2 }}>
+      <DataGrid
+        rows={rows}
+        columns={columns}
+        rowsPerPageOptions={[20, 50, 100]} // user-selectable options
+        disableSelectionOnClick
+        hideFooterSelectedRowCount
+        getRowId={(row) => row.id}
+        initialState={{
+        pagination: { paginationModel: { pageSize: 20, page: 0 } }
+        }}
+        pageSizeOptions={[20, 50, 100]}
+        pagination
+        showToolbar
+        localeText={{ noRowsLabel: "No Student Violations Found" }}
+      />
     </Box>
   );
 };

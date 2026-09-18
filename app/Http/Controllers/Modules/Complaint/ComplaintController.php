@@ -14,6 +14,8 @@ use App\Models\Complaint;
 use App\Models\ComplaintRevision;
 use App\Models\ComplaintSubject;
 use App\Models\Program;
+use App\Models\SchoolYear;
+use App\Models\SchoolYearSemester;
 use App\Models\User;
 use App\Models\Violation;
 use App\Traits\GeneratesSequenceCode;
@@ -49,6 +51,7 @@ class ComplaintController extends Controller
             'program_name' => is_program_head(),
             'complaint_list' => $complaints,
             'incident_list' => Violation::select([DB::raw('id AS val'), DB::raw('violation_name AS label')])->get(),
+            'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
         ];
         if(self::isPrefect()) {
             $props = array_merge($props, [
@@ -266,6 +269,7 @@ class ComplaintController extends Controller
             'url' => url('/complaints')
         ];
         $complaint2 = $complaint;
+        $oldStatus = $complaint->complaint_status;
 
         $count = Complaint::select('case_number')->whereNotNull('case_number')->latest('case_number')->value('case_number') + 1;
         $complaint = self::getComplaintNotifMessageResponseFields($complaint);
@@ -276,7 +280,8 @@ class ComplaintController extends Controller
                  ->update([
                         'case_number' => $count,
                         'confirmed_at' => DB::raw('NOW()'),
-                        'complaint_status' => 'ongoing'
+                        'complaint_status' => 'ongoing',
+                        'confirmed_school_year_semester_id' => SchoolYearSemester::currentId(),
                  ]);
         notify_single_user(
             $complaintNotifField,
@@ -288,11 +293,12 @@ class ComplaintController extends Controller
                 'complaint' => self::allComplaints()
             ]);
         }else {
-            ActionLog::create([
-                'user_id' =>  auth()->user()->id,
-                'action_type' => 'complaint',
-                'details' => 'approves the complaint of ' . $complainantName
-            ]);
+            ActionLog::log(
+                auth()->user()->id,
+                'complaint',
+                'Approved the complaint of ' . $complainantName,
+                ['complaint_status' => ['from' => $oldStatus, 'to' => 'ongoing']]
+            );
         }
         return response()->json([
             'complaint' => self::allComplaints()
@@ -305,15 +311,18 @@ class ComplaintController extends Controller
         DB::beginTransaction();
         try {
             $complaint = Complaint::with(['user.profile', 'subject.profile'])
-                              ->where('id', $id);
+                              ->where('id', $id)
+                              ->first();
+            $oldStatus = $complaint->complaint_status;
+
             $complaint->update([
                 'complaint_status' => 'rejected',
                 'rejected_reason' => $request->reason,
                 'rejected_at' => now(),
-                'archived_at' => archive_retention_date()
+                'archived_at' => archive_retention_date(),
+                'rejected_school_year_semester_id' => SchoolYearSemester::currentId(),
             ]);
 
-            $complaint = $complaint->first();
             $complainantName = $complaint->user?->profile?->first_name;
             $complaintNotifField = self::getComplaintNotifMessageResponseFields($complaint, 'rejected');
             $webpushNotif = [
@@ -329,11 +338,12 @@ class ComplaintController extends Controller
                 $webpushNotif,
                 new SendComplaintConfirmation(self::getSentComplaints())
             );
-            ActionLog::create([
-                'user_id' =>  auth()->user()->id,
-                'action_type' => 'complaint',
-                'details' => 'rejects the complaint of ' . $complainantName
-            ]);
+            ActionLog::log(
+                auth()->user()->id,
+                'complaint',
+                'Rejected the complaint of ' . $complainantName,
+                ['complaint_status' => ['from' => $oldStatus, 'to' => 'rejected']]
+            );
             DB::commit();
             return response()->json([
                 'complaint' => self::allComplaints()
@@ -492,17 +502,21 @@ class ComplaintController extends Controller
             return response()->json(['message' => 'This complaint can no longer be revoked.'], 400);
         }
 
+        $oldStatus = $complaint->complaint_status;
+
         $complaint->update([
             'complaint_status' => 'revoked',
             'revoked_at' => now(),
             'archived_at' => archive_retention_date(),
+            'revoked_school_year_semester_id' => SchoolYearSemester::currentId(),
         ]);
 
-        ActionLog::create([
-            'user_id' => auth()->id(),
-            'action_type' => 'complaint',
-            'details' => 'revokes their own complaint against ' . $this->formatComplaintSubjectNames($complaint)
-        ]);
+        ActionLog::log(
+            auth()->id(),
+            'complaint',
+            'Revoked their own complaint against ' . $this->formatComplaintSubjectNames($complaint),
+            ['complaint_status' => ['from' => $oldStatus, 'to' => 'revoked']]
+        );
 
         return response()->json([
             'complaint' => self::isPrefect() ? self::allComplaints() : self::allUserComplaint()
@@ -534,7 +548,8 @@ class ComplaintController extends Controller
                         Complaint::where('id', $id)->update([
                             'case_number' => $count,
                             'confirmed_at' => DB::raw('NOW()'),
-                            'complaint_status' => 'ongoing'
+                            'complaint_status' => 'ongoing',
+                            'confirmed_school_year_semester_id' => SchoolYearSemester::currentId(),
                         ]);
 
                         $webpushNotif = [
@@ -554,11 +569,12 @@ class ComplaintController extends Controller
                     }
 
                     // Single ActionLog
-                    ActionLog::create([
-                        'user_id' => auth()->user()->id,
-                        'action_type' => 'complaint',
-                        'details' => "approved {$processedCount} complaint(s): " . implode(', ', $userNames)
-                    ]);
+                    ActionLog::log(
+                        auth()->user()->id,
+                        'complaint',
+                        "Approved {$processedCount} complaint(s): " . implode(', ', $userNames),
+                        ['complaint_status' => ['from' => 'pending', 'to' => 'ongoing']]
+                    );
                     break;
 
 
@@ -570,7 +586,8 @@ class ComplaintController extends Controller
                         Complaint::where('id', $id)->update([
                             'complaint_status' => 'rejected',
                             'rejected_at' => now(),
-                            'archived_at' => archive_retention_date()
+                            'archived_at' => archive_retention_date(),
+                            'rejected_school_year_semester_id' => SchoolYearSemester::currentId(),
                         ]);
 
                         $webpushNotif = [
@@ -590,11 +607,12 @@ class ComplaintController extends Controller
                     }
 
                     // Single ActionLog
-                    ActionLog::create([
-                        'user_id' => auth()->user()->id,
-                        'action_type' => 'complaint',
-                        'details' => "rejected {$processedCount} complaint(s): " . implode(', ', $userNames)
-                    ]);
+                    ActionLog::log(
+                        auth()->user()->id,
+                        'complaint',
+                        "Rejected {$processedCount} complaint(s): " . implode(', ', $userNames),
+                        ['complaint_status' => ['from' => 'pending', 'to' => 'rejected']]
+                    );
                     break;
 
 
@@ -635,15 +653,15 @@ class ComplaintController extends Controller
                          ->with(['user.profile', 'user.program', 'user.enrollments', 'subject.profile', 'subject.program', 'subject.enrollments', 'complaintSubject.user.profile', 'complaintSubject.user.program', 'complaintSubject.user.enrollments']);
         $search = $_GET['search'] ?? null;
         $date = $_GET['date'] ?? null;
-        $year   = $_GET['year'] ?? null;  // ✅ new filter
         $role   = $_GET['role'] ?? null;  // ✅ new filter
 
         $appendList = [
             'status' => $status,
             'search' => $search,
             'date' => $date,
-            'year' => $year,
-            'role' => $role
+            'role' => $role,
+            'school-year' => $_GET['school-year'] ?? null,
+            'semester' => $_GET['semester'] ?? null,
         ];
 
 
@@ -661,10 +679,15 @@ class ComplaintController extends Controller
                 $q->where('role', $role);
             });
         }
-        if ($year != 'all' && !is_null($year)) {
-            [$startYear, $endYear] = explode('-', $year);
-
-            $data->whereBetween(DB::raw("YEAR(created_at)"), [$startYear, $endYear]);
+        if (isset($_GET['school-year']) && $_GET['school-year'] != 'all') {
+            $data->whereHas('schoolYearSemester', function ($q) {
+                $q->whereHas('schoolYear', fn ($sq) => $sq->where('year', $_GET['school-year']));
+            });
+        }
+        if (isset($_GET['semester']) && $_GET['semester'] != 'all') {
+            $data->whereHas('schoolYearSemester', function ($q) {
+                $q->where('semester', $_GET['semester']);
+            });
         }
         // rejected/revoked complaints get archived_at set the moment they
         // reach that status (see cancelComplaint()/revokeComplaint()) — that
@@ -698,13 +721,18 @@ class ComplaintController extends Controller
         $data = Complaint::where('complainant_id', auth()->user()->id);
         $status = isset($_GET['status']) ? $_GET['status'] : null;
 
-        // rejected/revoked complaints get archived_at set the moment they
-        // reach that status (see cancelComplaint()/revokeComplaint()) — the
-        // same field the Archives page filters on
-        // (ArchiveController::index() uses whereNotNull('archived_at')), so
-        // this tab would be permanently empty if it also required
-        // archived_at to be null. Filter by status alone for these two.
-        if (isset($_GET['status']) && in_array($_GET['status'], ['rejected', 'revoked'])) {
+        // Rejected complaints get archived_at set the moment they reach that
+        // status (see cancelComplaint()) — the same field the Archives page
+        // filters on (ArchiveController::index() uses whereNotNull('archived_at')),
+        // so this tab would be permanently empty if it also required
+        // archived_at to be null. Filter by status alone for this one.
+        //
+        // Revoked is deliberately NOT included here (nor reachable via any
+        // other $_GET['status'] value, which all fall through to the
+        // archived_at-null default below) — a complainant who revokes their
+        // own complaint shouldn't be able to see it again afterward; only
+        // the prefect can, via allComplaints()/getComplainantComplaint().
+        if (isset($_GET['status']) && $_GET['status'] === 'rejected') {
             $data = $data->where('complaint_status', $status);
         } elseif (isset($_GET['status']) && in_array($_GET['status'], ['pending', 'ongoing', 'resolved'])) {
             $data = $data->where('complaint_status', $status)
@@ -729,12 +757,20 @@ class ComplaintController extends Controller
                         ->get()
                         ->toArray();
     }
-    private function getComplainantComplaint($id) {
-        return Complaint::with('user.profile')
-                        ->where('complainant_id', $id)
-                        ->latest('created_at')
-                        ->get()
-                        ->toArray();
+    /**
+     * Powers the "Complaints Filed" tab on a profile (ProfileController::index),
+     * visible to the prefect/admin — the same list shape ComplaintList already
+     * expects ({ data: [...] }, via ComplaintResource) rather than a bare array.
+     * Loads every complaint regardless of status/archived state — the status
+     * dropdown on that tab filters client-side, not via a reload.
+     */
+    public function getComplainantComplaint($id) {
+        return ['data' => ComplaintResource::collection(
+            Complaint::with(['user.profile', 'schoolYearSemester.schoolYear'])
+                ->where('complainant_id', $id)
+                ->latest('created_at')
+                ->get()
+        )];
     }
     public function get($id) {
         $complaint = Complaint::with([
@@ -812,6 +848,7 @@ class ComplaintController extends Controller
             'complaint_status'      => $isPrefect ? 'ongoing' : 'pending',
             'confirmed_at'          => $isPrefect ? now() : null,
             'case_number'           => $isPrefect ? $nextCaseNumber : null,
+            'school_year_semester_id' => SchoolYearSemester::currentId(),
         ];
 
         if ($request->has('complainant_name') && !empty($request->complainant_name)) {

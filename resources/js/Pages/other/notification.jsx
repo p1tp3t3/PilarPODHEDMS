@@ -1,8 +1,10 @@
 import ActionBtn from "@/Components/button/action-btn"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import NotificationList from "@/Components/list/notification-list"
-import NotifDisplayLayout from "@/Layouts/notif-display-layout"
+import AuthLayout from "@/Layouts/auth-layout"
+import PageLayout from "@/Layouts/page-layout"
 import { NotificationService } from "@/others/services/notification-service"
+import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-read"
 import { useState } from "react"
 import { X, Check, Trash2 } from "lucide-react"
 
@@ -12,6 +14,8 @@ const Notification = (props) => {
           [choose, setChoose] = useState('all'),
           [notif_list, setNotifList] = useState(props.notification),
           [size, setSize] = useState(props.size)
+
+    useMarkNotificationRead()
 
     const tab = [
         { key: 'all', label: 'All' },
@@ -49,13 +53,9 @@ const Notification = (props) => {
     }
 
     return (
-            <div className="w-full py-10">
-                <div className="w-full grid gap-2 relative">
+            <PageLayout title="Notifications">
                     <div>
-                        <h1 className="text-[1.4em]"><b>Notifications</b></h1>
-                    </div>
-                    <div>
-                        <div className="py-5 flex justify-between items-center">
+                        <div className="flex justify-between items-center">
                             <div>
                                 <TabSwitcher tabs={tab} value={choose} onChange={handleSelect} />
                             </div>
@@ -94,11 +94,10 @@ const Notification = (props) => {
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
+            </PageLayout>
     )
 }
 
-Notification.layout = (page) => <NotifDisplayLayout user={page.props.user}>{page}</NotifDisplayLayout>
+Notification.layout = (page) => <AuthLayout user={page.props.user}>{page}</AuthLayout>
 
 export default Notification

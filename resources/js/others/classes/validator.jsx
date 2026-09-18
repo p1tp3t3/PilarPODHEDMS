@@ -208,19 +208,10 @@ export class Validator {
                 err.program = ''
             }
         }if(this.role == 'staff') {
-            if(f['work_type'] == '' && f['other_work_type'] != '') {
-                err.work_type = 'Work Type is required'
-                err.work_typeAsterisk = true
+            if(f['position'] == '') {
+                err.position = 'Position is not selected'
             }else {
-                err.work_type = ''
-                err.work_typeAsterisk = ''
-            }
-            if(f['work_type'] != '' && f['other_work_type'] == '') {
-                err.other_work_type = 'Work Type is required'
-                err.other_work_typeAsterisk = true
-            }else {
-                err.other_work_type = ''
-                err.other_work_typeAsterisk = ''
+                err.position = ''
             }
         }
     }
@@ -437,6 +428,61 @@ export class Validator {
                 errorMessage[`${key}Asterisk`] = '';
             });
         }
+
+        return errorMessage;
+    }
+
+    // =====================================================================
+    //  TEACHING / NON-TEACHING STAFF PROFILE VALIDATION — only picture, sex,
+    //  contact number, and address are required; religion/citizenship/date
+    //  of birth/place of birth are left optional for these roles.
+    // =====================================================================
+    if (['teaching_staff', 'non_teaching_staff'].includes(this.role)) {
+        if (!field.profile_picture) {
+            errorMessage.profile_picture = 'Profile Picture is required';
+        } else {
+            errorMessage.profile_picture = '';
+        }
+
+        if (!field.sex) {
+            errorMessage.sex = 'Sex is required';
+            errorMessage.sexAsterisk = true;
+        } else {
+            errorMessage.sex = '';
+            errorMessage.sexAsterisk = '';
+        }
+
+        if (!field.phone_number?.trim()) {
+            errorMessage.contact_number = 'Contact Number is required';
+            errorMessage.contact_numberAsterisk = true;
+        } else if (field.phone_number.length !== 11) {
+            errorMessage.contact_number = 'Contact Number must be 11 digits';
+            errorMessage.contact_numberAsterisk = true;
+        } else {
+            errorMessage.contact_number = '';
+            errorMessage.contact_numberAsterisk = '';
+        }
+
+        const addressFields = {
+            current_place: 'Current Place is required',
+            current_city: 'Current City is required',
+            current_province: 'Current Province is required',
+            current_zipcode: 'Current Zipcode is required',
+            permanent_place: 'Permanent Place is required',
+            permanent_city: 'Permanent City is required',
+            permanent_province: 'Permanent Province is required',
+            permanent_zipcode: 'Permanent Zipcode is required',
+        };
+
+        Object.keys(addressFields).forEach((key) => {
+            if (!field[key] || field[key].trim() === '') {
+                errorMessage[key] = addressFields[key];
+                errorMessage[`${key}Asterisk`] = true;
+            } else {
+                errorMessage[key] = '';
+                errorMessage[`${key}Asterisk`] = '';
+            }
+        });
 
         return errorMessage;
     }

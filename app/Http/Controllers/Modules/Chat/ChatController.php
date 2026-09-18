@@ -61,7 +61,8 @@ class ChatController extends Controller
                 ->pluck('id');
         }
 
-        $contacts = User::with('profile')->whereIn('id', $contactIds)->get();
+        $contacts = User::with(['profile', 'program', 'enrollments', 'teachingStaff.program', 'nonTeachingStaff'])
+            ->whereIn('id', $contactIds)->get();
 
         return $contacts->map(function ($contact) use ($me) {
             $lastMessage = Message::where(function ($q) use ($me, $contact) {
@@ -78,6 +79,11 @@ class ChatController extends Controller
                 'username' => $contact->username,
                 'role' => $contact->role,
                 'profile' => $contact->profile,
+                'program' => $contact->program,
+                'enrollments' => $contact->enrollments,
+                'teaching_staff' => $contact->teachingStaff,
+                'non_teaching_staff' => $contact->nonTeachingStaff,
+                'last_seen' => $contact->last_seen,
                 'last_message' => $lastMessage
                     ? ($lastMessage->unsent_at ? 'Message unsent' : $lastMessage->body)
                     : null,
@@ -93,7 +99,7 @@ class ChatController extends Controller
     public function getThread($userId)
     {
         $me = auth()->user();
-        $contact = User::with('profile')->findOrFail($userId);
+        $contact = User::with(['profile', 'program', 'enrollments', 'teachingStaff.program', 'nonTeachingStaff'])->findOrFail($userId);
 
         if (!$this->canChat($me, $contact)) {
             return response()->json(['message' => 'You cannot message this user.'], 403);

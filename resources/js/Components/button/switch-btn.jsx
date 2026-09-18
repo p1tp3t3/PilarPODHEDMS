@@ -32,6 +32,13 @@ const Switch = ({
                 '& .MuiSwitch-track': {
                     backgroundColor: offColor,
                     opacity: 1,
+                    transition: 'background-color 250ms ease',
+                },
+                '& .MuiSwitch-thumb': {
+                    transition: 'transform 200ms ease, background-color 200ms ease',
+                },
+                '& .MuiSwitch-switchBase': {
+                    transition: 'transform 200ms ease, color 200ms ease',
                 },
                 '& .MuiSwitch-switchBase.Mui-checked': {
                     color: '#fff',

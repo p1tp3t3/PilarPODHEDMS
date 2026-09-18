@@ -1,13 +1,12 @@
-import { DataGrid } from "@mui/x-data-grid"
+import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
 import { useContext, useMemo } from "react"
 import AuthContext from "@/context-provider/auth-provider"
 
-import { getProfilePic, readableDate, readableTime, showUserType, toTitleCase } from "../../others/function"
+import { getProfilePic, readableDate, readableTime, showUserType, toTitleCase, formatSchoolYearSemester } from "../../others/function"
 import ProfilePic from "../other/profile-pic"
 import ActionBtn from "../button/action-btn"
 import ListSkeleton from "../reload/list-skeleton"
-import { FileText } from "lucide-react"
 
 const STATUS_STYLES = {
     pending: "bg-yellow-100 text-yellow-700",
@@ -25,6 +24,7 @@ const statusFor = (e) => {
 
 const GatePassRequestList = (props) => {
     const { usr } = useContext(AuthContext)
+    const urlStatus = new URLSearchParams(window.location.search).get("status")
 
     const rows = useMemo(() => {
         if (!props.list) return []
@@ -42,6 +42,10 @@ const GatePassRequestList = (props) => {
             revoked_at: e.revoked_at,
             archived_at: e.archived_at,
             status: statusFor(e),
+            school_year_semester: e.school_year_semester,
+            confirmed_school_year_semester: e.confirmed_school_year_semester,
+            rejected_school_year_semester: e.rejected_school_year_semester,
+            revoked_school_year_semester: e.revoked_school_year_semester,
         }))
     }, [props.list])
 
@@ -97,11 +101,40 @@ const GatePassRequestList = (props) => {
                 headerName: "Request Since",
                 flex: 1,
                 renderCell: (params) => (
-                    <span className="text-[0.85em]">
-                        {params.value ? `${readableDate(params.value)} (${readableTime(params.value)})` : "-"}
-                    </span>
+                    <div className="text-[0.85em] leading-tight py-2">
+                        <div>{params.value ? `${readableDate(params.value)} (${readableTime(params.value)})` : "-"}</div>
+                        {formatSchoolYearSemester(params.row.school_year_semester) && (
+                            <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.school_year_semester)}</div>
+                        )}
+                    </div>
                 ),
             },
+            ...(urlStatus === "rejected-requests" ? [{
+                field: "rejected_at",
+                headerName: "Rejected Since",
+                flex: 1,
+                renderCell: (params) => (
+                    <div className="text-[0.85em] leading-tight py-2">
+                        <div>{params.value ? `${readableDate(params.value)} (${readableTime(params.value)})` : "-"}</div>
+                        {formatSchoolYearSemester(params.row.rejected_school_year_semester) && (
+                            <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.rejected_school_year_semester)}</div>
+                        )}
+                    </div>
+                ),
+            }] : []),
+            ...(urlStatus === "revoked-requests" ? [{
+                field: "revoked_at",
+                headerName: "Revoked Since",
+                flex: 1,
+                renderCell: (params) => (
+                    <div className="text-[0.85em] leading-tight py-2">
+                        <div>{params.value ? `${readableDate(params.value)} (${readableTime(params.value)})` : "-"}</div>
+                        {formatSchoolYearSemester(params.row.revoked_school_year_semester) && (
+                            <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.revoked_school_year_semester)}</div>
+                        )}
+                    </div>
+                ),
+            }] : []),
             {
                 field: "actions",
                 type: "actions",
@@ -138,7 +171,7 @@ const GatePassRequestList = (props) => {
                 ),
             },
         ]
-    }, [usr?.role, props])
+    }, [usr?.role, props, urlStatus])
 
     // Loading state (props.list === null)
     if (props.list === null) {
@@ -149,49 +182,31 @@ const GatePassRequestList = (props) => {
         )
     }
 
-    // Empty state
-    if (props.list?.length === 0) {
-        return (
-            <div className="w-full px-5 py-10 bg-white rounded-md shadow-black/20 shadow-sm">
-                <div className="flex justify-center items-center w-full">
-                    <div className="grid place-items-center text-gray-600">
-                        <div className="text-[4em]">
-                            <FileText size="1em" />
-                        </div>
-                        <div>
-                            <b>No Gate Pass Request Yet</b>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        )
-    }
-
     return (
         <Box
             sx={{
                 width: "100%",
+                minWidth: 0,
+                overflow: "hidden",
                 backgroundColor: "#fff",
                 borderRadius: 2,
                 boxShadow: 2,
                 p: 2,
-                overflowX: "auto",
             }}
         >
-            <Box sx={{ minWidth: "1020px" }}>
-                <DataGrid
-                    rows={rows}
-                    columns={columns}
-                    pageSizeOptions={[5, 10, 20]}
-                    initialState={{
-                        pagination: { paginationModel: { pageSize: 10, page: 0 } },
-                    }}
-                    pagination
-                    disableRowSelectionOnClick
-                    getRowHeight={() => 'auto'}
-                    showToolbar
-                />
-            </Box>
+            <DataGrid
+                rows={rows}
+                columns={columns}
+                pageSizeOptions={[5, 10, 20]}
+                initialState={{
+                    pagination: { paginationModel: { pageSize: 10, page: 0 } },
+                }}
+                pagination
+                disableRowSelectionOnClick
+                getRowHeight={() => 'auto'}
+                localeText={{ noRowsLabel: "No Gate Pass Request Yet" }}
+                showToolbar
+            />
         </Box>
     )
 }

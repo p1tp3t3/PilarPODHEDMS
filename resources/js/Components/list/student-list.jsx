@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState, useContext } from "react";
 import { Box } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid } from "@/Components/other/data-grid";
 import ProfilePic from "../other/profile-pic";
 import {
   checkActiveStatus,
   getProfilePic,
   getYearLevel,
+  ordinal,
   readableActiveDuration,
   readableDate,
   readableTime,
@@ -29,6 +30,7 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
       .filter(Boolean)
       .join(" • ");
     const schoolYear = latestEnrollment?.school_year?.year || "N / A";
+    const semester = latestEnrollment?.semester ? `${ordinal(latestEnrollment.semester)} Semester` : "N / A";
 
     return {
       id: i,
@@ -38,7 +40,7 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
       full_name: fullName,
 
       // 🔥 FLATTENED SEARCH FIELD
-      studentSearch: `${fullName} ${program} ${schoolYear}`.toLowerCase(),
+      studentSearch: `${fullName} ${program} ${schoolYear} ${semester}`.toLowerCase(),
 
       // 👇 Raw data for rendering
       fullName,
@@ -47,6 +49,7 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
       sex: user.profile?.sex,
       color: user.program?.color_code,
       school_year: schoolYear,
+      semester,
       created_at: user.created_at,
       last_seen: user.last_seen,
       raw: user,
@@ -79,6 +82,12 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
     {
       field: "school_year",
       headerName: "School Year",
+      width: 130,
+      renderCell: (params) => params.value ?? "N/A",
+    },
+    {
+      field: "semester",
+      headerName: "Semester",
       width: 130,
       renderCell: (params) => params.value ?? "N/A",
     },
@@ -130,26 +139,21 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
 
   return (
     <Box
-      className={
-        style
-          ? "w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm overflow-x-auto"
-          : "overflow-x-auto"
-      }
-      sx={{ width: "100%" }}
+      className={style ? "w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm" : undefined}
+      sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}
     >
-      <Box sx={{ minWidth: "1000px" }}>
-        <DataGrid
-          rows={rows}
-          columns={columns}
-          disableRowSelectionOnClick
-          hideFooterSelectedRowCount
-          pagination
-          pageSizeOptions={[20, 50, 100, 200]}
-          initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
-          showToolbar
-          getRowId={(row) => row.id}
-        />
-      </Box>
+      <DataGrid
+        rows={rows}
+        columns={columns}
+        disableRowSelectionOnClick
+        hideFooterSelectedRowCount
+        pagination
+        pageSizeOptions={[20, 50, 100, 200]}
+        initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
+        showToolbar
+        getRowId={(row) => row.id}
+        localeText={{ noRowsLabel: "No Students Found" }}
+      />
     </Box>
   );
 };

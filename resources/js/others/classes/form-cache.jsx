@@ -2,6 +2,15 @@ import { base64ToFile } from "@/others/function";
 
 const PREFIX = "draft-cache:";
 
+/**
+ * The account-setup profile/password drafts are cached under a key scoped
+ * to the account being set up — a bare "account-setup-profile" key would be
+ * shared by every account that ever runs forced setup on the same browser,
+ * so an abandoned draft from one account (with its own role, name, etc.)
+ * would silently bleed into whichever account starts setup next.
+ */
+export const accountSetupCacheKey = (base, accountId) => `${base}:${accountId}`;
+
 const fileToBase64 = (file) => new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => resolve(reader.result);

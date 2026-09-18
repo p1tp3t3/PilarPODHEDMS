@@ -1,7 +1,7 @@
 import { ViolationService } from "@/others/services/violation-service";
 import { readableDate, readableTime, showWarningModal, toTitleCase, ordinal } from "@/others/function";
 import ActionBtn from "@/Components/button/action-btn";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid } from "@/Components/other/data-grid";
 import { Box } from "@mui/material";
 import { router } from "@inertiajs/react";
 
@@ -48,9 +48,9 @@ const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditR
             )}
 
             {/* DATA TABLE */}
-            <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm overflow-x-auto">
-                <div className="w-full px-5 py-3 min-w-[1000px]">
-                    <Box sx={{ width: "100%" }}>
+            <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
+                <div className="w-full px-5 py-3 min-w-0">
+                    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                         <DataGrid
                             rows={list ?? []}
                             getRowId={(row) => row.id}

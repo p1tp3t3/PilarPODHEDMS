@@ -1,5 +1,6 @@
 import { useState } from "react";
 import AuthLayout from "@/Layouts/auth-layout";
+import PageLayout from "@/Layouts/page-layout";
 import FormTextfield from "@/Components/input/form-input";
 import FormButton from "@/Components/button/button";
 import AccountSettingsForm from "@/Components/other/account-settings-form";
@@ -14,12 +15,7 @@ const SystemSettings = (props) => {
 
     return (
         <>
-            <div className="grid gap-8">
-                <div className="pt-6 sm:pt-10 grid w-full gap-3">
-                    <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
-                        System Settings
-                    </h1>
-
+            <PageLayout title="System Settings">
                     {/* Tabs */}
                     <TabSwitcher
                         tabs={[
@@ -70,8 +66,7 @@ const SystemSettings = (props) => {
                             />
                         )}
                     </div>
-                </div>
-            </div>
+            </PageLayout>
         </>
     );
 };

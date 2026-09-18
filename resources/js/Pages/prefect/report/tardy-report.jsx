@@ -7,11 +7,11 @@ const TardyReport = (props) => {
         <>
         <div className="flex justify-end">
             <Btn onclick={() => props.openGenerateReport(true)}>
-                <FileText size="1em" /> Generate Report
+                <FileText size="1em" /> Create Filter
             </Btn>
         </div>
         <div className="grid gap-3">
-            <div className="overflow-x-auto w-full scroll-smooth">
+            <div className="w-full scroll-smooth">
                 <TardyReportList list={props.report} events={props.events} />
             </div>
         </div>

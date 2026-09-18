@@ -13,11 +13,15 @@ class ActionLogResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $parsed = $this->detailsParsed();
+
         return [
             'id' => $this->id,
             'user_id' => $this->user_id,
             'action_type' => $this->action_type,
             'details' => $this->details,
+            'details_summary' => $parsed['summary'],
+            'details_changes' => $parsed['changes'],
             'created_at' => $this->created_at,
             'user' => $this->whenLoaded('user'),
         ];

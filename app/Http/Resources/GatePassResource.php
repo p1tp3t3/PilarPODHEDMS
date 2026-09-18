@@ -27,6 +27,10 @@ class GatePassResource extends JsonResource
             'edited_at' => $this->edited_at,
             'created_at' => $this->created_at,
             'user' => $this->whenLoaded('user'),
+            'school_year_semester' => $this->whenLoaded('schoolYearSemester'),
+            'confirmed_school_year_semester' => $this->whenLoaded('confirmedSchoolYearSemester'),
+            'rejected_school_year_semester' => $this->whenLoaded('rejectedSchoolYearSemester'),
+            'revoked_school_year_semester' => $this->whenLoaded('revokedSchoolYearSemester'),
         ];
     }
 }

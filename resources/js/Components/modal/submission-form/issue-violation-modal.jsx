@@ -1,5 +1,6 @@
 import UpModal from "../up-modal";
 import FormTextfield from "@/Components/input/form-input";
+import RichTextEditor from "@/Components/input/rich-text-editor";
 import DropdownField from "../../input/dropdown";
 import RadioButton from "@/Components/input/radio";
 import FormButton from "../../button/button";
@@ -199,14 +200,12 @@ const IssueViolationModal = (props) => {
                       </div>
                     )}
 
-                    <FormTextfield
-                      type="textarea"
+                    <RichTextEditor
                       label="Summary About the Incident"
-                      name="violation_summary"
                       val={sub.violation_summary}
-                      change={(e) => handleChange(i, e)}
+                      change={(html) => handleChange(i, { target: { name: "violation_summary", value: html } })}
                       error={validationErr.remark}
-                      errorAsterisk={validationErr.remarkAsterisk}
+                      minHeight="10rem"
                     />
                   </div>
                 );

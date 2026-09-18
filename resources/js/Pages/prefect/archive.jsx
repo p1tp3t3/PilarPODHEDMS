@@ -1,4 +1,5 @@
 import AuthLayout from "@/Layouts/auth-layout"
+import PageLayout from "@/Layouts/page-layout"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import { useState } from "react"
 import { showOutputModal, showWarningModal, toTitleCase } from "@/others/function"
@@ -6,6 +7,7 @@ import ArchiveList from "@/Components/list/archive-list"
 import ViewComplaintModal from "@/Components/modal/view/view-complaint-modal"
 import ViewReferralModal from "@/Components/modal/view/view-referral-modal"
 import ViewAbsentFormModal from "@/Components/modal/view/view-absent-form-modal"
+import ViewGatePassModal from "@/Components/modal/view/view-gatepass-modal"
 import PaginationButton from "@/Components/button/pagination-btn"
 import { useReload } from "@/context-provider/reload-provider"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
@@ -23,6 +25,7 @@ const PrefectArchive = (props) => {
         { key: 'complaint', label: 'Complaint' },
         { key: 'referral', label: 'Referral' },
         { key: 'absent form', label: 'Absent Form' },
+        { key: 'gate pass', label: 'Gate Pass' },
     ]
     const url = new URLSearchParams(window.location.search)
     const [choose, setChoose] = useState(url.has("type") ? url.get("type") : "all"),
@@ -30,6 +33,7 @@ const PrefectArchive = (props) => {
           [complaint, openViewComplaint] = useState(false),
           [referral, openViewReferral] = useState(false),
           [absent, openAbsentForm] = useState(false),
+          [gatepass, openViewGatepass] = useState(false),
           [id, setDocId] = useState(''),
 
           [archive_list, setArchiveList] = useState(props.document.data)
@@ -73,6 +77,8 @@ const PrefectArchive = (props) => {
             openViewReferral(true)
         }if(type == 'a') {
             openAbsentForm(true)
+        }if(type == 'g') {
+            openViewGatepass(true)
         }
     }
     // Only absent form still has a recovery action (Approve) — complaint and
@@ -151,6 +157,16 @@ const PrefectArchive = (props) => {
             isEnableOuterClose={true}
             id={id}
         />
+        <ViewGatePassModal
+            close={gatepass}
+            closeModal={openViewGatepass}
+            pd={['px-10', 'py-7']}
+            isEnableOuterClose={true}
+            id={id}
+            approved={false}
+            setApprove={() => {}}
+            events={() => {}}
+        />
         <BulkArchiveModal
             close={bulkArchive}
             closeModal={openBulkArchive}
@@ -159,13 +175,10 @@ const PrefectArchive = (props) => {
             schoolYears={props.school_years}
             reload={() => window.location.reload()}
         />
-            <div className="w-full py-4 min-w-0">
-                <div className="w-full grid gap-5 relative min-w-0">
-                    {/* Header */}
-                    <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-3">
-                        <h1 className="text-[1.3em] sm:text-[1.5em] font-bold">ARCHIVES</h1>
-                        <Btn onclick={() => openBulkArchive(true)}>Bulk Archive</Btn>
-                    </div>
+            <PageLayout
+                title="ARCHIVES"
+                rightSideComponent={<Btn onclick={() => openBulkArchive(true)}>Bulk Archive</Btn>}
+            >
                     <div className="grid gap-3">
                         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
                             <div className="w-full sm:w-[20rem] relative flex-shrink-0">
@@ -205,8 +218,7 @@ const PrefectArchive = (props) => {
                         />
                         <PaginationButton meta={props.document.meta} />
                     </div>
-                </div>
-            </div>
+            </PageLayout>
         </>
     )
 }

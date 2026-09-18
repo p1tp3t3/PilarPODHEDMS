@@ -9,6 +9,7 @@ use App\Http\Resources\ArchivedDocumentResource;
 use App\Mail\AbsentFormMail;
 use App\Models\Absence;
 use App\Models\Complaint;
+use App\Models\GatePass;
 use App\Models\Referral;
 use App\Models\Report;
 use App\Models\SchoolYear;
@@ -33,11 +34,13 @@ class ArchiveController extends Controller
         'complaint' => ['model' => Complaint::class],
         'referral' => ['model' => Referral::class],
         'absent form' => ['model' => Absence::class],
+        'gate pass' => ['model' => GatePass::class],
     ];
 
     /**
      * Every archivable type (complaint/referral/absent form) has an
-     * associated document folder to clean up on disk.
+     * associated document folder to clean up on disk. Gate pass has no
+     * uploaded files, so it has nothing to clean up (falls to default null).
      */
     private function folderFor(string $type, $record): ?string
     {
@@ -63,7 +66,7 @@ class ArchiveController extends Controller
      */
     public function transfer(Request $request) {
         $request->validate([
-            'type' => 'required|in:complaint,referral,absent form',
+            'type' => 'required|in:complaint,referral,absent form,gate pass',
             'id' => 'required|integer',
         ]);
 
@@ -85,7 +88,7 @@ class ArchiveController extends Controller
      */
     public function bulkArchive(Request $request) {
         $request->validate([
-            'type' => 'required|in:complaint,referral,absent form,all',
+            'type' => 'required|in:complaint,referral,absent form,gate pass,all',
             'school_year' => 'nullable|string',
             'date_from' => 'nullable|date',
             'date_to' => 'nullable|date',
@@ -356,11 +359,28 @@ class ArchiveController extends Controller
 
 
         // -----------------------
-        // 4. MERGE
+        // 4. GATE PASS
+        // -----------------------
+        $gatePass = GatePass::with(['user.profile', 'user.program', 'user.enrollments'])
+            ->whereNotNull('archived_at')
+            ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
+            ->get();
+
+        $gatePass->each(function ($item) {
+            $item->student = $item->user;
+            unset($item->user);
+
+            $item->type = 'gate pass';
+        });
+
+
+        // -----------------------
+        // 5. MERGE
         // -----------------------
         $merged = $complaint
             ->concat($referral)
             ->concat($absent)
+            ->concat($gatePass)
             ->sortByDesc('archived_at')
             ->values();
 
@@ -406,6 +426,14 @@ class ArchiveController extends Controller
 
                 /* 3️⃣ ABSENT FORM — a direct student record */
                 if ($item->type === 'absent form' && isset($item->student)) {
+                    $user = $item->student ?? null;
+                    if ($user && self::matchStudentSearch($user, $search, $parts)) {
+                        return true;
+                    }
+                }
+
+                /* 4️⃣ GATE PASS — a direct student record */
+                if ($item->type === 'gate pass' && isset($item->student)) {
                     $user = $item->student ?? null;
                     if ($user && self::matchStudentSearch($user, $search, $parts)) {
                         return true;

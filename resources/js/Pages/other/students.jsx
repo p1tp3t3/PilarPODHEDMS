@@ -17,8 +17,6 @@ const enrollmentCsvColumns = [
     { field: "student_id", headerName: "ID", width: 110 },
     { field: "program", headerName: "Program", width: 150 },
     { field: "year_level", headerName: "Year Level", width: 110 },
-    { field: "semester", headerName: "Semester", width: 110 },
-    { field: "school_year", headerName: "School Year", width: 130 },
     { field: "enrolled_at", headerName: "Enrolled Since", width: 140 },
 ]
 
@@ -118,7 +116,6 @@ const Students = (props) => {
                 finalizeSuffix="Record(s)"
                 columns={enrollmentCsvColumns}
                 programOptions={(props.program ?? []).map((p) => p.name)}
-                schoolYearOptions={(props.school_years_full ?? []).map((s) => s.year)}
             />
         )
     }

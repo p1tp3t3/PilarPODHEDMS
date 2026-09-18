@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { Box } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid } from "@/Components/other/data-grid";
 import {
   readableDate,
   readableTime,
@@ -55,11 +55,11 @@ const ParentRequestList = ({ list = null, paginate = true, event }) => {
       field: "actions",
       type: "actions",
       headerName: "Action",
-      width: 250,
+      width: 280,
       headerAlign: "left",
       align: "left",
       renderCell: (params) => (
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1 py-1">
             <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => event('v', params.row.id, params.row)}>
               View
             </ActionBtn>
@@ -76,22 +76,22 @@ const ParentRequestList = ({ list = null, paginate = true, event }) => {
 
   return (
     <Box
-      className={"w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm overflow-x-auto"}
-      sx={{ width: "100%" }}
+      className={"w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm"}
+      sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}
     >
-      <Box sx={{ minWidth: "900px" }}>
-        <DataGrid
-          rows={rows}
-          columns={columns}
-          disableRowSelectionOnClick
-          hideFooterSelectedRowCount
-          pagination
-          pageSizeOptions={[20, 50, 100, 200]}
-          initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
-          showToolbar
-          getRowId={(row) => row.id}
-        />
-      </Box>
+      <DataGrid
+        rows={rows}
+        columns={columns}
+        disableRowSelectionOnClick
+        hideFooterSelectedRowCount
+        pagination
+        pageSizeOptions={[20, 50, 100, 200]}
+        initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
+        showToolbar
+        getRowHeight={() => 'auto'}
+        getRowId={(row) => row.id}
+        localeText={{ noRowsLabel: "No Parent Requests Found" }}
+      />
     </Box>
   );
 };

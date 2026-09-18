@@ -5,6 +5,7 @@ import AuthContext from "@/context-provider/auth-provider"
 import { useContext, useState, useEffect, useRef } from "react"
 import SearchBar from "../input/search-bar"
 import { DashboardService } from "@/others/services/dashboard-service"
+import { AlertCircle } from "lucide-react"
 
 const LatestActiveAccountList = ({ dataKey = 'active', ...props }) => {
     const { usr, onlineUserIds } = useContext(AuthContext)
@@ -103,8 +104,8 @@ const LatestActiveAccountList = ({ dataKey = 'active', ...props }) => {
                 :
                 <div className="text-[1em] text-gray-500 w-full grid place-items-center h-full">
                     <div className="grid place-items-center">
-                        <div className="text-[4em]">
-                            <i className="fa-solid fa-circle-exclamation"></i>
+                        <div className="text-[4em] grid place-items-center">
+                            <AlertCircle size="1em" />
                         </div>
                         <div>No Active {userType()} Yet</div>
                     </div>

@@ -50,6 +50,8 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      Route::get('/super-admin/user-accounts', [AccountController::class, 'index'])
          ->name('type.super-admin.accounts');
 
+     Route::get('/super-admin/staff-list', [AccountController::class, 'staffListIndex']);
+
      Route::get('/super-admin/profile/{id}', [ProfileController::class, 'index']);
 
      Route::get('/super-admin/accounts/register', [RegisteredUserController::class, 'index']);
@@ -79,6 +81,7 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      Route::get('/super-admin/school-year', [SchoolYearController::class, 'index']);
      Route::post('/super-admin/school-year/create', [SchoolYearController::class, 'store']);
      Route::post('/super-admin/school-year/activate', [SchoolYearController::class, 'activate']);
+     Route::post('/super-admin/school-year/semester/activate', [SchoolYearController::class, 'activateSemester']);
      Route::post('/super-admin/school-year/close', [SchoolYearController::class, 'close']);
      Route::post('/super-admin/school-year/delete', [SchoolYearController::class, 'destroy']);
 
@@ -87,11 +90,20 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      Route::post('/super-admin/user-accounts/file/del', [FileController::class, 'destroy']);
      Route::get('/super-admin/report', [ReportController::class, 'itrcIndex']);
      Route::get('/super-admin/report/generate', [ReportController::class, 'actionLogStore']);
+     Route::get('/super-admin/report/statistics-preview', [ReportController::class, 'accountStatisticsPreview']);
+     Route::post('/super-admin/report/statistics/generate', [ReportController::class, 'generateAccountStatisticsReport']);
+     Route::get('/super-admin/report/download/{id}', [ReportController::class, 'downloadReport'])->name('super-admin.report.download');
+     Route::get('/super-admin/report/view/{id}', [ReportController::class, 'viewReport'])->name('super-admin.report.view');
 
      Route::post('/super-admin/account/update', [AccountController::class, 'updateUserInformation']);
 
      Route::post('/super-admin/staff/position/assign', [AccountController::class, 'assignStaffPosition']);
      Route::post('/super-admin/staff/position/remove', [AccountController::class, 'removeStaffPosition']);
+
+     Route::get('/super-admin/staff/positions', [AccountController::class, 'positionIndex']);
+     Route::post('/super-admin/staff/positions/create', [AccountController::class, 'positionStore']);
+     Route::post('/super-admin/staff/positions/update', [AccountController::class, 'updatePosition']);
+     Route::post('/super-admin/staff/positions/delete', [AccountController::class, 'destroyPosition']);
 
      Route::get('/system-settings', [SystemSettingsController::class, 'index']);
      Route::post('/system-settings/login-portal-password', [SystemSettingsController::class, 'updateLoginPortalPassword']);
@@ -159,6 +171,8 @@ Route::middleware(['role:student', 'activate', 'user-activity'])->group(function
 Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(function() {
     Route::get('/prefect/student-list', [AccountController::class, 'studentListIndex']);
     Route::get('/prefect/staff-list', [AccountController::class, 'staffListIndex']);
+    Route::get('/prefect/parent-list', [AccountController::class, 'parentListIndex']);
+    Route::get('/prefect/user-list', [AccountController::class, 'userListIndex']);
 
     Route::get('/prefect/archive', [ArchiveController::class, 'index']);
 
@@ -183,6 +197,7 @@ Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(functi
 
     Route::post('/referral/verify/{id}/confirm', [ReferralController::class, 'confirmReferral']);
     Route::get('/referral/verify/{id}/send-guidance', [ReferralController::class, 'printReferralGuidance']);
+    Route::get('/referral/verify/{id}/send-it-staff', [ReferralController::class, 'printReferralToItStaff']);
     Route::post('/referral/verify/{id}/cancel', [ReferralController::class, 'destroy']);
 
     Route::get('/download/{type}/{id}', [ArchiveController::class, 'downloadDocument']);
@@ -191,11 +206,16 @@ Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(functi
     Route::post('/prefect/analytic-report/generate', [ReportController::class, 'generateAnalyticReport']);
     Route::get('/prefect/analytics/preview', [ReportController::class, 'analyticsPreview']);
     Route::post('/prefect/report/generate', [ReportController::class, 'store']);
-    Route::get('/prefect/report/download/{fileName}', [ReportController::class, 'downloadReport'])->name('prefect.report.download');
-    Route::get('/prefect/report/view/{fileName}', [ReportController::class, 'viewReport'])->name('prefect.report.view');
+    Route::get('/prefect/report/download/{id}', [ReportController::class, 'downloadReport'])->name('prefect.report.download');
+    Route::get('/prefect/report/view/{id}', [ReportController::class, 'viewReport'])->name('prefect.report.view');
     Route::post('/prefect/report/check-duplicate', [ReportController::class, 'checkDuplicateReport']);
     Route::get('/prefect/report/history', [ReportController::class, 'reportHistory']);
     Route::post('/prefect/report/delete/{id}', [ReportController::class, 'destroyReport']);
+    Route::get('/prefect/report-filter', [ReportController::class, 'reportFilterIndex']);
+    Route::post('/prefect/report-filter', [ReportController::class, 'storeReportFilter']);
+    Route::post('/prefect/report-filter/{id}/update', [ReportController::class, 'updateReportFilterRequest']);
+    Route::post('/prefect/report-filter/{id}/delete', [ReportController::class, 'destroyReportFilter']);
+    Route::post('/prefect/report-filter/{id}/generate', [ReportController::class, 'generateFromFilter']);
     Route::post('/prefect/archive/recover', [ArchiveController::class, 'recoverDocument']);
     Route::post('/prefect/archive/delete', [ArchiveController::class, 'destroy']);
     Route::post('/prefect/archive/transfer', [ArchiveController::class, 'transfer']);
@@ -277,7 +297,6 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/complaint/{id}/previous-evidence/{fileName}', [ComplaintController::class, 'downloadPreviousEvidence']);
      Route::get('/complaint/{id}/subject/{fileName}', [ComplaintController::class, 'downloadSubjectDocument']);
 
-     Route::get('/referral/report', [ReferralController::class, 'create']);
      Route::post('/referral/create', [ReferralController::class, 'store']);
      Route::post('/referral/get/{id}', [ReferralController::class, 'get']);
      Route::post('/referral/{id}/revoke', [ReferralController::class, 'revokeReferral']);

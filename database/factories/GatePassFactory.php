@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\GatePass;
+use App\Models\SchoolYearSemester;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -42,6 +43,8 @@ class GatePassFactory extends Factory
             ]),
             'confirmed_at' => $confirmedAt,
             'date_expiration' => $expiration,
+            'school_year_semester_id' => SchoolYearSemester::idForDate($createdAt),
+            'confirmed_school_year_semester_id' => $isConfirmed ? SchoolYearSemester::idForDate($confirmedAt) : null,
             'created_at' => $createdAt,
         ];
     }

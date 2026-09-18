@@ -5,6 +5,8 @@ namespace App\Jobs;
 use App\Exports\UserAccountExport;
 use App\Models\EducationBackground;
 use App\Models\Enrollment;
+use App\Models\NonTeachingStaff;
+use App\Models\Position;
 use App\Models\Profile;
 use App\Models\Program;
 use App\Models\SchoolYear;
@@ -145,7 +147,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
                 elseif ($userType === 'teaching_staff') {
                     TeachingStaff::updateOrInsert(
                         ['user_id' => $user->id],
-                        ['program_id' => $csv['program'], 'position' => 'faculty']
+                        ['program_id' => $csv['program'], 'position_id' => Position::idFor('faculty')]
                     );
                     $programId = $csv['program'];
 
@@ -157,9 +159,13 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
                 }
                 // === NON-TEACHING STAFF or OTHER TYPES ===
                 else {
-                    // No dedicated table exists for non_teaching_staff-specific fields
-                    // (e.g. work_type) in the current schema — only the base account
-                    // (users/profiles/user_permissions) is created for this branch.
+                    if ($userType === 'non_teaching_staff') {
+                        NonTeachingStaff::updateOrInsert(
+                            ['user_id' => $user->id],
+                            ['position_id' => Position::idFor($csv['position'])]
+                        );
+                    }
+
                     $baseColumn = $this->getUserTypeRow($userType, $csv, $username, $plainPassword);
                 }
             }
@@ -226,6 +232,11 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
         $rowErrors = [];  // store errors by row number
         $flatErrors = []; // final output lines
 
+        // Non-teaching-assignable position names — computed once up front
+        // rather than per-row, since it never changes during a single
+        // validation pass.
+        $assignablePositions = Position::whereNotIn('name', ['faculty', 'program_head'])->pluck('name');
+
         // RULES PER ROLE
         $rules = [
             'student' => [
@@ -267,11 +278,13 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
             'non_teaching_staff' => [
                 'required' => [
                     'id', 'first_name', 'middle_name', 'last_name',
-                    'sex', 'email', 'work_type'
+                    'sex', 'email', 'position'
                 ],
-                'extra_validation' => function ($row, $rowNum, &$rowErrors) {
-                    if (empty($row['work_type'])) {
-                        $rowErrors[$rowNum][] = "Row $rowNum: work_type cannot be empty.";
+                'extra_validation' => function ($row, $rowNum, &$rowErrors) use ($assignablePositions) {
+                    if (empty($row['position'])) {
+                        $rowErrors[$rowNum][] = "Row $rowNum: position cannot be empty.";
+                    } elseif (!$assignablePositions->contains($row['position'])) {
+                        $rowErrors[$rowNum][] = "Row $rowNum: position '{$row['position']}' is not valid. Allowed: " . $assignablePositions->implode(', ');
                     }
                 }
             ],

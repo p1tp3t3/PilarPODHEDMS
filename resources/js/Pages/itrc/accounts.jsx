@@ -1,13 +1,24 @@
 import AuthLayout from "@/Layouts/auth-layout";
+import PageLayout from "@/Layouts/page-layout";
 import { useEffect, useState } from "react";
 import { router } from "@inertiajs/react";
 import AccountList from "@/Components/list/account-list";
 import AccountFilesTab from "@/Components/other/account-files-tab";
 import TabSwitcher from "@/Components/other/tab-switcher";
+import DropdownField from "@/Components/input/dropdown";
 import EditUserInfoModal from "@/Components/modal/submission-form/edit-user-information-modal";
 import { useReload } from "@/context-provider/reload-provider";
 import { AccountService } from "@/others/services/account-service";
 import { showOutputModal, showWarningModal } from "@/others/function";
+
+const roleOptions = [
+  { val: "super_admin", label: "Super Admin" },
+  { val: "sub_admin", label: "Sub Admin" },
+  { val: "student", label: "Student" },
+  { val: "teaching_staff", label: "Teaching Staff" },
+  { val: "non_teaching_staff", label: "Non-Teaching Staff" },
+  { val: "parent", label: "Parent" },
+];
 
 const Accounts = (props) => {
   const [editUserInfo, openEditUserInfo] = useState(false),
@@ -26,8 +37,23 @@ const Accounts = (props) => {
     });
   }, [clickedOk]);
 
-  const activeTab = new URLSearchParams(window.location.search).get("tab") || "users";
-  const goToTab = (tab) => router.visit(`/super-admin/user-accounts?tab=${tab}`);
+  const url = new URLSearchParams(window.location.search);
+  const activeTab = url.get("tab") || "users";
+  const roleFilter = url.get("role") || "all";
+
+  // Preserves every other active query param (tab, role) when only one of
+  // them changes, instead of rebuilding the query string from scratch.
+  const updateQuery = (patch) => {
+    const params = new URLSearchParams(window.location.search);
+    Object.entries(patch).forEach(([key, value]) => {
+      if (value && value !== "all") params.set(key, value);
+      else params.delete(key);
+    });
+    router.visit(`/super-admin/user-accounts?${params.toString()}`);
+  };
+
+  const goToTab = (tab) => updateQuery({ tab });
+  const handleRoleChange = (e) => updateQuery({ role: e.target.value });
 
   const showEditUserInfo = (data) => {
     openEditUserInfo(true);
@@ -85,14 +111,9 @@ const Accounts = (props) => {
         reload={loadRegister}
       />
 
-      <div className="w-full py-4">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-3">
-          <h1 className="text-[1.3em] sm:text-[1.5em] font-bold">USER LIST</h1>
-        </div>
-
+      <PageLayout title="USER LIST">
         {/* Tabs */}
-        <div className="mt-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
           <TabSwitcher
             tabs={[
               { key: "users", label: "Users" },
@@ -101,10 +122,21 @@ const Accounts = (props) => {
             value={activeTab}
             onChange={goToTab}
           />
+          {activeTab === "users" && (
+            <div className="w-full sm:w-56 flex-shrink-0">
+              <DropdownField
+                default={{ val: "all", label: "All Roles" }}
+                list={roleOptions}
+                val={roleFilter}
+                onChange={handleRoleChange}
+                name="role_filter"
+              />
+            </div>
+          )}
         </div>
 
         {activeTab === "users" && (
-          <div className="pt-3">
+          <div>
             <AccountList
               row={props.account_list}
               openEditUserInfo={showEditUserInfo}
@@ -116,11 +148,11 @@ const Accounts = (props) => {
         )}
 
         {activeTab === "files" && (
-          <div className="pt-3">
+          <div>
             <AccountFilesTab files={props.account_files} canDelete={true} />
           </div>
         )}
-      </div>
+      </PageLayout>
     </>
   );
 };

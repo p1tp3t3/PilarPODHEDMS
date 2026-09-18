@@ -1,5 +1,5 @@
 import UpModal from "../up-modal"
-import FormTextfield from "../../input/form-input"
+import RichTextEditor from "../../input/rich-text-editor"
 import FormButton from "../../button/button"
 import '../style.css'
 import { useState, useEffect } from "react"
@@ -203,14 +203,12 @@ const EditComplaintModal = (props) => {
                             </div>
                         </div>
 
-                        <FormTextfield
+                        <RichTextEditor
                             label="State Your Reason About the Complaint"
-                            name="complaint_description"
-                            id="edit_complaint_reason"
-                            type="textarea"
                             val={description}
-                            change={(e) => setDescription(e.target.value)}
+                            change={setDescription}
                             error={validationError.reason}
+                            minHeight="12rem"
                         />
 
                         <div className="grid gap-2">

@@ -8,6 +8,7 @@ use App\Models\ActionLog;
 use App\Models\Complaint;
 use App\Models\ComplaintSubject;
 use App\Models\ComplaintSubjectViolation;
+use App\Models\SchoolYearSemester;
 use App\Models\User;
 use App\Models\Violation;
 use App\Models\ViolationPenalty;
@@ -167,6 +168,14 @@ class ViolationController extends Controller
                 // ----------------------------------------------------------------------
                 // 2. DELETE OLD OFFENSES for this student (fresh update)
                 // ----------------------------------------------------------------------
+                $oldViolationIds = ComplaintSubjectViolation::where('complaint_id', $complaintId)
+                    ->where('student_id', $studentId)
+                    ->whereNotNull('violation_id')
+                    ->pluck('violation_id');
+                $oldViolationNames = $oldViolationIds->isEmpty()
+                    ? 'None'
+                    : Violation::whereIn('id', $oldViolationIds)->pluck('violation_name')->implode(', ');
+
                 ComplaintSubjectViolation::where(
                     'complaint_id', $complaintId
                 )
@@ -201,11 +210,17 @@ class ViolationController extends Controller
                 // ----------------------------------------------------------------------
                 // 4. Log Action
                 // ----------------------------------------------------------------------
-                ActionLog::create([
-                    'user_id' => auth()->user()->id,
-                    'action_type' => 'complaint',
-                    'details' => "Resolved complaint for student $studentId in case #{$complaint->first()->case_number}",
-                ]);
+                $newViolationIds = collect($sub['offenses'])->pluck('violation')->reject(fn ($v) => $v === 'none');
+                $newViolationNames = $newViolationIds->isEmpty()
+                    ? 'None'
+                    : Violation::whereIn('id', $newViolationIds)->pluck('violation_name')->implode(', ');
+
+                ActionLog::log(
+                    auth()->user()->id,
+                    'complaint',
+                    "Resolved complaint for student $studentId in case #{$complaint->first()->case_number}",
+                    ['violations' => ['from' => $oldViolationNames, 'to' => $newViolationNames]]
+                );
             }
 
             // ----------------------------------------------------------------------
@@ -229,6 +244,7 @@ class ViolationController extends Controller
                 'offense_issued_at' => now(),
                 'archived_at' => archive_retention_date(),
                 'incident_summary' => $summary,
+                'resolved_school_year_semester_id' => SchoolYearSemester::currentId(),
             ]);
 
             DB::commit();

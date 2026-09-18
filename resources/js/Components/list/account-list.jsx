@@ -18,10 +18,9 @@ import Switch from "../button/switch-btn";
 import { AccountService } from "@/others/services/account-service";
 import { Link } from "@inertiajs/react";
 import ActionBtn from "../button/action-btn";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid } from "@/Components/other/data-grid";
 import { Box } from "@mui/material";
 import { X, Check } from "lucide-react";
-import AssignPositionModal from "../modal/submission-form/assign-position-modal";
 
 const AccountList = (props) => {
   const { isUserOnline } = useContext(AuthContext);
@@ -29,31 +28,7 @@ const AccountList = (props) => {
     [search, setSearch] = useState(""),
     [accountList, setAccountList] = useState(props.row.data),
     [select, enableSelect] = useState(false),
-    [activate, setActivate] = useState(false),
-    [positionModal, openPositionModal] = useState(false),
-    [positionRow, setPositionRow] = useState(null);
-
-  const showPositionModal = (row) => {
-    setPositionRow(row);
-    openPositionModal(true);
-  };
-
-  const removePosition = (row) => {
-    showWarningModal(
-      `Are You Sure You Want to Remove ${row.non_teaching_staff?.position ?? "This"} Position From ${row.profile?.first_name}?`,
-      "Remove Position",
-      "Cancel",
-      () => {
-        AccountService.removeStaffPosition(
-          { user_id: row.id },
-          () => {
-            showOutputModal("Position Removed Successfully", "s", () => window.location.reload());
-          },
-          (err) => showOutputModal(err.response?.data?.message ?? "Failed to remove position.", "e", () => {})
-        );
-      }
-    );
-  };
+    [activate, setActivate] = useState(false);
 
   const handleSearch = (e) => setSearch(e.target.value);
 
@@ -148,14 +123,15 @@ const AccountList = (props) => {
           )}
         </div>
 
-        <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm overflow-x-auto">
-          <div className="w-full px-5 py-3 min-w-[1050px]">
+        <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
+          <div className="w-full px-5 py-3 min-w-0">
             {/* === DATAGRID === */}
-        <Box sx={{ width: "100%" }}>
+        <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
           <DataGrid
             rows={accountList ?? []}
             getRowId={(row) => row.id}
             disableRowSelectionOnClick
+            localeText={{ noRowsLabel: "No Accounts Found" }}
             showToolbar
             hideFooterSelectedRowCount
             pagination
@@ -229,7 +205,7 @@ const AccountList = (props) => {
                 field: "actions",
                 type: 'actions',
                 headerName: "Action",
-                width: 420,
+                width: 220,
                 sortable: false,
                 headerAlign: 'left',
                 align: 'left',
@@ -238,8 +214,6 @@ const AccountList = (props) => {
                     row={params.row}
                     select={select}
                     deleteUser={props.deleteUser}
-                    assignPosition={showPositionModal}
-                    removePosition={removePosition}
                   />
                 ),
               },
@@ -249,13 +223,6 @@ const AccountList = (props) => {
           </div>
         </div>
       </div>
-      <AssignPositionModal
-        close={positionModal}
-        closeModal={openPositionModal}
-        isEnableOuterClose={true}
-        data={positionRow}
-        onDone={() => window.location.reload()}
-      />
     </div>
   );
 };
@@ -263,7 +230,7 @@ const AccountList = (props) => {
 // ========================
 // ACTION CELL COMPONENT
 // ========================
-const ActionCell = ({ row, select, deleteUser, assignPosition, removePosition }) => {
+const ActionCell = ({ row, select, deleteUser }) => {
   const [activate, setActivate] = useState(row.activate);
 
   useEffect(() => {
@@ -289,25 +256,6 @@ const ActionCell = ({ row, select, deleteUser, assignPosition, removePosition })
           onChange={handleToggle}
           effect={["bg-red-600", "bg-green-600"]}
         />
-      )}
-
-      {!select && row.role === "non_teaching_staff" && (
-        <ActionBtn
-          onClick={() => assignPosition(row)}
-          className="bg-amber-600 text-white hover:bg-amber-700"
-        >
-          {row.non_teaching_staff?.position ?? "Set Position"}
-        </ActionBtn>
-      )}
-
-      {!select && row.role === "non_teaching_staff" && row.non_teaching_staff &&
-       !["Guard", "Guidance"].includes(row.non_teaching_staff.position) && (
-        <ActionBtn
-          onClick={() => removePosition(row)}
-          className="bg-gray-500 text-white hover:bg-gray-600"
-        >
-          Clear
-        </ActionBtn>
       )}
 
       {!select && (

@@ -1,5 +1,5 @@
-import { DataGrid } from '@mui/x-data-grid'
-import { getProfilePic, readableDate, readableTime, showUserType } from "@/others/function"
+import { DataGrid } from '@/Components/other/data-grid'
+import { getProfilePic, readableDate, readableTime, showUserType, formatSchoolYearSemester } from "@/others/function"
 import ProfilePic from "../other/profile-pic"
 import ActionBtn from "../button/action-btn"
 import Box from '@mui/material/Box'
@@ -18,6 +18,8 @@ const GatePassList = (props) => {
             confirmed: e.gatepass?.[0]?.confirmed_at,
             expiration: e.gatepass?.[0]?.date_expiration,
             archived_at: e.gatepass?.[0]?.archived_at,
+            school_year_semester: e.gatepass?.[0]?.school_year_semester,
+            confirmed_school_year_semester: e.gatepass?.[0]?.confirmed_school_year_semester,
         }))
         : []
 
@@ -52,19 +54,27 @@ const GatePassList = (props) => {
             field: 'requested',
             headerName: 'Requested Since',
             flex: 1,
-            renderCell: (params) =>
-                params.value
-                    ? `${readableDate(params.value)} (${readableTime(params.value)})`
-                    : '-'
+            renderCell: (params) => (
+                <div className="leading-tight py-2">
+                    <div>{params.value ? `${readableDate(params.value)} (${readableTime(params.value)})` : '-'}</div>
+                    {formatSchoolYearSemester(params.row.school_year_semester) && (
+                        <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.school_year_semester)}</div>
+                    )}
+                </div>
+            )
         },
         {
             field: 'confirmed',
             headerName: 'Confirmed Since',
             flex: 1,
-            renderCell: (params) =>
-                params.value
-                    ? `${readableDate(params.value)} (${readableTime(params.value)})`
-                    : '-'
+            renderCell: (params) => (
+                <div className="leading-tight py-2">
+                    <div>{params.value ? `${readableDate(params.value)} (${readableTime(params.value)})` : '-'}</div>
+                    {formatSchoolYearSemester(params.row.confirmed_school_year_semester) && (
+                        <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.confirmed_school_year_semester)}</div>
+                    )}
+                </div>
+            )
         },
         {
             field: 'expiration',
@@ -106,35 +116,34 @@ const GatePassList = (props) => {
         <Box
             sx={{
                 width: '100%',
+                minWidth: 0,
+                overflow: 'hidden',
                 backgroundColor: '#fff',
                 borderRadius: 2,
                 boxShadow: 2,
                 p: 2,
-                overflowX: 'auto',
             }}
         >
-            <Box sx={{ minWidth: '900px' }}>
-                <DataGrid
-                    rows={rows}
-                    columns={columns}
-                    pageSizeOptions={[5, 10, 20]}
-                    initialState={{
-                        pagination: { paginationModel: { pageSize: 5, page: 0 } }
-                    }}
-                    pagination
-                    disableRowSelectionOnClick
-                    getRowHeight={() => 'auto'}
-                    showToolbar
-                    localeText={{ noRowsLabel: 'No Gate Pass Records Found' }}
-                    sx={{
-                        border: 'none',
-                        '& .MuiDataGrid-columnHeaders': {
-                            backgroundColor: '#f9fafb',
-                            fontWeight: 'bold'
-                        }
-                    }}
-                />
-            </Box>
+            <DataGrid
+                rows={rows}
+                columns={columns}
+                pageSizeOptions={[5, 10, 20]}
+                initialState={{
+                    pagination: { paginationModel: { pageSize: 5, page: 0 } }
+                }}
+                pagination
+                disableRowSelectionOnClick
+                getRowHeight={() => 'auto'}
+                showToolbar
+                localeText={{ noRowsLabel: 'No Gate Pass Records Found' }}
+                sx={{
+                    border: 'none',
+                    '& .MuiDataGrid-columnHeaders': {
+                        backgroundColor: '#f9fafb',
+                        fontWeight: 'bold'
+                    }
+                }}
+            />
         </Box>
     )
 }

@@ -24,6 +24,7 @@ class UserSearchResource extends JsonResource
             'id' => $this->id,
             'id_number' => $this->id_number,
             'role' => $this->role,
+            'last_seen' => $this->last_seen,
             'profile' => $this->whenLoaded('profile', fn () => [
                 'first_name' => $this->profile->first_name,
                 'middle_name' => $this->profile->middle_name,
@@ -45,6 +46,9 @@ class UserSearchResource extends JsonResource
                     'position' => $this->teachingStaff->position,
                     'program' => $this->teachingStaff->program ? ['name' => $this->teachingStaff->program->name] : null,
                 ]
+                : null,
+            'non_teaching_staff' => ($this->role === 'non_teaching_staff' && $this->nonTeachingStaff)
+                ? ['position' => $this->nonTeachingStaff->position]
                 : null,
         ], fn ($value) => $value !== null);
     }

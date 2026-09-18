@@ -1,13 +1,11 @@
 import UpModal from "../up-modal"
 import { useState, useEffect } from "react"
-import { getData, getProfilePic, readableDate, readableTime, toTitleCase } from "../../../others/function"
-import SelectedUser from "../../other/selected-user"
+import { readableDate, readableTime, toTitleCase, formatSchoolYearSemester } from "../../../others/function"
 import { ComplaintService } from "@/others/services/complaint-service"
 import CircleReload from "@/Components/reload/circle-reload"
-import { Link } from "@inertiajs/react"
+import { ModalHeader, Section, Stat, StatGrid, PersonList, safeParseArray } from "./view-modal-parts"
 import {
     AlertCircle,
-    Hash,
     CalendarClock,
     CheckCircle2,
     ShieldCheck,
@@ -21,6 +19,7 @@ import {
     Undo2,
     FileText,
     History,
+    XCircle,
 } from "lucide-react"
 
 const ViewComplaintModal = (props) => {
@@ -81,42 +80,6 @@ const MATCH_LEVELS = [
 
 const matchLevelFor = (similarity) => MATCH_LEVELS.find(l => similarity >= l.min)
 
-const Section = ({ icon: Icon, title, children, tone = 'border-gray-200' }) => (
-    <div className={`rounded-xl border ${tone} bg-white p-4 sm:p-5`}>
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-3">
-            <Icon size={16} className="text-gray-400 shrink-0" />
-            {title}
-        </h2>
-        {children}
-    </div>
-)
-
-const Stat = ({ icon: Icon, label, value }) => (
-    <div className="flex items-start gap-2.5">
-        <div className="mt-0.5 rounded-md bg-gray-100 p-1.5">
-            <Icon size={14} className="text-gray-500" />
-        </div>
-        <div className="min-w-0">
-            <div className="text-[0.7rem] uppercase tracking-wide text-gray-400 font-medium">{label}</div>
-            <div className="text-sm font-medium text-gray-800 truncate">{value}</div>
-        </div>
-    </div>
-)
-
-// Defensive against non-string/malformed values from the backend (a bad
-// JSON.parse here throws synchronously during render and blanks the whole
-// page) — always resolves to an array, never throws.
-const safeParseArray = (value) => {
-    if (Array.isArray(value)) return value
-    if (typeof value !== 'string' || value === '') return []
-    try {
-        const parsed = JSON.parse(value)
-        return Array.isArray(parsed) ? parsed : []
-    } catch {
-        return []
-    }
-}
-
 const Body = ({ data, usr }) => {
     const evidences = safeParseArray(data.complaint_evidences)
     const contextAnalysis = safeParseArray(data.context_analysis)
@@ -124,33 +87,26 @@ const Body = ({ data, usr }) => {
 
     return (
         <div>
-            {/* Header banner */}
-            <div className="rounded-t-md bg-gray-50 border-b px-6 py-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <h1 className="text-xl font-bold text-gray-900">{complainantName}'s Complaint</h1>
-                        <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-1">
-                            <Hash size={12} />
-                            {data.complaint_number}
-                        </div>
-                    </div>
-                    <span className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full ${STATUS_STYLES[data.complaint_status] ?? 'bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-200'}`}>
-                        {toTitleCase(data.complaint_status)}
-                    </span>
-                </div>
-            </div>
+            <ModalHeader
+                title={`${complainantName}'s Complaint`}
+                reference={data.complaint_number}
+                status={data.complaint_status}
+                styles={STATUS_STYLES}
+            />
 
             <div className="p-6 space-y-4">
                 {/* Timeline stats */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
-                    <Stat icon={CalendarClock} label="Reported Since" value={`${readableDate(data.created_at)} (${readableTime(data.created_at)})`} />
+                <StatGrid>
+                    <Stat icon={CalendarClock} label="Reported Since" value={`${readableDate(data.created_at)} (${readableTime(data.created_at)})`} sub={formatSchoolYearSemester(data.school_year_semester)} />
                     {data.confirmed_at &&
-                    <Stat icon={CheckCircle2} label="Approved Since" value={`${readableDate(data.confirmed_at)} (${readableTime(data.confirmed_at)})`} />}
+                    <Stat icon={CheckCircle2} label="Approved Since" value={`${readableDate(data.confirmed_at)} (${readableTime(data.confirmed_at)})`} sub={formatSchoolYearSemester(data.confirmed_school_year_semester)} />}
                     {data.offense_issued_at &&
-                    <Stat icon={ShieldCheck} label="Resolved Since" value={`${readableDate(data.offense_issued_at)} (${readableTime(data.offense_issued_at)})`} />}
+                    <Stat icon={ShieldCheck} label="Resolved Since" value={`${readableDate(data.offense_issued_at)} (${readableTime(data.offense_issued_at)})`} sub={formatSchoolYearSemester(data.resolved_school_year_semester)} />}
+                    {data.rejected_at &&
+                    <Stat icon={XCircle} label="Rejected Since" value={`${readableDate(data.rejected_at)} (${readableTime(data.rejected_at)})`} sub={formatSchoolYearSemester(data.rejected_school_year_semester)} />}
                     {data.revoked_at &&
-                    <Stat icon={Undo2} label="Revoked Since" value={`${readableDate(data.revoked_at)} (${readableTime(data.revoked_at)})`} />}
-                </div>
+                    <Stat icon={Undo2} label="Revoked Since" value={`${readableDate(data.revoked_at)} (${readableTime(data.revoked_at)})`} sub={formatSchoolYearSemester(data.revoked_school_year_semester)} />}
+                </StatGrid>
 
                 {data.edited_at && data.revisions?.length > 0 && (() => {
                     const previous = data.revisions[0]
@@ -216,13 +172,14 @@ const Body = ({ data, usr }) => {
                 <div className="grid gap-4 sm:grid-cols-2">
                     <Section icon={UserCircle2} title="Complainant">
                         {data.user != null
-                        ? <ProfileBody data={data.user} />
+                        ? <PersonList data={data.user} />
                         : <div className="text-sm text-gray-700">{toTitleCase(data.complainant_name)}</div>}
                     </Section>
                     <Section icon={Users} title="Subject">
-                        <ProfileBody
+                        <PersonList
                             data={data.subject}
-                            data_list={data.complaintSubject != null ? data.complaintSubject : null} />
+                            data_list={data.complaintSubject != null ? data.complaintSubject : null}
+                            emptyLabel="No subject on record." />
                     </Section>
                 </div>
 
@@ -337,33 +294,6 @@ const Body = ({ data, usr }) => {
                 })}
             </div>
         </div>
-    )
-}
-
-const ProfileBody = ({ data, data_list = null }) => {
-    if (data_list != null && data_list.length !== 0) {
-        return (
-            <div className="grid gap-1">
-                {data_list.map((e, i) =>
-                <Link key={i} href={`/profile/${e.user.username}`} className="block">
-                    <SelectedUser
-                        src={getProfilePic(e.user.profile?.profile_picture, e.user.profile?.sex)}
-                        name={[e.user.profile?.first_name, e.user.profile?.last_name]}
-                        user={e.user}
-                    />
-                </Link>)}
-            </div>
-        )
-    }
-
-    return (
-        <Link href={`/profile/${data.username}`} className="block">
-            <SelectedUser
-                src={getProfilePic(data.profile?.profile_picture, data.profile?.sex)}
-                name={[data.profile?.first_name, data.profile?.last_name]}
-                user={data}
-            />
-        </Link>
     )
 }
 

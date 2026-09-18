@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Absence;
+use App\Models\SchoolYearSemester;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -45,6 +46,9 @@ class AbsenceFactory extends Factory
             'date_from' => $dateFrom->format('Y-m-d'),
             'date_to' => $dateTo->format('Y-m-d'),
             'archived_at' => $status !== 'pending' ? Carbon::parse($confirmedAt)->addYears(5) : null,
+            'school_year_semester_id' => SchoolYearSemester::idForDate($createdAt),
+            'confirmed_school_year_semester_id' => $status === 'approved' ? SchoolYearSemester::idForDate($confirmedAt) : null,
+            'rejected_school_year_semester_id' => $status === 'rejected' ? SchoolYearSemester::idForDate($confirmedAt) : null,
             'created_at' => $createdAt,
         ];
     }

@@ -1,6 +1,6 @@
 import UpModal from "../up-modal";
-import { change, showWarningModal, showOutputModal, toTitleCase } from "../../../others/function";
-import FormTextfield from "@/Components/input/form-input";
+import { showWarningModal, showOutputModal, toTitleCase } from "../../../others/function";
+import RichTextEditor from "@/Components/input/rich-text-editor";
 import FormButton from "../../button/button";
 import CheckBoxButton from "@/Components/input/checkbox";
 import PicVidUpload from "@/Components/input/pic-vid-upload";
@@ -43,11 +43,6 @@ const Body = ({ id, reload }) => {
   const [validationError, setValidationError] = useState({});
   const [picture_list, setPictureList] = useState([]);
   const [req_picture_list, setReqPictureList] = useState([]);
-
-  // Handles text inputs & textarea
-  const handleChange = (e) => {
-    change(e, setData);
-  };
 
   // Handles the reason checkboxes (multi-select)
   const handleReasonCheck = (value) => (e) => {
@@ -237,14 +232,12 @@ const Body = ({ id, reload }) => {
 
         {/* === OTHER REASON === */}
         <div>
-          <FormTextfield
-            type="textarea"
+          <RichTextEditor
             label="State Your Reason"
-            name="other_reason"
-            id="other_reason"
             error={validationError.absent_form_reason}
-            change={handleChange}
+            change={(html) => setData((prev) => ({ ...prev, other_reason: html }))}
             val={data.other_reason}
+            minHeight="8rem"
           />
         </div>
 

@@ -6,6 +6,7 @@ import { getProfilePic, readableDate, readableTime, showUserType, toTitleCase } 
 import TabSwitcher from "../other/tab-switcher"
 import { Link } from "@inertiajs/react"
 import SearchBar from "../input/search-bar"
+import { AlertCircle, Clock } from "lucide-react"
 
 const StudentNotificationList = () => {
     const [notif_list, setNotifList] = useState(null),
@@ -127,8 +128,8 @@ const StudentNotificationList = () => {
                 :
                 <div className="text-[1em] text-gray-500 w-full grid place-items-center h-full">
                     <div className="grid place-items-center">
-                        <div className="text-[4em]">
-                            <i className="fa-solid fa-circle-exclamation"></i>
+                        <div className="text-[4em] grid place-items-center">
+                            <AlertCircle size="1em" />
                         </div>
                         <div>No New Notifications</div>
                     </div>
@@ -174,8 +175,8 @@ const Row = ({ data }) => {
                             </div>
                         </div>
                         <div>
-                            <div className="text-gray-600 text-[0.9em]">
-                                <i className="fa-solid fa-clock"></i> {readableDate(data.created_at)} ({readableTime(data.created_at)})
+                            <div className="text-gray-600 text-[0.9em] flex items-center gap-1">
+                                <Clock size={12} /> {readableDate(data.created_at)} ({readableTime(data.created_at)})
                             </div>
                         </div>
                     </div>

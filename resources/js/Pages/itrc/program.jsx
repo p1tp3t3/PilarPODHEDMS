@@ -5,6 +5,7 @@ import SetProgramModal from "@/Components/modal/submission-form/set-program-moda
 import { useReload } from "@/context-provider/reload-provider";
 import SetViolationModal from "@/Components/modal/submission-form/set-violation-modal";
 import AuthLayout from "@/Layouts/auth-layout";
+import PageLayout from "@/Layouts/page-layout";
 import Btn from "@/Components/button/normal-btn";
 
 const ITRCProgram = (props) => {
@@ -50,23 +51,16 @@ const ITRCProgram = (props) => {
             setClickOk={setClickOk}
             setter={setProgramList}
         />
-        <div className="grid gap-8">
-            <div className="flex-shrink-0 h-full">
-                <div className="pt-10">
-                    <div className="grid w-full gap-3">
-                        <div className="flex justify-between items-center mb-4">
-                            <h1 className="text-2xl font-bold text-gray-800">College Programs</h1>
-                            <Btn onclick={() => openActionModal('program', 'add')}>
-                                Add Program
-                            </Btn>
-                        </div>
-                        <div className="">
-                            <ManageProgram list={program_list} original_list={props.program} events={[openActionModal]} setter={setProgramList} reload={loadRegister} />
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <PageLayout
+            title="College Programs"
+            rightSideComponent={
+                <Btn onclick={() => openActionModal('program', 'add')}>
+                    Add Program
+                </Btn>
+            }
+        >
+            <ManageProgram list={program_list} original_list={props.program} events={[openActionModal]} setter={setProgramList} reload={loadRegister} />
+        </PageLayout>
         </>
     );
 };

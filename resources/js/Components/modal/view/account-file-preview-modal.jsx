@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid } from "@/Components/other/data-grid";
 import { Box } from "@mui/material";
 import UpModal from "../up-modal";
 import CircleReload from "@/Components/reload/circle-reload";

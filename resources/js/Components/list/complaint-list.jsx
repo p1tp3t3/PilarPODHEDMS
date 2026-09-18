@@ -1,10 +1,10 @@
 import "./style.css";
 import ProfilePic from "../other/profile-pic";
-import { getProfilePic, readableDate, readableTime, showUserType, toTitleCase } from "../../others/function";
+import { getProfilePic, readableDate, readableTime, showUserType, toTitleCase, formatSchoolYearSemester } from "../../others/function";
 import { useMemo, useState } from "react";
 import ListSkeleton from "../reload/list-skeleton";
 import ActionBtn from "../button/action-btn";
-import { DataGrid, GridActionsCellItem, GridToolbarContainer } from "@mui/x-data-grid";
+import { DataGrid, GridActionsCellItem, GridToolbarContainer } from "@/Components/other/data-grid";
 import { Box, Button } from "@mui/material";
 import { FolderOpen } from "lucide-react";
 
@@ -143,7 +143,14 @@ const ComplaintList = ({
         field: "created_at",
         headerName: "Reported Since",
         width: 200,
-        renderCell: (params) => `${readableDate(params.value)} (${readableTime(params.value)})`,
+        renderCell: (params) => (
+          <div className="leading-tight py-2">
+            <div>{`${readableDate(params.value)} (${readableTime(params.value)})`}</div>
+            {formatSchoolYearSemester(params.row.school_year_semester) && (
+              <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.school_year_semester)}</div>
+            )}
+          </div>
+        ),
       }
     );
 
@@ -152,7 +159,46 @@ const ComplaintList = ({
         field: "confirmed_at",
         headerName: "Confirmed Since",
         width: 200,
-        renderCell: (params) => `${readableDate(params.value)} (${readableTime(params.value)})`,
+        renderCell: (params) => (
+          <div className="leading-tight py-2">
+            <div>{`${readableDate(params.value)} (${readableTime(params.value)})`}</div>
+            {formatSchoolYearSemester(params.row.confirmed_school_year_semester) && (
+              <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.confirmed_school_year_semester)}</div>
+            )}
+          </div>
+        ),
+      });
+    }
+
+    if (statusQuery === "rejected" && type === 'prefect') {
+      cols.push({
+        field: "rejected_at",
+        headerName: "Rejected Since",
+        width: 200,
+        renderCell: (params) => (
+          <div className="leading-tight py-2">
+            <div>{`${readableDate(params.value)} (${readableTime(params.value)})`}</div>
+            {formatSchoolYearSemester(params.row.rejected_school_year_semester) && (
+              <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.rejected_school_year_semester)}</div>
+            )}
+          </div>
+        ),
+      });
+    }
+
+    if (statusQuery === "revoked" && type === 'prefect') {
+      cols.push({
+        field: "revoked_at",
+        headerName: "Revoked Since",
+        width: 200,
+        renderCell: (params) => (
+          <div className="leading-tight py-2">
+            <div>{`${readableDate(params.value)} (${readableTime(params.value)})`}</div>
+            {formatSchoolYearSemester(params.row.revoked_school_year_semester) && (
+              <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.revoked_school_year_semester)}</div>
+            )}
+          </div>
+        ),
       });
     }
 
@@ -247,33 +293,28 @@ const ComplaintList = ({
     return cols;
   }, [list, type, select, select2, user]);
 
-  if (rows.length === 0) {
-    return <CustomNoRowsOverlay />;
-  }
   return (
     <>
       {list?.data ? (
-        <Box sx={{ width: "100%", overflowX: "auto" }}>
-  <Box sx={{ minWidth: "1240px" }}>
-  <DataGrid
-    rows={rows}
-    columns={columns}
-    pagination
-    disableSelectionOnClick
-    hideFooterSelectedRowCount
-    getRowHeight={() => 'auto'}
-    getRowId={(row) => row.id}
-    initialState={{
-      pagination: { paginationModel: { pageSize: 20, page: 0 } }
-    }}
-    pageSizeOptions={[20, 50, 100, 200]}
-    showToolbar
-    components={{
-        NoRowsOverlay: CustomNoRowsOverlay, // <- custom empty state
-    }}
-  />
-  </Box>
-</Box>
+        <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
+          <DataGrid
+            rows={rows}
+            columns={columns}
+            pagination
+            disableSelectionOnClick
+            hideFooterSelectedRowCount
+            getRowHeight={() => 'auto'}
+            getRowId={(row) => row.id}
+            initialState={{
+              pagination: { paginationModel: { pageSize: 20, page: 0 } }
+            }}
+            pageSizeOptions={[20, 50, 100, 200]}
+            showToolbar
+            slots={{
+                noRowsOverlay: CustomNoRowsOverlay, // <- custom empty state
+            }}
+          />
+        </Box>
 
       ) : (
         <div className="flex justify-center items-center w-full">

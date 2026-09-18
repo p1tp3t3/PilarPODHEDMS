@@ -3,7 +3,7 @@ import { checkActiveStatus, getProfilePic, readableActiveDuration, readableDate,
 import { Link } from "@inertiajs/react"
 import PaginationButton from "../button/pagination-btn"
 import { useEffect, useMemo, useState, useContext } from "react"
-import { DataGrid } from "@mui/x-data-grid"
+import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
 import ActionBtn from "../button/action-btn"
 import AuthContext from "@/context-provider/auth-provider"
@@ -94,18 +94,16 @@ const FacultyList = ({ list, style = true, type = 'prefect', paginate = true }) 
     return (
         <div className={style && "w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm"}>
             <div className="grid gap-4">
-                <Box sx={{ width: "100%", overflowX: "auto" }}>
-                    <Box sx={{ minWidth: "800px" }}>
-                        <DataGrid
-                            rows={rows}
-                            columns={columns}
-                            hideFooter
-                            disableRowSelectionOnClick
-                            getRowHeight={() => "auto"}
-                            showToolbar
-                            localeText={{ noRowsLabel: "No Faculty Yet" }}
-                        />
-                    </Box>
+                <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
+                    <DataGrid
+                        rows={rows}
+                        columns={columns}
+                        hideFooter
+                        disableRowSelectionOnClick
+                        getRowHeight={() => "auto"}
+                        showToolbar
+                        localeText={{ noRowsLabel: "No Faculty Yet" }}
+                    />
                 </Box>
                 {paginate &&
                 <div className="justify-self-end">

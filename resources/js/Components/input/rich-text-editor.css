@@ -1,9 +1,17 @@
-.rte-content .ProseMirror {
+/* Tiptap/ProseMirror appends editorProps.attributes.class straight onto its
+   own contenteditable root, which already carries the "ProseMirror" class —
+   so "rte-content" and "ProseMirror" end up on the SAME element, never one
+   nested inside the other. Every rule below used to be scoped as
+   ".rte-content .ProseMirror ..." (a descendant combinator), which can never
+   match two classes on one element — so none of this ever applied: no
+   placeholder text, no heading size, no list markers, no blockquote border,
+   not even the outline/min-height reset on the editor itself. */
+.rte-content.ProseMirror {
     outline: none;
     min-height: inherit;
 }
 
-.rte-content .ProseMirror p.is-editor-empty:first-child::before {
+.rte-content p.is-editor-empty:first-child::before {
     content: attr(data-placeholder);
     float: left;
     color: #9ca3af;
@@ -11,31 +19,31 @@
     height: 0;
 }
 
-.rte-content .ProseMirror h2 {
+.rte-content h2 {
     font-size: 1.15em;
     font-weight: 700;
     margin: 0.6em 0 0.3em;
 }
 
-.rte-content .ProseMirror p {
+.rte-content p {
     margin: 0 0 0.5em;
 }
 
-.rte-content .ProseMirror ul,
-.rte-content .ProseMirror ol {
+.rte-content ul,
+.rte-content ol {
     padding-left: 1.4em;
     margin: 0 0 0.5em;
 }
 
-.rte-content .ProseMirror ul {
+.rte-content ul {
     list-style: disc;
 }
 
-.rte-content .ProseMirror ol {
+.rte-content ol {
     list-style: decimal;
 }
 
-.rte-content .ProseMirror blockquote {
+.rte-content blockquote {
     border-left: 3px solid #d1d5db;
     margin: 0 0 0.5em;
     padding-left: 0.8em;

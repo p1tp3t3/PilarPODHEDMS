@@ -11,9 +11,12 @@ use App\Models\EducationBackground;
 use App\Models\Enrollment;
 use App\Models\Family;
 use App\Models\FamilyMember;
+use App\Models\NonTeachingStaff;
 use App\Models\Parents;
+use App\Models\Position;
 use App\Models\Profile;
 use App\Models\Program;
+use App\Models\ProgramHeadProgram;
 use App\Models\SchoolYear;
 use App\Models\TeachingStaff;
 use App\Models\User;
@@ -50,6 +53,7 @@ class RegisteredUserController extends Controller
             'program' => Program::select('id', 'name', 'description')->get(),
             'program_name' => is_program_head(),
             'school_years' => SchoolYear::orderByDesc('year')->get(['id', 'year']),
+            'positions' => Position::whereNotIn('name', ['faculty', 'program_head'])->orderBy('name')->get(),
         ]);
     }
 
@@ -283,8 +287,20 @@ class RegisteredUserController extends Controller
                     TeachingStaff::create([
                         'user_id' => $user->id,
                         'program_id' => $programId,
-                        'position' => $position ?? 'faculty',
+                        'position_id' => Position::idFor($position ?? 'faculty'),
                     ]);
+
+                    // Every program head is tracked in program_head_program
+                    // (the single source of truth Program::programHead()
+                    // reads from) — a program head can be assigned 2+
+                    // programs later, but registration always starts them
+                    // off heading the one program picked here.
+                    if ($position === 'program_head') {
+                        ProgramHeadProgram::create([
+                            'user_id' => $user->id,
+                            'program_id' => $programId,
+                        ]);
+                    }
 
                     $row = [
                         $user->id_number,
@@ -317,6 +333,11 @@ class RegisteredUserController extends Controller
                     $user = User::create($userFields);
                     Profile::create(array_merge(['user_id' => $user->id], $profileFields));
                     UserPermission::create(array_merge(['user_id' => $user->id], get_user_access_field([], $role)));
+
+                    NonTeachingStaff::create([
+                        'user_id' => $user->id,
+                        'position_id' => Position::idFor($position),
+                    ]);
 
                     $row = [
                         $user->id_number,
@@ -528,7 +549,7 @@ class RegisteredUserController extends Controller
     public static function validateStudentCsvRow(array $row): array
     {
         $errors = [];
-        $required = ['id', 'first_name', 'middle_name', 'last_name', 'sex', 'email', 'program', 'year_level', 'school_year', 'enrolled_at'];
+        $required = ['id', 'first_name', 'middle_name', 'last_name', 'sex', 'email', 'program', 'year_level', 'enrolled_at'];
 
         foreach ($required as $col) {
             if (!isset($row[$col]) || trim((string) $row[$col]) === '') {
@@ -556,11 +577,6 @@ class RegisteredUserController extends Controller
             }
             if (!is_numeric($row['year_level']) || $row['year_level'] < 1 || $row['year_level'] > 4) {
                 $errors[] = 'Year level must be 1–4.';
-            }
-            if (!preg_match('/^\d{4}-\d{4}$/', $row['school_year'])) {
-                $errors[] = 'school_year must be YYYY-YYYY.';
-            } elseif (!\App\Models\SchoolYear::where('year', $row['school_year'])->exists()) {
-                $errors[] = "school_year '{$row['school_year']}' does not exist. Create it first in School Year Management.";
             }
             if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $row['enrolled_at']) || !strtotime($row['enrolled_at'])) {
                 $errors[] = 'enrolled_at must be a valid date in YYYY-MM-DD format.';

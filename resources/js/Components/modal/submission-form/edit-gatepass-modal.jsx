@@ -1,5 +1,5 @@
 import UpModal from "../up-modal"
-import FormTextfield from "@/Components/input/form-input"
+import RichTextEditor from "@/Components/input/rich-text-editor"
 import FormButton from "@/Components/button/button"
 import { useState, useEffect } from "react"
 import { router } from "@inertiajs/react"
@@ -69,16 +69,13 @@ const EditGatePassModal = (props) => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="grid gap-3">
-                    <FormTextfield
-                        type="textarea"
+                    <RichTextEditor
                         label="Reason to Request"
-                        name="reason"
-                        id="reason"
                         val={reason}
                         error={error}
-                        errorAsterisk={error !== "" ? true : ""}
-                        change={(e) => setReason(e.target.value)}
-                        color={{ border: "border-blue-700", bg: "bg-gray-200" }}
+                        change={setReason}
+                        req={true}
+                        minHeight="10rem"
                     />
                     <div className="flex justify-end">
                         <FormButton label="Save Changes" type="submit" />

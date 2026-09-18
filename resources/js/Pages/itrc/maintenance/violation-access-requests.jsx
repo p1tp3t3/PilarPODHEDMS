@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react"
-import { DataGrid } from "@mui/x-data-grid"
+import { DataGrid } from "@/Components/other/data-grid"
 import { Box, Chip } from "@mui/material"
 import { AlertTriangle, ClipboardList, Plus, Pencil, Trash2 } from "lucide-react"
 import ActionBtn from "@/Components/button/action-btn"
 import FormButton from "@/Components/button/button"
 import DropdownField from "@/Components/input/dropdown"
 import FormTextfield from "@/Components/input/form-input"
+import RichTextEditor from "@/Components/input/rich-text-editor"
 import UpModal from "@/Components/modal/up-modal"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import ProfilePic from "@/Components/other/profile-pic"
@@ -183,15 +184,13 @@ const SuperAdminAccessPanel = () => {
                         titleCase={true}
                         error={formError.access_type}
                     />
-                    <FormTextfield
-                        type="textarea"
+                    <RichTextEditor
                         label="Reason"
-                        name="reason"
-                        id="access-reason"
                         val={reason}
-                        change={(e) => setReason(e.target.value)}
+                        change={setReason}
                         req={true}
                         error={formError.reason}
+                        minHeight="10rem"
                     />
                     {formError.submit && <div className="text-[#d12323] text-[0.8em]">{formError.submit}</div>}
                     <FormButton type="submit" label="Send Request" />
@@ -345,15 +344,13 @@ const DenyReasonModal = ({ close, closeModal, onSubmit }) => {
         <UpModal close={close} closeModal={closeModal} isEnableOuterClose={true} pd={["px-8", "py-6"]} bgColor="bg-white" w="w-[26rem]" cntr={true}>
             <form onSubmit={handleSubmit} className="w-full grid gap-4">
                 <h1 className="text-[1.1em]"><b>Deny Access Request</b></h1>
-                <FormTextfield
-                    type="textarea"
+                <RichTextEditor
                     label="Reason for Denial"
-                    name="response_reason"
-                    id="deny-reason"
                     val={reason}
-                    change={(e) => setReason(e.target.value)}
+                    change={setReason}
                     req={true}
                     error={error}
+                    minHeight="10rem"
                 />
                 <FormButton type="submit" label="Send Denial" />
             </form>
@@ -543,11 +540,11 @@ const PrefectAccessPanel = () => {
     ]
 
     return (
-        <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm overflow-x-auto">
+        <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
             <RequestDetailModal close={viewModal} closeModal={openViewModal} request={viewTarget} />
             <DenyReasonModal close={denyModal} closeModal={openDenyModal} onSubmit={handleDenySubmit} />
-            <div className="w-full px-5 py-3 min-w-[950px]">
-                <Box sx={{ width: "100%" }}>
+            <div className="w-full px-5 py-3 min-w-0">
+                <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                     <DataGrid
                         rows={rows}
                         columns={columns}

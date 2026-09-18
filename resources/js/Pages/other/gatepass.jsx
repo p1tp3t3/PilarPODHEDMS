@@ -9,7 +9,7 @@ import { Head, Link, router } from "@inertiajs/react";
 import Btn from "@/Components/button/normal-btn";
 import ActionBtn from "@/Components/button/action-btn";
 import TabSwitcher from "@/Components/other/tab-switcher";
-import { Clock, CheckCircle2, XCircle, Ban } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, Ban, FolderOpen } from "lucide-react";
 
 // revoked_at is deliberately not one of these tab keys — the requester
 // already knows they revoked their own request, so there's no need for a
@@ -146,7 +146,7 @@ const GatePass = (props) => {
             <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3">
               {shownGatepasses.length === 0 ? (
                 <div className="py-10 text-center text-gray-500">
-                  <i className="fa-solid fa-folder-open text-[2.5em] mb-2 opacity-60"></i>
+                  <FolderOpen size="2.5em" className="mx-auto mb-2 opacity-60" />
                   <p>No {STATUS_META[tab].label.toLowerCase()} gate passes found.</p>
                 </div>
               ) : (

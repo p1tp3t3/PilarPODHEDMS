@@ -52,7 +52,7 @@ const RegistrationForm = ({
       case "program_head":
         return { program: "" };
       case "staff":
-        return { work_type: "", other_work_type: "" };
+        return { position: "" };
       case "parent":
         return { parent_role: "", work_occupation: "" };
       default:
@@ -218,7 +218,7 @@ const RegistrationForm = ({
             </div>
           </div>
 
-          <UploadGuidelines type={data.user_type} program={selectionVal[2]} />
+          <UploadGuidelines type={data.user_type} program={selectionVal[2]} positions={selectionVal[5]} />
 
           <CheckBoxButton.CheckBox
             id="agreed-guidelines"
@@ -423,6 +423,7 @@ const OtherField = ({ userType, data, handleChange, selectionVal, validationErr 
         <StaffFields
           data={data}
           handleChange={handleChange}
+          selectionVal={selectionVal}
           validationErr={validationErr}
         />
       );

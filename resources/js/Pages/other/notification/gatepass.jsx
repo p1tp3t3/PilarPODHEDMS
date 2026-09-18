@@ -1,10 +1,13 @@
 import ViewGatePassModal from "@/Components/modal/view/view-gatepass-modal"
-import NotifDisplayLayout from "@/Layouts/notif-display-layout"
+import AuthLayout from "@/Layouts/auth-layout"
+import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-read"
 import { DoorOpen } from "lucide-react"
 import NotifDetailCard from "@/Components/other/notif-detail-card"
 import { parseNotifContent } from "@/others/function"
 
 const GatePassNotification = (props) => {
+    useMarkNotificationRead()
+
     const content = parseNotifContent(props.notif.content)
 
 
@@ -15,6 +18,6 @@ const GatePassNotification = (props) => {
     )
 }
 
-GatePassNotification.layout = (page) => <NotifDisplayLayout user={page.props.user}>{page}</NotifDisplayLayout>
+GatePassNotification.layout = (page) => <AuthLayout user={page.props.user}>{page}</AuthLayout>
 
 export default GatePassNotification

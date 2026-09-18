@@ -1,12 +1,18 @@
-import { useMemo } from "react"
-import { DataGrid } from "@mui/x-data-grid"
+import { useMemo, useState } from "react"
+import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
 import { getProfilePic, readableDate, readableTime, toTitleCase } from "@/others/function"
 import ProfilePic from "../other/profile-pic"
 import PaginationButton from "../button/pagination-btn"
+import ActionBtn from "../button/action-btn"
+import ViewActionLogModal from "../modal/view/view-action-log-modal"
+import { Eye } from "lucide-react"
 
 
 const UserReportLogList = ({ list = null }) => {
+    const [viewLog, setViewLog] = useState(null)
+    const [viewOpen, setViewOpen] = useState(false)
+
     const rows = useMemo(() => {
         if (!list?.data) return []
         return list.data.map((e, i) => ({
@@ -14,10 +20,20 @@ const UserReportLogList = ({ list = null }) => {
             i: i + 1,
             user: e.user,
             action_type: toTitleCase(e.action_type),
-            details: toTitleCase(e.details),
+            // Older rows only ever had a plain sentence in `details` — the
+            // resource falls back to that same text as details_summary, so
+            // this always has something readable to show either way.
+            details: e.details_summary,
+            has_changes: Object.keys(e.details_changes ?? {}).length > 0,
             created_at: e.created_at,
+            raw: e,
         }))
     }, [list])
+
+    const openDetail = (row) => {
+        setViewLog(row.raw)
+        setViewOpen(true)
+    }
 
     const columns = useMemo(() => [
         { field: "i", headerName: "#", width: 50 },
@@ -56,22 +72,42 @@ const UserReportLogList = ({ list = null }) => {
                 </span>
             ),
         },
+        {
+            field: "actions",
+            type: "actions",
+            headerName: "",
+            width: 70,
+            sortable: false,
+            filterable: false,
+            renderCell: (params) => (
+                <ActionBtn
+                    className="bg-blue-600 hover:bg-blue-700"
+                    onClick={() => openDetail(params.row)}
+                    title={params.row.has_changes ? "View before/after details" : "View details"}
+                >
+                    <Eye size={14} />
+                </ActionBtn>
+            ),
+        },
     ], [])
 
     return (
         <div className="w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm grid gap-3">
-            <Box sx={{ width: "100%", overflowX: "auto" }}>
-                <Box sx={{ minWidth: "800px" }}>
-                    <DataGrid
-                        rows={rows}
-                        columns={columns}
-                        hideFooter
-                        disableRowSelectionOnClick
-                        getRowHeight={() => "auto"}
-                        showToolbar
-                        localeText={{ noRowsLabel: "No Logs Yet" }}
-                    />
-                </Box>
+            <ViewActionLogModal
+                close={viewOpen}
+                closeModal={setViewOpen}
+                log={viewLog}
+            />
+            <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
+                <DataGrid
+                    rows={rows}
+                    columns={columns}
+                    hideFooter
+                    disableRowSelectionOnClick
+                    getRowHeight={() => "auto"}
+                    showToolbar
+                    localeText={{ noRowsLabel: "No Logs Yet" }}
+                />
             </Box>
             {(list.data.length != 0 && list.data.length >= 50) &&
             <div className="justify-self-end">

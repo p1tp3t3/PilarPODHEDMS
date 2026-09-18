@@ -1,5 +1,6 @@
 import UpModal from "../up-modal";
 import FormTextfield from "@/Components/input/form-input";
+import RichTextEditor from "@/Components/input/rich-text-editor";
 import DropdownField from "../../input/dropdown";
 import RadioButton from "@/Components/input/radio";
 import FormButton from "../../button/button";
@@ -344,14 +345,12 @@ const IssueViolationModal2 = (props) => {
 
             {/* Summary — one shared narrative for the whole complaint,
                 not one per complainee */}
-            <FormTextfield
-              type="textarea"
+            <RichTextEditor
               label="Summary About the Incident"
-              name="summary"
               val={summary}
-              change={(e) => setSummary(e.target.value)}
+              change={setSummary}
               error={validationErr.summary}
-              errorAsterisk={!!validationErr.summary}
+              minHeight="10rem"
             />
 
             <div className="grid justify-end pt-3">

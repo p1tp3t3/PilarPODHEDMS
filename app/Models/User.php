@@ -181,7 +181,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return match ($role) {
             'student' => ['program', 'enrollments.program', 'enrollments.schoolYear', 'educationBackground', 'profile', 'permissions'],
-            'teaching_staff' => ['teachingStaff.program', 'profile', 'permissions'],
+            'teaching_staff' => ['teachingStaff.program', 'teachingStaff.programsHandled', 'profile', 'permissions'],
             'non_teaching_staff' => ['nonTeachingStaff', 'profile', 'permissions'],
             'parent' => ['parent', 'profile', 'permissions'],
             default => ['profile', 'permissions'],

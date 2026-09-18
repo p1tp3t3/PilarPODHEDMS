@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\SchoolYear\StoreSchoolYearRequest;
 use App\Models\Enrollment;
 use App\Models\SchoolYear;
+use App\Models\SchoolYearSemester;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -28,6 +29,7 @@ class SchoolYearController extends Controller
     private static function listWithCounts()
     {
         return SchoolYear::withCount('enrollments')
+            ->with('semesters')
             ->orderByDesc('activate')
             ->orderByDesc('year')
             ->get();
@@ -35,10 +37,32 @@ class SchoolYearController extends Controller
 
     public function store(StoreSchoolYearRequest $request)
     {
-        SchoolYear::create([
+        $schoolYear = SchoolYear::create([
             'year' => $request->year,
             'activate' => false,
         ]);
+
+        // Every school year starts at its 1st semester.
+        $schoolYear->semesters()->createMany([
+            ['semester' => 1, 'is_active' => true],
+            ['semester' => 2, 'is_active' => false],
+        ]);
+
+        return self::listWithCounts();
+    }
+
+    public function activateSemester(Request $request)
+    {
+        $request->validate([
+            'id' => 'required|exists:school_year_semester,id',
+        ]);
+
+        $semester = SchoolYearSemester::findOrFail($request->id);
+
+        DB::transaction(function () use ($semester) {
+            SchoolYearSemester::where('school_year_id', $semester->school_year_id)->update(['is_active' => false]);
+            $semester->update(['is_active' => true]);
+        });
 
         return self::listWithCounts();
     }

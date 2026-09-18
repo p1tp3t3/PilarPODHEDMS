@@ -3,6 +3,7 @@ import QuantityCard from "@/Components/card/qntty-statistic-card"
 import BarGraph from "@/Components/card/bar-graph-statistic-card"
 import Btn from "@/Components/button/normal-btn"
 import IncidentReportList from "@/Components/list/incident-report-list"
+import { FileText } from "lucide-react"
 
 const IncidentReport = (props) => {
     const barData = {
@@ -32,11 +33,11 @@ const IncidentReport = (props) => {
         <>
         <div className="flex justify-end">
             <Btn onclick={() => props.openGenerateReport(true)}>
-                <i className="fa-solid fa-file"></i> Generate Report
+                <FileText size={16} /> Create Filter
             </Btn>
         </div>
         <div className="grid gap-3">
-            <div className="overflow-x-auto w-full scroll-smooth">
+            <div className="w-full scroll-smooth">
                 <IncidentReportList list={props.report} events={props.events} />
             </div>
         </div>

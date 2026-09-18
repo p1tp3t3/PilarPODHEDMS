@@ -14,6 +14,7 @@ use App\Models\ComplaintSubject;
 use App\Models\ComplaintSubjectViolation;
 use App\Models\Enrollment;
 use App\Models\Penalty;
+use App\Models\Position;
 use App\Models\Program;
 use App\Models\TeachingStaff;
 use App\Models\User;
@@ -156,7 +157,7 @@ class MaintenanceController extends Controller
 
         $faculty = User::with(['profile', 'teachingStaff.program'])
                     ->where('role', 'teaching_staff')
-                    ->whereHas('teachingStaff', fn($q) => $q->where('program_id', $id)->where('position', '!=', 'program_head'))
+                    ->whereHas('teachingStaff', fn($q) => $q->where('program_id', $id)->where('position_id', '!=', Position::idFor('program_head')))
                     ->latest('created_at')
                     ->get();
 

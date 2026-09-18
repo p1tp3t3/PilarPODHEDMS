@@ -2,7 +2,7 @@ import SearchBar from "@/Components/input/search-bar";
 import { ProgramService } from "@/others/services/program-service";
 import { getProgramLogo, readableDate, readableTime, showWarningModal } from "@/others/function";
 import { useState } from "react";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid } from "@/Components/other/data-grid";
 import { AlertCircle } from "lucide-react";
 import ActionBtn from "@/Components/button/action-btn";
 import { router } from "@inertiajs/react";
@@ -126,8 +126,8 @@ const ManageProgram = ({ list, original_list, events, reload, setter }) => {
   ];
 
   return (
-    <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm overflow-x-auto">
-      <div className="w-full px-5 py-3 min-w-[800px]">
+    <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
+      <div className="w-full px-5 py-3 min-w-0 overflow-hidden">
         <DataGrid
           rows={list}
           getRowId={(row) => row.id}

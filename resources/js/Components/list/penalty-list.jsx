@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { DataGrid } from "@mui/x-data-grid"
+import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
 import ListSkeleton from "../reload/list-skeleton"
 import { toTitleCase } from "@/others/function"
@@ -41,17 +41,15 @@ const PenaltyList = ({ list = null }) => {
     }
 
     return (
-        <Box sx={{ width: "100%", backgroundColor: "#fff", borderRadius: 2, boxShadow: 1, p: 2, overflowX: "auto" }}>
-            <Box sx={{ minWidth: "500px" }}>
-                <DataGrid
-                    rows={rows}
-                    columns={columns}
-                    hideFooter
-                    disableRowSelectionOnClick
-                    showToolbar
-                    localeText={{ noRowsLabel: "No Penalty Yet" }}
-                />
-            </Box>
+        <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", backgroundColor: "#fff", borderRadius: 2, boxShadow: 1, p: 2 }}>
+            <DataGrid
+                rows={rows}
+                columns={columns}
+                hideFooter
+                disableRowSelectionOnClick
+                showToolbar
+                localeText={{ noRowsLabel: "No Penalty Yet" }}
+            />
         </Box>
     );
 };

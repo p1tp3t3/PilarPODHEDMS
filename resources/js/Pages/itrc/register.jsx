@@ -1,4 +1,5 @@
 import AuthLayout from "@/Layouts/auth-layout";
+import PageLayout from "@/Layouts/page-layout";
 import "../style.css";
 import { useState, useRef, useEffect } from "react";
 import { useReload } from "@/context-provider/reload-provider";
@@ -281,7 +282,7 @@ const Register = (props) => {
                 student: ["id", "first_name", "middle_name", "last_name", "suffix", "sex", "email", "program", "year_level", "school_year", "enrolled_at"],
                 faculty: commonCol.concat(["program"]),
                 administrative: commonCol.concat(["program"]),
-                staff: commonCol.concat(["work_type"]),
+                staff: commonCol.concat(["position"]),
             };
 
             const requiredCols = col[t].map((h) => h.toLowerCase().trim());
@@ -403,15 +404,9 @@ const Register = (props) => {
                     RegisterService.validateStudentCsvRow(row, onResult, () => {}, onError)
                 }
                 programOptions={(props.program ?? []).map((p) => p.name)}
-                schoolYearOptions={(props.school_years ?? []).map((s) => s.year)}
             />
         ) : (
-        <div className="w-full py-4 grid gap-4">
-            <div className="w-full grid gap-5 relative">
-                <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-3">
-                    <h1 className="text-[1.3em] sm:text-[1.5em] font-bold">USER REGISTRATION</h1>
-                </div>
-            </div>
+        <PageLayout title="USER REGISTRATION">
             <div className="grid gap-5">
                 <div className="flex shadow-gray-400 shadow-md rounded-md">
                     <div className="px-10 py-14 w-full bg-white">
@@ -422,7 +417,7 @@ const Register = (props) => {
                             <div className="z-[1] w-full">
                                 <RegistrationForm
                                     baseData={originalData}
-                                    selectionVal={[ sex, userType, props.program, yearLevel, props.school_years ]}
+                                    selectionVal={[ sex, userType, props.program, yearLevel, props.school_years, props.positions ]}
                                     validationErr={validationError}
                                     activate={activate}
                                     reload={loadRegister}
@@ -439,7 +434,7 @@ const Register = (props) => {
                     </div>
                 </div>
             </div>
-        </div>
+        </PageLayout>
         )}
         </>
     );

@@ -11,6 +11,8 @@ use App\Mail\AbsentFormMail;
 use App\Models\Absence;
 use App\Models\ActionLog;
 use App\Models\Notifications;
+use App\Models\SchoolYear;
+use App\Models\SchoolYearSemester;
 use App\Models\User;
 use App\Traits\GeneratesSequenceCode;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -36,7 +38,8 @@ class AbsentFormController extends Controller
         ];
         if(self::isPrefect()) {
             $props = array_merge($props, [
-                'absent_form_request_list' => self::getAllAbsentForm()
+                'absent_form_request_list' => self::getAllAbsentForm(),
+                'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
             ]);
         } else {
             $props = array_merge($props, [
@@ -70,6 +73,7 @@ class AbsentFormController extends Controller
                 'reason'     => json_encode($request->reason),
                 'date_from'  => $request->date_from,
                 'date_to'    => $request->date_to,
+                'school_year_semester_id' => SchoolYearSemester::currentId(),
             ]);
 
             ActionLog::create([
@@ -241,6 +245,9 @@ class AbsentFormController extends Controller
                 }
             }
 
+            $oldDateFrom = $absence->date_from;
+            $oldDateTo = $absence->date_to;
+
             $absence->update([
                 'reason' => json_encode($request->reason),
                 'date_from' => $request->date_from,
@@ -249,11 +256,20 @@ class AbsentFormController extends Controller
                 'edited_at' => now(),
             ]);
 
-            ActionLog::create([
-                'user_id' => auth()->id(),
-                'action_type' => 'absent form',
-                'details' => "edits their own absent form (#{$absence->form_number})",
-            ]);
+            $changes = [];
+            if ((string) $oldDateFrom !== (string) $request->date_from) {
+                $changes['date_from'] = ['from' => $oldDateFrom, 'to' => $request->date_from];
+            }
+            if ((string) $oldDateTo !== (string) $request->date_to) {
+                $changes['date_to'] = ['from' => $oldDateTo, 'to' => $request->date_to];
+            }
+
+            ActionLog::log(
+                auth()->id(),
+                'absent form',
+                "Edited their own absent form (#{$absence->form_number})",
+                $changes
+            );
 
             DB::commit();
             return response()->json(['message' => 'success']);
@@ -275,16 +291,18 @@ class AbsentFormController extends Controller
                 'confirmed_at' => now(),
                 'note'         => $request->note,
                 'archived_at'  => archive_retention_date(),
+                'confirmed_school_year_semester_id' => SchoolYearSemester::currentId(),
             ]);
 
             $student->refresh();
             $student->load(['user.profile', 'user.program', 'user.enrollments']);
 
-            ActionLog::create([
-                'user_id'     => auth()->user()->id,
-                'action_type' => 'absent form',
-                'details'     => 'notes and approves the absent form of ' . $student->user->profile?->first_name
-            ]);
+            ActionLog::log(
+                auth()->user()->id,
+                'absent form',
+                'Noted and approved the absent form of ' . $student->user->profile?->first_name,
+                ['status' => ['from' => 'pending', 'to' => 'confirmed']]
+            );
 
             // File path setup
             $folderPath = storage_path('app/private/absent-forms/absent-form-' . $student->form_number);
@@ -382,6 +400,18 @@ class AbsentFormController extends Controller
                         ->where('confirmed_at', NULL)
                         ->latest('created_at');
     }
+
+    /**
+     * Every absent form a student has ever filed — surfaced as the "Absent
+     * Forms Filed" tab on their own profile, mirroring
+     * ComplaintController::getComplainantComplaint().
+     */
+    public function getStudentAbsentForms($id) {
+        return Absence::with(['user.profile', 'schoolYearSemester.schoolYear'])
+            ->where('student_id', $id)
+            ->latest('created_at')
+            ->get();
+    }
     // "Pending" excludes forms whose date_to has already passed without any
     // action taken on them — those are surfaced under "Expired" instead of
     // sitting in Pending forever, since Absence (unlike GatePass) has no
@@ -393,7 +423,9 @@ class AbsentFormController extends Controller
         $absence = Absence::with(['user.profile', 'user.program', 'user.enrollments']);
         $today = now()->toDateString();
 
-        if ($status === 'expired') {
+        if ($status === 'all') {
+            $absence->latest('created_at');
+        } elseif ($status === 'expired') {
             $absence->whereNull('confirmed_at')->whereNull('rejected_at')->whereNull('revoked_at')
                      ->whereDate('date_to', '<', $today)
                      ->latest('date_to');
@@ -407,6 +439,17 @@ class AbsentFormController extends Controller
             $absence->whereNull('confirmed_at')->whereNull('rejected_at')->whereNull('revoked_at')
                      ->whereDate('date_to', '>=', $today)
                      ->latest('created_at');
+        }
+
+        if (request('school-year') && request('school-year') != 'all') {
+            $absence->whereHas('schoolYearSemester', function ($q) {
+                $q->whereHas('schoolYear', fn ($sq) => $sq->where('year', request('school-year')));
+            });
+        }
+        if (request('semester') && request('semester') != 'all') {
+            $absence->whereHas('schoolYearSemester', function ($q) {
+                $q->where('semester', request('semester'));
+            });
         }
 
         return AbsenceResource::collection($absence->paginate(100)->appends(['status' => $status]));
@@ -423,13 +466,15 @@ class AbsentFormController extends Controller
             'rejected_reason' => $request->reason,
             'rejected_at' => now(),
             'archived_at' => archive_retention_date(),
+            'rejected_school_year_semester_id' => SchoolYearSemester::currentId(),
         ]);
         $record = $absent->first();
-        ActionLog::create([
-            'user_id' =>  auth()->user()->id,
-            'action_type' => 'absent form',
-            'details' => 'rejects the absent form of ' . $record->user->profile?->first_name
-        ]);
+        ActionLog::log(
+            auth()->user()->id,
+            'absent form',
+            'Rejected the absent form of ' . $record->user->profile?->first_name,
+            ['status' => ['from' => 'pending', 'to' => 'rejected']]
+        );
         // --- WebPush (non-critical) ---
         try {
             notify_single_user(
@@ -467,13 +512,15 @@ class AbsentFormController extends Controller
         $absence->update([
             'revoked_at' => now(),
             'archived_at' => archive_retention_date(),
+            'revoked_school_year_semester_id' => SchoolYearSemester::currentId(),
         ]);
 
-        ActionLog::create([
-            'user_id' => auth()->id(),
-            'action_type' => 'absent form',
-            'details' => "revokes their own absent form (#{$absence->form_number})",
-        ]);
+        ActionLog::log(
+            auth()->id(),
+            'absent form',
+            "Revoked their own absent form (#{$absence->form_number})",
+            ['status' => ['from' => 'pending', 'to' => 'revoked']]
+        );
 
         return response()->json(['message' => 'success']);
     }

@@ -3,12 +3,12 @@ import { checkActiveStatus, getProfilePic, readableDate, readableTime, showUserT
 import { Link } from "@inertiajs/react"
 import PaginationButton from "../button/pagination-btn"
 import { useEffect, useMemo, useState, useContext } from "react"
-import { DataGrid } from "@mui/x-data-grid"
+import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
 import ActionBtn from "../button/action-btn"
 import AuthContext from "@/context-provider/auth-provider"
 
-const StaffList = ({ list }) => {
+const StaffList = ({ list, canManagePosition = false }) => {
     const { isUserOnline } = useContext(AuthContext)
     const l = list.data
 
@@ -25,12 +25,17 @@ const StaffList = ({ list }) => {
         i: i + 1,
         user_id: e.id_number,
         username: e.username,
+        role: e.role,
         subtitle: showUserType(e),
         profile_picture: e.profile?.profile_picture,
         sex: e.profile?.sex,
         name: `${e.profile?.first_name ?? ""} ${e.profile?.last_name ?? ""}`,
+        position: e.role === "teaching_staff"
+            ? (e.teaching_staff?.position === "program_head" ? "Program Head" : "Faculty")
+            : (e.non_teaching_staff?.position ?? null),
         created_at: e.created_at,
         last_seen: e.last_seen,
+        raw: e,
     })), [l])
 
     const columns = useMemo(() => [
@@ -57,6 +62,16 @@ const StaffList = ({ list }) => {
                 </div>
             ),
         },
+        ...(canManagePosition ? [{
+            field: "position",
+            headerName: "Position",
+            width: 160,
+            renderCell: (params) => (
+                params.row.role === "non_teaching_staff"
+                    ? (params.value ?? <span className="text-gray-400 italic">Unassigned</span>)
+                    : (params.value ?? "—")
+            ),
+        }] : []),
         {
             field: "created_at",
             headerName: "Registered Since",
@@ -74,30 +89,30 @@ const StaffList = ({ list }) => {
             headerName: "Action",
             width: 120,
             renderCell: (params) => (
-                <Link href={`/profile/${params.row.username}`}>
-                    <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700">
-                        View
-                    </ActionBtn>
-                </Link>
+                <div className="flex gap-2 items-center h-full">
+                    <Link href={`/profile/${params.row.username}`}>
+                        <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700">
+                            View
+                        </ActionBtn>
+                    </Link>
+                </div>
             ),
         },
-    ], [isUserOnline])
+    ], [isUserOnline, canManagePosition])
 
     return (
         <div className="w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm">
             <div className="grid gap-4">
-                <Box sx={{ width: "100%", overflowX: "auto" }}>
-                    <Box sx={{ minWidth: "800px" }}>
-                        <DataGrid
-                            rows={rows}
-                            columns={columns}
-                            hideFooter
-                            disableRowSelectionOnClick
-                            getRowHeight={() => "auto"}
-                            showToolbar
-                            localeText={{ noRowsLabel: "No Staff Found" }}
-                        />
-                    </Box>
+                <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
+                    <DataGrid
+                        rows={rows}
+                        columns={columns}
+                        hideFooter
+                        disableRowSelectionOnClick
+                        getRowHeight={() => "auto"}
+                        showToolbar
+                        localeText={{ noRowsLabel: "No Staff Found" }}
+                    />
                 </Box>
                 <div className="justify-self-end">
                     <PaginationButton meta={list} />

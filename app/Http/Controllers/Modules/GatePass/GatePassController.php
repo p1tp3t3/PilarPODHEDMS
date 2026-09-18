@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Modules\GatePass;
 
+use App\Events\GatePassApproved;
 use App\Events\SendGatePass;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\GatePass\ApproveGatePassRequest;
@@ -13,6 +14,8 @@ use App\Mail\GatePassMail;
 use App\Models\ActionLog;
 use App\Models\GatePass;
 use App\Models\GatePassRevision;
+use App\Models\SchoolYear;
+use App\Models\SchoolYearSemester;
 use App\Models\User;
 use App\Traits\GeneratesSequenceCode;
 use Exception;
@@ -53,8 +56,30 @@ class GatePassController extends Controller
             'user' => $user,
             'program_name' => is_program_head(),
             'gatepass_request_list' => $gatepass,
-            'user_gatepass' => self::getGatePass(auth()->user()->id)
+            'user_gatepass' => self::getGatePass(auth()->user()->id),
+            'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
         ]);
+    }
+
+    /**
+     * Applies the school year/semester query-string filters shared by every
+     * status tab on the prefect gatepass page — a GatePass builder or a
+     * nested whereHas('gatepass', ...) closure both work here since either
+     * way $query is scoped to the gate_pass table.
+     */
+    private static function filterBySchoolYearSemester($query) {
+        if (request('school-year') && request('school-year') != 'all') {
+            $query->whereHas('schoolYearSemester', function ($q) {
+                $q->whereHas('schoolYear', fn ($sq) => $sq->where('year', request('school-year')));
+            });
+        }
+        if (request('semester') && request('semester') != 'all') {
+            $query->whereHas('schoolYearSemester', function ($q) {
+                $q->where('semester', request('semester'));
+            });
+        }
+
+        return $query;
     }
     public function qrcodeIndex() {
         $user = auth()->user();
@@ -99,7 +124,8 @@ class GatePassController extends Controller
             $lastIndex = GatePass::insertGetId([
                 'gatepass_number' => $this->generateSequenceCode(GatePass::class, 'gatepass_number'),
                 'user_id' => auth()->user()->id,
-                'reason' =>  $request->other_reason
+                'reason' =>  $request->other_reason,
+                'school_year_semester_id' => SchoolYearSemester::currentId(),
             ]);
             notify_single_user(
                 self::getGatePassRequestNotif($lastIndex, $prefectId),
@@ -128,7 +154,8 @@ class GatePassController extends Controller
             $gatepass->update([
                 'confirmed_at' => now(),
                 'allow_to' => json_encode(request('allow_to')),
-                'date_expiration' => $expDate
+                'date_expiration' => $expDate,
+                'confirmed_school_year_semester_id' => SchoolYearSemester::currentId(),
             ]);
             $prefect = auth()->user()->profile?->first_name . " " . auth()->user()->profile?->last_name;
             $gatepass = $gatepass->first();
@@ -167,14 +194,21 @@ class GatePassController extends Controller
                 $webpushNotif,
                 new SendGatePass($gatepass->user_id)
             );
-            ActionLog::create([
-                'user_id' =>  auth()->user()->id,
-                'action_type' => 'gatepass',
-                'details' => 'approves the gatepass request of ' . $gatepass->user->profile?->first_name
-            ]);
+            ActionLog::log(
+                auth()->user()->id,
+                'gatepass',
+                'Approved the gatepass request of ' . $gatepass->user->profile?->first_name,
+                ['status' => ['from' => 'pending', 'to' => 'approved']]
+            );
             Mail::to($gatepass->user->email)
                 ->send(new GatePassMail($data));
             DB::commit();
+
+            // Tells every Guard's verification page to refresh its approved
+            // list in real time (see gatepass-verification.jsx) — fired
+            // after commit so it never announces a change that got rolled back.
+            event(new GatePassApproved());
+
             return response()->json(self::getAllGatePassRequest()->toArray());
 
         }catch(Exception $x) {
@@ -190,15 +224,17 @@ class GatePassController extends Controller
         DB::beginTransaction();
         try {
             $gatepass = GatePass::with('user.profile')->where('id', $id);
-            ActionLog::create([
-                'user_id' =>  auth()->user()->id,
-                'action_type' => 'gatepass',
-                'details' => 'rejects the gatepass request of ' . $gatepass->first()->user->profile?->first_name
-            ]);
+            ActionLog::log(
+                auth()->user()->id,
+                'gatepass',
+                'Rejected the gatepass request of ' . $gatepass->first()->user->profile?->first_name,
+                ['status' => ['from' => 'pending', 'to' => 'rejected']]
+            );
             $gatepass->update([
                 'rejected_reason' => $request->reason,
                 'rejected_at' => now(),
                 'archived_at' => archive_retention_date(),
+                'rejected_school_year_semester_id' => SchoolYearSemester::currentId(),
             ]);
             DB::commit();
             return response()->json(self::getAllGatePassRequest()->toArray());
@@ -228,13 +264,15 @@ class GatePassController extends Controller
         $gatepass->update([
             'revoked_at' => now(),
             'archived_at' => archive_retention_date(),
+            'revoked_school_year_semester_id' => SchoolYearSemester::currentId(),
         ]);
 
-        ActionLog::create([
-            'user_id' => auth()->id(),
-            'action_type' => 'gatepass',
-            'details' => 'revokes their own gatepass request',
-        ]);
+        ActionLog::log(
+            auth()->id(),
+            'gatepass',
+            'Revoked their own gatepass request',
+            ['status' => ['from' => 'pending', 'to' => 'revoked']]
+        );
 
         return response()->json(self::getGatePass(auth()->id()));
     }
@@ -268,16 +306,23 @@ class GatePassController extends Controller
                 'created_at' => now(),
             ]);
 
+            $oldReason = $gatepass->reason;
+
             $gatepass->update([
                 'reason' => $request->reason,
                 'edited_at' => now(),
             ]);
 
-            ActionLog::create([
-                'user_id' => auth()->id(),
-                'action_type' => 'gatepass',
-                'details' => 'edits their own gatepass request',
-            ]);
+            $changes = $oldReason !== $request->reason
+                ? ['reason' => ['from' => $oldReason, 'to' => $request->reason]]
+                : [];
+
+            ActionLog::log(
+                auth()->id(),
+                'gatepass',
+                'Edited their own gatepass request',
+                $changes
+            );
 
             DB::commit();
             return response()->json(self::getGatePass(auth()->id()));
@@ -313,23 +358,38 @@ class GatePassController extends Controller
         return auth()->user()->role == 'sub_admin';
     }
     public function getAllGatePassRequest() {
-        return GatePassResource::collection(GatePass::with(['user.profile', 'user.program', 'user.enrollments'])
+        $query = GatePass::with(['user.profile', 'user.program', 'user.enrollments'])
                        ->where('confirmed_at', NULL)
                        ->whereNull('archived_at')
+                       ->latest('created_at');
+
+        return GatePassResource::collection(self::filterBySchoolYearSemester($query)->get());
+    }
+
+    /**
+     * Every gate pass a user has ever requested — surfaced as the "Gatepass
+     * Requested" tab on their own profile, mirroring
+     * ComplaintController::getComplainantComplaint().
+     */
+    public function getUserGatePassRequests($id) {
+        return GatePassResource::collection(GatePass::with(['user.profile', 'user.program', 'user.enrollments', 'schoolYearSemester.schoolYear'])
+                       ->where('user_id', $id)
                        ->latest('created_at')
                        ->get());
     }
     public function getAllRejectedGatePass() {
-        return GatePassResource::collection(GatePass::with(['user.profile', 'user.program', 'user.enrollments'])
+        $query = GatePass::with(['user.profile', 'user.program', 'user.enrollments'])
                        ->whereNotNull('rejected_at')
-                       ->latest('rejected_at')
-                       ->get());
+                       ->latest('rejected_at');
+
+        return GatePassResource::collection(self::filterBySchoolYearSemester($query)->get());
     }
     public function getAllRevokedGatePass() {
-        return GatePassResource::collection(GatePass::with(['user.profile', 'user.program', 'user.enrollments'])
+        $query = GatePass::with(['user.profile', 'user.program', 'user.enrollments'])
                        ->whereNotNull('revoked_at')
-                       ->latest('revoked_at')
-                       ->get());
+                       ->latest('revoked_at');
+
+        return GatePassResource::collection(self::filterBySchoolYearSemester($query)->get());
     }
     public function getAllGatePass() {
 
@@ -338,6 +398,7 @@ class GatePassController extends Controller
             $q->whereNotNull('confirmed_at')
             ->whereNull('archived_at')
             ->where('date_expiration', '>=', now());
+            self::filterBySchoolYearSemester($q);
         })
         ->with(['gatepass' => function ($q) {
             $q->whereNotNull('confirmed_at')
@@ -345,6 +406,7 @@ class GatePassController extends Controller
             ->where('date_expiration', '>=', now())
             ->latest()
             ->limit(1);
+            self::filterBySchoolYearSemester($q);
         }])
         ->orderByDesc(
             GatePass::select('confirmed_at')
@@ -362,6 +424,7 @@ class GatePassController extends Controller
             $q->whereNotNull('confirmed_at')
             ->whereNull('archived_at')
             ->where('date_expiration', '<=', now());
+            self::filterBySchoolYearSemester($q);
         })
         ->with(['gatepass' => function ($q) {
             $q->whereNotNull('confirmed_at')
@@ -369,6 +432,7 @@ class GatePassController extends Controller
             ->where('date_expiration', '<=', now())
             ->latest()
             ->limit(1);
+            self::filterBySchoolYearSemester($q);
         }])
         ->orderByDesc(
             GatePass::select('confirmed_at')

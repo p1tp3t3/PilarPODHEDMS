@@ -7,6 +7,7 @@ use App\Mail\CallInMail;
 use App\Mail\ProgramHeadCallInMail;
 use App\Models\ActionLog;
 use App\Models\Notifications;
+use App\Models\SchoolYearSemester;
 use App\Models\User;
 use Carbon\Carbon;
 use Exception;
@@ -75,6 +76,7 @@ class NotificationController extends Controller
                 'sender_id'    => $request->sender_id,
                 'receiver_id'  => $request->receiver_id,
                 'content'      => 'c',
+                'school_year_semester_id' => SchoolYearSemester::currentId(),
             ];
 
             $prefect = User::where('role', 'sub_admin')
@@ -94,13 +96,10 @@ class NotificationController extends Controller
             /** Get Program Head if enabled **/
             $programHead = null;
             if ($request->boolean('notify_program_head') && $student->program) {
-                $programHead = User::where('role', 'teaching_staff')
-                    ->whereHas('teachingStaff', function ($q) use ($student) {
-                        $q->where('program_id', $student->program->id)
-                          ->where('position', 'program_head');
-                    })
-                    ->with('profile')
-                    ->first();
+                $head = $student->program->programHead;
+                $programHead = $head
+                    ? User::where('id', $head->user_id)->with('profile')->first()
+                    : null;
             }
 
             /** EMAIL DATA */

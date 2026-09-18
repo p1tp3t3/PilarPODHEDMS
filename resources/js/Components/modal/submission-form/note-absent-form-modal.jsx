@@ -1,6 +1,6 @@
-import FormTextfield from "@/Components/input/form-input"
+import RichTextEditor from "@/Components/input/rich-text-editor"
 import UpModal from "../up-modal"
-import { change, showWarningModal, showOutputModal } from "@/others/function"
+import { showWarningModal, showOutputModal } from "@/others/function"
 import { useState } from "react"
 import FormButton from "@/Components/button/button"
 import { AbsentFormService } from "@/others/services/absent-form-service"
@@ -60,13 +60,11 @@ const NoteAbsentFormModal = (props) => {
                 </div>
                 <form onSubmit={handleSubmit} className="grid gap-3">
                     <div>
-                        <FormTextfield
+                        <RichTextEditor
                             label='Set Remarks'
-                            type="textarea"
-                            change={(e) => change(e, setData)}
+                            change={(html) => setData((prev) => ({ ...prev, note: html }))}
                             val={data.note}
-                            name='note'
-                            id="note"
+                            minHeight="8rem"
                         />
                     </div>
                     <div className="flex justify-end">

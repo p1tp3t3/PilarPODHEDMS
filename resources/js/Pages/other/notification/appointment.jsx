@@ -1,6 +1,7 @@
 import SetAppointmentReasonModal from "@/Components/modal/submission-form/set-appointment-reason-modal";
 import { useReload } from "@/context-provider/reload-provider";
-import NotifDisplayLayout from "@/Layouts/notif-display-layout";
+import AuthLayout from "@/Layouts/auth-layout";
+import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-read";
 import { AppointmentService } from "@/others/services/appointment-service";
 import { showOutputModal, showWarningModal, readableDate, readableTime, parseNotifContent } from "@/others/function";
 import { useState } from "react";
@@ -8,6 +9,8 @@ import { CalendarClock } from "lucide-react";
 import NotifDetailCard from "@/Components/other/notif-detail-card";
 
 const AppointmentNotification = (props) => {
+  useMarkNotificationRead();
+
   const [reasonModalOpen, setReasonModalOpen] = useState(false);
   const { loadRegister } = useReload();
   const [data, setData] = useState(props.notif);
@@ -281,6 +284,6 @@ const AppointmentNotification = (props) => {
   );
 }
 
-AppointmentNotification.layout = (page) => <NotifDisplayLayout user={page.props.user}>{page}</NotifDisplayLayout>
+AppointmentNotification.layout = (page) => <AuthLayout user={page.props.user}>{page}</AuthLayout>
 
 export default AppointmentNotification;

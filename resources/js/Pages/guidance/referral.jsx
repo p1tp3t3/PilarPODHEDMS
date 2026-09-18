@@ -1,4 +1,5 @@
 import AuthLayout from "@/Layouts/auth-layout"
+import PageLayout from "@/Layouts/page-layout"
 import { useState } from "react"
 import ReferralList from "@/Components/list/referral-list"
 import ViewReferralModal from "@/Components/modal/view/view-referral-modal"
@@ -21,23 +22,15 @@ const GuidanceReferral = (props) => {
                 isEnableOuterClose={true}
                 referralId={referralId}
             />
-            <div className="w-full py-4">
-                <div className="w-full grid gap-5 relative">
-                    <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-3">
-                        <h1 className="text-[1.3em] sm:text-[1.5em] font-bold">REFERRALS FROM THE PREFECT</h1>
+            <PageLayout title="REFERRALS FROM THE PREFECT">
+                    <div className="w-full bg-white rounded-md shadow-sm shadow-black/20 min-w-0">
+                        <ReferralList
+                            list={props.referral?.data}
+                            type="sub_admin"
+                            viewReferral={setId}
+                        />
                     </div>
-
-                    <div className="w-full bg-white rounded-md shadow-sm shadow-black/20 overflow-x-auto">
-                        <div className="min-w-[35rem]">
-                            <ReferralList
-                                list={props.referral?.data}
-                                type="sub_admin"
-                                viewReferral={setId}
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
+            </PageLayout>
         </>
     )
 }

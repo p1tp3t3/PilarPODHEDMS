@@ -1,8 +1,7 @@
-import { DataGrid } from "@mui/x-data-grid"
+import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
 import { getProfilePic, getYearLevel, readableDate, toTitleCase } from "@/others/function"
 import ProfilePic from "../other/profile-pic"
-import { FolderOpen } from "lucide-react"
 
 const parseReason = (reason) => {
     try {
@@ -103,59 +102,39 @@ const TardyReportList = ({ list = [] }) => {
         )
     }
 
-    if (list.length === 0) {
-        return (
-            <div className="w-full px-5 py-10 bg-white rounded-md shadow-black/20 shadow-sm">
-                <div className="flex justify-center items-center w-full">
-                    <div className="grid place-items-center text-gray-600">
-                        <div className="text-[4em]">
-                            <FolderOpen size="1em" />
-                        </div>
-                        <div>
-                            <b>No Tardy Records Found</b>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        )
-    }
-
     return (
         <Box
             sx={{
                 width: "100%",
+                minWidth: 0,
+                overflow: "auto",
                 backgroundColor: "#fff",
                 borderRadius: 2,
                 boxShadow: 2,
                 p: 2,
-                overflowX: "auto",
             }}
         >
-            <Box sx={{ minWidth: "900px" }}>
-                <DataGrid
-                    rows={rows}
-                    columns={columns}
-                    pageSizeOptions={[5, 10, 20]}
-                    initialState={{
-                        pagination: {
-                            paginationModel: { pageSize: 10, page: 0 },
-                        },
-                    }}
-                    pagination
-                    disableRowSelectionOnClick
-                    sx={{
-                        border: "none",
-                        "& .MuiDataGrid-columnHeaders": {
-                            backgroundColor: "#f9fafb",
-                            fontWeight: "bold",
-                        },
-                        "& .MuiDataGrid-cell": {
-                            alignItems: "center",
-                        },
-                    }}
-                    showToolbar
-                />
-            </Box>
+            <DataGrid
+                rows={rows}
+                columns={columns}
+                pageSizeOptions={[5, 10, 20]}
+                initialState={{
+                    pagination: {
+                        paginationModel: { pageSize: 10, page: 0 },
+                    },
+                }}
+                pagination
+                disableRowSelectionOnClick
+                sx={{
+                    border: "none",
+                    "& .MuiDataGrid-columnHeaders": {
+                        backgroundColor: "#f9fafb",
+                        fontWeight: "bold",
+                    },
+                }}
+                localeText={{ noRowsLabel: "No Tardy Records Found" }}
+                showToolbar
+            />
         </Box>
     )
 }

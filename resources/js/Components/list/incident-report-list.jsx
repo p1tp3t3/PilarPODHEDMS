@@ -1,10 +1,9 @@
-import { DataGrid } from "@mui/x-data-grid"
+import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
 import { getProfilePic, getYearLevel, readableDate, readableTime, toTitleCase } from "@/others/function"
 import ListSkeleton from "../reload/list-skeleton"
 import ProfilePic from "../other/profile-pic"
 import { router } from "@inertiajs/react"
-import { FolderOpen } from "lucide-react"
 
 const IncidentReportList = ({ list }) => {
     if (list == null) {
@@ -12,17 +11,6 @@ const IncidentReportList = ({ list }) => {
             <div className="w-full bg-white rounded-md shadow-md p-4">
                 <div className="flex justify-center py-12">
                     <ListSkeleton rows={5} />
-                </div>
-            </div>
-        )
-    }
-
-    if (list.data.length === 0) {
-        return (
-            <div className="w-full bg-white rounded-md shadow-md p-4">
-                <div className="py-12 text-center text-gray-500">
-                    <FolderOpen size="2.8em" className="mb-2 opacity-60" />
-                    <p>No Reports Found</p>
                 </div>
             </div>
         )
@@ -128,11 +116,12 @@ const IncidentReportList = ({ list }) => {
     }
 
     return (
-        <div className="w-full bg-white rounded-md shadow-md p-4 overflow-x-auto">
+        <div className="w-full bg-white rounded-md shadow-md p-4">
             <Box
                 sx={{
                     width: "100%",
-                    minWidth: "1000px",
+                    minWidth: 0,
+                    overflow: "auto",
                     "& .MuiDataGrid-root": {
                         border: "none",
                     },
@@ -162,6 +151,8 @@ const IncidentReportList = ({ list }) => {
                     sx={{
                         border: "none",
                     }}
+                    localeText={{ noRowsLabel: "No Reports Found" }}
+                    showToolbar
                 />
             </Box>
         </div>

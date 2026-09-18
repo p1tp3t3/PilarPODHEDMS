@@ -46,11 +46,11 @@ class DashboardController extends Controller
     }
 
     private function isGuidance() {
-        return \App\Models\NonTeachingStaff::where('user_id', auth()->id())->value('position') === 'Guidance';
+        return \App\Models\NonTeachingStaff::where('user_id', auth()->id())->first()?->position === 'Guidance';
     }
 
     private function isGuard() {
-        return \App\Models\NonTeachingStaff::where('user_id', auth()->id())->value('position') === 'Guard';
+        return \App\Models\NonTeachingStaff::where('user_id', auth()->id())->first()?->position === 'Guard';
     }
 
 
@@ -79,17 +79,18 @@ class DashboardController extends Controller
                 ]);
             case 'teaching_staff':
                 $id = auth()->id();
-                $teachingStaff = TeachingStaff::where('user_id', $id)->first(['program_id', 'position']);
+                $teachingStaff = TeachingStaff::where('user_id', $id)->first(['user_id', 'program_id', 'position_id']);
                 $programId = $teachingStaff?->program_id;
                 $isProgramHead = $teachingStaff?->position === 'program_head';
+                $programIds = $isProgramHead ? $teachingStaff->programsHandled->pluck('id') : collect([$programId]);
 
                 $data = [
                     'active_student' => User::with('profile')
                                             ->where('role', 'student')
                                             ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
                                             ->whereNot('id', $id)
-                                            ->whereHas('enrollments', function ($q) use ($programId) {
-                                                $q->where('program_id', $programId);
+                                            ->whereHas('enrollments', function ($q) use ($programIds) {
+                                                $q->whereIn('program_id', $programIds);
                                             })
                                             ->get()
                 ];
@@ -99,8 +100,8 @@ class DashboardController extends Controller
                                                 ->where('role', 'teaching_staff')
                                                 ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
                                                 ->whereNot('id', $id)
-                                                ->whereHas('teachingStaff', function ($q) use ($programId) {
-                                                    $q->where('program_id', $programId);
+                                                ->whereHas('teachingStaff', function ($q) use ($programIds) {
+                                                    $q->whereIn('program_id', $programIds);
                                                 })
                                                 ->get();
                 }
@@ -346,20 +347,21 @@ class DashboardController extends Controller
      */
     public function getTeachingStaffStatistics() {
         $id = auth()->id();
-        $teachingStaff = TeachingStaff::where('user_id', $id)->first(['program_id', 'position']);
+        $teachingStaff = TeachingStaff::where('user_id', $id)->first(['user_id', 'program_id', 'position_id']);
         $programId = $teachingStaff?->program_id;
         $isProgramHead = $teachingStaff?->position === 'program_head';
+        $programIds = $isProgramHead ? $teachingStaff->programsHandled->pluck('id') : collect([$programId]);
 
         $complaint = Complaint::where('complainant_id', $id)->count();
         $referral = Referral::where('teaching_staff_id', $id)->count('id');
 
-        $studentCount = Enrollment::where('program_id', $programId)->distinct('student_id')->count('student_id');
+        $studentCount = Enrollment::whereIn('program_id', $programIds)->distinct('student_id')->count('student_id');
 
         $activeStudent = User::where('role', 'student')
             ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
             ->whereNot('id', $id)
-            ->whereHas('enrollments', function ($q) use ($programId) {
-                $q->where('program_id', $programId);
+            ->whereHas('enrollments', function ($q) use ($programIds) {
+                $q->whereIn('program_id', $programIds);
             })
             ->get();
 
@@ -372,12 +374,12 @@ class DashboardController extends Controller
         ];
 
         if ($isProgramHead) {
-            $props['faculty'] = TeachingStaff::where('program_id', $programId)->count();
+            $props['faculty'] = TeachingStaff::whereIn('program_id', $programIds)->count();
             $props['active_faculty'] = User::where('role', 'teaching_staff')
                 ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
                 ->whereNot('id', $id)
-                ->whereHas('teachingStaff', function ($q) use ($programId) {
-                    $q->where('program_id', $programId);
+                ->whereHas('teachingStaff', function ($q) use ($programIds) {
+                    $q->whereIn('program_id', $programIds);
                 })
                 ->get();
         }

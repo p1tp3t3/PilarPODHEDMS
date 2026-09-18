@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Complaint;
+use App\Models\SchoolYearSemester;
 use App\Models\User;
 use App\Models\Violation;
 use Database\Factories\Concerns\GeneratesSampleFiles;
@@ -41,6 +42,7 @@ class ComplaintFactory extends Factory
         // with, so a low resolved share left most students with too little
         // data to produce a meaningful/varied prediction.
         $status = $this->faker->randomElement(['pending', 'ongoing', 'ongoing', 'resolved', 'resolved', 'resolved', 'resolved', 'rejected']);
+        $resolvedAt = $status === 'resolved' ? Carbon::parse($confirmedAt)->addDays(rand(1, 10)) : null;
 
         // Matches the real "{MMDDYY}{daily-seq}" format from
         // GeneratesSequenceCode/ComplaintController::generateComplaintNumber().
@@ -61,8 +63,18 @@ class ComplaintFactory extends Factory
             'rejected_at' => $status === 'rejected' ? $confirmedAt : null,
             'confirmed_at' => $status !== 'pending' ? $confirmedAt : null,
             'complaint_status' => $status,
-            'resolved_at' => $status === 'resolved' ? Carbon::parse($confirmedAt)->addDays(rand(1, 10)) : null,
+            'resolved_at' => $resolvedAt,
+            // offense_issued_at is what the real resolve flow
+            // (ViolationController::multipleViolationStore()) actually
+            // writes and what the view-complaint-modal "Resolved Since"
+            // stat reads — mirror resolved_at here so seeded resolved
+            // complaints display that stat too.
+            'offense_issued_at' => $resolvedAt,
             'archived_at' => in_array($status, ['resolved', 'rejected']) ? Carbon::parse($confirmedAt)->addYears(5) : null,
+            'school_year_semester_id' => SchoolYearSemester::idForDate($createdAt),
+            'confirmed_school_year_semester_id' => $status !== 'pending' ? SchoolYearSemester::idForDate($confirmedAt) : null,
+            'resolved_school_year_semester_id' => $resolvedAt ? SchoolYearSemester::idForDate($resolvedAt) : null,
+            'rejected_school_year_semester_id' => $status === 'rejected' ? SchoolYearSemester::idForDate($confirmedAt) : null,
             'created_at' => $createdAt,
         ];
     }
@@ -79,6 +91,7 @@ class ComplaintFactory extends Factory
         return $this->state(function (array $attributes) {
             $createdAt = $attributes['created_at'] ?? $this->faker->dateTimeBetween('-1 year', 'now');
             $confirmedAt = Carbon::parse($createdAt)->addDays(rand(1, 5));
+            $resolvedAt = Carbon::parse($confirmedAt)->addDays(rand(1, 10));
 
             return [
                 'complaint_status' => 'resolved',
@@ -87,8 +100,13 @@ class ComplaintFactory extends Factory
                 'rejected_reason' => null,
                 'rejected_at' => null,
                 'confirmed_at' => $confirmedAt,
-                'resolved_at' => Carbon::parse($confirmedAt)->addDays(rand(1, 10)),
+                'resolved_at' => $resolvedAt,
+                'offense_issued_at' => $resolvedAt,
                 'archived_at' => Carbon::parse($confirmedAt)->addYears(5),
+                'school_year_semester_id' => SchoolYearSemester::idForDate($createdAt),
+                'confirmed_school_year_semester_id' => SchoolYearSemester::idForDate($confirmedAt),
+                'resolved_school_year_semester_id' => SchoolYearSemester::idForDate($resolvedAt),
+                'rejected_school_year_semester_id' => null,
                 'created_at' => $createdAt,
             ];
         });

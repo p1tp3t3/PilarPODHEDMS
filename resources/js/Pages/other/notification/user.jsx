@@ -1,4 +1,5 @@
-import NotifDisplayLayout from "@/Layouts/notif-display-layout"
+import AuthLayout from "@/Layouts/auth-layout"
+import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-read"
 import { UserService } from "@/others/services/user-service"
 import { useEffect, useState } from "react"
 import NewUserList from "@/Components/list/new-user-list"
@@ -8,6 +9,8 @@ import { UserPlus } from "lucide-react"
 import NotifDetailCard from "@/Components/other/notif-detail-card"
 
 const UserNotification = ({ user, notif }) => {
+    useMarkNotificationRead()
+
     const [data, setData] = useState(notif)
     const [users, setUsers] = useState(null)
     const [loading, setLoading] = useState(true)
@@ -76,6 +79,6 @@ const UserNotification = ({ user, notif }) => {
     )
 }
 
-UserNotification.layout = (page) => <NotifDisplayLayout user={page.props.user}>{page}</NotifDisplayLayout>
+UserNotification.layout = (page) => <AuthLayout user={page.props.user}>{page}</AuthLayout>
 
 export default UserNotification

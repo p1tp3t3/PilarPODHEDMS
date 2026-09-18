@@ -22,11 +22,35 @@ class Referral extends Model
                'send_to_guidance',
                'confirmed_at',
                'archived_at',
+               'school_year_semester_id',
+               'confirmed_school_year_semester_id',
+               'rejected_school_year_semester_id',
+               'revoked_school_year_semester_id',
            ],
            $timestamps = false;
 
+    protected $with = [
+        'schoolYearSemester.schoolYear',
+        'confirmedSchoolYearSemester.schoolYear',
+        'rejectedSchoolYearSemester.schoolYear',
+        'revokedSchoolYearSemester.schoolYear',
+    ];
+
     public function user() {
         return $this->belongsTo(User::class, 'teaching_staff_id', 'id');
+    }
+
+    public function schoolYearSemester() {
+        return $this->belongsTo(SchoolYearSemester::class);
+    }
+    public function confirmedSchoolYearSemester() {
+        return $this->belongsTo(SchoolYearSemester::class, 'confirmed_school_year_semester_id');
+    }
+    public function rejectedSchoolYearSemester() {
+        return $this->belongsTo(SchoolYearSemester::class, 'rejected_school_year_semester_id');
+    }
+    public function revokedSchoolYearSemester() {
+        return $this->belongsTo(SchoolYearSemester::class, 'revoked_school_year_semester_id');
     }
     public function referredStudent() {
         return $this->hasOneThrough(

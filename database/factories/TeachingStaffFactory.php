@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Position;
 use App\Models\Program;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -16,14 +17,14 @@ class TeachingStaffFactory extends Factory
         return [
             'user_id' => User::factory(),
             'program_id' => Program::factory(),
-            'position' => 'faculty',
+            'position_id' => Position::idFor('faculty'),
         ];
     }
 
     public function programHead(): static
     {
         return $this->state(fn (array $attributes) => [
-            'position' => 'program_head',
+            'position_id' => Position::idFor('program_head'),
         ]);
     }
 }

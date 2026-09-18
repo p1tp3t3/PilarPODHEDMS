@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import ListSkeleton from "../reload/list-skeleton";
 import { ViolationService } from "@/others/services/violation-service";
 import { ordinal, readableDate, readableTime } from "@/others/function";
+import { TriangleAlert } from "lucide-react";
 
 const RecentViolationOccurenceList = ({ user_id, list: listProp = null }) => {
     const [list, setList] = useState(listProp);
@@ -32,7 +33,7 @@ const RecentViolationOccurenceList = ({ user_id, list: listProp = null }) => {
                 {list !== null && list.length === 0 && (
                     <div className="w-full h-[20rem] grid place-items-center">
                         <div className="text-center text-gray-500 py-10">
-                            <i className="fa-solid fa-triangle-exclamation text-[2.5em] mb-2"></i>
+                            <TriangleAlert size="2.5em" className="mx-auto mb-2" />
                             <h1 className="text-[1.2em] font-semibold">No Violations Found</h1>
                             <p className="text-[0.9em]">There are no recorded violations for this student.</p>
                         </div>

@@ -56,7 +56,10 @@ const LogInInner = () => {
             .post(route("log-in"), data)
             .then((res) => {
 
-                // Show success modal FIRST
+                // Show success modal FIRST. It auto-dismisses after 5s (via
+                // the timer arg) so the redirect below fires on its own if
+                // the user doesn't click through — clicking OK still works
+                // as the immediate option.
                 showOutputModal("Login Successfully", "s", () => {
                     localStorage.setItem("show-login-success", "1");
                     localStorage.setItem("is-unresolved-complaint-modal-clicked", true)
@@ -66,7 +69,7 @@ const LogInInner = () => {
                     })
                     loadRegister(false)
                     window.location.reload();
-                });
+                }, null, 5000);
 
             })
             .catch((err) => {

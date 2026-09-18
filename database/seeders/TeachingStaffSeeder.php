@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\ProgramHeadProgram;
 use App\Models\Profile;
 use App\Models\TeachingStaff;
 use App\Models\User;
@@ -40,5 +41,16 @@ class TeachingStaffSeeder extends Seeder
         $staff = TeachingStaff::factory()->for($user, 'user');
         $staff = $isProgramHead ? $staff->programHead() : $staff;
         $staff->create(['program_id' => $programId]);
+
+        // program_head_program is the single source of truth
+        // Program::programHead() reads from — every program head needs a
+        // row here for the program they were just seeded to head, same as
+        // RegisteredUserController::createUser() does for a real signup.
+        if ($isProgramHead) {
+            ProgramHeadProgram::create([
+                'user_id' => $user->id,
+                'program_id' => $programId,
+            ]);
+        }
     }
 }

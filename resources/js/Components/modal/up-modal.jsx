@@ -46,7 +46,7 @@ const UpModal = ({
           initial={false}
           animate={{ y: close ? 0 : 40, opacity: close ? 1 : 0 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
-          className={`${w} max-w-[95vw] shadow-md rounded-md ${pd[0]} ${pd[1]} ${bgColor} ${textColor}`}
+          className={`relative ${w} max-w-[95vw] shadow-md rounded-md ${pd[0]} ${pd[1]} ${bgColor} ${textColor}`}
           onClick={(e) => e.stopPropagation()}
         >
             {/* ❌ Close button */}

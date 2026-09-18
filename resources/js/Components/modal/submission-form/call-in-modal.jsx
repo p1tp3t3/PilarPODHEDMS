@@ -1,7 +1,7 @@
 import UpModal from "../up-modal"
 import { useContext, useState } from "react"
 import FormButton from "../../button/button"
-import FormTextfield from "@/Components/input/form-input"
+import RichTextEditor from "@/Components/input/rich-text-editor"
 import { change, clearField, showOutputModal, getProfilePic } from "../../../others/function"
 import SearchUserBar from "@/Components/input/search-user-bar"
 import AuthContext from "@/context-provider/auth-provider"
@@ -121,13 +121,11 @@ const CallInModal = (props) => {
                             </div>
                         )}
                         <div>
-                            <FormTextfield 
-                                label="Enter Your Message" 
-                                name="call_in_reason" 
-                                id="call_in_reason1"
-                                type="textarea"
+                            <RichTextEditor
+                                label="Enter Your Message"
                                 val={data.call_in_reason}
-                                change={handleChange} 
+                                change={(html) => setData((prev) => ({ ...prev, call_in_reason: html }))}
+                                minHeight="8rem"
                             />
                         </div>
                         <div className="flex items-center space-x-2 text-[0.8em]">

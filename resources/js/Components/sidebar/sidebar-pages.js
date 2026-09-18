@@ -2,10 +2,15 @@ import {
     LineChart,
     User,
     UserPlus,
+    UserCheck,
     List,
     GraduationCap,
-    FileText,
+    FileWarning,
+    Share2,
+    CalendarX,
+    DoorOpen,
     AlertTriangle,
+    ShieldAlert,
     Settings,
     SlidersHorizontal,
     Wrench,
@@ -40,12 +45,13 @@ export const sidebarPages = [
         items: [
             { id: "accounts/register", href: "/super-admin/accounts/register", icon: UserPlus, label: "New User" },
             { id: "user-accounts", href: "/super-admin/user-accounts", icon: List, label: "User List" },
+            { id: "staff-list", href: "/super-admin/staff-list", icon: UserRoundCog, label: "Staff Positions" },
             { id: "student-list", href: "/super-admin/student-list", icon: GraduationCap, label: "Students" },
-            { id: "parent-request-list", href: "/super-admin/parent-request-list", icon: User, label: "Parent Request" },
+            { id: "parent-request-list", href: "/super-admin/parent-request-list", icon: UserCheck, label: "Parent Request" },
         ],
     },
     { type: "link", id: "program", href: "/super-admin/program", icon: GraduationCap, label: "College Programs", roles: ["super_admin"] },
-    { type: "link", id: "report", href: "/super-admin/report", icon: FileText, label: "Reports", roles: ["super_admin"] },
+    { type: "link", id: "report", href: "/super-admin/report", icon: BarChart3, label: "Reports", roles: ["super_admin"] },
     { type: "link", id: "violation-management", href: "/violation-management", icon: AlertTriangle, label: "Violation Management", roles: ["super_admin"] },
     {
         type: "dropdown", id: "system-administrator", icon: Settings, label: "System Administrator", roles: ["super_admin"],
@@ -58,62 +64,57 @@ export const sidebarPages = [
 
     // ---- sub_admin (Prefect) ----
     {
-        type: "dropdown", id: "user-list", icon: User, label: "User List", roles: ["sub_admin"],
-        items: [
-            { id: "student-list", href: "/prefect/student-list", icon: GraduationCap, label: "Student List" },
-            { id: "staff-list", href: "/prefect/staff-list", icon: UserRoundCog, label: "Staff List" },
-        ],
+        type: "link", id: "user-list", href: "/prefect/user-list", icon: User, label: "User List", roles: ["sub_admin"],
     },
     {
-        type: "dropdown", id: "incident", icon: AlertTriangle, label: "Incident Management", roles: ["sub_admin"],
+        type: "dropdown", id: "incident", icon: ShieldAlert, label: "Incident Management", roles: ["sub_admin"],
         items: [
-            { id: "complaints", href: "/prefect/complaints", icon: FileText, label: "Complaints" },
-            { id: "referrals", href: "/prefect/referrals", icon: FileText, label: "Referrals" },
-            { id: "absent-form", href: "/prefect/absent-form", icon: FileText, label: "Absent Forms" },
+            { id: "complaints", href: "/prefect/complaints", icon: FileWarning, label: "Complaints" },
+            { id: "referrals", href: "/prefect/referrals", icon: Share2, label: "Referrals" },
+            { id: "absent-form", href: "/prefect/absent-form", icon: CalendarX, label: "Absent Forms" },
             { id: "archives", href: "/prefect/archive", icon: Archive, label: "Archives" },
         ],
     },
     { type: "link", id: "violation-management", href: "/violation-management", icon: AlertTriangle, label: "Violation Management", roles: ["sub_admin"] },
     { type: "link", id: "appointment", href: "/prefect/appointment", icon: Calendar, label: "Appointment", roles: ["sub_admin"] },
-    { type: "link", id: "gatepass", href: "/prefect/gatepass", icon: FileText, label: "Gate-Pass", roles: ["sub_admin"] },
+    { type: "link", id: "gatepass", href: "/prefect/gatepass", icon: DoorOpen, label: "Gate-Pass", roles: ["sub_admin"] },
     { type: "link", id: "report", href: "/prefect/report", icon: BarChart3, label: "Reports", roles: ["sub_admin"] },
 
     // ---- shared: complaint (student, teaching_staff, non_teaching_staff, parent) ----
     {
-        type: "link", id: "complaint", href: "/complaint", icon: FileText, label: "Complaint",
+        type: "link", id: "complaint", href: "/complaint", icon: FileWarning, label: "Complaint",
         roles: ["student", "teaching_staff", "non_teaching_staff", "parent"],
     },
 
     // ---- student ----
-    { type: "link", id: "absent-form", href: "/absent-form", icon: FileText, label: "Absent Form", roles: ["student"] },
-    { type: "link", id: "gatepass", href: "/gatepass", icon: FileText, label: "Gate-Pass", roles: ["student"] },
+    { type: "link", id: "absent-form", href: "/absent-form", icon: CalendarX, label: "Absent Form", roles: ["student"] },
+    { type: "link", id: "gatepass", href: "/gatepass", icon: DoorOpen, label: "Gate-Pass", roles: ["student"] },
 
     // ---- teaching_staff ----
+    // Account Files (other/program-account-files.jsx) already shows Faculty
+    // and Student as tabs on the same page — separate "Faculty"/"Student"
+    // dropdown entries just linked to duplicate, single-purpose versions of
+    // those same tabs, so this is one link instead of a three-item dropdown.
     {
-        type: "dropdown", id: "user-list", icon: User, label: "User List", roles: ["teaching_staff"],
-        show: (usr) => usr.teaching_staff?.position === "program_head",
-        items: [
-            { id: "faculty-list", href: "/teaching-staff/faculty-list", icon: UserRoundCog, label: "Faculty" },
-            { id: "student-list", href: "/teaching-staff/student-list", icon: GraduationCap, label: "Student" },
-            { id: "account-files", href: "/teaching-staff/account-files", icon: FileText, label: "Account Files" },
-        ],
+        type: "link", id: "account-files", href: "/teaching-staff/account-files", icon: Users, label: "User List",
+        roles: ["teaching_staff"], show: (usr) => usr.teaching_staff?.position === "program_head",
     },
     {
         type: "link", id: "student-list", href: "/teaching-staff/student-list", icon: GraduationCap, label: "Student List",
         roles: ["teaching_staff"], show: (usr) => usr.teaching_staff?.position !== "program_head",
     },
     {
-        type: "link", id: "referral", href: "/referral", icon: FileText, label: "Referral",
+        type: "link", id: "referral", href: "/referral", icon: Share2, label: "Referral",
         roles: ["teaching_staff"], show: (usr) => usr.teaching_staff?.position === "program_head",
     },
 
     // ---- non_teaching_staff: guard/guidance positions ----
     {
-        type: "link", id: "gatepass", href: "/gatepass-verification", icon: FileText, label: "Gate Pass Verification",
+        type: "link", id: "gatepass", href: "/gatepass-verification", icon: DoorOpen, label: "Gate Pass Verification",
         roles: ["non_teaching_staff"], show: (usr) => usr.non_teaching_staff?.position === "Guard",
     },
     {
-        type: "link", id: "guidance/referral", href: "/guidance/referral", icon: FileText, label: "Referrals",
+        type: "link", id: "guidance/referral", href: "/guidance/referral", icon: Share2, label: "Referrals",
         roles: ["non_teaching_staff"], show: (usr) => usr.non_teaching_staff?.position === "Guidance",
     },
 

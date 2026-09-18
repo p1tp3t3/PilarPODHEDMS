@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Modules\Account\RegisteredUserController;
+use App\Http\Controllers\Modules\AbsentForm\AbsentFormController;
+use App\Http\Controllers\Modules\Complaint\ComplaintController;
+use App\Http\Controllers\Modules\GatePass\GatePassController;
+use App\Http\Controllers\Modules\Referral\ReferralController;
 use App\Http\Controllers\Modules\Violation\ViolationController;
 use App\Http\Requests\ProfileUpdateRequest;
 use App\Models\ActionLog;
@@ -13,6 +17,7 @@ use App\Models\FamilyMember;
 use App\Models\Enrollment;
 use App\Models\Profile;
 use App\Models\Program;
+use App\Models\SchoolYear;
 use App\Models\User;
 use Exception;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -62,6 +67,7 @@ class ProfileController extends Controller
             'user' => User::with('teachingStaff')->find(auth()->id()),
             'otherUserProfile' => $account,
             'studentPrograms' => User::with('program')->where('id', auth()->user()->id)->first(),
+            'school_years' => SchoolYear::orderByDesc('year')->get(['id', 'year']),
         ];
         $family = $account->role == 'student' || $account->role == 'parent';
 
@@ -77,11 +83,43 @@ class ProfileController extends Controller
             ], $parentStudent->getParentAndStudent());
         }
 
-        if ($account->role == 'student') {
+        // Incidents/violations are restricted to the prefect, the student's
+        // program head, and the student's parent — matching the tab's own
+        // gating in profile.jsx. Not computed for anyone else (not just
+        // hidden in the UI), so the data never ships in the page payload
+        // for a viewer who shouldn't see it in the first place.
+        $canViewIncidents = in_array(auth()->user()->role, ['sub_admin', 'parent']) || (bool) is_program_head();
+
+        if ($account->role == 'student' && $canViewIncidents) {
             $props = array_merge($props, [
                 'incident_groups' => self::getStudentIncidentGroups($account->id),
                 'violation_occurrences' => (new ViolationController())->getStudentViolationOccurence($account->id),
             ]);
+        }
+
+        // Any role can file a complaint, so "Complaints Filed" is a tab on
+        // every profile — but complaint content is private from super_admin
+        // (data privacy), reviewable only by the sub_admin (prefect) who
+        // actually handles them or by the person themselves. Referrals/
+        // absent forms/gate passes are each only filed by one specific
+        // role, so those tabs stay scoped to that role's own profile and
+        // remain visible to super_admin as before.
+        $canViewOwnFilings = in_array(auth()->user()->role, ['super_admin', 'sub_admin']) || auth()->id() === $account->id;
+        $canViewOwnComplaints = auth()->user()->role === 'sub_admin' || auth()->id() === $account->id;
+
+        if ($canViewOwnComplaints) {
+            $props['complaints_filed'] = (new ComplaintController())->getComplainantComplaint($account->id);
+        }
+
+        if ($canViewOwnFilings) {
+            if ($account->role === 'teaching_staff') {
+                $props['referrals_filed'] = (new ReferralController())->getReferrerReferral($account->id);
+            }
+
+            if ($account->role === 'student') {
+                $props['absent_forms_filed'] = (new AbsentFormController())->getStudentAbsentForms($account->id);
+                $props['gatepass_requested'] = (new GatePassController())->getUserGatePassRequests($account->id);
+            }
         }
 
         return Inertia::render('other/profile', $props);
@@ -175,6 +213,10 @@ class ProfileController extends Controller
             ], 422);
         }
 
+        $diffFields = ['religion', 'citizenship', 'civil_status', 'date_of_birth', 'place_of_birth', 'current_address', 'permanent_address', 'sex', 'contact_number'];
+        $oldProfile = \Illuminate\Support\Arr::only($targetUser->profile?->toArray() ?? [], $diffFields);
+        $oldEmail = $targetUser->email;
+
         self::applyProfileFields($targetUser, $request);
 
         $userFields = [];
@@ -188,14 +230,27 @@ class ProfileController extends Controller
             $targetUser->update($userFields);
         }
 
-        // Log action
-        ActionLog::create([
-            'user_id' => auth()->id(),
-            'action_type' => 'profile update',
-            'details' => $isSelf
-                        ? 'updates its user profile information'
-                        : "updates {$targetUser->username}'s profile information"
-        ]);
+        // Log action — a field-level before/after diff instead of just a
+        // sentence, so a viewer can see exactly what changed.
+        $newProfile = \Illuminate\Support\Arr::only(Profile::where('user_id', $targetUser->id)->first()?->toArray() ?? [], $diffFields);
+        $changes = [];
+        foreach ($diffFields as $field) {
+            $from = $oldProfile[$field] ?? null;
+            $to = $newProfile[$field] ?? null;
+            if ((string) $from !== (string) $to) {
+                $changes[$field] = ['from' => $from ?? '—', 'to' => $to ?? '—'];
+            }
+        }
+        if (isset($userFields['email']) && $oldEmail !== $userFields['email']) {
+            $changes['email'] = ['from' => $oldEmail, 'to' => $userFields['email']];
+        }
+
+        ActionLog::log(
+            auth()->id(),
+            'profile update',
+            $isSelf ? 'Updated its user profile information' : "Updated {$targetUser->username}'s profile information",
+            $changes
+        );
 
         return response()->json(['message' => 'successfully']);
 
@@ -525,11 +580,11 @@ class ProfileController extends Controller
         $permanentAddress = "{$request->permanent_place},{$request->permanent_city},{$request->permanent_province},{$request->permanent_zipcode}";
 
         return [
-            'religion' => ucwords($request->religion),
-            'citizenship' => ucwords($request->citizenship),
+            'religion' => ucwords($request->religion ?? ''),
+            'citizenship' => ucwords($request->citizenship ?? ''),
             'civil_status' => $request->civil_status,
             'date_of_birth' => (empty($request->date_of_birth)) ? NULL : $request->date_of_birth,
-            'place_of_birth' => ucwords($request->place_of_birth),
+            'place_of_birth' => ucwords($request->place_of_birth ?? ''),
             'current_address' => $currentAddress,
             'permanent_address' => $permanentAddress,
             'sex' => $request->sex,

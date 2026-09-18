@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Position;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -14,24 +15,24 @@ class NonTeachingStaffFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'position' => fake()->randomElement([
+            'position_id' => Position::idFor(fake()->randomElement([
                 'Registrar', 'Librarian', 'Nurse',
                 'Administrative Staff', 'Maintenance Staff', 'Security Personnel',
-            ]),
+            ])),
         ];
     }
 
     public function guard(): static
     {
         return $this->state(fn (array $attributes) => [
-            'position' => 'Guard',
+            'position_id' => Position::idFor('Guard'),
         ]);
     }
 
     public function guidance(): static
     {
         return $this->state(fn (array $attributes) => [
-            'position' => 'Guidance',
+            'position_id' => Position::idFor('Guidance'),
         ]);
     }
 }

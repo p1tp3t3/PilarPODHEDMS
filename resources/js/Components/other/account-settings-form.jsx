@@ -6,10 +6,7 @@ import { router } from "@inertiajs/react";
 import { change, checkUserExist, checkCurrentPassword, showOutputModal, showWarningModal } from "@/others/function";
 import { AccountService } from "@/others/services/account-service";
 import { Validator } from "@/others/classes/validator";
-import { FormCache } from "@/others/classes/form-cache";
-
-const PROFILE_CACHE_KEY = "account-setup-profile";
-const PASSWORD_CACHE_KEY = "account-setup-password";
+import { FormCache, accountSetupCacheKey } from "@/others/classes/form-cache";
 
 /**
  * Username/email and password are two independent submissions (separate
@@ -160,6 +157,8 @@ const AccountInfoForm = ({ authUser, targetAccount, isAdmin, reload }) => {
 };
 
 const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, reload, isForceSetup = false, onBackToProfile }) => {
+    const PROFILE_CACHE_KEY = accountSetupCacheKey("account-setup-profile", targetAccount.id);
+    const PASSWORD_CACHE_KEY = accountSetupCacheKey("account-setup-password", targetAccount.id);
     const [commonPasswordList, setCommonPasswordList] = useState([]);
     const cachedDraft = isForceSetup ? FormCache.load(PASSWORD_CACHE_KEY) : null;
     const [data, setData] = useState({

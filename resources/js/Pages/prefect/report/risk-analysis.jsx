@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import Btn from "@/Components/button/normal-btn"
-import { DataGrid } from "@mui/x-data-grid"
+import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
 import LineGraph from "@/Components/card/line-graph-statistic"
 import BarGraph from "@/Components/card/bar-graph-statistic-card"
@@ -194,21 +194,19 @@ const AnalyticalReport = (props) => {
             />
           </div>}
 
-          <Box sx={{ width: "100%", overflowX: "auto" }}>
-            <Box sx={{ minWidth: "600px", height: 400 }}>
-              <DataGrid
-                rows={preview.violationProgram.map((e, i) => ({ id: i, ...e }))}
-                columns={[
-                  { field: "index", headerName: "#", width: 60, valueGetter: (v, row) => row.id + 1 },
-                  { field: "program", headerName: "Program", flex: 1, minWidth: 200 },
-                  { field: "students_with_violations", headerName: "Students With Violations", width: 210 },
-                  { field: "total_violations", headerName: "Total Violations", width: 160 },
-                ]}
-                hideFooter
-                disableRowSelectionOnClick
-                showToolbar
-              />
-            </Box>
+          <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", height: 400 }}>
+            <DataGrid
+              rows={preview.violationProgram.map((e, i) => ({ id: i, ...e }))}
+              columns={[
+                { field: "index", headerName: "#", width: 60, valueGetter: (v, row) => row.id + 1 },
+                { field: "program", headerName: "Program", flex: 1, minWidth: 200 },
+                { field: "students_with_violations", headerName: "Students With Violations", width: 210 },
+                { field: "total_violations", headerName: "Total Violations", width: 160 },
+              ]}
+              hideFooter
+              disableRowSelectionOnClick
+              showToolbar
+            />
           </Box>
         </div>
 

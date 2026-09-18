@@ -13,6 +13,7 @@ import { Link, usePage } from "@inertiajs/react";
 import { Broadcast } from "@/others/classes/broadcast-cofiguration";
 import { IconButton } from "@mui/material";
 import { ChatService } from "@/others/services/chat-service";
+import { Home, Menu, Phone, MessageCircle, Bell } from "lucide-react";
 
 const AuthHeader = (props) => {
   const [pane, setOpenPanelId] = useState(null),
@@ -137,7 +138,7 @@ const AuthHeader = (props) => {
             {props.profile && (
               <a href={`/dashboard`}>
                 <IconButton sx={btnSx}>
-                  <i className="fa-solid fa-home"></i>
+                  <Home size={18} />
                 </IconButton>
               </a>
             )}
@@ -149,7 +150,7 @@ const AuthHeader = (props) => {
                   aside.classList.toggle("max-[768px]:w-0")
                   bg.classList.toggle('hidden')
                 }}>
-                <i className="fa-solid fa-list"></i>
+                <Menu size={18} />
             </IconButton>
           </div>
 
@@ -160,12 +161,12 @@ const AuthHeader = (props) => {
                   sx={btnSx}
                   onClick={() => openCallIn(true)}
                 >
-                  <i className="fa-solid fa-phone"></i>
+                  <Phone size={18} />
                 </IconButton>
               )}
               <a href="/chat">
                 <IconButton sx={btnSx}>
-                  <i className="fa-solid fa-comment"></i>
+                  <MessageCircle size={18} />
                   {(chatUnread != 0) && (
                     <div className="absolute top-1 right-1 w-[1.2rem] h-[1.2rem] text-[0.6em] grid place-items-center bg-red-600 text-white rounded-full">
                       {chatUnread > 9 ? "9+" : chatUnread}
@@ -181,7 +182,7 @@ const AuthHeader = (props) => {
                     handleTogglePanel("notif");
                   }}
                 >
-                  <i className="fa-solid fa-bell"></i>
+                  <Bell size={18} />
                   {(notifCount != 0) && (
                     <div className="absolute top-6 right-0 w-[1.2rem] h-[1.2rem] text-[0.6em] grid place-items-center bg-red-600 text-white rounded-full">
                       {notifCount > 9 ? "9+" : notifCount}

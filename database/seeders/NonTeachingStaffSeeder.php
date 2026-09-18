@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\NonTeachingStaff;
+use App\Models\Position;
 use App\Models\Profile;
 use App\Models\User;
 use App\Models\UserPermission;
@@ -11,9 +12,10 @@ use Illuminate\Database\Seeder;
 class NonTeachingStaffSeeder extends Seeder
 {
     /**
-     * One Guard and one Guidance (both are load-bearing — they're the
-     * accounts that gate pass verification and referral intake are checked
-     * against), plus a handful of the other fixed positions.
+     * One Guard, one Guidance, and one IT Staff (all three are load-bearing
+     * — they're the accounts that gate pass verification and referral
+     * intake/forwarding are checked against), plus a handful of the other
+     * fixed positions.
      */
     public function run(): void
     {
@@ -21,6 +23,7 @@ class NonTeachingStaffSeeder extends Seeder
 
         $this->createNonTeachingStaff($i++, 'guard');
         $this->createNonTeachingStaff($i++, 'guidance');
+        $this->createNonTeachingStaff($i++, 'it staff');
 
         $otherPositions = ['Registrar', 'Librarian', 'Nurse', 'Administrative Staff', 'Maintenance Staff', 'Security Personnel'];
         foreach ($otherPositions as $position) {
@@ -45,7 +48,7 @@ class NonTeachingStaffSeeder extends Seeder
         $staff = match ($position) {
             'guard' => $staff->guard(),
             'guidance' => $staff->guidance(),
-            default => $staff->state(['position' => $position]),
+            default => $staff->state(['position_id' => Position::idFor($position)]),
         };
         $staff->create();
     }

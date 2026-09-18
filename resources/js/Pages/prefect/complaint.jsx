@@ -1,4 +1,5 @@
 import AuthLayout from "@/Layouts/auth-layout"
+import PageLayout from "@/Layouts/page-layout"
 import IssueComplaintModal from "@/Components/modal/submission-form/issue-complaint-modal"
 import ComplaintList from "@/Components/list/complaint-list"
 import { useState } from "react"
@@ -19,7 +20,7 @@ import { ReportArchiveService } from "@/others/services/report-archive-service"
 import ActionBtn from "@/Components/button/action-btn"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
 import IssueViolationModal2 from "@/Components/modal/submission-form/issue-violation-modal2"
-import { List, PauseCircle, RotateCw, XCircle, Undo2 } from "lucide-react"
+import { List, Clock, RotateCw, Ban, Undo2, X, Check } from "lucide-react"
 
 const PrefectComplaint = (props) => {
   const url = new URLSearchParams(window.location.search)
@@ -50,12 +51,13 @@ const PrefectComplaint = (props) => {
   const [choose, setChoose] = useState(url.get("status") || "all")
   const params = new URLSearchParams(window.location.search)
   const [role, setRole] = useState(params.get("role") || "all")
-  const [year, setYear] = useState(params.get("year") || "all")
+  const [schoolYear, setSchoolYear] = useState(params.get("school-year") || "all")
+  const [semester, setSemester] = useState(params.get("semester") || "all")
   const optionTab = [
     { key: "all", label: "All Complaints", icon: List },
-    { key: "pending", label: "Pending", icon: PauseCircle },
+    { key: "pending", label: "Pending", icon: Clock },
     { key: "ongoing", label: "Ongoing", icon: RotateCw },
-    { key: "rejected", label: "Rejected", icon: XCircle },
+    { key: "rejected", label: "Rejected", icon: Ban },
     { key: "revoked", label: "Revoked", icon: Undo2 },
   ];
 
@@ -224,28 +226,20 @@ const PrefectComplaint = (props) => {
     { val: "parent", label: "Parent" },
   ]
 
-  const yearDropdown = () => {
-    const l = []
-    const date = new Date()
-    for (let a = date.getFullYear(); a >= 2024; a--) {
-      l.push({ value: `${a} - ${a + 1}`, label: `${a} - ${a + 1}` })
-    }
-    return l
-  }
-
   const handleSelect = (type) => {
     if (choose !== type) {
-      const url = window.location.pathname
-      router.visit(`${url}?status=${type}`)
+      const link = window.location.pathname
+      router.visit(`${link}?status=${type}&role=${role}&school-year=${schoolYear}&semester=${semester}`)
       setChoose(type)
     }
   }
 
   const handleFilterChange = (field, value) => {
     const link = window.location.pathname
-    const newActionType = field === "role" ? value : role
-    const newDate = field === "year" ? value : year
-    router.visit(`${link}?role=${newActionType}&year=${newDate}`)
+    const newRole = field === "role" ? value : role
+    const newSchoolYear = field === "school-year" ? value : schoolYear
+    const newSemester = field === "semester" ? value : semester
+    router.visit(`${link}?status=${choose}&role=${newRole}&school-year=${newSchoolYear}&semester=${newSemester}`)
   }
   const selectAllRow = (e) => {
     const checked = e.target.checked;
@@ -309,16 +303,14 @@ const PrefectComplaint = (props) => {
         incident_list={props.incident_list}
       />
 
-        <div className="w-full py-4">
-          <div className="w-full grid gap-5 relative">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-3">
-                <h1 className="text-[1.3em] sm:text-[1.5em] font-bold">COMPLAINT</h1>
-                <Btn onclick={() => openIssueComplaint(true)}>
-                  Report Complaint
-                </Btn>
-            </div>
-              
+        <PageLayout
+          title="COMPLAINT"
+          rightSideComponent={
+            <Btn onclick={() => openIssueComplaint(true)}>
+              Report Complaint
+            </Btn>
+          }
+        >
             {/* Search and Filters */}
             <div className="grid gap-3">
               <div className="flex flex-wrap gap-3 items-center">
@@ -336,12 +328,25 @@ const PrefectComplaint = (props) => {
                   </div>
                   <div className="w-full sm:w-auto">
                     <DropdownField
-                      default={{ val: "all", label: "All Years" }}
-                      list={yearDropdown()}
+                      default={{ val: "all", label: "All School Years" }}
+                      list={(props.school_years || []).map((y) => ({ val: y, label: y }))}
                       onChange={(e) =>
-                        handleFilterChange("year", e.target.value)
+                        handleFilterChange("school-year", e.target.value)
                       }
-                      val={year}
+                      val={schoolYear}
+                    />
+                  </div>
+                  <div className="w-full sm:w-auto">
+                    <DropdownField
+                      default={{ val: "all", label: "All Semesters" }}
+                      list={[
+                        { val: 1, label: "1st Semester" },
+                        { val: 2, label: "2nd Semester" },
+                      ]}
+                      onChange={(e) =>
+                        handleFilterChange("semester", e.target.value)
+                      }
+                      val={semester}
                     />
                   </div>
                 </div>
@@ -357,11 +362,7 @@ const PrefectComplaint = (props) => {
                     className="bg-blue-700 hover:bg-blue-800"
                     onClick={() => enableSelect2(!select2)}
                   >
-                    <i
-                      className={`fa-solid ${
-                        select2 ? "fa-xmark" : "fa-check"
-                      }`}
-                    ></i>
+                    {select2 ? <X size={16} /> : <Check size={16} />}
                   </ActionBtn>
                   {select2 && (
                     <div className="flex gap-5 items-center flex-wrap">
@@ -390,8 +391,7 @@ const PrefectComplaint = (props) => {
             </div>
 
             {/* Complaint List */}
-            <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm overflow-x-auto">
-              <div className="w-full px-5 py-3 min-w-[800px]">
+            <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3 min-w-0">
                 <ComplaintList
                   type="prefect"
                   list={complaintList}
@@ -401,10 +401,8 @@ const PrefectComplaint = (props) => {
                   select2={select2}
                   actionEvent={setRequestActionEvent}
                 />
-              </div>
             </div>
-          </div>
-        </div>
+        </PageLayout>
     </>
   )
 }
