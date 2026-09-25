@@ -54,6 +54,13 @@
                                 </tr>
                             </table>
 
+                            @if($message)
+                            <!-- Prefect's Message -->
+                            <div style="margin-bottom:20px; padding:15px; background-color:#f9fafb; border-left:3px solid #1e40af; font-size:14px; line-height:1.6; color:#333333;">
+                                {!! $message !!}
+                            </div>
+                            @endif
+
                             <!-- Divider -->
                             <hr style="border:none; border-top:1px solid #e5e7eb; margin:20px 0;">
 

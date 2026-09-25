@@ -70,11 +70,16 @@ const STATUS_STYLES = {
     revoked: 'bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-300',
 }
 
+// Mirrors complaint_context_analyzer.py's _status() thresholds exactly —
+// cosine similarity between averaged Word2Vec vectors never approaches 1.0
+// the way raw-text similarity would, so these bands are calibrated to the
+// 0-0.6-ish range that method actually produces, not literal-text-match
+// scores.
 const MATCH_LEVELS = [
-    { label: 'Very Strong Match', min: 0.70, chip: 'bg-green-100 border-green-400 text-green-700', legend: 'bg-green-100 text-green-700 border-green-400' },
-    { label: 'Strong Match', min: 0.55, chip: 'bg-yellow-100 border-yellow-400 text-yellow-700', legend: 'bg-yellow-100 text-yellow-700 border-yellow-400' },
-    { label: 'Likely Related', min: 0.40, chip: 'bg-orange-100 border-orange-400 text-orange-700', legend: 'bg-orange-100 text-orange-700 border-orange-400' },
-    { label: 'Possibly Related', min: 0.25, chip: 'bg-red-100 border-red-400 text-red-700', legend: 'bg-red-100 text-red-700 border-red-400' },
+    { label: 'Very Strong Match', min: 0.50, chip: 'bg-green-100 border-green-400 text-green-700', legend: 'bg-green-100 text-green-700 border-green-400' },
+    { label: 'Strong Match', min: 0.40, chip: 'bg-yellow-100 border-yellow-400 text-yellow-700', legend: 'bg-yellow-100 text-yellow-700 border-yellow-400' },
+    { label: 'Likely Related', min: 0.30, chip: 'bg-orange-100 border-orange-400 text-orange-700', legend: 'bg-orange-100 text-orange-700 border-orange-400' },
+    { label: 'Possibly Related', min: 0.20, chip: 'bg-red-100 border-red-400 text-red-700', legend: 'bg-red-100 text-red-700 border-red-400' },
     { label: 'Unclear / Needs Review', min: -Infinity, chip: 'bg-gray-200 border-gray-400 text-gray-700', legend: 'bg-gray-200 text-gray-700 border-gray-400' },
 ]
 
@@ -129,7 +134,10 @@ const Body = ({ data, usr }) => {
                                 </div>
                                 <div>
                                     <div className="text-gray-500 mb-1">Reason:</div>
-                                    <div className="rounded-md bg-amber-50/60 p-3 text-gray-700 h-24 overflow-y-auto">{previous.complaint_description}</div>
+                                    <div
+                                        className="rounded-md bg-amber-50/60 p-3 text-gray-700 h-24 overflow-y-auto [&_p]:mb-2 [&_p:last-child]:mb-0"
+                                        dangerouslySetInnerHTML={{ __html: previous.complaint_description }}
+                                    />
                                 </div>
                                 {previousEvidences.length !== 0 &&
                                 <div>
@@ -185,12 +193,25 @@ const Body = ({ data, usr }) => {
 
                 <Section icon={ClipboardList} title="Incident Reported">
                     <p className="text-sm text-gray-700">{toTitleCase(data.violation?.violation_name)}</p>
+                    {data.violation?.keywords?.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                            {data.violation.keywords.map((kw, i) => (
+                                <span
+                                    key={i}
+                                    className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs rounded-full"
+                                >
+                                    {kw}
+                                </span>
+                            ))}
+                        </div>
+                    )}
                 </Section>
 
                 <Section icon={MessageSquareText} title="Reason by the Complainant">
-                    <div className="text-sm h-32 overflow-y-auto rounded-md bg-gray-50 p-3 text-gray-700 leading-relaxed">
-                        {data.complaint_description}
-                    </div>
+                    <div
+                        className="text-sm h-32 overflow-y-auto rounded-md bg-gray-50 p-3 text-gray-700 leading-relaxed [&_p]:mb-2 [&_p:last-child]:mb-0"
+                        dangerouslySetInnerHTML={{ __html: data.complaint_description }}
+                    />
                 </Section>
 
                 {usr.role === "sub_admin" &&

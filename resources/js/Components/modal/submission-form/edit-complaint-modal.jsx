@@ -34,6 +34,10 @@ const EditComplaintModal = (props) => {
           [picture_list, setPictureList] = useState([]),
           [req_picture_list, setReqPictureList] = useState([]),
 
+          [video_list, setVideoList] = useState([]),
+          [req_video_list, setReqVideoList] = useState([]),
+          [uploadError, setUploadError] = useState(''),
+
           [validationError, setValidationError] = useState({
               subject: '',
               reason: ''
@@ -51,6 +55,9 @@ const EditComplaintModal = (props) => {
             setOriginalEvidenceFiles(visibleEvidence.map((e) => e.file))
             setPictureList([])
             setReqPictureList([])
+            setVideoList([])
+            setReqVideoList([])
+            setUploadError('')
             setValidationError({ subject: '', reason: '' })
         }
     }, [props.close, props.data])
@@ -95,7 +102,8 @@ const EditComplaintModal = (props) => {
         const keptFiles = existingEvidence.map((e) => e.file)
         const hiddenFiles = originalEvidenceFiles.filter((file) => !keptFiles.includes(file))
         f.append('hidden_evidence_files', JSON.stringify(hiddenFiles))
-        req_picture_list.forEach((file, index) => f.append(`evidence[${index}]`, file))
+        const concatFileList = req_picture_list.concat(req_video_list)
+        concatFileList.forEach((file, index) => f.append(`evidence[${index}]`, file))
 
         showWarningModal(
             'Save Changes To This Complaint? You Will Not Be Able To Edit It Again.',
@@ -219,7 +227,7 @@ const EditComplaintModal = (props) => {
                                 multiple={true}
                                 def='Upload Pics Here Up To 2MB'
                                 fileList={picture_list}
-                                existingList={existingEvidence.map((e) => ({
+                                existingList={existingEvidence.filter((e) => e.type !== 'vid').map((e) => ({
                                     key: e.file,
                                     type: e.type,
                                     src: `/complaint/${props.data.id}/evidence/${e.file}`,
@@ -233,7 +241,36 @@ const EditComplaintModal = (props) => {
                                 setReqFileList={setReqPictureList}
                                 maximumSize={2}
                                 maxCount={5}
+                                onError={(msg) => setUploadError(msg)}
                             />
+                            <PicVidUpload
+                                type='vid'
+                                label="Up To 2 Videos, 3 Minutes Each Max"
+                                multiple={true}
+                                def='Upload Videos Here Up To 40MB'
+                                fileList={video_list}
+                                existingList={existingEvidence.filter((e) => e.type === 'vid').map((e) => ({
+                                    key: e.file,
+                                    type: e.type,
+                                    src: `/complaint/${props.data.id}/evidence/${e.file}`,
+                                    href: `/complaint/${props.data.id}/evidence/${e.file}`,
+                                }))}
+                                onRemoveExisting={removeExistingEvidence}
+                                name='vid_evidence'
+                                id='edit_vid_file'
+                                reqFileList={req_video_list}
+                                setFileList={setVideoList}
+                                setReqFileList={setReqVideoList}
+                                maximumSize={40}
+                                maxCount={2}
+                                maxDurationSeconds={180}
+                                onError={(msg) => setUploadError(msg)}
+                            />
+                            {uploadError && (
+                                <div className="text-[#d12323] text-[12px]">
+                                    <b>{uploadError}</b>
+                                </div>
+                            )}
                         </div>
 
                         <div className="w-full flex justify-end pt-2">

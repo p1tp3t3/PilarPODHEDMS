@@ -272,12 +272,14 @@ const PrefectGatePass = (props) => {
                                     }
                                     {
                                     url.get('status') == 'expired-users' && (
+                                        // No `events` prop — expired gate passes now archive
+                                        // themselves automatically (ArchiveExpiredGatePassCommand),
+                                        // so the manual Archive action no longer applies here.
                                         <GatePassList
                                             list={gatepassRequestList}
                                             type={props.user.user_type}
                                             style={true}
                                             view={setId}
-                                            events={setEvents}
                                         />
                                     )
                                     }

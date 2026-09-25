@@ -25,10 +25,19 @@ class AppointmentFactory extends Factory
         $status = $this->faker->randomElement(['pending', 'accepted', 'accepted', 'rejected']);
         $confirmedAt = $status !== 'pending' ? Carbon::parse($createdAt)->addDays(rand(1, 3)) : null;
 
+        // Attendance is only ever recorded for accepted appointments whose
+        // date has already passed — a future or still-pending/rejected one
+        // has nothing to mark yet. Some past ones are left "not_marked" too,
+        // since a prefect won't always remember to record it.
+        $attendanceStatus = ($status === 'accepted' && $dateTimeAppoint->isPast())
+            ? $this->faker->randomElement(['present', 'present', 'present', 'absent', 'not_marked'])
+            : 'not_marked';
+
         return [
             'user_id' => $user?->id,
             'date_time_appoint' => $dateTimeAppoint,
             'appointment_status' => $status,
+            'attendance_status' => $attendanceStatus,
             'rejected_reason' => $status === 'rejected' ? $this->faker->sentence(8) : null,
             'confirmed_at' => $confirmedAt,
             'description' => $this->faker->sentence(10),

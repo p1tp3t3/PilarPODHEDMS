@@ -108,7 +108,7 @@ const PrefectDashBoard = (props) => {
 
   const optionTab1 = [
     { key: "student", label: "New Students" },
-    { key: "appointment", label: "Scheduled Appointment Today" },
+    { key: "appointment", label: "Scheduled Appointments" },
     { key: "notification", label: "Notification" },
   ]
 

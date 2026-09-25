@@ -146,12 +146,19 @@ class NotificationController extends Controller
                     'content' => 'c',
                 ]);
 
+                // Falls back to the original boilerplate when the prefect
+                // leaves the program-head message blank, so this stays
+                // optional rather than a new required field.
+                $programHeadMessage = trim((string) $request->program_head_message) !== ''
+                    ? $request->program_head_message
+                    : "This is to formally inform your office about your student {$student->profile?->first_name} {$student->profile?->middle_name} {$student->profile?->last_name} who is being called in by the office of the prefect. Please inform your student to visit to the office due to confidential reasons.";
+
                 Notifications::where('id', $programHeadNotifId)->update([
                     'content' => json_encode([
                         'id' => $programHeadNotifId,
                         'is_program_head' => true,
                         'sender_notif_message' => 'You notify the program head about the called in a student.',
-                        'receiver_notif_message' => "This is to formally inform your office about your student {$student->profile?->first_name} {$student->profile?->middle_name} {$student->profile?->last_name} who is being called in by the office of the prefect. Please inform your student to visit to the office due to confidential reasons.",
+                        'receiver_notif_message' => $programHeadMessage,
                     ]),
                 ]);
 
@@ -166,6 +173,7 @@ class NotificationController extends Controller
                     'date_reported' => Carbon::parse(now())->format('Y-d-m'),
                     'student_name' => $student->profile?->first_name.' '.$student->profile?->last_name,
                     'program' => $student->program->name ?? null,
+                    'message' => trim((string) $request->program_head_message) !== '' ? $request->program_head_message : null,
                 ];
                 Mail::to($programHead->email)
                     ->send(new ProgramHeadCallInMail($dataProg));

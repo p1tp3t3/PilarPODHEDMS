@@ -1,10 +1,8 @@
 import TabSwitcher from "@/Components/other/tab-switcher";
 import PageLayout from "@/Layouts/page-layout";
 import ProfilePic from "@/Components/other/profile-pic";
-import CircleReload from "@/Components/reload/circle-reload";
 import BehaviourAnalysisSkeleton from "@/Components/reload/behaviour-analysis-skeleton";
 import AuthLayout from "@/Layouts/auth-layout";
-import { RiskPredictionService } from "@/others/services/risk-prediction-service";
 import { getProfilePic, getYearLevel, readableDate, readableTime } from "@/others/function";
 import { Box, Select, MenuItem } from "@mui/material";
 import { DataGrid } from "@/Components/other/data-grid";
@@ -68,6 +66,8 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
                             <BehaviourAnalysis
                                 studentId={props.student.id}
                                 violation_list={props.violations}
+                                model_inputs={props.model_inputs}
+                                violation_timelines={props.violation_timelines}
                             />
                         )}
                     </div>
@@ -171,54 +171,23 @@ const RecentViolation = ({ violations }) => {
   );
 };
 
-// OpenRouter's free-tier model slugs get deprecated/renamed over time (one
-// already broke: meta-llama/llama-3.1-8b-instruct:free -> paid-only). Tried
-// in order; the first one that actually responds wins, so a single
-// deprecation doesn't silently take the whole feature down again.
-const OPENROUTER_FREE_MODELS = [
-  "google/gemma-4-31b-it:free",
-  "minimax/minimax-m2.7:free",
-  "z-ai/glm-5.2:free",
-];
-
-async function fetchFromOpenRouter(prompt) {
-  for (const model of OPENROUTER_FREE_MODELS) {
-    try {
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: "user", content: prompt }],
-        }),
-      });
-      if (!res.ok) continue;
-      const json = await res.json();
-      const text = json?.choices?.[0]?.message?.content?.trim();
-      if (text) return text;
-    } catch (e) {
-      // network error — fall through to the next candidate model
-    }
-  }
-  return null;
-}
-
 // BehaviourAnalysis.jsx
 // Assumes React + Tailwind + FontAwesome CDN are already included globally.
 // Uses <i></i> for icons (no imports).
 
-const BehaviourAnalysis = ({ studentId, violation_list }) => {
+// Same Flask host Laravel itself posts to server-side for this model
+// (ViolationController previously proxied here) — called directly from the
+// browser now instead, since the model-input rows for every violation this
+// student has are already computed and handed down as page props.
+const PYTHON_PREDICT_URL = "http://127.0.0.1:5032/python/model/predict";
+
+const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_timelines }) => {
   // -----------------------------
   // State
   // -----------------------------
   const [selected, setSelected] = useState("");
   const [violation, setViolation] = useState('')
   const [data, setData] = useState(null)
-  const [aiRecommendation, setAiRecommendation] = useState(null);
-  const [aiFailed, setAiFailed] = useState(false);
 
 
   useEffect(() => {
@@ -229,44 +198,62 @@ const BehaviourAnalysis = ({ studentId, violation_list }) => {
   }, [selected]);
 
   useEffect(() => {
-    if(selected != '') {
-      setData(null)
-      RiskPredictionService.getViolationRiskPrediction(selected, studentId, setData)
-      setViolation(violation_list.filter((e, _) => e.id == selected)[0].violation_name)
+    if (selected === '') return;
+
+    setData(null)
+    setViolation(violation_list.filter((e, _) => e.id == selected)[0].violation_name)
+
+    const modelInput = model_inputs?.[selected]
+    const timeline = violation_timelines?.[selected] ?? []
+
+    // A violation can appear in this student's selectable list from a
+    // still-pending/ongoing complaint even though the model input only
+    // counts *resolved* occurrences — so there can legitimately be no
+    // model input row for it yet.
+    if (!modelInput) {
+      setData({
+        prediction: "Not Enough Data",
+        binary: 0,
+        insights: ["This student has no resolved complaints for this violation yet, so a prediction cannot be made."],
+        recommendations: [],
+        violation_timeline: timeline,
+      })
+      return
     }
-  }, [selected]);
-
-  // The AI pass is requested only once the model's own prediction has
-  // already come back (this effect is keyed on `data`, not `selected`), and
-  // is handed the model's verdict/raw insights to turn into readable
-  // explanations + guidance — it isn't asked to predict anything itself.
-  // Contributing Factors stays as Python's rule-based data.insights,
-  // unchanged — only Recommendations goes through OpenRouter.
-  useEffect(() => {
-    if (!data) return;
-    setAiRecommendation(null);
-    setAiFailed(false);
-
-    const prompt = `A student's discipline record was analyzed by a predictive model for the violation "${violation}".
-Prediction: ${data.prediction}.
-Model insights:
-${data.insights.map((i) => `- ${i}`).join("\n")}
-
-Based on this, write 3-5 short, concrete, actionable recommendations for a school prefect/counselor deciding how to handle this student. Return each recommendation as its own line, no numbering, no extra commentary.`;
 
     let cancelled = false;
 
-    fetchFromOpenRouter(prompt).then((text) => {
-      if (cancelled) return;
-      if (!text) {
-        setAiFailed(true);
-        return;
-      }
-      setAiRecommendation(text.split("\n").map((l) => l.trim()).filter(Boolean));
-    });
+    fetch(PYTHON_PREDICT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(modelInput),
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then((json) => {
+        if (cancelled) return;
+        if (!json || !("prediction" in json)) throw new Error("Malformed prediction response");
 
-    return () => { cancelled = true; };
-  }, [data]);
+        setData({
+          prediction: json.prediction == 1 ? "Likely to Commit Again" : "Unlikely to Commit Again",
+          binary: json.prediction,
+          insights: json.insights,
+          recommendations: json.reco,
+          violation_timeline: timeline,
+        })
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setData({
+          prediction: "Unavailable",
+          binary: 0,
+          insights: ["The prediction service is currently unavailable. Please try again later."],
+          recommendations: [],
+          violation_timeline: timeline,
+        })
+      });
+
+    return () => { cancelled = true };
+  }, [selected]);
 
   const riskUI = data?.binary
     ? {
@@ -317,54 +304,51 @@ Based on this, write 3-5 short, concrete, actionable recommendations for a schoo
         <BehaviourAnalysisSkeleton />
         :
         <>
-        <div className={`border rounded-xl p-6 ${riskUI.bg} ${riskUI.border}`}>
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <div className={`h-16 w-16 rounded-full bg-white flex items-center justify-center ring-4 ${riskUI.ring}`}>
-                <ShieldHalf size={24} className={riskUI.iconColor} />
+        <div className="grid gap-4">
+          {/* Verdict header */}
+          <div className={`border rounded-xl p-6 ${riskUI.bg} ${riskUI.border} flex items-center gap-4`}>
+            <div className={`h-16 w-16 rounded-full bg-white flex items-center justify-center ring-4 ${riskUI.ring} flex-shrink-0`}>
+              <ShieldHalf size={24} className={riskUI.iconColor} />
+            </div>
+            <div>
+              <div className={`text-xl font-extrabold ${riskUI.titleColor}`}>{data.prediction}</div>
+              <div className="text-sm text-slate-600 mt-0.5">
+                Prediction for repeating{" "}
+                <span className="font-semibold">"{violation}"</span> based on behavioral analysis.
               </div>
+            </div>
+          </div>
 
-              <div className="space-y-1">
-                <div className={`text-xl font-extrabold ${riskUI.titleColor}`}>{data.prediction}</div>
-                <div className="text-sm text-slate-600">
-                  Prediction for repeating{" "}
-                  <span className="font-semibold">"{violation}"</span> based on behavioral analysis.
-                </div>
-
-                <div className="pt-3">
-                  <div className="text-xs font-semibold tracking-wide text-slate-600">
-                    CONTRIBUTING FACTORS
-                  </div>
-                  <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                    {data.insights.map((f, i) => (
-                      <li key={i} className="flex items-center gap-2">
-                        <span className={`h-2 w-2 rounded-full ${riskUI.dot}`}></span>
-                        <span>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="pt-3">
-                  <div className="text-xs font-semibold tracking-wide text-slate-600">
-                    RECOMMENDATIONS
-                  </div>
-                  {aiRecommendation === null && !aiFailed ? (
-                    <div className="mt-2 flex items-center gap-2 text-sm text-slate-500">
-                      <CircleReload size={1.2} />
-                      <span>Generating AI recommendation...</span>
-                    </div>
-                  ) : (
-                    <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                      {(aiRecommendation ?? data.recommendations).map((f, i) => (
-                        <li key={i} className="flex items-center gap-2">
-                          <span className={`h-2 w-2 rounded-full ${riskUI.dot}`}></span>
-                          <span>{f}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+          {/* Factors + Recommendations */}
+          <div className="grid lg:grid-cols-2 gap-4">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+              <div className="text-xs font-bold tracking-wide text-slate-500 uppercase mb-3">
+                Contributing Factors
               </div>
+              <ul className="space-y-3">
+                {data.insights.map((f, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-sm text-slate-700">
+                    <span className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${riskUI.dot}`}></span>
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+              <div className="text-xs font-bold tracking-wide text-slate-500 uppercase mb-3">
+                Recommendations
+              </div>
+              <ul className="space-y-3">
+                {data.recommendations.map((f, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-sm text-slate-700">
+                    <span className={`flex-shrink-0 mt-0.5 h-5 w-5 rounded-full flex items-center justify-center text-[0.7em] font-bold text-white ${riskUI.dot}`}>
+                      {i + 1}
+                    </span>
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>

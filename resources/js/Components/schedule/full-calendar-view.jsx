@@ -15,7 +15,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
  * header controls are real MUI components driving FullCalendar's
  * imperative API, since FullCalendar's own toolbar isn't MUI.
  */
-const FullCalendarView = ({ onEventClick, onSlotSelect, refreshKey }) => {
+const FullCalendarView = ({ onEventClick, onSlotSelect, refreshKey, selectedDate }) => {
     const calendarRef = useRef(null)
     const [title, setTitle] = useState("")
     const [view, setView] = useState("dayGridMonth")
@@ -42,6 +42,15 @@ const FullCalendarView = ({ onEventClick, onSlotSelect, refreshKey }) => {
         setYearMonth(e.target.value)
         getApi()?.gotoDate(new Date(Number(year), Number(month) - 1, 1))
     }
+
+    const isSameDay = (a, b) => a && b
+        && a.getFullYear() === b.getFullYear()
+        && a.getMonth() === b.getMonth()
+        && a.getDate() === b.getDate()
+
+    const dayCellClassNames = (arg) => (
+        selectedDate && isSameDay(arg.date, new Date(selectedDate)) ? ["fc-day-selected"] : []
+    )
 
     const fetchEvents = (info, successCallback, failureCallback) => {
         axios
@@ -119,13 +128,12 @@ const FullCalendarView = ({ onEventClick, onSlotSelect, refreshKey }) => {
                     headerToolbar={false}
                     datesSet={handleDatesSet}
                     height="auto"
-                    selectable={true}
-                    selectMirror={true}
                     slotMinTime="07:00:00"
                     slotMaxTime="19:00:00"
                     events={fetchEvents}
                     eventClick={(info) => onEventClick(info.event)}
-                    select={(info) => onSlotSelect(info.start)}
+                    dateClick={(info) => onSlotSelect(info.date, info.jsEvent)}
+                    dayCellClassNames={dayCellClassNames}
                     dayMaxEvents={3}
                     eventTimeFormat={{ hour: "numeric", minute: "2-digit", meridiem: "short" }}
                 />

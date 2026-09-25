@@ -15,7 +15,6 @@ import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
 import { showWarningModal, showOutputModal } from "@/others/function"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
-import { ArchiveService } from "@/others/services/archive-service"
 import { List, Clock, CheckCircle2, XCircle, Ban, Undo2 } from "lucide-react"
 
 const PrefectAbsentForm = (props) => {
@@ -70,28 +69,6 @@ const PrefectAbsentForm = (props) => {
             case 'view':
                 setId(i)
                 openViewAbsentForm(true)
-                break
-            case 'archive':
-                showWarningModal(
-                    'Are You Sure You Want To Archive This Absent Form?',
-                    'Archive Absent Form',
-                    'Cancel',
-                    () => {
-                        loadRegister(true, "text-wait", "Archiving Absent Form")
-                        ArchiveService.transfer(
-                            'absent form', i,
-                            () => {
-                                showOutputModal('Absent Form Archived Successfully', 's', () => {
-                                    loadRegister(false)
-                                    window.location.reload()
-                                })
-                            },
-                            () => {
-                                showOutputModal('Failed to Archive Absent Form', 'e', () => loadRegister(false))
-                            }
-                        )
-                    }
-                )
                 break
         }
     }

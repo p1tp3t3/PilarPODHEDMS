@@ -19,11 +19,13 @@ const StudentViolationList = ({ list = [] }) => {
         id: i,
         rowIndex: i,
         student_id: e.student_id,
+        id_number: e.user?.id_number ?? 'N/A',
         user: e.user, // ✅ KEEP OBJECT
         studentText: `${e.user?.profile?.first_name || ""} ${e.user?.profile?.middle_name || ""} ${
           e.user?.profile?.last_name || ""
         } ${toTitleCase(programName || "")}`.trim(), // ✅ for filter/sort
         school_year: isStudent ? (latestEnrollment?.school_year?.year ?? 'N / A') : 'N / A',
+        year_level: isStudent && latestEnrollment?.year_level ? getYearLevel(latestEnrollment.year_level) : 'N/A',
         violation_count: e.violation_count,
         major_count: e.major_count,
         minor_count: e.minor_count,
@@ -42,7 +44,7 @@ const StudentViolationList = ({ list = [] }) => {
       width: 50,
       renderCell: (params) => <span>{params.value + 1}.</span>,
     },
-    { field: "student_id", headerName: "Student ID", width: 120 },
+    { field: "id_number", headerName: "Student ID", width: 120 },
     {
         field: "studentText",
         headerName: "Student",
@@ -75,6 +77,7 @@ const StudentViolationList = ({ list = [] }) => {
         },
     },
     { field: "school_year", headerName: "School Year", width: 160 },
+    { field: "year_level", headerName: "Year Level", width: 120 },
     { field: "violation_count", headerName: "Total Violation Counts", width: 160 },
     {
       field: "actions",

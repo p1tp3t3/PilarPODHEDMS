@@ -16,7 +16,6 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
@@ -122,6 +121,13 @@ class ViolationController extends Controller
             'student' => User::with(['profile', 'program', 'enrollments.schoolYear'])->where('id', $id)->first(),
             'student_violations' => $studentViolations->get(),
             'violations' => $violationNames,
+            // Precomputed for every violation this student has, keyed by
+            // violation_id, so the Behavioural Analysis tab already has
+            // everything it needs on page load/refresh and can call the
+            // Python prediction API directly per selection instead of
+            // round-tripping through a Laravel endpoint each time.
+            'model_inputs' => self::getModelInputsForStudent($id),
+            'violation_timelines' => self::getViolationTimelinesForStudent($id),
         ]);
     }
 
@@ -486,81 +492,19 @@ class ViolationController extends Controller
         return $result;
     }
 
-    public function getStudentBehaviourAnalysisResult($violation, $studentId)
-    {
-        if (self::isSuperAdmin()) {
-            return response()->json(['message' => 'Not authorized to view student violation data.'], 403);
-        }
-
-        $baseQuery = self::getModelInput($violation)
-            ->where('cs.student_id', $studentId)
-            ->groupBy('cs.student_id');
-        $rows = $baseQuery->get();
-
-        // offense_issued_at is only set once a prefect formally issues the
-        // offense and is null for most complaints — ordering by it alone
-        // meant every row tied and came back in arbitrary (insertion) order.
-        // Fall back through the same complaint-lifecycle timestamps used
-        // elsewhere (getModelInput()'s SQL, the frontend's bestComplaintDate).
-        $violationTimeline = ComplaintSubjectViolation::with(['violation', 'complaint.complaintSubject'])
-            ->where('violation_id', $violation)
-            ->where('student_id', $studentId)
-            ->orderByDesc(
-                Complaint::selectRaw('COALESCE(offense_issued_at, resolved_at, confirmed_at, created_at)')
-                    ->whereColumn('complaint.id', 'complaint_subject_violation.complaint_id')
-                    ->limit(1)
-            )
-            ->get()
-            ->toArray();
-
-        // A violation can appear in the student's selectable list from a
-        // still-pending/ongoing complaint (studentViolationIndex() doesn't
-        // filter by status), while getModelInput() only counts *resolved*
-        // occurrences — so this student can legitimately have zero rows
-        // here. Fail soft instead of crashing on an empty result.
-        if ($rows->isEmpty()) {
-            return [
-                'prediction' => 'Not Enough Data',
-                'binary' => 0,
-                'insights' => ['This student has no resolved complaints for this violation yet, so a prediction cannot be made.'],
-                'recommendations' => [],
-                'violation_timeline' => $violationTimeline,
-            ];
-        }
-
-        // DB::table()->get() rows are stdClass, not arrays — Collection::toArray()
-        // doesn't convert them, it just wraps the stdClass objects as-is. Cast to
-        // array explicitly rather than relying on json_encode() happening to
-        // serialize a stdClass the same way it would a real array.
-        $studentData = (array) $rows->first();
-        $api = Http::withoutVerifying()->post('http://127.0.0.1:5032/python/model/predict', $studentData);
-        $data = $api->json();
-
-        if (! $api->successful() || ! is_array($data) || ! array_key_exists('prediction', $data)) {
-            return [
-                'prediction' => 'Unavailable',
-                'binary' => 0,
-                'insights' => ['The prediction service is currently unavailable. Please try again later.'],
-                'recommendations' => [],
-                'violation_timeline' => $violationTimeline,
-            ];
-        }
-
-        return [
-            'prediction' => $data['prediction'] == 1 ? 'Likely to Commit Again' : 'Unlikely to Commit Again',
-            'binary' => $data['prediction'],
-            'insights' => $data['insights'],
-            'recommendations' => $data['reco'],
-            'violation_timeline' => $violationTimeline,
-        ];
-    }
-
-    public function getModelInput($violation)
+    /**
+     * One model-input row per violation this student has a *resolved*
+     * occurrence of, keyed by violation_id — same fields/SQL
+     * getModelInput() used to compute on demand per violation, just for
+     * every violation the student has at once so the frontend can send
+     * these straight to the Python API itself instead of asking Laravel to
+     * fetch-then-forward on every violation selection.
+     */
+    private static function getModelInputsForStudent($studentId)
     {
         $recentDays = 90;
-        $ongoingDays = 30; // only used if you switch to time-window logic (optional)
 
-        $query = DB::table('complaint as c')
+        return DB::table('complaint as c')
             ->join('complaint_subject as cs', 'cs.complaint_id', '=', 'c.id')
             ->join('complaint_subject_violation as cso', function ($join) {
                 $join->on('cso.complaint_id', '=', 'c.id')
@@ -568,10 +512,10 @@ class ViolationController extends Controller
             })
             ->join('violation as o', 'o.id', '=', 'cso.violation_id')
             ->where('c.complaint_status', 'resolved')
-            ->where('cso.violation_id', $violation)
-            ->groupBy('cs.student_id', 'o.violation_name', 'cso.violation_id')
+            ->where('cs.student_id', $studentId)
+            ->groupBy('cso.violation_id', 'o.violation_name')
             ->selectRaw('
-                cs.student_id,
+                cso.violation_id,
                 o.violation_name AS violation_type,
 
                 COUNT(*) AS past_repeat_same_violation_count,
@@ -597,8 +541,30 @@ class ViolationController extends Controller
                 CASE WHEN COUNT(*) = 1 THEN 120 ELSE
                     TIMESTAMPDIFF(MONTH, MAX(COALESCE(c.offense_issued_at, c.resolved_at, c.confirmed_at, c.created_at)), CURDATE())
                 END AS months_since_last_same_violation
-            ', [$recentDays]);
+            ', [$recentDays])
+            ->get()
+            ->keyBy('violation_id');
+    }
 
-        return $query;
+    /**
+     * Every complaint_subject_violation row for this student, grouped by
+     * violation_id — same ordering getStudentBehaviourAnalysisResult() used
+     * to compute per violation (offense_issued_at falls back through the
+     * complaint lifecycle timestamps), just for every violation at once.
+     * Unlike getModelInputsForStudent() this isn't restricted to resolved
+     * complaints, since a violation can appear in the student's selectable
+     * list from a still-pending/ongoing complaint too.
+     */
+    private static function getViolationTimelinesForStudent($studentId)
+    {
+        return ComplaintSubjectViolation::with(['violation', 'complaint.complaintSubject'])
+            ->where('student_id', $studentId)
+            ->orderByDesc(
+                Complaint::selectRaw('COALESCE(offense_issued_at, resolved_at, confirmed_at, created_at)')
+                    ->whereColumn('complaint.id', 'complaint_subject_violation.complaint_id')
+                    ->limit(1)
+            )
+            ->get()
+            ->groupBy('violation_id');
     }
 }

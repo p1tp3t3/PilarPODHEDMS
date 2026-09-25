@@ -22,6 +22,7 @@ const CallInModal = (props) => {
               'receiver_id': '',
               'call_in_reason': '',
               'notify_program_head' : false,
+              'program_head_message': '',
           }),
           [validationErr, setValidationError] = useState({})
 
@@ -36,7 +37,10 @@ const CallInModal = (props) => {
         const { name, checked } = e.target;
         setData((prev) => ({
             ...prev,
-            [name]: checked
+            [name]: checked,
+            // Clear a half-written program head message if the checkbox
+            // gets unchecked, so it doesn't linger and get sent later.
+            ...(name === 'notify_program_head' && !checked ? { program_head_message: '' } : {}),
         }));
     };
 
@@ -64,7 +68,8 @@ const CallInModal = (props) => {
             ...prev,
             receiver_id: '',
             call_in_reason: '',
-            notify_program_head: false
+            notify_program_head: false,
+            program_head_message: '',
         }))
         setSearchedStudent(null)
         setSubmit(false)
@@ -129,14 +134,24 @@ const CallInModal = (props) => {
                             />
                         </div>
                         <div className="flex items-center space-x-2 text-[0.8em]">
-                            <CheckBoxButton.CheckBox 
-                                label="Notify Program Head" 
+                            <CheckBoxButton.CheckBox
+                                label="Notify Program Head"
                                 name="notify_program_head"
                                 id="notify_program_head"
                                 change={handleCheck}
-                                checked={data.notify_program_head} 
+                                checked={data.notify_program_head}
                             />
                         </div>
+                        {data.notify_program_head && (
+                            <div>
+                                <RichTextEditor
+                                    label="Message to Program Head"
+                                    val={data.program_head_message}
+                                    change={(html) => setData((prev) => ({ ...prev, program_head_message: html }))}
+                                    minHeight="8rem"
+                                />
+                            </div>
+                        )}
                     </div>
                     <div className="flex justify-end">
                         <FormButton label='Call In' type="submit" loading={submit} />

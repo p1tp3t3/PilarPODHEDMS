@@ -7,6 +7,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, roc_auc_score, classification_report
 import joblib
 import numpy as np
+import re
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+
 
 def make_json_safe(data):
     if isinstance(data, dict):
@@ -24,12 +29,102 @@ def make_json_safe(data):
 
 
 class EarlyInterventionViolationPredictor:
+    # Shared across every instance (there's only ever one — config_model.py
+    # constructs a single singleton) rather than per-instance, so the model
+    # is only ever loaded once regardless of how many times this class gets
+    # instantiated.
+    #
+    # google/flan-t5-small and flan-t5-base were tried first (seq2seq,
+    # text2text-generation) and both failed in practice: -small either
+    # echoed the prompt back verbatim or produced incoherent fragments,
+    # -base degenerated into repeating the same sentence dozens of times
+    # regardless of repetition_penalty/no_repeat_ngram_size — neither is
+    # reliable for this kind of open-ended "write N recommendations" task.
+    # Qwen2.5-0.5B-Instruct (a genuinely instruction-tuned causal chat
+    # model, not a legacy seq2seq checkpoint) produced clean, well-formatted,
+    # distinct recommendations on the same prompt in testing, so it's a
+    # causal LM + chat template rather than AutoModelForSeq2SeqLM.
+    _recommendation_tokenizer = None
+    _recommendation_model = None
+
     def __init__(self, file):
         self.file = file
         self.df = pd.read_csv(f"./dataset/{self.file}.csv")
         self.model_name = f'./model_training/notebook/early-intervention-violation-predictor-model'
         self.model = None
-    
+
+        # Loads (and downloads, on first run) the recommendation model right
+        # away instead of on the first /python/model/predict request, so
+        # that request doesn't unexpectedly eat the ~60-90s weight-loading
+        # cost — it's paid once, up front, when the Flask app boots (this
+        # class is instantiated once as a singleton in config_model.py).
+        print('[EarlyInterventionViolationPredictor] loading recommendation model...')
+        self._get_recommendation_model()
+        print('[EarlyInterventionViolationPredictor] recommendation model ready')
+
+    @classmethod
+    def _get_recommendation_model(cls):
+        if cls._recommendation_model is None:
+            model_id = "Qwen/Qwen2.5-0.5B-Instruct"
+            cls._recommendation_tokenizer = AutoTokenizer.from_pretrained(model_id)
+            if torch.cuda.is_available():
+                # device_map="auto" (needs accelerate) spreads the model
+                # across GPU(s) when one's actually available.
+                cls._recommendation_model = AutoModelForCausalLM.from_pretrained(
+                    model_id,
+                    device_map="auto",
+                )
+            else:
+                # On a CPU-only machine, device_map="auto" has nothing to
+                # optimize for and — with this transformers/accelerate
+                # version combo — can leave some weights stranded on the
+                # "meta" device instead of materializing them on cpu
+                # ("Tensor on device cpu is not on the expected device
+                # meta!"). Loading straight onto cpu avoids that dispatch
+                # path entirely.
+                cls._recommendation_model = AutoModelForCausalLM.from_pretrained(model_id)
+        return cls._recommendation_tokenizer, cls._recommendation_model
+
+    @staticmethod
+    def _parse_recommendation_list(text):
+        """Splits a numbered-list response ("1. **Title**: body...") into
+        one string per item, joining any wrapped continuation lines and
+        stripping markdown bold — falls back to raw non-empty lines, then
+        to sentence splitting, if the model didn't use numbering at all."""
+        items = []
+        current = []
+        for raw_line in text.split("\n"):
+            line = raw_line.strip()
+            if not line:
+                continue
+            match = re.match(r"^\d+[.)]\s*(.*)", line)
+            if match:
+                if current:
+                    items.append(" ".join(current).strip())
+                current = [match.group(1)]
+            elif current:
+                current.append(line)
+        if current:
+            items.append(" ".join(current).strip())
+
+        if not items:
+            items = [line.strip(" -•\t") for line in text.split("\n") if line.strip()]
+        if len(items) <= 1 and text.strip():
+            items = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+
+        items = [re.sub(r"\*\*(.*?)\*\*", r"\1", item).strip() for item in items]
+        items = [i for i in items if i]
+
+        # The model sometimes numbers its own preamble ("1. Recommendations:")
+        # or a closing summary sentence ("7. These actions can help...") as
+        # if they were genuine list items — neither is an actual
+        # recommendation, so both get dropped rather than shown as one.
+        items = [i for i in items if not re.match(r"(?i)^recommendations?\s*:?\s*$", i)]
+        summary_prefixes = ("these ", "this approach", "overall,", "overall ", "in summary", "in conclusion")
+        items = [i for i in items if not i.lower().startswith(summary_prefixes)]
+
+        return items
+
     def train_model(self, save = False):
         df = self.df
         target = 'will_repeat_the_same_violation'
@@ -161,35 +256,63 @@ class EarlyInterventionViolationPredictor:
 
         return insights
 
-    def get_recommendation(self, data, pred):
-        recommendations = []
+    def get_recommendation(self, data, pred, insights=None):
+        # Was generated client-side via an OpenRouter call (student-violation.jsx)
+        # with the model's own insights as context — moved server-side onto a
+        # local transformers model instead, so the feature no longer depends
+        # on an external API key/network call.
+        # `insights` can be passed in by a caller that already computed them
+        # (main.py does) to avoid recomputing/reloading the model twice.
+        if insights is None:
+            insights = self.get_insights(data, pred)
 
-        # `.get(key, 0)` only substitutes when the key is *missing* — a
-        # present-but-None value (e.g. a source complaint with no
-        # offense_issued_at date) still slips through and breaks int(None).
-        past_repeat = int(data.get("past_repeat_same_violation_count") or 0)
-        recent_same = int(data.get("recent_same_violation_count") or 0)
-        months_since = int(data.get("months_since_last_same_violation") or 0)
+        return self._ai_recommendation(data, pred, insights) or []
 
-        if int(pred) == 1:
-            recommendations.append("Schedule a brief check-in with the student within 24–72 hours.")
-            recommendations.append("Review the student’s violation history and identify triggers/patterns.")
-            recommendations.append("Notify relevant staff (advisor/counselor/discipline lead) for coordinated support.")
+    def _ai_recommendation(self, data, pred, insights):
+        try:
+            violation_type = data.get("violation_type", "the violation")
+            verdict = "will likely repeat" if int(pred) == 1 else "is unlikely to repeat"
 
-            if recent_same > 0:
-                recommendations.append("Since violations are recent, implement a short-term monitoring plan (weekly follow-ups).")
+            prompt = (
+                f"A student's discipline record was analyzed by a predictive model for the violation "
+                f"\"{violation_type}\". Prediction: the student {verdict} this violation. "
+                f"Model insights: {' '.join(insights)} "
+                "List at least 5 short, actionable recommendations (6 or more is fine) for a school "
+                "prefect or counselor deciding how to handle this student. Number them 1 to 6+ and keep "
+                "each one to a single short sentence. Do not include a title/heading before the list or "
+                "a summary sentence after it — output only the numbered items, nothing else."
+            )
 
-            if past_repeat > 0:
-                recommendations.append("Since the student has repeated before, create a targeted behavior contract with clear goals and check-ins.")
 
-            if months_since <= 1:
-                recommendations.append("Risk is elevated due to recent history; intervene sooner and document actions.")
-        else:
-            recommendations.append("Continue routine monitoring—no immediate intervention required.")
-            recommendations.append("Provide positive reinforcement and encourage maintaining good behavior.")
+            tokenizer, model = self._get_recommendation_model()
+            messages = [{"role": "user", "content": prompt}]
+            chat_input = tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+            inputs = tokenizer(chat_input, return_tensors="pt", truncation=True, max_length=512)
+            # device_map="auto" may place the model on GPU — inputs need to
+            # live on the same device before generate() runs.
+            inputs = {k: v.to(model.device) for k, v in inputs.items()}
+            with torch.no_grad():
+                outputs = model.generate(
+                    **inputs,
+                    # Raised alongside the higher recommendation count target
+                    # below — 200 tokens was cutting a 6-item list off mid-way.
+                    max_new_tokens=320,
+                    do_sample=False,
+                    repetition_penalty=1.2,
+                )
+            generated = outputs[0][inputs["input_ids"].shape[1]:]
+            text = tokenizer.decode(generated, skip_special_tokens=True).strip()
 
-        return recommendations
-    
+            # No hard 5-item cap — 3 is the floor, 6+ is expected/fine. Only
+            # guard against a truly degenerate/runaway parse.
+            recommendations = self._parse_recommendation_list(text)
+            return recommendations[:10] if recommendations else None
+        except Exception as e:
+            print(f"[get_recommendation] transformers generation failed: {e}")
+            return None
+
     def append(self, data):
         csv_path = f"./dataset/{self.file}.csv"
         self.df = pd.read_csv(csv_path)

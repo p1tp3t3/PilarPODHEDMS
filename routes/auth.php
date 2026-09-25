@@ -282,6 +282,7 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::post('/appointment/update/{id}', [AppointmentController::class, 'update']);
      Route::post('/appointment/cancel', [AppointmentController::class, 'cancelAppointment']);
      Route::get('/appointment/cancel', [AppointmentController::class, 'cancelAppointment']);
+     Route::post('/appointment/attendance', [AppointmentController::class, 'markAttendance']);
      Route::post('/appointment/action', [AppointmentController::class, 'action']);
      Route::post('/calendar/appointment/get/list', [AppointmentController::class, 'getAppointment']);
      Route::get('/calendar/appointment/events', [AppointmentController::class, 'calendarEvents']);
@@ -331,7 +332,6 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/violation/list/{id}', [ViolationController::class, 'getStudentViolation']);
      Route::get('/violation-occurence/list/{id}', [ViolationController::class, 'getStudentViolationOccurence']);
      Route::get('/incident/student/{id}', [ViolationController::class, 'getStudentRiskStatus']);
-     Route::get('/api/student/violation/{violation}/{studentId}', [ViolationController::class, 'getStudentBehaviourAnalysisResult']);
      Route::get('/api/offense-list', [ViolationController::class, 'getOffenseList']);
 
      Route::post('/profile/{username}/edit', [ProfileController::class, 'update']);
@@ -346,7 +346,7 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/api/user-account/file/{fileName}/preview', [FileController::class, 'previewAccountFile']);
      Route::get('/api/user-account/file/{fileName}/preview-entry', [FileController::class, 'previewAccountFileEntry']);
      Route::get('/all-students', function() {
-          return User::with(['profile', 'program'])->where('role', 'student')->get();
+          return User::with(['profile', 'program', 'enrollments'])->where('role', 'student')->get();
      });
      Route::get('/settings/{id}', [AccountController::class, 'accountSettingsIndex']);
      Route::get('/referral', [ReferralController::class, 'index']);

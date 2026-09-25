@@ -14,6 +14,15 @@ const PicVidUpload = ({
     setReqFileList,
     maximumSize,
     maxCount = 2,
+    // vid only: rejects a video longer than this. Checked client-side by
+    // loading the file's own metadata (no upload/server round trip needed).
+    maxDurationSeconds,
+    // Called with a human-readable message whenever a video is rejected
+    // (over the size/duration/count limit) so the parent form can surface
+    // why nothing was added — silent drops are fine for pics (the limits
+    // are obvious at a glance) but not for a duration limit the user can't
+    // see just by looking at the file.
+    onError = () => {},
     // Optional: already-uploaded files (e.g. when editing a form) shown in
     // the same row as new uploads — [{ key, src, type, href }]. Removing one
     // calls onRemoveExisting(key) — a soft-hide on the backend, not a real
@@ -37,38 +46,82 @@ const PicVidUpload = ({
     }
     const picChange = (e) => {
         const files = Array.from(e.target.files);
-        const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+        e.target.value = ""
 
-        const newImages = imageFiles.map((f) => ({
+        const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+        if (imageFiles.length === 0) return
+
+        // Was only checking the size of this one batch against maxCount —
+        // uploading in smaller batches (e.g. 2, then 2, then 2) could blow
+        // past the limit entirely since it never looked at what was already
+        // added.
+        const remainingSlots = maxCount - reqFileList.length
+        if (remainingSlots <= 0) {
+            onError(`You can only upload up to ${maxCount} picture${maxCount === 1 ? "" : "s"}.`)
+            return
+        }
+
+        const accepted = imageFiles.slice(0, remainingSlots)
+        if (accepted.length < imageFiles.length) {
+            onError(`You can only upload up to ${maxCount} picture${maxCount === 1 ? "" : "s"}.`)
+        }
+
+        const newImages = accepted.map((f) => ({
             src: URL.createObjectURL(f), // preview
             file: f, // keep actual file
         }));
 
-        if(newImages.length > maxCount) return
-
         setFileList((prev) => [...prev, ...newImages]);
-        setReqFileList((prev) => [...prev, ...imageFiles]); // append, not overwrite
+        setReqFileList((prev) => [...prev, ...accepted]); // append, not overwrite
     }
     const vidChange = (e) => {
         const files = Array.from(e.target.files)
-        const f  = files[0]
         const videoFiles = files.filter((file) => file.type.startsWith("video/"))
-        
-        if (!f) return;
 
-        if (!f.type.startsWith("video/")) {
-            return;
+        // Reset now (not at the end) so picking the exact same file twice in
+        // a row still fires onChange the second time.
+        e.target.value = ""
+
+        if (videoFiles.length === 0) return
+
+        const remainingSlots = maxCount - reqFileList.length
+        if (remainingSlots <= 0) {
+            onError(`You can only upload up to ${maxCount} video${maxCount === 1 ? "" : "s"}.`)
+            return
         }
 
-        if (f.size > maximumSize * 1024 * 1024) {
-            return;
+        const accepted = videoFiles.slice(0, remainingSlots)
+        if (accepted.length < videoFiles.length) {
+            onError(`You can only upload up to ${maxCount} video${maxCount === 1 ? "" : "s"}.`)
         }
 
-        videoFiles.forEach((file) => {
-            const fileURL = URL.createObjectURL(file);
-            generateThumbnail(fileURL, file);
-        });
-        setReqFileList(files)
+        accepted.forEach((file) => {
+            if (maximumSize && file.size > maximumSize * 1024 * 1024) {
+                onError(`"${file.name}" is larger than ${maximumSize}MB.`)
+                return
+            }
+
+            const fileURL = URL.createObjectURL(file)
+
+            if (!maxDurationSeconds) {
+                generateThumbnail(fileURL, file)
+                return
+            }
+
+            // Duration lives in the file's own metadata — read it before
+            // accepting the file, no upload needed to check this.
+            const probe = document.createElement("video")
+            probe.preload = "metadata"
+            probe.src = fileURL
+            probe.onloadedmetadata = () => {
+                if (probe.duration > maxDurationSeconds) {
+                    onError(`"${file.name}" is longer than ${Math.round(maxDurationSeconds / 60)} minute${maxDurationSeconds === 60 ? "" : "s"}.`)
+                    URL.revokeObjectURL(fileURL)
+                    return
+                }
+                generateThumbnail(fileURL, file)
+            }
+        })
     }
     const generateThumbnail = (videoURL, file) => {
         const video = document.createElement("video");
@@ -89,7 +142,8 @@ const PicVidUpload = ({
 
             const thumbnailURL = canvas.toDataURL("image/png");
 
-            setFileList((prev) => [...prev, { id: prev.length + 1, src: thumbnailURL, file: file }]);
+            setFileList((prev) => [...prev, { src: thumbnailURL, file: file }]);
+            setReqFileList((prev) => [...prev, file]);
 
             video.remove();
         }
@@ -123,16 +177,15 @@ const PicVidUpload = ({
             <div className="text-[0.8em]">{label}</div>
             <div>
                 {(fileList.length !== 0 || existingList.length !== 0) ? (
-                <div className="grid gap-3">
+                <div className="flex gap-2 pb-2 w-full overflow-hidden overflow-x-auto">
                     {multiple && type !== "pdf" && (
                     <label
                         htmlFor={id}
-                        className="bg-blue-500 cursor-pointer text-white w-[2rem] h-[2rem] rounded-full flex-shrink-0 grid place-items-center"
+                        className="bg-gray-50 hover:bg-gray-100 border-2 border-dashed border-gray-300 cursor-pointer text-gray-400 hover:text-gray-500 w-[6rem] h-[15rem] rounded-md flex-shrink-0 grid place-items-center transition-colors"
                     >
-                        <Plus size={14} />
+                        <Plus size={22} />
                     </label>
                     )}
-                    <div className="flex gap-2 pb-2 w-full overflow-hidden overflow-x-auto">
                     {existingList.map((e) => (
                         <div className="h-full" key={`existing-${e.key}`}>
                         <File
@@ -154,7 +207,6 @@ const PicVidUpload = ({
                         />
                         </div>
                     ))}
-                    </div>
                 </div>
                 ) : (
                 <label
@@ -176,7 +228,7 @@ const PicVidUpload = ({
                         ? "video/mp4, video/wav"
                         : "application/pdf"
                     }
-                    multiple={type === "pic" && multiple}
+                    multiple={(type === "pic" || type === "vid") && multiple}
                     onChange={fileChange}
                 />
             </div>
@@ -201,7 +253,15 @@ const File = ({ type, onRemove, src, href, name }) => {
             {type === "pic" && <img src={src} alt="" className="absolute" />}
             {type === "vid" && (
                 <>
-                <img src={src} alt="" className="absolute" />
+                {/* New uploads carry a generated data-URL thumbnail; existing
+                    (already-uploaded) videos only have a link to the raw
+                    video file itself, which an <img> can't render — show a
+                    generic icon for those instead. */}
+                {src?.startsWith("data:") ? (
+                    <img src={src} alt="" className="absolute" />
+                ) : (
+                    <FileText size="5.5em" className="text-gray-500" />
+                )}
                 <button
                     type="button"
                     className="cursor-default absolute w-[2rem] h-[2rem] text-white/80 bg-black/80 rounded-full z-10"

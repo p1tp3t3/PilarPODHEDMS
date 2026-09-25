@@ -61,7 +61,13 @@ const IssueComplaintModal = (props) => {
           [req_picture_list, setReqPictureList] = useState([]),
 
           [video_list, setVideoList] = useState([]),
-          [req_video_list, setReqVideoList] = useState([])
+          [req_video_list, setReqVideoList] = useState([]),
+
+          [uploadError, setUploadError] = useState('')
+
+    const selectedIncidentKeywords = props.incident_list?.find(
+        (i) => i.val == props.val.complaint_incident
+    )?.keywords ?? []
 
     const handleSearch = (e) => {
         const val = e.target.value;
@@ -91,12 +97,15 @@ const IssueComplaintModal = (props) => {
             f.append('incident_id', props.val.complaint_incident);
 
 
-            if(req_picture_list != null && req_picture_list.length > 0) {
+            // Omit `evidence` entirely when nothing was attached — FormData
+            // coerces a literal null into the string "null", which Laravel's
+            // `nullable|file` rule does NOT treat as empty (nullable only
+            // exempts a true absent/null value), so appending a fake null
+            // here always failed validation with "must be a file".
+            if(concatFileList != null && concatFileList.length > 0) {
                 concatFileList.forEach((file, index) => {
                     f.append(`evidence[${index}]`, file);
                 })
-            }else {
-                f.append(`evidence[0]`, null);
             }
             showWarningModal(
                 'Are You Sure You Want To Submit a Complaint?',
@@ -355,6 +364,18 @@ const IssueComplaintModal = (props) => {
                                     req={false}
                                 />
                             </div>
+                            {selectedIncidentKeywords.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                {selectedIncidentKeywords.map((kw, i) => (
+                                    <span
+                                        key={i}
+                                        className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs rounded-full"
+                                    >
+                                        {kw}
+                                    </span>
+                                ))}
+                            </div>
+                            )}
                             {validationError.incident &&
                             <div className="text-[#d12323] text-[12px]">
                                 <b>{validationError.incident}</b>
@@ -381,12 +402,34 @@ const IssueComplaintModal = (props) => {
                                 fileList={picture_list}
                                 name='pic_evidence'
                                 id='pic_file'
-                                reqFileList={req_picture_list} 
-                                setFileList={setPictureList} 
+                                reqFileList={req_picture_list}
+                                setFileList={setPictureList}
                                 setReqFileList={setReqPictureList}
                                 maximumSize={2}
                                 maxCount={5}
+                                onError={(msg) => setUploadError(msg)}
                             />
+                            <PicVidUpload
+                                type='vid'
+                                label="Up To 2 Videos, 3 Minutes Each Max"
+                                multiple={true}
+                                def='Upload Videos Here Up To 40MB'
+                                fileList={video_list}
+                                name='vid_evidence'
+                                id='vid_file'
+                                reqFileList={req_video_list}
+                                setFileList={setVideoList}
+                                setReqFileList={setReqVideoList}
+                                maximumSize={40}
+                                maxCount={2}
+                                maxDurationSeconds={180}
+                                onError={(msg) => setUploadError(msg)}
+                            />
+                            {uploadError && (
+                                <div className="text-[#d12323] text-[12px]">
+                                    <b>{uploadError}</b>
+                                </div>
+                            )}
                             <div className="text-[#d12323] text-[12px]">
                                 <b>{validationError.evidence}</b>
                             </div>

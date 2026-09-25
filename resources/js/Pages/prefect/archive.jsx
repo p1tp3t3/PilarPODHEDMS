@@ -23,7 +23,6 @@ const PrefectArchive = (props) => {
         { key: 'complaint', label: 'Complaint' },
         { key: 'referral', label: 'Referral' },
         { key: 'absent form', label: 'Absent Form' },
-        { key: 'gate pass', label: 'Gate Pass' },
     ]
     const url = new URLSearchParams(window.location.search)
     const [choose, setChoose] = useState(url.has("type") ? url.get("type") : "all"),

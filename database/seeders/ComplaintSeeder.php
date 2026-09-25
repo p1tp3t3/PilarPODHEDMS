@@ -40,8 +40,10 @@ class ComplaintSeeder extends Seeder
         }
 
         // Repeat offenders: a handful of students who each committed the SAME
-        // violation multiple times (clustered 3-per-month across several
-        // months), resolved. Without this, no student ever has more than one
+        // violation multiple times across a realistic mix of recency
+        // patterns (escalating/all-recent, long-dormant, reactivated after
+        // a gap, etc — see seedRepeatOffenders()), resolved. Without this,
+        // no student ever has more than one
         // resolved occurrence of a given violation (every complaint above
         // draws an independent random violation), so
         // past_repeat_same_violation_count/months_since_last_same_violation/
@@ -106,23 +108,38 @@ class ComplaintSeeder extends Seeder
         }
 
         $repeatStudents = array_slice($students, 0, min(5, count($students)));
-        $occurrencesPerMonth = 3;
-        $monthsBack = 2; // 3 per month x 2 months = 6 total occurrences.
 
-        foreach ($repeatStudents as $studentId) {
+        // Each profile is a list of [monthsBack, occurrenceCount] clusters
+        // (oldest first). The model's "recent" window is 90 days (~3
+        // months), so these are deliberately built to land clearly inside
+        // or outside it — giving past_repeat_same_violation_count,
+        // recent_same_violation_count and months_since_last_same_violation
+        // real variance across the seeded demo data instead of every
+        // repeat offender always looking "currently escalating" (every
+        // occurrence recent, recent == past every time).
+        $profiles = [
+            [[2, 3], [1, 3]],          // escalating: all 6 occurrences recent
+            [[8, 3], [7, 3]],          // dormant: all 6 occurrences well outside the recent window
+            [[6, 3], [1, 3]],          // reactivated after a gap: half recent, half not
+            [[5, 6]],                  // isolated past cluster, nothing recent
+            [[4, 2], [2, 2], [1, 2]],  // gradual/frequent: spread across the recent boundary
+        ];
+
+        foreach ($repeatStudents as $i => $studentId) {
             $violationId = $violationIds[array_rand($violationIds)];
+            $profile = $profiles[$i % count($profiles)];
 
-            // Oldest month first, so months_since_last/past_repeat reflect a
-            // real timeline instead of same-day noise. Each of these months
-            // gets its own cluster of 3 occurrences of the SAME violation.
-            for ($m = $monthsBack; $m >= 1; $m--) {
-                $monthStart = now()->subMonths($m)->startOfMonth();
+            // Oldest cluster first, so months_since_last/past_repeat
+            // reflect a real timeline instead of same-day noise.
+            foreach ($profile as [$monthsBack, $occurrenceCount]) {
+                $monthStart = now()->subMonths($monthsBack)->startOfMonth();
 
-                for ($n = 0; $n < $occurrencesPerMonth; $n++) {
+                for ($n = 0; $n < $occurrenceCount; $n++) {
                     $complainantId = collect($students)->reject(fn ($id) => $id === $studentId)->random();
 
                     // Spread within the month (day 1-28, valid for every
-                    // month) so the 3 occurrences don't all share a timestamp.
+                    // month) so occurrences in the same cluster don't all
+                    // share a timestamp.
                     $createdAt = $monthStart->copy()->addDays(random_int(0, 27))->addHours(random_int(0, 23));
 
                     // created_at must be set via an earlier chained state, not
@@ -228,7 +245,7 @@ class ComplaintSeeder extends Seeder
 
         $complaint->update([
             'incident_id' => $newViolation?->id,
-            'complaint_description' => fake()->paragraph(2),
+            'complaint_description' => \Database\Factories\ComplaintFactory::randomComplaintDescription($newViolation),
             'complaint_evidences' => json_encode($originalEvidences),
             'edited_at' => $editedAt,
         ]);

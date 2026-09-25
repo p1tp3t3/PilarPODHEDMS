@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Modules\Appointment;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Appointment\AppointmentActionRequest;
 use App\Http\Requests\Appointment\CancelAppointmentRequest;
+use App\Http\Requests\Appointment\MarkAttendanceRequest;
 use App\Http\Requests\Appointment\StoreAppointmentRequest;
 use App\Http\Requests\Appointment\UpdateAppointmentRequest;
 use App\Http\Requests\Appointment\UpdateAppointmentSlotRequest;
@@ -463,6 +464,22 @@ class AppointmentController extends Controller
         return self::get($date);
     }
 
+    public function markAttendance(MarkAttendanceRequest $request)
+    {
+        $appointment = Appointment::findOrFail($request->appointment_id);
+        $appointment->update(['attendance_status' => $request->attendance_status]);
+
+        $type = User::select('role')->where('id', $appointment->user_id)->first()->role;
+        ActionLog::log(
+            auth()->user()->id,
+            'appointment',
+            "Marked the {$type} as {$request->attendance_status} for an appointment.",
+            ['attendance_status' => ['to' => $request->attendance_status]]
+        );
+
+        return response()->json(['message' => 'Attendance updated successfully.', 'attendance_status' => $appointment->attendance_status]);
+    }
+
     public function getAppointmentAvailableSlots()
     {
         $slots = AppointmentSlot::select(
@@ -567,6 +584,7 @@ class AppointmentController extends Controller
                     'extendedProps' => [
                         'status' => 'accepted',
                         'appointment_id' => $appointment->id,
+                        'attendance_status' => $appointment->attendance_status,
                         'user_id' => $appointment->user_id,
                         'description' => $appointment->description,
                         'user' => [
@@ -698,7 +716,9 @@ class AppointmentController extends Controller
         return AppointmentResource::collection(Appointment::with(['user' => function ($q) {
             $q->with(['profile', 'program', 'parent', 'enrollments']);
         }])
-            ->where(DB::raw("DATE_FORMAT(date_time_appoint, '%Y-%m-%d')"), DB::raw("DATE_FORMAT(NOW(), '%Y-%m-%d')"))
+            ->where('date_time_appoint', '>=', now()->startOfDay())
+            ->whereNull('archived_at')
+            ->orderBy('date_time_appoint')
             ->get());
     }
 

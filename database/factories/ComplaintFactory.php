@@ -54,7 +54,7 @@ class ComplaintFactory extends Factory
             'case_number' => $status !== 'pending' ? $this->faker->unique()->numberBetween(1000, 9999) : null,
             'complainant_id' => $complainant?->id,
             'incident_id' => $violation?->id,
-            'complaint_description' => $this->faker->paragraph(2),
+            'complaint_description' => self::randomComplaintDescription($violation),
             'complaint_evidences' => null, // filled in by configure() below, once the folder/files exist
             // One shared narrative per complaint (not per complainee) —
             // matches the real resolve flow (ViolationController::multipleViolationStore()).
@@ -110,6 +110,68 @@ class ComplaintFactory extends Factory
                 'created_at' => $createdAt,
             ];
         });
+    }
+
+    /**
+     * Faker's default paragraph()/sentence() generate Latin lorem-ipsum —
+     * fine for most seeded text, but complaint_description is edited
+     * through a rich text editor (real HTML in the DB) and is the exact
+     * field Word2Vec complaint-context matching analyzes
+     * (ComplaintController::viewComplaint() posts it as `complaint_text`
+     * to /python/complaint/context). Lorem-ipsum has no real English words
+     * for the pretrained Word2Vec vocabulary to embed, so that feature had
+     * nothing meaningful to match against in seeded data. These templates
+     * are real English/Tagalog/Taglish sentences (a Philippine school's
+     * actual complainant mix) with the violation's own keyword woven in,
+     * so the seeded text both reads like a real complaint and gives
+     * Word2Vec something genuine to match against the correct violation.
+     */
+    public static function randomComplaintDescription(?Violation $violation): string
+    {
+        $templates = [
+            // English
+            'I am filing this complaint to report an incident involving {keyword} that occurred during school hours.',
+            'This report is to formally document an incident related to {keyword} witnessed inside the campus.',
+            'I would like to bring to your attention a case of {keyword} involving the student mentioned in this report.',
+            'As a concerned member of the school community, I am reporting an incident concerning {keyword}.',
+            'The following complaint details an incident of {keyword} that requires disciplinary action.',
+            'I witnessed the student engaged in {keyword} and I believe this needs to be addressed immediately.',
+            // Tagalog
+            'Nais kong ireport ang isang insidente tungkol sa {keyword} na naganap sa loob ng paaralan.',
+            'Ang report na ito ay tungkol sa nasaksihan kong {keyword} sa loob ng eskwelahan.',
+            'Bilang guro, nais kong ipaalam ang tungkol sa {keyword} na ginawa ng estudyante.',
+            'Ito po ay opisyal na reklamo tungkol sa {keyword} na naganap kamakailan lamang.',
+            'Kagaya po ng aking nasaksihan, ang estudyante ay sangkot sa {keyword} noong nakaraang araw.',
+            // Taglish
+            'Gusto ko lang i-report yung nangyari na may kinalaman sa {keyword} dito sa school.',
+            'Sobrang concerned ako dahil may nasaksihan akong {keyword} sa loob ng campus.',
+            'This is to formally report na may {keyword} na naganap involving the student.',
+            'Grabe po, na-witness ko mismo yung {keyword} kanina lang sa school premises.',
+            'Alarming po talaga yung {keyword} na nangyari, kaya gusto ko i-report agad ito.',
+        ];
+
+        $paragraphs = [];
+        for ($i = 0; $i < 2; $i++) {
+            $sentence = str_replace(
+                '{keyword}',
+                self::pickComplaintKeyword($violation),
+                $templates[array_rand($templates)]
+            );
+            $paragraphs[] = "<p>{$sentence}</p>";
+        }
+
+        return implode('', $paragraphs);
+    }
+
+    private static function pickComplaintKeyword(?Violation $violation): string
+    {
+        $keywords = $violation?->keywords ?? [];
+
+        if (! empty($keywords)) {
+            return $keywords[array_rand($keywords)];
+        }
+
+        return $violation ? strtolower($violation->violation_name) : 'misconduct';
     }
 
     public function configure(): static

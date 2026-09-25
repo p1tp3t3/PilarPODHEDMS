@@ -14,7 +14,6 @@ import { useReload } from "@/context-provider/reload-provider"
 import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
 import { showOutputModal, showWarningModal } from "@/others/function"
-import { ArchiveService } from "@/others/services/archive-service"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
 import { List, Clock, CheckCircle2, Ban, Undo2 } from "lucide-react"
 
@@ -75,30 +74,6 @@ const PrefectReferral = (props) => {
             confirm = false,
             label = '',
             btn = ''
-
-        if (type === 'archive') {
-            showWarningModal(
-                'Are You Sure You Want To Archive This Referral?',
-                'Archive Referral',
-                'Cancel',
-                () => {
-                    loadRegister(true, "text-wait", "Archiving Referral")
-                    ArchiveService.transfer(
-                        'referral', id,
-                        () => {
-                            showOutputModal('Referral Archived Successfully', 's', () => {
-                                loadRegister(false)
-                                window.location.reload()
-                            })
-                        },
-                        () => {
-                            showOutputModal('Failed to Archive Referral', 'e', () => loadRegister(false))
-                        }
-                    )
-                }
-            )
-            return
-        }
 
         if (type === 'cancel') {
             setRejectId(id)

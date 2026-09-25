@@ -18,6 +18,7 @@ class AppointmentResource extends JsonResource
             'user_id' => $this->user_id,
             'date_time_appoint' => $this->date_time_appoint,
             'appointment_status' => $this->appointment_status,
+            'attendance_status' => $this->attendance_status,
             'rejected_reason' => $this->rejected_reason,
             'confirmed_at' => $this->confirmed_at,
             'description' => $this->description,

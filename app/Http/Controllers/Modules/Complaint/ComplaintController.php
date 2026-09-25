@@ -51,7 +51,11 @@ class ComplaintController extends Controller
                 ->get(),
             'program_name' => is_program_head(),
             'complaint_list' => $complaints,
-            'incident_list' => Violation::select([DB::raw('id AS val'), DB::raw('violation_name AS label')])->get(),
+            // Column order matters here — the frontend's objConvert() reads
+            // Object.values() positionally as [value, label], so val/label
+            // must stay the first two selected columns; keywords is read by
+            // name (not position) in the modal, so it's safe appended last.
+            'incident_list' => Violation::select([DB::raw('id AS val'), DB::raw('violation_name AS label'), 'keywords'])->get(),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
         ];
         if (self::isPrefect()) {
@@ -834,7 +838,9 @@ class ComplaintController extends Controller
             // Always store it JSON-encoded (a string) since the frontend
             // always does JSON.parse() on this field.
             try {
-                $api = Http::withoutVerifying()->timeout(10)->post('https://pitpete-violation-risk-predictor-api.hf.space/python/complaint/context', [
+                $endpoint = env('PYTHON_API_URL');
+
+                $api = Http::withoutVerifying()->timeout(10)->post($endpoint . '/python/complaint/context', [
                     'complaint_text' => $complaint->complaint_description,
                 ]);
                 $predictions = $api->successful() ? $api->json() : [];

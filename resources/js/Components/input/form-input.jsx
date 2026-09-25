@@ -21,7 +21,8 @@ const FormTextfield = ({
     enableShowPassword = false,
     setExist,
     errorAsterisk = false,
-    min = null
+    min = null,
+    max = null
 }) => {
     const [focus, setFocus] = useState(false)
     const [localError, setLocalError] = useState(null)
@@ -117,6 +118,7 @@ const FormTextfield = ({
                             name={name}
                             id={id}
                             min={min}
+                            max={max}
                             onChange={(e) => {
                                 const value = e.target.value
                                 if (validateInput(value)) {

@@ -13,17 +13,18 @@ class ProgramHeadCallInMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public $program_head_name, $date_reported, $student_name, $program;
+    public $program_head_name, $date_reported, $student_name, $program, $message;
     /**
      * Create a new message instance.
      */
-    
+
     public function __construct($data)
     {
         $this->program_head_name = $data['program_head_name'];
         $this->student_name = $data['student_name'];
         $this->program = $data['program'];
         $this->date_reported = $data['date_reported'];
+        $this->message = $data['message'] ?? null;
     }
 
     /**
@@ -44,10 +45,11 @@ class ProgramHeadCallInMail extends Mailable
         return new Content(
             view: 'emails.program-head-student-call-in-email',
             with: [
-                'program_head' => $this->program_head_name,
+                'program_head_name' => $this->program_head_name,
                 'date_reported' => $this->date_reported,
                 'student_name' => $this->student_name,
-                'program' => $this->program
+                'program' => $this->program,
+                'message' => $this->message,
             ]
         );
     }

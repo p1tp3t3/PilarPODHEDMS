@@ -12,7 +12,7 @@ class Appointment extends Model
 
     protected $table = 'appointment';
 
-    protected $fillable = ['user_id', 'date_time_appoint', 'appointment_status', 'rejected_reason', 'confirmed_at', 'description', 'archived_at', 'school_year_semester_id'];
+    protected $fillable = ['user_id', 'date_time_appoint', 'appointment_status', 'attendance_status', 'rejected_reason', 'confirmed_at', 'description', 'archived_at', 'school_year_semester_id'];
 
     public $timestamps = false;
 

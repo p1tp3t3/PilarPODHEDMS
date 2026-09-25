@@ -195,14 +195,6 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
               </>
             )}
 
-            {usr.role === "sub_admin" && !row.archived_at && (
-              <ActionBtn
-                className="bg-amber-600 text-white hover:bg-amber-700"
-                onClick={() => events(row.id, "archive")}
-              >
-                Archive
-              </ActionBtn>
-            )}
           </div>
         );
       },

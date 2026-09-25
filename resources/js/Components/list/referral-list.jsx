@@ -232,14 +232,6 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
                             </ActionBtn>
                         )}
 
-                        {usr?.role === "sub_admin" && !row.raw?.archived_at && (
-                            <ActionBtn
-                                className="bg-amber-600 hover:bg-amber-700"
-                                onClick={() => events("archive", row.id)}
-                            >
-                                Archive
-                            </ActionBtn>
-                        )}
                     </div>
                 )
             },

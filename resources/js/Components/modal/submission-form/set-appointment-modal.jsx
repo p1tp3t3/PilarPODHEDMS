@@ -28,6 +28,11 @@ const AppointmentModal = (props) => {
 
     const [searchedStudentParent, setSearchedStudentParent] = useState(null)
 
+    const today = new Date()
+    const todayStr = today.getFullYear() + "-" +
+                      String(today.getMonth() + 1).padStart(2, "0") + "-" +
+                      String(today.getDate()).padStart(2, "0")
+
 
     
     useEffect(() => {
@@ -67,6 +72,14 @@ const AppointmentModal = (props) => {
     }
     const handleSubmit = (e) => {
         e.preventDefault()
+        if (appoint.date_appoint < todayStr) {
+            showOutputModal("You Can't Schedule an Appointment for a Past Date.", 'e', () => {})
+            return
+        }
+        if (appoint.time_start && (appoint.time_start < "07:00" || appoint.time_start > "16:30")) {
+            showOutputModal("Appointments Can Only Be Scheduled Between 7:00 AM and 4:30 PM.", 'e', () => {})
+            return
+        }
         let label = (isResched) ? 'Are You Sure You Want To Re-Schedule ' + searchedStudentParent[0].profile?.first_name + "'s Appointment?"
                                 : 'Are You Sure You Want To Schedule An Appointment For ' + searchedStudentParent[0].profile?.first_name + "?",
             btn = (isResched) ? 'Re-Sched Appointment' : 'Schedule Appointment',
@@ -183,24 +196,27 @@ const AppointmentModal = (props) => {
                             <>
                             {(isResched) &&
                             <div className="w-full">
-                                <FormTextfield 
+                                <FormTextfield
                                     label={`Date to ${isResched ? 'Re-Schedule' : 'Appoint'}`}
-                                    name="date_appoint" 
+                                    name="date_appoint"
                                     type="date"
                                     val={appoint.date_appoint}
-                                    change={handleChange} 
+                                    change={handleChange}
                                     req={true}
+                                    min={todayStr}
                                 />
                             </div>}
                             {props.user_type == 'sub_admin' &&
                             <div className="w-full">
                                 <FormTextfield
                                     label={`Time to ${isResched ? 'Re-Schedule' : 'Appoint'}`}
-                                    name="time_start" 
+                                    name="time_start"
                                     type="time"
                                     val={appoint.time_start}
-                                    change={handleChange} 
+                                    change={handleChange}
                                     req={true}
+                                    min="07:00"
+                                    max="16:30"
                                 />
                             </div>}
                             </>

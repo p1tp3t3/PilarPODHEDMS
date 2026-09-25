@@ -15,7 +15,6 @@ import SearchUserBar from "@/Components/input/search-user-bar"
 import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
 import { change, showWarningModal, showOutputModal } from "@/others/function"
-import { ArchiveService } from "@/others/services/archive-service"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
 import ActionBtn from "@/Components/button/action-btn"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
@@ -136,28 +135,6 @@ const PrefectComplaint = (props) => {
                               },
                               () => {
                                   showOutputModal('Failed to Reinstate Complaint', 'e', () => loadRegister(false))
-                              }
-                          )
-                      }
-                  )
-                  break
-              case 'archive':
-                  showWarningModal(
-                      'Are You Sure You Want To Archive This Complaint?',
-                      'Archive Complaint',
-                      'Cancel',
-                      () => {
-                          loadRegister(true, "text-wait", "Archiving Complaint")
-                          ArchiveService.transfer(
-                              'complaint', id,
-                              () => {
-                                  showOutputModal('Complaint Archived Successfully', 's', () => {
-                                      loadRegister(false)
-                                      window.location.reload()
-                                  })
-                              },
-                              () => {
-                                  showOutputModal('Failed to Archive Complaint', 'e', () => loadRegister(false))
                               }
                           )
                       }

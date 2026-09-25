@@ -273,15 +273,6 @@ const ComplaintList = ({
                 </ActionBtn>
                 )}
 
-                {type === "prefect" && !select && !select2 && !obj.archived_at && (
-                <ActionBtn
-                    onClick={() => actionEvent("archive", obj.id)}
-                    className="bg-amber-600 text-white hover:bg-amber-700"
-                >
-                    Archive
-                </ActionBtn>
-                )}
-
                 {select && (
                 <input type="checkbox" value={obj.case_number} />
                 )}

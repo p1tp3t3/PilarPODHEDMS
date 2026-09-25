@@ -2,7 +2,7 @@
     --fc-border-color: #e5e7eb;
     --fc-page-bg-color: #ffffff;
     --fc-neutral-bg-color: #f9fafb;
-    --fc-today-bg-color: #eff6ff;
+    --fc-today-bg-color: #bfdbfe;
     font-family: inherit;
 }
 
@@ -31,6 +31,24 @@
 
 .appointment-fullcalendar .fc-day-today .fc-daygrid-day-number {
     color: #1d4ed8;
+    font-weight: 700;
+}
+
+.appointment-fullcalendar .fc-day-past {
+    background-color: #f3f4f6;
+}
+
+.appointment-fullcalendar .fc-day-past .fc-daygrid-day-number {
+    color: #9ca3af;
+}
+
+.appointment-fullcalendar .fc-day-selected {
+    background-color: #fef08a !important;
+    box-shadow: inset 0 0 0 2px #eab308;
+}
+
+.appointment-fullcalendar .fc-day-selected .fc-daygrid-day-number {
+    color: #854d0e;
     font-weight: 700;
 }
 

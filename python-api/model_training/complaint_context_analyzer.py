@@ -165,11 +165,22 @@ class ComplaintContextAnalyzer:
     # ---------------------------------------------------------
     # Similarity → Label
     # ---------------------------------------------------------
+    # Cosine similarity between two *averaged* Word2Vec vectors never
+    # approaches 1.0 the way it would for near-identical raw text — even a
+    # clearly correct match (a complaint literally about the same thing as
+    # the violation title/keywords) tops out around 0.5-0.6 in practice,
+    # since the average dilutes each specific word against every generic
+    # word around it (verified against real seeded complaints: a correct
+    # match scored ~0.53-0.57, the best score in an 80-violation corpus
+    # rarely exceeded 0.6). The old thresholds (0.70 for "Very Strong") were
+    # calibrated as if these scores behaved like raw-text similarity, so a
+    # genuinely obvious match could never clear "Strong Match" at all.
+    # Rescaled down to the range this method actually produces.
     def _status(self, score):
-        if score >= 0.70: return "Very Strong Match"
-        elif score >= 0.55: return "Strong Match"
-        elif score >= 0.40: return "Likely Related"
-        elif score >= 0.25: return "Possibly Related"
+        if score >= 0.50: return "Very Strong Match"
+        elif score >= 0.40: return "Strong Match"
+        elif score >= 0.30: return "Likely Related"
+        elif score >= 0.20: return "Possibly Related"
         return "Unclear / Needs Review"
     
     def add_violation(self, id, violation_text, keywords=""):

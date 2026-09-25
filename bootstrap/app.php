@@ -42,6 +42,10 @@ $app = Application::configure(basePath: dirname(__DIR__))
                  ->timezone('Asia/Manila')
                  ->dailyAt('08:00');
 
+        $schedule->command('app:archive-expired-gate-pass-command')
+                 ->timezone('Asia/Manila')
+                 ->dailyAt('00:05');
+
         $schedule->command('app:notify-unresolved-cases-command')
                  ->yearly()
                  ->timezone('Asia/Manila')

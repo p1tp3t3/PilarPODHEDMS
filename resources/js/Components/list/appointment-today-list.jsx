@@ -8,7 +8,7 @@ const AppointmentTodayList = ({ list = null }) => {
     return (
         <div className="w-full h-[22rem]">
             <div className="w-full flex justify-between items-center px-5 py-2">
-                <b>Scheduled Appointments this {new Date().toDateString()}</b>
+                <b>Upcoming Scheduled Appointments</b>
             </div>
             <div className="overflow-hidden overflow-y-auto h-[19rem] w-full flex flex-col px-5">
                 {(list != null)
@@ -22,7 +22,7 @@ const AppointmentTodayList = ({ list = null }) => {
                         <div className="text-[4em]">
                             <AlertCircle size="1em" />
                         </div>
-                        <div>No Appointments Today</div>
+                        <div>No Upcoming Appointments</div>
                     </div>
                 </div>
                 :
@@ -59,8 +59,9 @@ const Row = ({ data }) => {
                     </div>
                 </div>
 
-                {/* Right: Time */}
-                <div className="flex items-center">
+                {/* Right: Date + Time */}
+                <div className="flex flex-col items-end gap-1">
+                    <span className="text-[0.7em] text-gray-500">{readableDate(data.date_time_appoint)}</span>
                     <span className="text-[0.75em] bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-200 shadow-sm flex items-center gap-1">
                         <Clock size={12} className="text-blue-700" />
                         {readableTime(data.date_time_appoint)}
