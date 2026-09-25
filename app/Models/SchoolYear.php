@@ -27,6 +27,10 @@ class SchoolYear extends Model
 
     public function activeSemester(): HasOne
     {
-        return $this->hasOne(SchoolYearSemester::class, 'school_year_id')->where('is_active', true);
+        $today = now()->toDateString();
+
+        return $this->hasOne(SchoolYearSemester::class, 'school_year_id')
+            ->whereDate('date_start', '<=', $today)
+            ->whereDate('date_end', '>=', $today);
     }
 }

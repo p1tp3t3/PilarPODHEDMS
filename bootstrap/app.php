@@ -47,7 +47,6 @@ $app = Application::configure(basePath: dirname(__DIR__))
                  ->dailyAt('00:05');
 
         $schedule->command('app:notify-unresolved-cases-command')
-                 ->yearly()
                  ->timezone('Asia/Manila')
                  ->dailyAt('08:00');
 

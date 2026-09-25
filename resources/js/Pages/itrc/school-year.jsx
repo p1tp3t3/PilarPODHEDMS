@@ -4,12 +4,13 @@ import PageLayout from "@/Layouts/page-layout"
 import Btn from "@/Components/button/normal-btn"
 import ActionBtn from "@/Components/button/action-btn"
 import SetSchoolYearModal from "@/Components/modal/submission-form/set-school-year-modal"
+import SetSemesterDatesModal from "@/Components/modal/submission-form/set-semester-dates-modal"
 import { useReload } from "@/context-provider/reload-provider"
 import { showWarningModal, readableDate, readableTime } from "@/others/function"
 import { SchoolYearService } from "@/others/services/school-year-service"
 import { DataGrid } from "@/Components/other/data-grid"
 import { Box } from "@mui/material"
-import { CalendarRange } from "lucide-react"
+import { CalendarRange, Pencil } from "lucide-react"
 
 function CustomNoRowsOverlay() {
   return (
@@ -37,6 +38,9 @@ function CustomNoRowsOverlay() {
 
 const ITRCSchoolYear = (props) => {
     const [addSchoolYear, openAddSchoolYear] = useState(false)
+    const [editSemester, openEditSemester] = useState(false)
+    const [semesterToEdit, setSemesterToEdit] = useState(null)
+    const [siblingSemester, setSiblingSemester] = useState(null)
     const [school_year_list, setSchoolYearList] = useState(props.school_years)
     const { loadRegister } = useReload()
 
@@ -74,13 +78,10 @@ const ITRCSchoolYear = (props) => {
         )
     }
 
-    const activateSemester = (semesterRow) => {
-        SchoolYearService.activateSemester(
-            semesterRow.id,
-            setSchoolYearList,
-            () => {},
-            (err) => loadRegister(true, "error", err?.response?.data?.message || "Failed to Activate Semester")
-        )
+    const openSemesterDates = (semesterRow, allSemesters) => {
+        setSemesterToEdit(semesterRow)
+        setSiblingSemester((allSemesters ?? []).find((s) => s.id !== semesterRow.id) ?? null)
+        openEditSemester(true)
     }
 
     const deleteSchoolYear = (row) => {
@@ -128,32 +129,39 @@ const ITRCSchoolYear = (props) => {
         },
         {
             field: "semesters",
-            headerName: "Semester",
-            width: 190,
+            headerName: "Semester Dates",
+            width: 300,
             sortable: false,
-            renderCell: ({ row }) => (
-                <div className="flex items-center h-full">
-                    <div className="inline-flex rounded-md border border-gray-300 overflow-hidden">
-                        {(row.semesters ?? []).map((s, i) => (
-                            <button
-                                key={s.id}
-                                type="button"
-                                onClick={() => !s.is_active && activateSemester(s)}
-                                title={s.is_active ? `${s.semester === 1 ? "1st" : "2nd"} Semester is active` : `Switch to ${s.semester === 1 ? "1st" : "2nd"} Semester`}
-                                className={`min-w-[4.5rem] text-center px-3 py-1.5 text-[0.75em] font-semibold transition-colors ${
-                                    i === 1 ? "border-l border-gray-300" : ""
-                                } ${
-                                    s.is_active
-                                        ? "bg-blue-600 text-white"
-                                        : "bg-white text-gray-500 hover:bg-gray-100 cursor-pointer"
-                                }`}
-                            >
-                                {s.semester === 1 ? "1st Sem" : "2nd Sem"}
-                            </button>
-                        ))}
+            renderCell: ({ row }) => {
+                const today = new Date().toISOString().slice(0, 10)
+                return (
+                    <div className="flex flex-col justify-center h-full gap-1 py-1">
+                        {(row.semesters ?? []).map((s) => {
+                            const start = (s.date_start || "").slice(0, 10)
+                            const end = (s.date_end || "").slice(0, 10)
+                            const isCurrent = row.activate && start && end && today >= start && today <= end
+                            return (
+                                <div key={s.id} className="flex items-center gap-2">
+                                    <span className={`text-[0.75em] font-semibold w-[3.5rem] ${isCurrent ? "text-blue-600" : "text-gray-500"}`}>
+                                        {s.semester === 1 ? "1st Sem" : "2nd Sem"}
+                                    </span>
+                                    <span className={`text-[0.75em] ${isCurrent ? "text-blue-600 font-semibold" : "text-gray-500"}`}>
+                                        {start && end ? `${readableDate(start)} - ${readableDate(end)}` : "Not set"}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        title={`Edit ${s.semester === 1 ? "1st" : "2nd"} Semester dates`}
+                                        onClick={() => openSemesterDates(s, row.semesters)}
+                                        className="text-gray-400 hover:text-blue-600 transition-colors"
+                                    >
+                                        <Pencil size={12} />
+                                    </button>
+                                </div>
+                            )
+                        })}
                     </div>
-                </div>
-            ),
+                )
+            },
         },
         {
             field: "created_at",
@@ -199,6 +207,14 @@ const ITRCSchoolYear = (props) => {
                 closeModal={openAddSchoolYear}
                 pd={["px-5", "py-7"]}
                 isEnableOuterClose={true}
+                reload={loadRegister}
+                setter={setSchoolYearList}
+            />
+            <SetSemesterDatesModal
+                close={editSemester}
+                closeModal={openEditSemester}
+                semester={semesterToEdit}
+                siblingSemester={siblingSemester}
                 reload={loadRegister}
                 setter={setSchoolYearList}
             />

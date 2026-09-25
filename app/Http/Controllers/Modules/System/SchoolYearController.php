@@ -42,27 +42,52 @@ class SchoolYearController extends Controller
             'activate' => false,
         ]);
 
-        // Every school year starts at its 1st semester.
-        $schoolYear->semesters()->createMany([
-            ['semester' => 1, 'is_active' => true],
-            ['semester' => 2, 'is_active' => false],
-        ]);
+        // Prefilled with the standard Aug-Jul academic calendar — an admin
+        // can adjust either semester's dates afterward via
+        // updateSemesterDates() if this school's calendar differs.
+        $startYear = (int) explode('-', $request->year)[0];
+        foreach ([1, 2] as $semester) {
+            [$dateStart, $dateEnd] = SchoolYearSemester::defaultDateRange($startYear, $semester);
+            $schoolYear->semesters()->create([
+                'semester' => $semester,
+                'date_start' => $dateStart,
+                'date_end' => $dateEnd,
+            ]);
+        }
 
         return self::listWithCounts();
     }
 
-    public function activateSemester(Request $request)
+    public function updateSemesterDates(Request $request)
     {
         $request->validate([
             'id' => 'required|exists:school_year_semester,id',
+            'date_start' => 'required|date',
+            'date_end' => 'required|date|after:date_start',
         ]);
 
         $semester = SchoolYearSemester::findOrFail($request->id);
 
-        DB::transaction(function () use ($semester) {
-            SchoolYearSemester::where('school_year_id', $semester->school_year_id)->update(['is_active' => false]);
-            $semester->update(['is_active' => true]);
-        });
+        // A gap between semesters is fine, but overlapping ranges would
+        // make SchoolYearSemester::current()/idForDate() match more than
+        // one semester for the same date — silently picking whichever one
+        // the query happens to return first.
+        $overlaps = SchoolYearSemester::where('school_year_id', $semester->school_year_id)
+            ->where('id', '!=', $semester->id)
+            ->whereDate('date_start', '<=', $request->date_end)
+            ->whereDate('date_end', '>=', $request->date_start)
+            ->exists();
+
+        if ($overlaps) {
+            return response()->json([
+                'message' => 'This date range overlaps with the other semester of this school year.',
+            ], 422);
+        }
+
+        $semester->update([
+            'date_start' => $request->date_start,
+            'date_end' => $request->date_end,
+        ]);
 
         return self::listWithCounts();
     }

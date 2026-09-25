@@ -41,5 +41,3 @@ python-api
 Dockerfile
 docker-compose*.yml
 .dockerignore
-
-pod_management_system_2.sql

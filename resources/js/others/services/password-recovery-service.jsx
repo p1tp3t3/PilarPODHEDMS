@@ -1,4 +1,5 @@
 import { APIRequest } from "../classes/api-req";
+import { sendData } from "../function";
 
 export const PasswordRecoveryService = {
     getContact(username, setter, success, error) {
@@ -6,11 +7,14 @@ export const PasswordRecoveryService = {
         api.fetchData();
     },
     sendLink(username, success, error) {
-        const api = new APIRequest("/forgot-password/send-link", "post", { username }, () => {}, success, error);
-        api.sendPostData();
+        // Plain-object POSTs go through `sendData` (real JSON body) rather
+        // than APIRequest.sendPostData(), whose hardcoded multipart/form-data
+        // header has no boundary for non-FormData payloads — Laravel
+        // silently receives an empty request body and "username" fails
+        // "required" validation every time.
+        sendData("/forgot-password/send-link", { username }, success, error);
     },
     reset(username, new_password, success, error) {
-        const api = new APIRequest(`/reset-password/${username}`, "post", { new_password }, () => {}, success, error);
-        api.sendPostData();
+        sendData(`/reset-password/${username}`, { new_password }, success, error);
     },
 };

@@ -10,12 +10,14 @@ class SchoolYearSemester extends Model
 {
     protected $table = 'school_year_semester';
 
-    protected $fillable = ['school_year_id', 'semester', 'is_active'];
+    protected $fillable = ['school_year_id', 'semester', 'date_start', 'date_end', 'notified_at'];
 
     protected function casts(): array
     {
         return [
-            'is_active' => 'boolean',
+            'date_start' => 'date',
+            'date_end' => 'date',
+            'notified_at' => 'datetime',
         ];
     }
 
@@ -25,15 +27,17 @@ class SchoolYearSemester extends Model
     }
 
     /**
-     * The active semester of the currently active school year — is_active
-     * alone isn't enough to identify this, since a semester's is_active
-     * flag isn't reset when its school year is later closed (so more than
-     * one row can have is_active=true across different school years).
+     * The semester of the currently active school year whose date range
+     * covers today — replaces the old is_active flag (which had to be
+     * toggled by hand and could drift from the actual calendar).
      */
     public static function current(): ?self
     {
+        $today = now()->toDateString();
+
         return self::whereHas('schoolYear', fn ($q) => $q->where('activate', true))
-            ->where('is_active', true)
+            ->whereDate('date_start', '<=', $today)
+            ->whereDate('date_end', '>=', $today)
             ->first();
     }
 
@@ -43,20 +47,30 @@ class SchoolYearSemester extends Model
     }
 
     /**
-     * Resolves the semester a given date falls into, using an Aug-Jul
-     * academic year (1st semester: Aug-Dec, 2nd: Jan-Jul). Used to backdate
-     * seeded requests to the semester that was actually running when their
-     * (randomly backdated) created_at happened, instead of stamping every
-     * seeded row with today's semester.
+     * Resolves the semester whose date range a given date falls into. Used
+     * to backdate seeded requests to the semester that was actually running
+     * when their (randomly backdated) created_at happened, instead of
+     * stamping every seeded row with today's semester.
      */
     public static function idForDate($date): ?int
     {
-        $date = Carbon::parse($date);
-        $startYear = $date->month >= 8 ? $date->year : $date->year - 1;
-        $semester = $date->month >= 8 ? 1 : 2;
+        $date = Carbon::parse($date)->toDateString();
 
-        return self::whereHas('schoolYear', fn ($q) => $q->where('year', "{$startYear}-".($startYear + 1)))
-            ->where('semester', $semester)
+        return self::whereDate('date_start', '<=', $date)
+            ->whereDate('date_end', '>=', $date)
             ->value('id');
+    }
+
+    /**
+     * Default Aug-Jul academic-year date range for a semester (1st: Aug-Dec,
+     * 2nd: Jan-Jul of the following year) — prefills a school year's
+     * semesters when it's created/seeded. An admin can adjust either date
+     * afterward via SchoolYearController::updateSemesterDates().
+     */
+    public static function defaultDateRange(int $startYear, int $semester): array
+    {
+        return $semester === 1
+            ? [Carbon::create($startYear, 8, 1), Carbon::create($startYear, 12, 31)]
+            : [Carbon::create($startYear + 1, 1, 1), Carbon::create($startYear + 1, 7, 31)];
     }
 }

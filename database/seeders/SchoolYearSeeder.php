@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\SchoolYear;
+use App\Models\SchoolYearSemester;
 use Illuminate\Database\Seeder;
 
 class SchoolYearSeeder extends Seeder
@@ -16,7 +17,6 @@ class SchoolYearSeeder extends Seeder
     public function run(): void
     {
         $currentStartYear = now()->month >= 8 ? now()->year : now()->year - 1;
-        $currentSemesterNumber = now()->month >= 8 ? 1 : 2;
 
         foreach ([$currentStartYear - 1, $currentStartYear] as $startYear) {
             $isCurrent = $startYear === $currentStartYear;
@@ -27,9 +27,10 @@ class SchoolYearSeeder extends Seeder
             );
 
             foreach ([1, 2] as $semester) {
+                [$dateStart, $dateEnd] = SchoolYearSemester::defaultDateRange($startYear, $semester);
                 $schoolYear->semesters()->firstOrCreate(
                     ['semester' => $semester],
-                    ['is_active' => $isCurrent && $semester === $currentSemesterNumber]
+                    ['date_start' => $dateStart, 'date_end' => $dateEnd]
                 );
             }
         }

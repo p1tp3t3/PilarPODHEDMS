@@ -81,7 +81,7 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      Route::get('/super-admin/school-year', [SchoolYearController::class, 'index']);
      Route::post('/super-admin/school-year/create', [SchoolYearController::class, 'store']);
      Route::post('/super-admin/school-year/activate', [SchoolYearController::class, 'activate']);
-     Route::post('/super-admin/school-year/semester/activate', [SchoolYearController::class, 'activateSemester']);
+     Route::post('/super-admin/school-year/semester/update-dates', [SchoolYearController::class, 'updateSemesterDates']);
      Route::post('/super-admin/school-year/close', [SchoolYearController::class, 'close']);
      Route::post('/super-admin/school-year/delete', [SchoolYearController::class, 'destroy']);
 
