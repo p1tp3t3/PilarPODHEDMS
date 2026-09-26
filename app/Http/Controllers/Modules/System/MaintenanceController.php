@@ -237,57 +237,115 @@ class MaintenanceController extends Controller
      */
     private function getMemoryInfo(): array
     {
-        if (PHP_OS_FAMILY === 'Linux') {
-            if (! function_exists('shell_exec')) {
-                return $this->memoryUnavailable('shell_exec() is disabled on this server.');
-            }
-
-            $output = @shell_exec('free -b 2>/dev/null');
-
-            if ($output && preg_match('/^Mem:\s+(\d+)\s+(\d+)\s+(\d+)/m', $output, $matches)) {
-                return [
-                    'available' => true,
-                    'total' => (int) $matches[1],
-                    'used' => (int) $matches[2],
-                    'free' => (int) $matches[3],
-                ];
-            }
-
-            return $this->memoryUnavailable('The `free` command was unavailable or its output could not be parsed.');
+        if (! function_exists('shell_exec')) {
+            return $this->memoryUnavailable('shell_exec() is disabled on this server.');
         }
 
-        if (PHP_OS_FAMILY === 'Windows') {
-            if (! function_exists('shell_exec')) {
-                return $this->memoryUnavailable('shell_exec() is disabled on this server.');
+        /*
+        |--------------------------------------------------------------------------
+        | Linux / Ubuntu
+        |--------------------------------------------------------------------------
+        */
+        if (PHP_OS_FAMILY === 'Linux') {
+            $output = @shell_exec('free -b 2>/dev/null');
+
+            if ($output) {
+                /*
+                * Example:
+                *
+                *               total        used        free      shared  buff/cache   available
+                * Mem:      16777216000  5000000000  2000000000  ...
+                *
+                * We capture:
+                * 1 = total
+                * 2 = used
+                * 3 = free
+                * 4 = available
+                */
+                if (preg_match(
+                    '/^Mem:\s+(\d+)\s+(\d+)\s+(\d+)\s+\d+\s+\d+\s+(\d+)/m',
+                    $output,
+                    $matches
+                )) {
+                    return [
+                        'available' => true,
+                        'total' => (int) $matches[1],
+                        'used' => (int) $matches[2],
+                        'free' => (int) $matches[3],
+                        'available_memory' => (int) $matches[4],
+                    ];
+                }
             }
 
-            $output = @shell_exec(
-                'powershell -NoProfile -Command '.
-                '"Get-CimInstance Win32_OperatingSystem | Select-Object -Property FreePhysicalMemory,TotalVisibleMemorySize | ConvertTo-Json"'
+            return $this->memoryUnavailable(
+                'The `free` command was unavailable or its output could not be parsed.'
             );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Windows
+        |--------------------------------------------------------------------------
+        */
+        if (PHP_OS_FAMILY === 'Windows') {
+            $output = @shell_exec(
+                'powershell -NoProfile -Command ' .
+                '"Get-CimInstance Win32_OperatingSystem | ' .
+                'Select-Object -Property FreePhysicalMemory,TotalVisibleMemorySize | ' .
+                'ConvertTo-Json"'
+            );
+
             $data = $output ? json_decode($output, true) : null;
 
-            if (isset($data['FreePhysicalMemory'], $data['TotalVisibleMemorySize'])) {
-                $total = (int) $data['TotalVisibleMemorySize'] * 1024; // KB -> bytes
+            if (
+                is_array($data) &&
+                isset(
+                    $data['FreePhysicalMemory'],
+                    $data['TotalVisibleMemorySize']
+                )
+            ) {
+                /*
+                * Windows reports these values in KB.
+                * Convert KB -> bytes.
+                */
+                $total = (int) $data['TotalVisibleMemorySize'] * 1024;
                 $free = (int) $data['FreePhysicalMemory'] * 1024;
+                $used = $total - $free;
 
                 return [
                     'available' => true,
                     'total' => $total,
-                    'used' => $total - $free,
+                    'used' => $used,
                     'free' => $free,
+                    'available_memory' => $free,
                 ];
             }
 
-            return $this->memoryUnavailable('PowerShell Get-CimInstance query failed or returned no output.');
+            return $this->memoryUnavailable(
+                'PowerShell Get-CimInstance query failed or returned no output.'
+            );
         }
 
-        return $this->memoryUnavailable('Unsupported OS family: '.PHP_OS_FAMILY);
+        /*
+        |--------------------------------------------------------------------------
+        | Unsupported operating system
+        |--------------------------------------------------------------------------
+        */
+        return $this->memoryUnavailable(
+            'Unsupported OS family: ' . PHP_OS_FAMILY
+        );
     }
 
     private function memoryUnavailable(string $reason): array
     {
-        return ['available' => false, 'total' => null, 'used' => null, 'free' => null, 'reason' => $reason];
+        return [
+            'available' => false,
+            'total' => null,
+            'used' => null,
+            'free' => null,
+            'available_memory' => null,
+            'reason' => $reason,
+        ];
     }
 
     public function programIndex()
