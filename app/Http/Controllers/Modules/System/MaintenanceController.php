@@ -226,9 +226,12 @@ class MaintenanceController extends Controller
     }
 
     /**
-     * Only Linux exposes this cheaply (/proc/meminfo) without shelling out —
-     * degrades gracefully everywhere else (e.g. local Windows dev) rather
-     * than risk running external commands just to report a number.
+     * Linux exposes this cheaply via /proc/meminfo. Windows has no such
+     * file — PowerShell's Get-CimInstance is the modern equivalent (wmic
+     * is deprecated/removed on newer Windows), and this page is
+     * super_admin-only with a fixed command string (no user input reaches
+     * the shell), so shelling out here is safe. Degrades gracefully to
+     * "unavailable" if neither path works.
      */
     private function getMemoryInfo(): array
     {
@@ -249,6 +252,26 @@ class MaintenanceController extends Controller
                     'total' => $total,
                     'used' => $total - $available,
                     'free' => $available,
+                ];
+            }
+        }
+
+        if (PHP_OS_FAMILY === 'Windows' && function_exists('shell_exec')) {
+            $output = @shell_exec(
+                'powershell -NoProfile -Command '.
+                '"Get-CimInstance Win32_OperatingSystem | Select-Object -Property FreePhysicalMemory,TotalVisibleMemorySize | ConvertTo-Json"'
+            );
+            $data = $output ? json_decode($output, true) : null;
+
+            if (isset($data['FreePhysicalMemory'], $data['TotalVisibleMemorySize'])) {
+                $total = (int) $data['TotalVisibleMemorySize'] * 1024; // KB -> bytes
+                $free = (int) $data['FreePhysicalMemory'] * 1024;
+
+                return [
+                    'available' => true,
+                    'total' => $total,
+                    'used' => $total - $free,
+                    'free' => $free,
                 ];
             }
         }
