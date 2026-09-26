@@ -430,6 +430,7 @@ const SystemInfoTab = () => {
                     total={info.memory.total}
                     percent={memPct}
                     unavailable={!info.memory.available}
+                    unavailableReason={info.memory.reason}
                 />
             </div>
         </div>
@@ -448,7 +449,7 @@ const InfoCard = ({ icon: Icon, label, value }) => (
     </div>
 );
 
-const UsageBar = ({ icon: Icon, title, used, total, percent, unavailable }) => (
+const UsageBar = ({ icon: Icon, title, used, total, percent, unavailable, unavailableReason }) => (
     <div className="bg-white border border-gray-200 rounded-md p-5 grid gap-3">
         <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 grid place-items-center flex-shrink-0">
@@ -457,7 +458,12 @@ const UsageBar = ({ icon: Icon, title, used, total, percent, unavailable }) => (
             <div className="font-semibold text-gray-800">{title}</div>
         </div>
         {unavailable ? (
-            <p className="text-[0.85em] text-gray-500">Not available on this server.</p>
+            <div>
+                <p className="text-[0.85em] text-gray-500">Not available on this server.</p>
+                {unavailableReason && (
+                    <p className="text-[0.75em] text-gray-400 mt-1">{unavailableReason}</p>
+                )}
+            </div>
         ) : (
             <>
                 <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">

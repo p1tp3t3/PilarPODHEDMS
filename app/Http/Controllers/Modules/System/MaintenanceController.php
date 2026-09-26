@@ -235,7 +235,17 @@ class MaintenanceController extends Controller
      */
     private function getMemoryInfo(): array
     {
-        if (PHP_OS_FAMILY === 'Linux' && is_readable('/proc/meminfo')) {
+        if (PHP_OS_FAMILY === 'Linux') {
+            if (! file_exists('/proc/meminfo')) {
+                return $this->memoryUnavailable('/proc/meminfo does not exist on this system.');
+            }
+
+            if (! is_readable('/proc/meminfo')) {
+                return $this->memoryUnavailable(
+                    '/proc/meminfo exists but PHP could not read it (check open_basedir: "'.ini_get('open_basedir').'" or file permissions).'
+                );
+            }
+
             $meminfo = [];
             foreach (explode("\n", file_get_contents('/proc/meminfo')) as $line) {
                 if (preg_match('/^(\w+):\s+(\d+)/', $line, $matches)) {
@@ -254,9 +264,15 @@ class MaintenanceController extends Controller
                     'free' => $available,
                 ];
             }
+
+            return $this->memoryUnavailable('Could not find MemTotal/MemAvailable in /proc/meminfo.');
         }
 
-        if (PHP_OS_FAMILY === 'Windows' && function_exists('shell_exec')) {
+        if (PHP_OS_FAMILY === 'Windows') {
+            if (! function_exists('shell_exec')) {
+                return $this->memoryUnavailable('shell_exec() is disabled on this server.');
+            }
+
             $output = @shell_exec(
                 'powershell -NoProfile -Command '.
                 '"Get-CimInstance Win32_OperatingSystem | Select-Object -Property FreePhysicalMemory,TotalVisibleMemorySize | ConvertTo-Json"'
@@ -274,9 +290,16 @@ class MaintenanceController extends Controller
                     'free' => $free,
                 ];
             }
+
+            return $this->memoryUnavailable('PowerShell Get-CimInstance query failed or returned no output.');
         }
 
-        return ['available' => false, 'total' => null, 'used' => null, 'free' => null];
+        return $this->memoryUnavailable('Unsupported OS family: '.PHP_OS_FAMILY);
+    }
+
+    private function memoryUnavailable(string $reason): array
+    {
+        return ['available' => false, 'total' => null, 'used' => null, 'free' => null, 'reason' => $reason];
     }
 
     public function programIndex()
