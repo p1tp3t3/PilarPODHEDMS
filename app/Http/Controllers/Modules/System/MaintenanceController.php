@@ -236,36 +236,47 @@ class MaintenanceController extends Controller
     private function getMemoryInfo(): array
     {
         if (PHP_OS_FAMILY === 'Linux') {
-            if (! file_exists('/proc/meminfo')) {
-                return $this->memoryUnavailable('/proc/meminfo does not exist on this system.');
-            }
+            if (file_exists('/proc/meminfo') && is_readable('/proc/meminfo')) {
+                $meminfo = [];
+                foreach (explode("\n", file_get_contents('/proc/meminfo')) as $line) {
+                    if (preg_match('/^(\w+):\s+(\d+)/', $line, $matches)) {
+                        $meminfo[$matches[1]] = (int) $matches[2] * 1024; // kB -> bytes
+                    }
+                }
 
-            if (! is_readable('/proc/meminfo')) {
-                return $this->memoryUnavailable(
-                    '/proc/meminfo exists but PHP could not read it (check open_basedir: "'.ini_get('open_basedir').'" or file permissions).'
-                );
-            }
+                $total = $meminfo['MemTotal'] ?? null;
+                $available = $meminfo['MemAvailable'] ?? $meminfo['MemFree'] ?? null;
 
-            $meminfo = [];
-            foreach (explode("\n", file_get_contents('/proc/meminfo')) as $line) {
-                if (preg_match('/^(\w+):\s+(\d+)/', $line, $matches)) {
-                    $meminfo[$matches[1]] = (int) $matches[2] * 1024; // kB -> bytes
+                if ($total !== null && $available !== null) {
+                    return [
+                        'available' => true,
+                        'total' => $total,
+                        'used' => $total - $available,
+                        'free' => $available,
+                    ];
                 }
             }
 
-            $total = $meminfo['MemTotal'] ?? null;
-            $available = $meminfo['MemAvailable'] ?? $meminfo['MemFree'] ?? null;
+            // open_basedir (common in hardened PHP-FPM pools) restricts PHP's
+            // own file-reading functions, but not what a separate shelled-out
+            // process can read — `free` can succeed even when PHP itself is
+            // blocked from touching /proc/meminfo directly.
+            if (function_exists('shell_exec')) {
+                $output = @shell_exec('free -b 2>/dev/null');
 
-            if ($total !== null && $available !== null) {
-                return [
-                    'available' => true,
-                    'total' => $total,
-                    'used' => $total - $available,
-                    'free' => $available,
-                ];
+                if ($output && preg_match('/^Mem:\s+(\d+)\s+(\d+)\s+(\d+)/m', $output, $matches)) {
+                    return [
+                        'available' => true,
+                        'total' => (int) $matches[1],
+                        'used' => (int) $matches[2],
+                        'free' => (int) $matches[3],
+                    ];
+                }
             }
 
-            return $this->memoryUnavailable('Could not find MemTotal/MemAvailable in /proc/meminfo.');
+            return $this->memoryUnavailable(
+                'Could not read /proc/meminfo (open_basedir: "'.ini_get('open_basedir').'") and the `free` command was unavailable or unparsable.'
+            );
         }
 
         if (PHP_OS_FAMILY === 'Windows') {
