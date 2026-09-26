@@ -226,57 +226,34 @@ class MaintenanceController extends Controller
     }
 
     /**
-     * Linux exposes this cheaply via /proc/meminfo. Windows has no such
-     * file — PowerShell's Get-CimInstance is the modern equivalent (wmic
-     * is deprecated/removed on newer Windows), and this page is
-     * super_admin-only with a fixed command string (no user input reaches
+     * `free` on Linux, PowerShell's Get-CimInstance on Windows (wmic is
+     * deprecated/removed on newer Windows). Deliberately shells out rather
+     * than reading /proc/meminfo directly — that file is commonly blocked
+     * by open_basedir in hardened PHP-FPM pools, while a separate `free`
+     * process isn't subject to PHP's own restriction. This page is
+     * super_admin-only with fixed command strings (no user input reaches
      * the shell), so shelling out here is safe. Degrades gracefully to
-     * "unavailable" if neither path works.
+     * "unavailable" if the command isn't there or its output can't be parsed.
      */
     private function getMemoryInfo(): array
     {
         if (PHP_OS_FAMILY === 'Linux') {
-            if (file_exists('/proc/meminfo') && is_readable('/proc/meminfo')) {
-                $meminfo = [];
-                foreach (explode("\n", file_get_contents('/proc/meminfo')) as $line) {
-                    if (preg_match('/^(\w+):\s+(\d+)/', $line, $matches)) {
-                        $meminfo[$matches[1]] = (int) $matches[2] * 1024; // kB -> bytes
-                    }
-                }
-
-                $total = $meminfo['MemTotal'] ?? null;
-                $available = $meminfo['MemAvailable'] ?? $meminfo['MemFree'] ?? null;
-
-                if ($total !== null && $available !== null) {
-                    return [
-                        'available' => true,
-                        'total' => $total,
-                        'used' => $total - $available,
-                        'free' => $available,
-                    ];
-                }
+            if (! function_exists('shell_exec')) {
+                return $this->memoryUnavailable('shell_exec() is disabled on this server.');
             }
 
-            // open_basedir (common in hardened PHP-FPM pools) restricts PHP's
-            // own file-reading functions, but not what a separate shelled-out
-            // process can read — `free` can succeed even when PHP itself is
-            // blocked from touching /proc/meminfo directly.
-            if (function_exists('shell_exec')) {
-                $output = @shell_exec('free -b 2>/dev/null');
+            $output = @shell_exec('free -b 2>/dev/null');
 
-                if ($output && preg_match('/^Mem:\s+(\d+)\s+(\d+)\s+(\d+)/m', $output, $matches)) {
-                    return [
-                        'available' => true,
-                        'total' => (int) $matches[1],
-                        'used' => (int) $matches[2],
-                        'free' => (int) $matches[3],
-                    ];
-                }
+            if ($output && preg_match('/^Mem:\s+(\d+)\s+(\d+)\s+(\d+)/m', $output, $matches)) {
+                return [
+                    'available' => true,
+                    'total' => (int) $matches[1],
+                    'used' => (int) $matches[2],
+                    'free' => (int) $matches[3],
+                ];
             }
 
-            return $this->memoryUnavailable(
-                'Could not read /proc/meminfo (open_basedir: "'.ini_get('open_basedir').'") and the `free` command was unavailable or unparsable.'
-            );
+            return $this->memoryUnavailable('The `free` command was unavailable or its output could not be parsed.');
         }
 
         if (PHP_OS_FAMILY === 'Windows') {
