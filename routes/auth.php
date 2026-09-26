@@ -334,6 +334,7 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/violation-occurence/list/{id}', [ViolationController::class, 'getStudentViolationOccurence']);
      Route::get('/incident/student/{id}', [ViolationController::class, 'getStudentRiskStatus']);
      Route::get('/api/offense-list', [ViolationController::class, 'getOffenseList']);
+     Route::post('/api/student/violation/predict', [ViolationController::class, 'predictViolationRisk']);
 
      Route::post('/profile/{username}/edit', [ProfileController::class, 'update']);
      Route::get('/profile/{username}/edit', [ProfileController::class, 'edit']);

@@ -8,6 +8,7 @@ import { Box, Select, MenuItem } from "@mui/material";
 import { DataGrid } from "@/Components/other/data-grid";
 import { useEffect, useMemo, useState } from "react";
 import { ShieldHalf, Clock, FolderOpen, GraduationCap, CalendarRange, AlertTriangle } from "lucide-react";
+import axios from "axios";
 
 // offense_issued_at is only set once a prefect actually issues the offense —
 // until then (or in seeded/demo data) it's null. Fall back to whichever
@@ -175,11 +176,10 @@ const RecentViolation = ({ violations }) => {
 // Assumes React + Tailwind + FontAwesome CDN are already included globally.
 // Uses <i></i> for icons (no imports).
 
-// Same Flask host Laravel itself posts to server-side for this model
-// (ViolationController previously proxied here) — called directly from the
-// browser now instead, since the model-input rows for every violation this
-// student has are already computed and handed down as page props.
-const PYTHON_PREDICT_URL = "http://127.0.0.1:5032/python/model/predict";
+// The Python AI/ML API is a private Hugging Face Space now — the browser
+// can't reach it directly without exposing its access key, so this goes
+// through Laravel's own proxy instead (ViolationController::predictViolationRisk()).
+const PREDICT_URL = "/api/student/violation/predict";
 
 const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_timelines }) => {
   // -----------------------------
@@ -223,13 +223,8 @@ const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_
 
     let cancelled = false;
 
-    fetch(PYTHON_PREDICT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(modelInput),
-    })
-      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-      .then((json) => {
+    axios.post(PREDICT_URL, { model_input: modelInput })
+      .then(({ data: json }) => {
         if (cancelled) return;
         if (!json || !("prediction" in json)) throw new Error("Malformed prediction response");
 

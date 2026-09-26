@@ -16,6 +16,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
@@ -493,12 +494,48 @@ class ViolationController extends Controller
     }
 
     /**
+     * Thin proxy to the Python AI/ML API's /python/model/predict — the model
+     * host is a private Hugging Face Space, so the browser can't call it
+     * directly (it'd need the access key exposed client-side). The frontend
+     * still builds the model-input row itself (already computed and handed
+     * down as page props), it just posts it here instead of straight to
+     * Python now.
+     */
+    public function predictViolationRisk(Request $request)
+    {
+        $request->validate([
+            'model_input' => 'required|array',
+        ]);
+
+        try {
+            // The free-tier Space can cold-start, and this endpoint runs
+            // actual model inference — the old direct-from-browser fetch()
+            // had no timeout at all, so give this generous headroom rather
+            // than fail a request that would've succeeded a few seconds later.
+            $response = Http::withoutVerifying()
+                ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
+                ->timeout(45)
+                ->post(config('services.python_api.url').'/python/model/predict', $request->model_input);
+
+            if (! $response->successful()) {
+                return response()->json(['message' => 'Prediction service unavailable.'], 502);
+            }
+
+            return response()->json($response->json());
+        } catch (\Exception $e) {
+            Log::error('Failed to reach the violation prediction API', ['error' => $e->getMessage()]);
+
+            return response()->json(['message' => 'Prediction service unavailable.'], 502);
+        }
+    }
+
+    /**
      * One model-input row per violation this student has a *resolved*
      * occurrence of, keyed by violation_id — same fields/SQL
      * getModelInput() used to compute on demand per violation, just for
      * every violation the student has at once so the frontend can send
-     * these straight to the Python API itself instead of asking Laravel to
-     * fetch-then-forward on every violation selection.
+     * these straight to Laravel's predictViolationRisk() proxy instead of
+     * asking Laravel to fetch-then-forward on every violation selection.
      */
     private static function getModelInputsForStudent($studentId)
     {

@@ -838,11 +838,12 @@ class ComplaintController extends Controller
             // Always store it JSON-encoded (a string) since the frontend
             // always does JSON.parse() on this field.
             try {
-                $endpoint = env('PYTHON_API_URL');
-
-                $api = Http::withoutVerifying()->timeout(10)->post($endpoint . '/python/complaint/context', [
-                    'complaint_text' => $complaint->complaint_description,
-                ]);
+                $api = Http::withoutVerifying()
+                    ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
+                    ->timeout(10)
+                    ->post(config('services.python_api.url').'/python/complaint/context', [
+                        'complaint_text' => $complaint->complaint_description,
+                    ]);
                 $predictions = $api->successful() ? $api->json() : [];
             } catch (Exception $e) {
                 $predictions = [];

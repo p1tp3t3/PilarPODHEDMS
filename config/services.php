@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    // The AI/ML API is hosted on a private Hugging Face Space — every
+    // request needs this access key as a Bearer token or the Space's own
+    // infrastructure rejects it before it ever reaches the Flask app.
+    'python_api' => [
+        'url' => env('PYTHON_API_URL'),
+        'key' => env('PYTHON_PILARPODHEDMS_ML_API_KEY'),
+    ],
+
 ];

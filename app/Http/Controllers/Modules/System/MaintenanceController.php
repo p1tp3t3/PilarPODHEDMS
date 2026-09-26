@@ -434,11 +434,13 @@ class MaintenanceController extends Controller
             }
         }
 
-        Http::withoutVerifying()->post('https://pitpete-violation-risk-predictor-api.hf.space/python/violation/add', [
-            'violation' => preg_replace('/[^\w\s]/', ' ', $data['violation_name']),
-            'keywords' => self::flattenKeywords($data['keywords'] ?? []),
-            'id' => $violation->id,
-        ]);
+        Http::withoutVerifying()
+            ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
+            ->post(config('services.python_api.url').'/python/violation/add', [
+                'violation' => preg_replace('/[^\w\s]/', ' ', $data['violation_name']),
+                'keywords' => self::flattenKeywords($data['keywords'] ?? []),
+                'id' => $violation->id,
+            ]);
 
         return self::getViolation();
     }
@@ -464,11 +466,13 @@ class MaintenanceController extends Controller
         // Keep the Python AI/ML API's violation dataset in sync — previously
         // only create/delete synced, so an edited name/keywords silently
         // never reached the Word2Vec matching feature at all.
-        Http::withoutVerifying()->post('https://pitpete-violation-risk-predictor-api.hf.space/python/violation/update', [
-            'violation' => preg_replace('/[^\w\s]/', ' ', $data['violation_name']),
-            'keywords' => self::flattenKeywords($data['keywords'] ?? []),
-            'id' => $request->id,
-        ]);
+        Http::withoutVerifying()
+            ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
+            ->post(config('services.python_api.url').'/python/violation/update', [
+                'violation' => preg_replace('/[^\w\s]/', ' ', $data['violation_name']),
+                'keywords' => self::flattenKeywords($data['keywords'] ?? []),
+                'id' => $request->id,
+            ]);
 
         // =============================
         // UPDATE VIOLATION PENALTIES
@@ -515,9 +519,11 @@ class MaintenanceController extends Controller
             ], 409);
         }
 
-        Http::withoutVerifying()->post('https://pitpete-violation-risk-predictor-api.hf.space/python/violation/delete', [
-            'id' => $violation->id,
-        ]);
+        Http::withoutVerifying()
+            ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
+            ->post(config('services.python_api.url').'/python/violation/delete', [
+                'id' => $violation->id,
+            ]);
         // Delete violation
         $violation->delete();
 
