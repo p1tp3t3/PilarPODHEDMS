@@ -3,6 +3,8 @@ import PageLayout from "@/Layouts/page-layout";
 import { useState, useEffect } from "react";
 import Switch from "@/Components/button/switch-btn";
 import ActionBtn from "@/Components/button/action-btn";
+import FormButton from "@/Components/button/button";
+import RichTextEditor from "@/Components/input/rich-text-editor";
 import { useReload } from "@/context-provider/reload-provider";
 import { SystemService } from "@/others/services/system-service";
 import { Broadcast } from "@/others/classes/broadcast-cofiguration";
@@ -10,7 +12,7 @@ import { readableDate, readableTime, showOutputModal, showWarningModal } from "@
 import TabSwitcher from "@/Components/other/tab-switcher";
 import { DataGrid } from "@/Components/other/data-grid";
 import Box from "@mui/material/Box";
-import { Database, Folder, Archive } from "lucide-react";
+import { Database, Folder, Archive, Megaphone } from "lucide-react";
 
 const formatBytes = (bytes) => {
     if (!bytes) return "0 B";
@@ -87,6 +89,8 @@ const SystemMaintenance = (props) => {
                                 />
                             </div>
 
+                            <MaintenanceNoticeForm />
+
                             <div className="w-full grid gap-2">
                                 <div className="text-[0.85em] font-semibold text-gray-700">
                                     Live Preview — what a regular visitor sees right now
@@ -109,6 +113,73 @@ const SystemMaintenance = (props) => {
                 </div>
         </PageLayout>
         </>
+    );
+};
+
+const MaintenanceNoticeForm = () => {
+    const [message, setMessage] = useState("");
+    const [error, setError] = useState("");
+    const [sending, setSending] = useState(false);
+
+    const handleSend = () => {
+        const plain = message.replace(/<[^>]*>/g, "").trim();
+        if (!plain) {
+            setError("A message is required.");
+            return;
+        }
+        setError("");
+
+        showWarningModal(
+            "Are You Sure You Want To Send This Notice To All Users?",
+            "Send Notice",
+            "Cancel",
+            () => {
+                setSending(true);
+                SystemService.notifyMaintenance(
+                    message,
+                    (res) => {
+                        setSending(false);
+                        setMessage("");
+                        showOutputModal(`Notice Sent To ${res.notified} User(s) Successfully`, "s");
+                    },
+                    (err) => {
+                        setSending(false);
+                        showOutputModal(err?.response?.data?.message || "Failed To Send Notice", "e");
+                    }
+                );
+            }
+        );
+    };
+
+    return (
+        <div className="max-w-[35rem] bg-white border border-gray-200 rounded-md px-5 py-4 grid gap-4">
+            <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 grid place-items-center flex-shrink-0">
+                    <Megaphone size={18} />
+                </div>
+                <div>
+                    <div className="font-semibold text-gray-800">Notify All Users</div>
+                    <p className="text-[0.85em] text-gray-500">
+                        Sends an in-app notice to everyone (e.g. an upcoming maintenance window).
+                    </p>
+                </div>
+            </div>
+            <RichTextEditor
+                label="Message"
+                val={message}
+                change={(html) => { setMessage(html); if (error) setError("") }}
+                minHeight="7rem"
+            />
+            {error && <p className="text-[0.8em] text-red-600 -mt-2">{error}</p>}
+            <div className="flex justify-end">
+                <FormButton
+                    label={sending ? "Sending..." : "Send Notice"}
+                    click={handleSend}
+                    loading={sending}
+                    enable={!sending}
+                />
+            </div>
+        </div>
     );
 };
 

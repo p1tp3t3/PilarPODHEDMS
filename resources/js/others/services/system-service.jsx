@@ -1,9 +1,13 @@
 import { APIRequest } from "../classes/api-req";
+import { sendData } from "../function";
 
 export const SystemService = {
     toggleMaintenanceMode(enabled, success, error) {
         const api = new APIRequest("/maintenance/mode/toggle", "post", { enabled }, success, () => {}, error);
         api.fetchData();
+    },
+    notifyMaintenance(message, success, error) {
+        sendData("/maintenance/notify", { message }, success, error);
     },
     getBackups(setter) {
         const api = new APIRequest("/maintenance/backups", "get", {}, setter);

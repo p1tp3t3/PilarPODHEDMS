@@ -12,7 +12,8 @@ use Inertia\Inertia;
 Route::get('/', [AuthenticatedSessionController::class, 'create'])
 ->name('type.user');
 
-Route::get('/login', [AuthenticatedSessionController::class, 'create']);
+Route::get('/login', [AuthenticatedSessionController::class, 'create'])
+->name('login');
 
 Route::get('/parent-register', [RegisteredUserController::class, 'parentRegistrationIndex']);
 

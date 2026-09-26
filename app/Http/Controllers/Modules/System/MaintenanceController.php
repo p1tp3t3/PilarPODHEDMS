@@ -136,6 +136,44 @@ class MaintenanceController extends Controller
         return response()->json(['maintenance_mode' => $enabled]);
     }
 
+    /**
+     * Broadcasts a heads-up (e.g. an upcoming maintenance window) to every
+     * activated user except the super admin sending it — a normal in-app
+     * notification, not the maintenance-mode lockdown itself.
+     */
+    public function notifyMaintenance(Request $request)
+    {
+        $request->validate([
+            'message' => 'required|string',
+        ]);
+
+        $userIds = User::where('activate', true)
+            ->where('id', '!=', auth()->id())
+            ->pluck('id');
+
+        foreach ($userIds as $userId) {
+            notify_single_user(
+                [
+                    'sender_id' => auth()->id(),
+                    'receiver_id' => $userId,
+                    'notif_type' => 'maintenance_notice',
+                    'content' => json_encode([
+                        'sender_notif_message' => 'Sent a maintenance notice to all users.',
+                        'receiver_notif_message' => $request->message,
+                    ]),
+                ],
+                [
+                    'title' => 'Scheduled Maintenance Notice',
+                    'body' => strip_tags($request->message),
+                    'url' => '',
+                    'icon' => '',
+                ]
+            );
+        }
+
+        return response()->json(['message' => 'success', 'notified' => $userIds->count()]);
+    }
+
     public function programIndex()
     {
         return Inertia::render('itrc/program', [

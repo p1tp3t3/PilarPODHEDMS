@@ -39,6 +39,7 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      Route::post('/maintenance/program/update', [MaintenanceController::class, 'updateProgram']);
      Route::post('/maintenance/program/delete', [MaintenanceController::class, 'destroyProgram']);
      Route::post('/maintenance/mode/toggle', [MaintenanceController::class, 'toggleMaintenanceMode']);
+     Route::post('/maintenance/notify', [MaintenanceController::class, 'notifyMaintenance']);
 
      Route::get('/maintenance/backups', [BackupController::class, 'index']);
      Route::post('/maintenance/backups/database', [BackupController::class, 'createDatabaseBackup']);
