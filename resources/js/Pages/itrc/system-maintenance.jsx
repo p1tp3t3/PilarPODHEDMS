@@ -12,7 +12,7 @@ import { readableDate, readableTime, showOutputModal, showWarningModal } from "@
 import TabSwitcher from "@/Components/other/tab-switcher";
 import { DataGrid } from "@/Components/other/data-grid";
 import Box from "@mui/material/Box";
-import { Database, Folder, Archive, Megaphone } from "lucide-react";
+import { Database, Folder, Archive, Megaphone, Cpu, HardDrive, MemoryStick, Server } from "lucide-react";
 
 const formatBytes = (bytes) => {
     if (!bytes) return "0 B";
@@ -63,6 +63,7 @@ const SystemMaintenance = (props) => {
                     tabs={[
                         { key: "maintenance_mode", label: "Maintenance Mode" },
                         { key: "backup", label: "Backup" },
+                        { key: "system_info", label: "System Info" },
                     ]}
                     value={activeTab}
                     onChange={setActiveTab}
@@ -109,6 +110,10 @@ const SystemMaintenance = (props) => {
 
                     {activeTab === "backup" && (
                         <BackupTab reload={loadRegister} />
+                    )}
+
+                    {activeTab === "system_info" && (
+                        <SystemInfoTab />
                     )}
                 </div>
         </PageLayout>
@@ -372,6 +377,101 @@ const BackupCard = ({ icon: Icon, title, description, buttonLabel, loading, disa
         >
             {loading ? "Creating..." : buttonLabel}
         </ActionBtn>
+    </div>
+);
+
+const SystemInfoTab = () => {
+    const [info, setInfo] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        SystemService.getSystemInfo((res) => {
+            setInfo(res);
+            setLoading(false);
+        });
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                {[...Array(8)].map((_, i) => (
+                    <div key={i} className="bg-white border border-gray-200 rounded-md p-4 h-[4.5rem] animate-pulse" />
+                ))}
+            </div>
+        );
+    }
+
+    if (!info) {
+        return <p className="text-[0.85em] text-gray-500">Failed to load system information.</p>;
+    }
+
+    const diskPct = info.disk.total ? Math.round((info.disk.used / info.disk.total) * 100) : null;
+    const memPct = info.memory.available && info.memory.total ? Math.round((info.memory.used / info.memory.total) * 100) : null;
+
+    return (
+        <div className="grid gap-5 min-w-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <InfoCard icon={Cpu} label="PHP Version" value={info.php_version} />
+                <InfoCard icon={Server} label="Laravel Version" value={info.laravel_version} />
+                <InfoCard icon={Server} label="Server OS" value={info.server_os} />
+                <InfoCard icon={Server} label="Environment" value={info.app_env} />
+                <InfoCard icon={Database} label="Database" value={`${info.database.connection} ${info.database.version ?? ""}`.trim()} />
+                <InfoCard icon={Database} label="Database Size" value={info.database.size ? formatBytes(Number(info.database.size)) : "N/A"} />
+                <InfoCard icon={Cpu} label="PHP Memory Limit" value={info.memory_limit} />
+                <InfoCard icon={Server} label="Server Time" value={`${info.server_time} (${info.timezone})`} />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <UsageBar icon={HardDrive} title="Disk Storage" used={info.disk.used} total={info.disk.total} percent={diskPct} />
+                <UsageBar
+                    icon={MemoryStick}
+                    title="RAM"
+                    used={info.memory.used}
+                    total={info.memory.total}
+                    percent={memPct}
+                    unavailable={!info.memory.available}
+                />
+            </div>
+        </div>
+    );
+};
+
+const InfoCard = ({ icon: Icon, label, value }) => (
+    <div className="bg-white border border-gray-200 rounded-md p-4 flex items-center gap-3 min-w-0">
+        <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 grid place-items-center flex-shrink-0">
+            <Icon size={16} />
+        </div>
+        <div className="min-w-0">
+            <div className="text-[0.75em] text-gray-500">{label}</div>
+            <div className="font-semibold text-gray-800 truncate" title={value || "N/A"}>{value || "N/A"}</div>
+        </div>
+    </div>
+);
+
+const UsageBar = ({ icon: Icon, title, used, total, percent, unavailable }) => (
+    <div className="bg-white border border-gray-200 rounded-md p-5 grid gap-3">
+        <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 grid place-items-center flex-shrink-0">
+                <Icon size={16} />
+            </div>
+            <div className="font-semibold text-gray-800">{title}</div>
+        </div>
+        {unavailable ? (
+            <p className="text-[0.85em] text-gray-500">Not available on this server.</p>
+        ) : (
+            <>
+                <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                        className={`h-full rounded-full ${percent >= 90 ? "bg-red-500" : percent >= 70 ? "bg-amber-500" : "bg-blue-600"}`}
+                        style={{ width: `${percent ?? 0}%` }}
+                    />
+                </div>
+                <div className="flex justify-between text-[0.8em] text-gray-500">
+                    <span>{formatBytes(used)} used ({percent ?? 0}%)</span>
+                    <span>{formatBytes(total)} total</span>
+                </div>
+            </>
+        )}
     </div>
 );
 

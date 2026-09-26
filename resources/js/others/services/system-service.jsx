@@ -13,6 +13,10 @@ export const SystemService = {
         const api = new APIRequest("/maintenance/backups", "get", {}, setter);
         api.fetchData();
     },
+    getSystemInfo(setter) {
+        const api = new APIRequest("/maintenance/system-info", "get", {}, setter);
+        api.fetchData();
+    },
     createBackup(endpoint, success, error) {
         const api = new APIRequest(endpoint, "post", {}, () => {}, success, error);
         api.sendPostData();

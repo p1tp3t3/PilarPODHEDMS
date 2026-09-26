@@ -22,6 +22,7 @@ use App\Models\Violation;
 use App\Models\ViolationPenalty;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -172,6 +173,87 @@ class MaintenanceController extends Controller
         }
 
         return response()->json(['message' => 'success', 'notified' => $userIds->count()]);
+    }
+
+    /**
+     * Server health snapshot for the Maintenance page's System Info tab —
+     * fetched lazily (not on every page load) since disk/DB queries here,
+     * while cheap, have no reason to run unless an admin actually opens it.
+     */
+    public function systemInfo()
+    {
+        $diskTotal = disk_total_space(base_path()) ?: null;
+        $diskFree = disk_free_space(base_path()) ?: null;
+        $diskUsed = ($diskTotal !== null && $diskFree !== null) ? $diskTotal - $diskFree : null;
+
+        $connection = config('database.default');
+
+        try {
+            $dbVersion = DB::selectOne('select version() as v')->v ?? null;
+        } catch (\Exception $e) {
+            $dbVersion = null;
+        }
+
+        try {
+            $dbSize = DB::selectOne(
+                'select sum(data_length + index_length) as size from information_schema.tables where table_schema = ?',
+                [config("database.connections.{$connection}.database")]
+            )->size ?? null;
+        } catch (\Exception $e) {
+            $dbSize = null;
+        }
+
+        return response()->json([
+            'php_version' => PHP_VERSION,
+            'laravel_version' => app()->version(),
+            'server_os' => PHP_OS_FAMILY.' ('.php_uname('r').')',
+            'app_env' => config('app.env'),
+            'server_time' => now()->format('Y-m-d H:i:s'),
+            'timezone' => config('app.timezone'),
+            'memory_limit' => ini_get('memory_limit'),
+            'memory' => $this->getMemoryInfo(),
+            'disk' => [
+                'total' => $diskTotal,
+                'used' => $diskUsed,
+                'free' => $diskFree,
+            ],
+            'database' => [
+                'connection' => $connection,
+                'version' => $dbVersion,
+                'size' => $dbSize,
+            ],
+        ]);
+    }
+
+    /**
+     * Only Linux exposes this cheaply (/proc/meminfo) without shelling out —
+     * degrades gracefully everywhere else (e.g. local Windows dev) rather
+     * than risk running external commands just to report a number.
+     */
+    private function getMemoryInfo(): array
+    {
+        if (PHP_OS_FAMILY === 'Linux' && is_readable('/proc/meminfo')) {
+            $meminfo = [];
+            foreach (explode("\n", file_get_contents('/proc/meminfo')) as $line) {
+                if (preg_match('/^(\w+):\s+(\d+)/', $line, $matches)) {
+                    $meminfo[$matches[1]] = (int) $matches[2] * 1024; // kB -> bytes
+                }
+            }
+
+            $total = $meminfo['MemTotal'] ?? null;
+            $available = $meminfo['MemAvailable'] ?? $meminfo['MemFree'] ?? null;
+
+            if ($total !== null && $available !== null) {
+                return [
+                    'available' => true,
+                    'total' => $total,
+                    'used' => $total - $available,
+                    'free' => $available,
+                ];
+            }
+        }
+
+        return ['available' => false, 'total' => null, 'used' => null, 'free' => null];
     }
 
     public function programIndex()
