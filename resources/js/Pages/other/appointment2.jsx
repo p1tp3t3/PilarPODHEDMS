@@ -1,9 +1,10 @@
 import AuthLayout from "@/Layouts/auth-layout"
 import SetAppointmentReasonModal from "@/Components/modal/submission-form/set-appointment-reason-modal"
+import ViewAppointmentModal from "@/Components/modal/view/view-appointment-modal"
 import { useReload } from "@/context-provider/reload-provider"
 import { AppointmentService } from "@/others/services/appointment-service"
 import { showOutputModal, showWarningModal, readableDate, readableTime } from "@/others/function"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Head } from "@inertiajs/react"
 import { Paper, Chip, Button } from "@mui/material"
 
@@ -11,8 +12,21 @@ const OtherAppointment = ({ user, appointment_history = [], call_in_history = []
     const [reasonModalOpen, setReasonModalOpen] = useState(false)
     const [activeNotifId, setActiveNotifId] = useState(null)
     const [reasonData, setReasonData] = useState({ user_id: user.id, reason: "" })
+    const [viewId, setViewId] = useState("")
+    const [viewOpen, setViewOpen] = useState(false)
 
     const { loadRegister } = useReload()
+
+    // Lets the "My Records This Semester" dashboard modal deep-link straight
+    // to a specific confirmed appointment — independent of this page's own
+    // history list, which is keyed by notification id, not Appointment id.
+    useEffect(() => {
+        const id = new URLSearchParams(window.location.search).get("view")
+        if (id) {
+            setViewId(id)
+            setViewOpen(true)
+        }
+    }, [])
 
     const respond = (id, action, reason = null) => {
         loadRegister(true, "text-wait", action === "accept" ? "Accepting Appointment..." : "Declining Appointment...")
@@ -54,6 +68,8 @@ const OtherAppointment = ({ user, appointment_history = [], call_in_history = []
     return (
         <>
             <Head title="My Appointments" />
+
+            <ViewAppointmentModal close={viewOpen} closeModal={setViewOpen} id={viewId} />
 
             <SetAppointmentReasonModal
                 close={reasonModalOpen}

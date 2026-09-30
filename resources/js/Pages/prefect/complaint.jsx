@@ -2,7 +2,7 @@ import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import IssueComplaintModal from "@/Components/modal/submission-form/issue-complaint-modal"
 import ComplaintList from "@/Components/list/complaint-list"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import DropdownField from "@/Components/input/dropdown"
 import { useReload } from "@/context-provider/reload-provider"
 import ViewComplaintModal from "@/Components/modal/view/view-complaint-modal"
@@ -73,6 +73,12 @@ const PrefectComplaint = (props) => {
       openIssueViolation(true)
     }
   }
+  // Lets the "Current Records" dashboard modal deep-link straight to a
+  // specific complaint's view instead of just landing on the list.
+  useEffect(() => {
+    const viewId = url.get("view")
+    if (viewId) setId(viewId, "c")
+  }, [])
   const setRequestActionEvent = (type, id) => {
           let route = '',
               confirmTxt = '',

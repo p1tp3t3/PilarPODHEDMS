@@ -1,7 +1,8 @@
 import AuthLayout from "@/Layouts/auth-layout";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import FullCalendarView from "@/Components/schedule/full-calendar-view";
 import AppointmentEventModal from "@/Components/modal/view/appointment-event-modal";
+import ViewAppointmentModal from "@/Components/modal/view/view-appointment-modal";
 import ViewDayAppointmentsModal from "@/Components/modal/view/view-day-appointments-modal";
 import { AppointmentService } from "@/others/services/appointment-service";
 import AppointmentModal from "@/Components/modal/submission-form/set-appointment-modal";
@@ -29,7 +30,22 @@ const PrefectAppointment2 = (props) => {
   const [dayMenuDate, setDayMenuDate] = useState(null);
   const [viewDayModal, openViewDayModal] = useState(false);
 
+  const [deepLinkViewId, setDeepLinkViewId] = useState("");
+  const [deepLinkViewOpen, setDeepLinkViewOpen] = useState(false);
+
   const { loadRegister } = useReload();
+
+  // Lets the "All Records This Semester" dashboard modal deep-link straight
+  // to a specific appointment instead of requiring the prefect to find its
+  // date on the calendar — a plain read-only view, not the full calendar
+  // event modal with its embedded cancel/reschedule/attendance actions.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("view");
+    if (id) {
+      setDeepLinkViewId(id);
+      setDeepLinkViewOpen(true);
+    }
+  }, []);
 
   const openAppointmentModal = (clickedDate) => {
     openAppoint(true);
@@ -155,6 +171,8 @@ const PrefectAppointment2 = (props) => {
         onReschedule={handleReschedule}
         onMarkAttendance={handleMarkAttendance}
       />
+
+      <ViewAppointmentModal close={deepLinkViewOpen} closeModal={setDeepLinkViewOpen} id={deepLinkViewId} />
 
       <ViewDayAppointmentsModal
         close={viewDayModal}

@@ -1,7 +1,7 @@
 import AuthLayout from "@/Layouts/auth-layout"
 import ReferralList from "@/Components/list/referral-list"
 import { useReload } from "@/context-provider/reload-provider"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Head, router } from "@inertiajs/react"
 import Btn from "@/Components/button/normal-btn"
 import ViewReferralModal from "@/Components/modal/view/view-referral-modal"
@@ -23,6 +23,13 @@ const Referral = (props) => {
         openViewReferral(true)
         setId(i)
     }
+
+    // Lets the "My Records This Semester" dashboard modal deep-link
+    // straight to a specific referral's view instead of just the list.
+    useEffect(() => {
+        const viewId = new URLSearchParams(window.location.search).get("view")
+        if (viewId) setViewReferralId(viewId)
+    }, [])
 
     const handleEvent = (type, referralId) => {
         if (type === "revoke") {

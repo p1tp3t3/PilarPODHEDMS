@@ -33,7 +33,13 @@ class AppointmentFactory extends Factory
             ? $this->faker->randomElement(['present', 'present', 'present', 'absent', 'not_marked'])
             : 'not_marked';
 
+        // Matches the real "{MMDDYY}{daily-seq}" format from
+        // GeneratesSequenceCode/AppointmentController.
+        $prefix = Carbon::parse($createdAt)->format('mdy');
+        $sequence = \App\Models\Appointment::where('appointment_number', 'like', "{$prefix}%")->count() + 1;
+
         return [
+            'appointment_number' => $prefix.str_pad($sequence, 2, '0', STR_PAD_LEFT),
             'user_id' => $user?->id,
             'date_time_appoint' => $dateTimeAppoint,
             'appointment_status' => $status,

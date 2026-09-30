@@ -7,6 +7,7 @@ const AppointmentReportList = ({ list = [] }) => {
     const rows = list.map((e, i) => ({
         id: e.id ?? i,
         index: i + 1,
+        appointment_number: e.appointment_number,
         student_id: e.user?.id_number,
         student: e.user ?? null,
         description: e.description,
@@ -19,6 +20,12 @@ const AppointmentReportList = ({ list = [] }) => {
             field: "index",
             headerName: "#",
             width: 70,
+            sortable: false,
+        },
+        {
+            field: "appointment_number",
+            headerName: "Reference No.",
+            width: 130,
             sortable: false,
         },
         {

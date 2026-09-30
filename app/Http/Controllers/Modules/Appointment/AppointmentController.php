@@ -20,6 +20,7 @@ use App\Models\FamilyMember;
 use App\Models\Notifications;
 use App\Models\SchoolYearSemester;
 use App\Models\User;
+use App\Traits\GeneratesSequenceCode;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Exception;
@@ -31,6 +32,8 @@ use Inertia\Inertia;
 
 class AppointmentController extends Controller
 {
+    use GeneratesSequenceCode;
+
     public function index(Request $request)
     {
         $isPrefect = (auth()->user()->role == 'sub_admin') ? 'prefect' : 'other';
@@ -251,6 +254,7 @@ class AppointmentController extends Controller
 
                     if ($type === 'sched') {
                         $lastIndex = Appointment::insertGetId([
+                            'appointment_number' => self::generateSequenceCode(Appointment::class, 'appointment_number'),
                             'user_id' => $notifData->receiver_id,
                             'date_time_appoint' => $dateTimeAppoint,
                             'description' => $parsed['reason'],
@@ -774,5 +778,23 @@ class AppointmentController extends Controller
             ]),
             'read_since' => null,
         ];
+    }
+
+    /**
+     * A single confirmed appointment's own details, fetched by its own id —
+     * used by the read-only "view appointment" modal (e.g. deep-linked from
+     * the dashboard's "current semester records" list), independent of the
+     * calendar/notification-history views this page otherwise relies on.
+     */
+    public function show($id)
+    {
+        $appointment = Appointment::with('user.profile')->findOrFail($id);
+
+        abort_unless(
+            auth()->user()->role === 'sub_admin' || auth()->id() === $appointment->user_id,
+            403
+        );
+
+        return new AppointmentResource($appointment);
     }
 }

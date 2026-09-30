@@ -30,4 +30,8 @@ export const AppointmentService = {
         const api = new APIRequest("/prefect/call-in", "post", data, () => {}, success, error);
         api.sendPostData();
     },
+    getAppointmentInfo(id, setter) {
+        const api = new APIRequest(`/appointment/${id}`, "get", {}, setter);
+        api.fetchData();
+    },
 };

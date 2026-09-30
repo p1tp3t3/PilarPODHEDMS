@@ -15,6 +15,7 @@ use App\Models\NonTeachingStaff;
 use App\Models\Penalty;
 use App\Models\Program;
 use App\Models\Referral;
+use App\Models\SchoolYearSemester;
 use App\Models\Student;
 use App\Models\TeachingStaff;
 use App\Models\User;
@@ -555,5 +556,100 @@ class DashboardController extends Controller
 
         return $data;
 
+    }
+
+    /**
+     * Backs the "current semester" modal every non-super-admin dashboard
+     * opens on click — a read-only, tabbed view of the current user's own
+     * complaints/referrals/absent forms/gate passes/appointments filed
+     * during the currently active semester. Which tabs even appear is
+     * driven by the same allow_complaint/allow_referral/allow_absent_form/
+     * allow_appointment/allow_gatepass flags that already gate the
+     * "Report ..." buttons elsewhere — a type is included only if the user
+     * is allowed to submit it in the first place.
+     */
+    public function myCurrentSemesterRecords()
+    {
+        $user = auth()->user();
+        $permissions = $user->permissions;
+        $semesterId = SchoolYearSemester::currentId();
+
+        $records = [];
+
+        if ($permissions?->allow_complaint) {
+            $records['complaint'] = Complaint::with(['user.profile', 'subject.profile'])
+                ->where('complainant_id', $user->id)
+                ->where('school_year_semester_id', $semesterId)
+                ->latest('created_at')
+                ->get();
+        }
+
+        if ($permissions?->allow_referral) {
+            $records['referral'] = Referral::with(['user.profile', 'referredStudent.profile'])
+                ->where('teaching_staff_id', $user->id)
+                ->where('school_year_semester_id', $semesterId)
+                ->latest('created_at')
+                ->get();
+        }
+
+        if ($permissions?->allow_absent_form) {
+            $records['absent_form'] = Absence::where('student_id', $user->id)
+                ->where('school_year_semester_id', $semesterId)
+                ->latest('created_at')
+                ->get();
+        }
+
+        if ($permissions?->allow_gatepass) {
+            $records['gate_pass'] = GatePass::where('user_id', $user->id)
+                ->where('school_year_semester_id', $semesterId)
+                ->latest('created_at')
+                ->get();
+        }
+
+        if ($permissions?->allow_appointment) {
+            $records['appointment'] = Appointment::where('user_id', $user->id)
+                ->where('school_year_semester_id', $semesterId)
+                ->latest('created_at')
+                ->get();
+        }
+
+        return response()->json($records);
+    }
+
+    /**
+     * Same modal, but for a prefect (sub_admin) — they have no personal
+     * allow_complaint/allow_referral/etc. permissions row (they approve/
+     * manage everyone else's requests rather than filing their own), so
+     * "my records" doesn't apply. Instead this shows every record of every
+     * type across all students/staff for the currently active semester.
+     */
+    public function allCurrentSemesterRecords()
+    {
+        abort_unless(auth()->user()->role === 'sub_admin', 403);
+
+        $semesterId = SchoolYearSemester::currentId();
+
+        return response()->json([
+            'complaint' => Complaint::with(['user.profile', 'subject.profile'])
+                ->where('school_year_semester_id', $semesterId)
+                ->latest('created_at')
+                ->get(),
+            'referral' => Referral::with(['user.profile', 'referredStudent.profile'])
+                ->where('school_year_semester_id', $semesterId)
+                ->latest('created_at')
+                ->get(),
+            'absent_form' => Absence::with('user.profile')
+                ->where('school_year_semester_id', $semesterId)
+                ->latest('created_at')
+                ->get(),
+            'gate_pass' => GatePass::with('user.profile')
+                ->where('school_year_semester_id', $semesterId)
+                ->latest('created_at')
+                ->get(),
+            'appointment' => Appointment::with('user.profile')
+                ->where('school_year_semester_id', $semesterId)
+                ->latest('created_at')
+                ->get(),
+        ]);
     }
 }

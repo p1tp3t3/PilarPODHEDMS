@@ -17,10 +17,12 @@ class ActivateScheduledMaintenanceCommand extends Command
         $scheduledAt = Cache::get('maintenance_mode_scheduled_at');
 
         if (! $scheduledAt || Cache::get('maintenance_mode', false)) {
+            $this->info('No scheduled maintenance mode activation found or maintenance mode is already active.');
             return;
         }
 
         if (now()->lessThan($scheduledAt)) {
+            $this->info("Scheduled maintenance mode activation is set for {$scheduledAt}, which has not yet passed.");
             return;
         }
 

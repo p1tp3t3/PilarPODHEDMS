@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AuthLayout from "@/Layouts/auth-layout";
 import RequestGatePassModal from "@/Components/modal/submission-form/request-gatepass-modal";
 import EditGatePassModal from "@/Components/modal/submission-form/edit-gatepass-modal";
+import ViewGatePassModal from "@/Components/modal/view/view-gatepass-modal";
 import { useReload } from "@/context-provider/reload-provider";
 import { readableDate, readableTime, showWarningModal, toTitleCase } from "@/others/function";
 import { GatePassService } from "@/others/services/gatepass-service";
@@ -65,12 +66,27 @@ const GatePass = (props) => {
   const [editGatePass, openEditGatePass] = useState(false);
   const [editData, setEditData] = useState(null);
   const [tab, setTab] = useState("pending");
+  const [viewId, setViewId] = useState("");
+  const [viewOpen, setViewOpen] = useState(false);
+  const [viewApproved, setViewApproved] = useState(false);
 
   const { loadRegister } = useReload();
 
   const allGatePasses = props.user_gatepass.gatepass ?? [];
   const latestGatepass = allGatePasses[0];
   const shownGatepasses = allGatePasses.filter((gp) => gatePassStatusKey(gp) === tab);
+
+  // Lets the "My Records This Semester" dashboard modal deep-link straight
+  // to a specific gate pass — jumps to whichever status tab it actually
+  // belongs to and opens the same view modal the prefect's page uses.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("view");
+    if (!id) return;
+    const match = allGatePasses.find((gp) => String(gp.id) === id);
+    if (match) setTab(gatePassStatusKey(match));
+    setViewId(id);
+    setViewOpen(true);
+  }, []);
 
   const handleRevoke = (id) => {
     showWarningModal(
@@ -100,6 +116,15 @@ const GatePass = (props) => {
   return (
     <>
       <Head title="Gate Pass" />
+      <ViewGatePassModal
+        close={viewOpen}
+        closeModal={setViewOpen}
+        isEnableOuterClose={true}
+        id={viewId}
+        approved={viewApproved}
+        setApprove={setViewApproved}
+        events={() => {}}
+      />
       <RequestGatePassModal
         close={requestGatePass}
         closeModal={openRequestGatePass}

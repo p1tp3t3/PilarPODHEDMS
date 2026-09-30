@@ -53,6 +53,12 @@ const Complaint = (props) => {
         setComplainantId(id)
         openViewComplaint(true)
     }
+    // Lets the "My Records This Semester" dashboard modal deep-link straight
+    // to a specific complaint's view instead of just landing on the list.
+    useEffect(() => {
+        const viewId = url.get("view")
+        if (viewId) setId(viewId)
+    }, [])
     const handleSelect = (type) => {
         const url = window.location.pathname
         router.visit(`${url}?status=${type}`)

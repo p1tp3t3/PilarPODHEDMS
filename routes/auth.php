@@ -270,6 +270,8 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/dashboard', [DashboardController::class, 'index'])
           ->name('auth.dashboard');
      Route::get('/dashboard/active-users', [DashboardController::class, 'getActiveUsers']);
+     Route::get('/dashboard/my-current-semester-records', [DashboardController::class, 'myCurrentSemesterRecords']);
+     Route::get('/dashboard/all-current-semester-records', [DashboardController::class, 'allCurrentSemesterRecords']);
 
      Route::get('/chat', [ChatController::class, 'index']);
      Route::get('/chat/thread/{userId}', [ChatController::class, 'getThread']);
@@ -290,6 +292,7 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::post('/appointment/action', [AppointmentController::class, 'action']);
      Route::post('/calendar/appointment/get/list', [AppointmentController::class, 'getAppointment']);
      Route::get('/calendar/appointment/events', [AppointmentController::class, 'calendarEvents']);
+     Route::get('/appointment/{id}', [AppointmentController::class, 'show'])->whereNumber('id');
 
      Route::get('/complaint', [ComplaintController::class, 'index']);
      Route::post('/complaint/create', [ComplaintController::class, 'store']);

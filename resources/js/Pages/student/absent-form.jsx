@@ -1,7 +1,8 @@
 import AuthLayout from "@/Layouts/auth-layout"
 import RequestAbsentFormModal from "@/Components/modal/submission-form/request-absent-form-modal"
 import EditAbsentFormModal from "@/Components/modal/submission-form/edit-absent-form-modal"
-import { useState } from "react"
+import ViewAbsentFormModal from "@/Components/modal/view/view-absent-form-modal"
+import { useState, useEffect } from "react"
 import { useReload } from "@/context-provider/reload-provider"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import { readableDate, readableTime, showWarningModal, toTitleCase } from "@/others/function"
@@ -52,10 +53,24 @@ const AbsentForm = (props) => {
     const [tab, setTab] = useState("request")
     const [editForm, setEditForm] = useState(null)
     const [editOpen, setEditOpen] = useState(false)
+    const [viewId, setViewId] = useState('')
+    const [viewOpen, setViewOpen] = useState(false)
 
     const { loadRegister } = useReload();
     const allForms = props.absent_form_list ?? []
     const shownForms = allForms.filter((form) => absentFormStatusKey(form) === tab)
+
+    // Lets the "My Records This Semester" dashboard modal deep-link straight
+    // to a specific absent form — jumps to whichever status tab it actually
+    // belongs to and opens the same view modal the prefect's page uses.
+    useEffect(() => {
+        const id = new URLSearchParams(window.location.search).get("view")
+        if (!id) return
+        const match = allForms.find((form) => String(form.id) === id)
+        if (match) setTab(absentFormStatusKey(match))
+        setViewId(id)
+        setViewOpen(true)
+    }, [])
 
     const handleRevoke = (id) => {
         showWarningModal(
@@ -79,6 +94,12 @@ const AbsentForm = (props) => {
 
     return (
         <>
+            <ViewAbsentFormModal
+                close={viewOpen}
+                closeModal={setViewOpen}
+                isEnableOuterClose={true}
+                id={viewId}
+            />
             <EditAbsentFormModal
                 close={editOpen}
                 closeModal={setEditOpen}

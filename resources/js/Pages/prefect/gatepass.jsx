@@ -2,7 +2,7 @@ import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import RequestGatePassModal from "@/Components/modal/submission-form/request-gatepass-modal"
 import DropdownField from "@/Components/input/dropdown"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import GatePassRequestList from "@/Components/list/gatepass-request-list"
 import GatePassList from "@/Components/list/gate-pass-list"
 import { useReload } from "@/context-provider/reload-provider"
@@ -164,6 +164,12 @@ const PrefectGatePass = (props) => {
         openViewGatePass(true)
         setGatePassId(i)
     }
+    // Lets the "Current Records" dashboard modal deep-link straight to a
+    // specific gate pass's view instead of just landing on the list.
+    useEffect(() => {
+        const viewId = url.get("view")
+        if (viewId) setId(viewId)
+    }, [])
 
     return (
         <>

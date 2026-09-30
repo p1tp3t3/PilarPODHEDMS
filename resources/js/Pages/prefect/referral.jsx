@@ -54,6 +54,12 @@ const PrefectReferral = (props) => {
         openViewReferral(true)
         setId(i)
     }
+    // Lets the "Current Records" dashboard modal deep-link straight to a
+    // specific referral's view instead of just landing on the list.
+    useEffect(() => {
+        const viewId = new URLSearchParams(window.location.search).get("view")
+        if (viewId) setViewReferralId(viewId)
+    }, [])
     const handleSelect = (type) => {
         if (choose != type) {
             const link = window.location.pathname;
