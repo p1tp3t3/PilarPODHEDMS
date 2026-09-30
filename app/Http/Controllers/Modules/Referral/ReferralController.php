@@ -66,7 +66,6 @@ class ReferralController extends Controller
         }
 
         return Inertia::render('guidance/referral', [
-            'user' => auth()->user(),
             'referral' => self::getAllReferral(),
         ]);
     }
@@ -206,6 +205,7 @@ class ReferralController extends Controller
         $status = request()->get('status');
 
         $referrals = Referral::with([
+            'user.profile',
             'user.teachingStaff.program',
             'referredStudent.program',
         ]);
@@ -329,7 +329,18 @@ class ReferralController extends Controller
         if ($referral->teaching_staff_id !== auth()->id()) {
             return response()->json(['message' => 'You can only revoke a referral you filed yourself.'], 403);
         }
-        if ($referral->referral_status !== 'pending' || $referral->confirmed_at !== null) {
+
+        // A prefect's own referral is auto-approved the instant it's filed
+        // (see store()) — it never has a pending, unconfirmed window like a
+        // teaching staff's does, so it's revocable any time up until it's
+        // already rejected or revoked. Everyone else keeps the original,
+        // narrower window: only while still pending and unconfirmed.
+        $isOwnAutoApproved = auth()->user()->role === 'sub_admin';
+        $stillRevocable = $isOwnAutoApproved
+            ? ! in_array($referral->referral_status, ['rejected', 'revoked'], true)
+            : ($referral->referral_status === 'pending' && $referral->confirmed_at === null);
+
+        if (! $stillRevocable) {
             return response()->json(['message' => 'This referral can no longer be revoked.'], 400);
         }
 

@@ -88,7 +88,6 @@ class ViolationController extends Controller
             ->values();
 
         return Inertia::render('itrc/maintenance/violation-students', [
-            'user' => auth()->user(),
             'violation' => $violation,
             // Super admin manages the violation/penalty catalog, not student
             // disciplinary records — withhold the actual student roster.
@@ -118,7 +117,6 @@ class ViolationController extends Controller
             ->get(['violation.id', 'violation.violation_name']);
 
         return Inertia::render('other/student-violation', [
-            'user' => auth()->user(),
             'student' => User::with(['profile', 'program', 'enrollments.schoolYear'])->where('id', $id)->first(),
             'student_violations' => $studentViolations->get(),
             'violations' => $violationNames,
@@ -139,7 +137,6 @@ class ViolationController extends Controller
         }
 
         return Inertia::render('other/student-risk-prediction', [
-            'user' => auth()->user(),
             'student' => User::with('program')->where('id', $id)->first(),
         ]);
     }

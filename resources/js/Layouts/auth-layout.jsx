@@ -7,21 +7,27 @@ import { useEffect } from "react";
 import { usePage } from "@inertiajs/react";
 import { showOutputModal, registerServiceWorker } from "@/others/function";
 
-const AuthLayout = ({ children, user, program = '' }) => {
+const AuthLayout = ({ children, program = '' }) => {
     const path = window.location.pathname
     const { props } = usePage()
+    // Every controller used to pass its own `user` prop for this layout —
+    // inconsistently, since many built it as a bare auth()->user() without
+    // eager-loading `profile`/`teachingStaff`/`nonTeachingStaff`. The shared
+    // `auth.user` prop (HandleInertiaRequests) is always complete and
+    // consistent, so the layout sources identity from there directly instead
+    // of depending on every page controller remembering to pass it right.
+    const user = props.auth?.user
 
     useEffect(() => {
-        if(localStorage.getItem('show-login-success') == 1) {
+        if (localStorage.getItem('show-login-success') == 1) {
+            localStorage.removeItem('show-login-success')
             showOutputModal(
-                `Welcome ${user.profile?.first_name} ${user.profile?.last_name}`,
+                `Welcome ${user?.profile?.first_name ?? ''} ${user?.profile?.last_name ?? ''}`.trim(),
                 'g',
-                () => {
-                    localStorage.removeItem('show-login-success')
-                }
+                () => {}
             )
         }
-    }, [])
+    }, [user])
 
     useEffect(() => {
         registerServiceWorker(props.vapid_public_key)

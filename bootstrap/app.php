@@ -40,6 +40,9 @@ $app = Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command('app:activate-scheduled-maintenance-command')
+                 ->everyMinute();
+
         $schedule->command('app:notify-gate-pass-expiration-command')
                  ->timezone('Asia/Manila')
                  ->dailyAt('08:00');

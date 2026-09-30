@@ -12,7 +12,7 @@ import { ViolationAccessService } from "@/others/services/violation-access-servi
 import PageLayout from "@/Layouts/page-layout";
 
 const ViolationManagement = (props) => {
-    const isSuperAdmin = props.user?.role === 'super_admin';
+    const isSuperAdmin = props.auth?.user?.role === 'super_admin';
     const [access, setAccess] = useState(
         isSuperAdmin
             ? { violation: { add: false, edit: false, delete: false }, penalty: { add: false, delete: false } }
@@ -127,7 +127,7 @@ const ViolationManagement = (props) => {
                 )}
 
                 {activeTab === "access-requests" && (
-                    <ViolationAccessRequests user={props.user} />
+                    <ViolationAccessRequests user={props.auth?.user} />
                 )}
             </div>
         </PageLayout>

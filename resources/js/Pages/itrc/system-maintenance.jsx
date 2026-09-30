@@ -3,8 +3,8 @@ import PageLayout from "@/Layouts/page-layout";
 import { useState, useEffect } from "react";
 import Switch from "@/Components/button/switch-btn";
 import ActionBtn from "@/Components/button/action-btn";
-import FormButton from "@/Components/button/button";
-import RichTextEditor from "@/Components/input/rich-text-editor";
+import Btn from "@/Components/button/normal-btn";
+import ScheduleMaintenanceModal from "@/Components/modal/submission-form/schedule-maintenance-modal";
 import { useReload } from "@/context-provider/reload-provider";
 import { SystemService } from "@/others/services/system-service";
 import { Broadcast } from "@/others/classes/broadcast-cofiguration";
@@ -12,7 +12,7 @@ import { readableDate, readableTime, showOutputModal, showWarningModal } from "@
 import TabSwitcher from "@/Components/other/tab-switcher";
 import { DataGrid } from "@/Components/other/data-grid";
 import Box from "@mui/material/Box";
-import { Database, Folder, Archive, Megaphone, Cpu, HardDrive, MemoryStick, Server } from "lucide-react";
+import { Database, Folder, Archive, CalendarClock } from "lucide-react";
 
 const formatBytes = (bytes) => {
     if (!bytes) return "0 B";
@@ -29,6 +29,9 @@ const SystemMaintenance = (props) => {
     const [maintenanceMode, setMaintenanceMode] = useState(!!props.maintenance_mode),
           [togglingMode, setTogglingMode] = useState(false);
 
+    const [scheduledAt, setScheduledAt] = useState(props.maintenance_mode_scheduled_at || null);
+    const [scheduleModal, openScheduleModal] = useState(false);
+
     const { loadRegister } = useReload();
 
     useEffect(() => {
@@ -36,7 +39,12 @@ const SystemMaintenance = (props) => {
             'public',
             'maintenance',
             'MaintenanceModeToggled',
-            (e) => setMaintenanceMode(!!e.enabled)
+            (e) => {
+                setMaintenanceMode(!!e.enabled);
+                // Turning it on (whether by hand or once a schedule's time
+                // arrives) always clears any pending schedule server-side.
+                if (e.enabled) setScheduledAt(null);
+            }
         ).configure('maintenance mode status');
     }, []);
 
@@ -49,21 +57,40 @@ const SystemMaintenance = (props) => {
             next,
             (res) => {
                 setMaintenanceMode(!!res.maintenance_mode);
+                setScheduledAt(null);
                 setTogglingMode(false);
             },
             () => setTogglingMode(false)
         );
     };
 
+    const handleCancelSchedule = () => {
+        showWarningModal(
+            "Are You Sure You Want To Cancel The Scheduled Maintenance?",
+            "Cancel Schedule",
+            "Keep It",
+            () => {
+                SystemService.cancelScheduledMaintenanceMode(
+                    () => setScheduledAt(null),
+                    () => showOutputModal("Failed To Cancel The Schedule", "e")
+                );
+            }
+        );
+    };
+
     return (
         <>
+        <ScheduleMaintenanceModal
+            close={scheduleModal}
+            closeModal={openScheduleModal}
+            onScheduled={(res) => setScheduledAt(res.maintenance_mode_scheduled_at)}
+        />
         <PageLayout title="System Maintenance">
                 {/* Tabs */}
                 <TabSwitcher
                     tabs={[
                         { key: "maintenance_mode", label: "Maintenance Mode" },
                         { key: "backup", label: "Backup" },
-                        { key: "system_info", label: "System Info" },
                     ]}
                     value={activeTab}
                     onChange={setActiveTab}
@@ -90,7 +117,42 @@ const SystemMaintenance = (props) => {
                                 />
                             </div>
 
-                            <MaintenanceNoticeForm />
+                            {!maintenanceMode && (
+                                <div className="max-w-[35rem] bg-white border border-gray-200 rounded-md px-5 py-4 grid gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 grid place-items-center flex-shrink-0">
+                                            <CalendarClock size={18} />
+                                        </div>
+                                        <div>
+                                            <div className="font-semibold text-gray-800">Schedule Maintenance</div>
+                                            <p className="text-[0.85em] text-gray-500">
+                                                Pick a start date/time and notify everyone about it in one step.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {scheduledAt ? (
+                                        <div className="flex items-center justify-between gap-4 bg-blue-50 border border-blue-200 rounded-md px-4 py-3">
+                                            <p className="text-[0.85em] text-blue-900">
+                                                Scheduled to start on{" "}
+                                                <b>{readableDate(scheduledAt)} ({readableTime(scheduledAt)})</b>
+                                            </p>
+                                            <ActionBtn
+                                                className="bg-gray-600 hover:bg-gray-700 flex-shrink-0"
+                                                onClick={handleCancelSchedule}
+                                            >
+                                                Cancel
+                                            </ActionBtn>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <Btn onclick={() => openScheduleModal(true)}>
+                                                Schedule Maintenance
+                                            </Btn>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             <div className="w-full grid gap-2">
                                 <div className="text-[0.85em] font-semibold text-gray-700">
@@ -111,80 +173,9 @@ const SystemMaintenance = (props) => {
                     {activeTab === "backup" && (
                         <BackupTab reload={loadRegister} />
                     )}
-
-                    {activeTab === "system_info" && (
-                        <SystemInfoTab />
-                    )}
                 </div>
         </PageLayout>
         </>
-    );
-};
-
-const MaintenanceNoticeForm = () => {
-    const [message, setMessage] = useState("");
-    const [error, setError] = useState("");
-    const [sending, setSending] = useState(false);
-
-    const handleSend = () => {
-        const plain = message.replace(/<[^>]*>/g, "").trim();
-        if (!plain) {
-            setError("A message is required.");
-            return;
-        }
-        setError("");
-
-        showWarningModal(
-            "Are You Sure You Want To Send This Notice To All Users?",
-            "Send Notice",
-            "Cancel",
-            () => {
-                setSending(true);
-                SystemService.notifyMaintenance(
-                    message,
-                    (res) => {
-                        setSending(false);
-                        setMessage("");
-                        showOutputModal(`Notice Sent To ${res.notified} User(s) Successfully`, "s");
-                    },
-                    (err) => {
-                        setSending(false);
-                        showOutputModal(err?.response?.data?.message || "Failed To Send Notice", "e");
-                    }
-                );
-            }
-        );
-    };
-
-    return (
-        <div className="max-w-[35rem] bg-white border border-gray-200 rounded-md px-5 py-4 grid gap-4">
-            <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 grid place-items-center flex-shrink-0">
-                    <Megaphone size={18} />
-                </div>
-                <div>
-                    <div className="font-semibold text-gray-800">Notify All Users</div>
-                    <p className="text-[0.85em] text-gray-500">
-                        Sends an in-app notice to everyone (e.g. an upcoming maintenance window).
-                    </p>
-                </div>
-            </div>
-            <RichTextEditor
-                label="Message"
-                val={message}
-                change={(html) => { setMessage(html); if (error) setError("") }}
-                minHeight="7rem"
-            />
-            {error && <p className="text-[0.8em] text-red-600 -mt-2">{error}</p>}
-            <div className="flex justify-end">
-                <FormButton
-                    label={sending ? "Sending..." : "Send Notice"}
-                    click={handleSend}
-                    loading={sending}
-                    enable={!sending}
-                />
-            </div>
-        </div>
     );
 };
 
@@ -377,107 +368,6 @@ const BackupCard = ({ icon: Icon, title, description, buttonLabel, loading, disa
         >
             {loading ? "Creating..." : buttonLabel}
         </ActionBtn>
-    </div>
-);
-
-const SystemInfoTab = () => {
-    const [info, setInfo] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        SystemService.getSystemInfo((res) => {
-            setInfo(res);
-            setLoading(false);
-        });
-    }, []);
-
-    if (loading) {
-        return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                {[...Array(8)].map((_, i) => (
-                    <div key={i} className="bg-white border border-gray-200 rounded-md p-4 h-[4.5rem] animate-pulse" />
-                ))}
-            </div>
-        );
-    }
-
-    if (!info) {
-        return <p className="text-[0.85em] text-gray-500">Failed to load system information.</p>;
-    }
-
-    const diskPct = info.disk.total ? Math.round((info.disk.used / info.disk.total) * 100) : null;
-    const memPct = info.memory.available && info.memory.total ? Math.round((info.memory.used / info.memory.total) * 100) : null;
-
-    return (
-        <div className="grid gap-5 min-w-0">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                <InfoCard icon={Cpu} label="PHP Version" value={info.php_version} />
-                <InfoCard icon={Server} label="Laravel Version" value={info.laravel_version} />
-                <InfoCard icon={Server} label="Server OS" value={info.server_os} />
-                <InfoCard icon={Server} label="Environment" value={info.app_env} />
-                <InfoCard icon={Database} label="Database" value={`${info.database.connection} ${info.database.version ?? ""}`.trim()} />
-                <InfoCard icon={Database} label="Database Size" value={info.database.size ? formatBytes(Number(info.database.size)) : "N/A"} />
-                <InfoCard icon={Cpu} label="PHP Memory Limit" value={info.memory_limit} />
-                <InfoCard icon={Server} label="Server Time" value={`${info.server_time} (${info.timezone})`} />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <UsageBar icon={HardDrive} title="Disk Storage" used={info.disk.used} total={info.disk.total} percent={diskPct} />
-                <UsageBar
-                    icon={MemoryStick}
-                    title="RAM"
-                    used={info.memory.used}
-                    total={info.memory.total}
-                    percent={memPct}
-                    unavailable={!info.memory.available}
-                    unavailableReason={info.memory.reason}
-                />
-            </div>
-        </div>
-    );
-};
-
-const InfoCard = ({ icon: Icon, label, value }) => (
-    <div className="bg-white border border-gray-200 rounded-md p-4 flex items-center gap-3 min-w-0">
-        <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 grid place-items-center flex-shrink-0">
-            <Icon size={16} />
-        </div>
-        <div className="min-w-0">
-            <div className="text-[0.75em] text-gray-500">{label}</div>
-            <div className="font-semibold text-gray-800 truncate" title={value || "N/A"}>{value || "N/A"}</div>
-        </div>
-    </div>
-);
-
-const UsageBar = ({ icon: Icon, title, used, total, percent, unavailable, unavailableReason }) => (
-    <div className="bg-white border border-gray-200 rounded-md p-5 grid gap-3">
-        <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 grid place-items-center flex-shrink-0">
-                <Icon size={16} />
-            </div>
-            <div className="font-semibold text-gray-800">{title}</div>
-        </div>
-        {unavailable ? (
-            <div>
-                <p className="text-[0.85em] text-gray-500">Not available on this server.</p>
-                {unavailableReason && (
-                    <p className="text-[0.75em] text-gray-400 mt-1">{unavailableReason}</p>
-                )}
-            </div>
-        ) : (
-            <>
-                <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                        className={`h-full rounded-full ${percent >= 90 ? "bg-red-500" : percent >= 70 ? "bg-amber-500" : "bg-blue-600"}`}
-                        style={{ width: `${percent ?? 0}%` }}
-                    />
-                </div>
-                <div className="flex justify-between text-[0.8em] text-gray-500">
-                    <span>{formatBytes(used)} used ({percent ?? 0}%)</span>
-                    <span>{formatBytes(total)} total</span>
-                </div>
-            </>
-        )}
     </div>
 );
 

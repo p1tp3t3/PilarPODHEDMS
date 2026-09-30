@@ -16,12 +16,14 @@ import NewStudentList from "@/Components/list/new-student-list"
 import StudentNotificationList from "@/Components/list/student-notification-list"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import UnresolvedComplaintModal from "@/Components/modal/validation/unresolved-complaint-modal"
+import CurrentSemesterBanner from "@/Components/other/current-semester-banner"
+import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder"
 import { Link, router } from "@inertiajs/react"
 import LatestActiveAccountList from "@/Components/list/latest-active-user-list"
 import OffenseList from "@/Components/list/offense-list"
 import PenaltyList from "@/Components/list/penalty-list"
 import { motion } from "framer-motion"
-import { GraduationCap, Hourglass, RefreshCw, FileText, Archive } from "lucide-react"
+import { GraduationCap, Hourglass, RefreshCw, FileText, Archive, ShieldAlert } from "lucide-react"
 
 const PrefectDashBoard = (props) => {
   const date = new Date()
@@ -58,7 +60,7 @@ const PrefectDashBoard = (props) => {
           clicked = localStorage.getItem("is-unresolved-complaint-modal-clicked")
 
     if(count > 0 && clicked) {
-        showWarningModal(
+        const fire = () => showWarningModal(
           toTitleCase(`You Have ${count} ${props.label}. Do You Want to See the Unresolved Complaints?`),
           'See Unresolved Complaints',
           'Later',
@@ -70,6 +72,18 @@ const PrefectDashBoard = (props) => {
             localStorage.removeItem('is-unresolved-complaint-modal-clicked');
           }
         )
+
+        // Right after logging in, AuthLayout's own "Welcome" modal is also
+        // about to fire (its effect runs after this one, since child
+        // effects run before parent effects) — both use the same shared
+        // SweetAlert2 instance, so firing this one in the same tick makes
+        // it clobber/get clobbered by that one. Let the welcome modal have
+        // its moment first, then follow up with this one.
+        if (localStorage.getItem('show-login-success')) {
+          setTimeout(fire, 400)
+        } else {
+          fire()
+        }
       }
   }, [])
 
@@ -203,6 +217,9 @@ const PrefectDashBoard = (props) => {
   return (
     <>
         <div className="w-full py-10">
+          <MaintenanceScheduleReminder />
+          <CurrentSemesterBanner />
+
           <div>
             <TabSwitcher tabs={optionTab} value={choose2} onChange={handleSelect2} />
           </div>
@@ -216,7 +233,7 @@ const PrefectDashBoard = (props) => {
             >
               <div className="flex flex-col gap-5 pt-6">
                 {/* Statistic Cards */}
-                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                   <Link href="/prefect/student-list" className="h-full grid">
                     <QuantityCard
                       h="h-[6rem]"
@@ -259,6 +276,15 @@ const PrefectDashBoard = (props) => {
                       num={props.archive}
                       icon={Archive}
                       label="Total Documents"
+                      color={{ bg: "bg-white hover:bg-black/5 transition-all" }}
+                    />
+                  </Link>
+                  <Link href="/violation-management" className="h-full grid">
+                    <QuantityCard
+                      h="h-[6rem]"
+                      num={props.total_violation}
+                      icon={ShieldAlert}
+                      label="Total Violations"
                       color={{ bg: "bg-white hover:bg-black/5 transition-all" }}
                     />
                   </Link>

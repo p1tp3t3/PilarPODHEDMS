@@ -45,7 +45,6 @@ class NotificationController extends Controller
         $filePath = ($notif != null) ? "other/notification/$type" : 'other/notification';
 
         return Inertia::render($filePath, [
-            'user' => auth()->user(),
             'notification' => Notifications::where('receiver_id', auth()->id())
                 ->latest('created_at')
                 ->limit(10)
@@ -65,7 +64,6 @@ class NotificationController extends Controller
         $type = str_replace('_', '-', $notif->notif_type);
 
         return Inertia::render("other/notification/$type", [
-            'user' => auth()->user(),
             'notification' => $notif,
         ]);
     }

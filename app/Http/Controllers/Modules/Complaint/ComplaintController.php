@@ -672,7 +672,7 @@ class ComplaintController extends Controller
     {
         $status = isset($_GET['status']) ? $_GET['status'] : 'ongoing';
         $data = Complaint::whereIn('complaint_status', ['pending', 'ongoing', 'resolved', 'rejected', 'revoked'])
-            ->with(['user.profile', 'user.program', 'user.enrollments', 'subject.profile', 'subject.program', 'subject.enrollments', 'complaintSubject.user.profile', 'complaintSubject.user.program', 'complaintSubject.user.enrollments']);
+            ->with(['user.profile', 'user.program', 'user.enrollments', 'user.teachingStaff.program', 'user.nonTeachingStaff', 'subject.profile', 'subject.program', 'subject.enrollments', 'complaintSubject.user.profile', 'complaintSubject.user.program', 'complaintSubject.user.enrollments']);
         $search = $_GET['search'] ?? null;
         $date = $_GET['date'] ?? null;
         $role = $_GET['role'] ?? null;  // ✅ new filter

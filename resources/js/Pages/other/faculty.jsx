@@ -36,12 +36,12 @@ const Faculty = (props) => {
                             lim={5}
                             def='Faculy Member Not Found'
                             withLink={true}
-                            link={`/${props.user.user_type}/faculty-list`}
+                            link={`/${props.auth.user.user_type}/faculty-list`}
                             param={true}
                             apiLink="/api/all-users/faculty"
                         />
                     </div>
-                    {props.user.user_type == 'administrative' &&
+                    {props.auth.user.user_type == 'administrative' &&
                     <div className="flex gap-3 items-center">
                         <a href={`/download/user/account/${fileName}`} download={fileName}>
                             <Btn>

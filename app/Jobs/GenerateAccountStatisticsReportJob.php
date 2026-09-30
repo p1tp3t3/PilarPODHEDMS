@@ -26,6 +26,7 @@ class GenerateAccountStatisticsReportJob implements ShouldQueue
     {
         $this->filters = $filters;
         $this->userId = $userId;
+        $this->onQueue('reports');
     }
 
     public function handle(): void

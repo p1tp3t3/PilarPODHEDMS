@@ -2,13 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\SignedLinkMail;
+use App\Mail\OTPMail;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 
 class PasswordResetController extends Controller
@@ -18,7 +17,7 @@ class PasswordResetController extends Controller
         return Inertia::render('other/password-recovery');
     }
 
-    public function sendLink(Request $request)
+    public function sendOtp(Request $request)
     {
         $request->validate(['username' => 'required|string']);
 
@@ -29,51 +28,59 @@ class PasswordResetController extends Controller
             return response()->json(['message' => 'No account found with that username.'], 404);
         }
 
-        $url = URL::temporarySignedRoute(
-            'password.reset.form',
-            now()->addMinutes(60),
-            ['username' => $user->username]
-        );
+        $pin = random_int(100000, 999999);
+        cache()->put("password_reset_otp_{$user->username}", Hash::make($pin), now()->addMinutes(10));
 
         try {
-            Mail::to($user->email)->send(new SignedLinkMail(
-                'Password Reset Request',
-                'Reset Your Password',
-                'We received a request to reset your password. Click the button below to choose a new one.',
-                $url,
-                'Reset Password'
-            ));
+            Mail::to($user->email)->send(new OTPMail($pin));
         } catch (\Throwable $e) {
-            Log::error('Failed to send password reset link', ['error' => $e->getMessage()]);
+            Log::error('Failed to send password reset OTP', ['error' => $e->getMessage()]);
 
-            return response()->json(['message' => 'Failed to send reset link.'], 500);
+            return response()->json(['message' => 'Failed to send verification code.'], 500);
         }
 
-        return response()->json(['message' => 'success']);
+        return response()->json([
+            'message' => 'success',
+            'masked_email' => $this->maskEmail($user->email),
+        ]);
     }
 
-    // The signed URL is only the delivery guarantee (unguessable, expires,
-    // tamper-proof) — once it's validated here, a short-lived cache flag
-    // authorizes the follow-up POST (reset()) without needing to re-derive
-    // the Laravel signature across a GET->POST verb change.
-    public function resetForm(Request $request, $username)
+    // The frontend never receives the real email — only enough of it,
+    // asterisked out, to reassure the user which inbox to check.
+    private function maskEmail(string $email): string
     {
-        $valid = $request->hasValidSignature();
+        [$local, $domain] = explode('@', $email, 2) + [1 => ''];
+        $visible = mb_substr($local, 0, 2);
 
-        if ($valid) {
-            cache()->put("password_reset_authorized_{$username}", true, now()->addMinutes(15));
+        return $visible.str_repeat('*', max(mb_strlen($local) - mb_strlen($visible), 3)).'@'.$domain;
+    }
+
+    // Verifying the OTP is only the delivery guarantee (only whoever
+    // received the email could know it) — once confirmed here, a
+    // short-lived cache flag authorizes the follow-up POST (reset())
+    // the same way the old signed-URL flow did.
+    public function verifyOtp(Request $request)
+    {
+        $request->validate([
+            'username' => 'required|string',
+            'otp' => 'required|string',
+        ]);
+
+        $hashed = cache("password_reset_otp_{$request->username}");
+        if (! $hashed || ! Hash::check($request->otp, $hashed)) {
+            return response()->json(['message' => 'Invalid or expired code.'], 400);
         }
 
-        return Inertia::render('other/reset-password', [
-            'username' => $username,
-            'valid' => $valid || (bool) cache("password_reset_authorized_{$username}"),
-        ]);
+        cache()->forget("password_reset_otp_{$request->username}");
+        cache()->put("password_reset_authorized_{$request->username}", true, now()->addMinutes(15));
+
+        return response()->json(['message' => 'success']);
     }
 
     public function reset(Request $request, $username)
     {
         if (! cache("password_reset_authorized_{$username}")) {
-            return response()->json(['message' => 'This reset link is invalid or has expired.'], 400);
+            return response()->json(['message' => 'This session has expired. Please verify your code again.'], 400);
         }
 
         $request->validate([

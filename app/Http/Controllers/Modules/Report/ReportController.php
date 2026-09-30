@@ -161,7 +161,6 @@ class ReportController extends Controller
         $resolved = Complaint::where('complaint_status', 'resolved')->count();
 
         return Inertia::render('prefect/report', [
-            'user' => auth()->user(),
             'incident' => $incident,
             'incident_line_graph' => $monthlyCounts,
             'incident_trend_series' => $incidentTrendByType['series'],
@@ -217,7 +216,6 @@ class ReportController extends Controller
     public function itrcIndex()
     {
         return Inertia::render('itrc/report', [
-            'user' => auth()->user(),
             'students' => User::with(['profile', 'program', 'teachingStaff.program', 'parent'])->get(),
             'action_log_list' => self::getAllActionLogs(),
             'statistics' => self::buildAccountStatistics('date', null, null, null, null),

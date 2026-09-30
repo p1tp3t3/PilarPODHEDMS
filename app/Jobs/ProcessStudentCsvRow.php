@@ -42,6 +42,7 @@ class ProcessStudentCsvRow implements ShouldQueue
         $this->total = $total;
         $this->activate = $activate;
         $this->userId = $userId;
+        $this->onQueue('csv-processing');
     }
 
     public function handle(): void

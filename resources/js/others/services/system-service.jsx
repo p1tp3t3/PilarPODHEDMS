@@ -9,6 +9,12 @@ export const SystemService = {
     notifyMaintenance(message, success, error) {
         sendData("/maintenance/notify", { message }, success, error);
     },
+    scheduleMaintenanceMode(startsAt, message, success, error) {
+        sendData("/maintenance/mode/schedule", { starts_at: startsAt, message }, success, error);
+    },
+    cancelScheduledMaintenanceMode(success, error) {
+        sendData("/maintenance/mode/schedule/cancel", {}, success, error);
+    },
     getBackups(setter) {
         const api = new APIRequest("/maintenance/backups", "get", {}, setter);
         api.fetchData();

@@ -19,6 +19,7 @@ class NotifyViolationRiskProgram implements ShouldQueue
     {
         $this->email = $email;
         $this->data = $data;
+        $this->onQueue('notifications');
     }
 
     /**

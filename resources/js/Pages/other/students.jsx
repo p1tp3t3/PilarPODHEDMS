@@ -22,7 +22,7 @@ const enrollmentCsvColumns = [
 
 const Students = (props) => {
     const fileName = props.file_name
-    const isSuperAdmin = props.user?.role === "super_admin"
+    const isSuperAdmin = props.auth?.user?.role === "super_admin"
     const { loadRegister } = useReload()
 
     const [activeTab, setActiveTab] = useState("list")
@@ -136,7 +136,7 @@ const Students = (props) => {
             closeModal={openCsvProgress}
             batchId={csvBatchId}
             total={csvBatchTotal}
-            userId={props.user?.id}
+            userId={props.auth?.user?.id}
             onDone={closeCsvProgress}
         />
         <div className="w-full py-10">
@@ -160,7 +160,7 @@ const Students = (props) => {
 
                 {activeTab === "list" && (
                     <div className="grid gap-6">
-                        {props.user.user_type == 'administrative' &&
+                        {props.auth.user.user_type == 'administrative' &&
                         <div className="flex justify-end">
                             <a href={`/download/user/account/${fileName}`} download={fileName}>
                                 <Btn>

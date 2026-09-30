@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\Schema;
  * was never migrated). Persists what GenerateReportJob produces so the
  * prefect can browse/re-download past reports instead of regenerating the
  * same thing — filters_hash lets the frontend check for a duplicate before
- * dispatching a new job.
+ * dispatching a new job. The file itself isn't tracked here — its name is
+ * derived deterministically from the row's own id (see
+ * GenerateReportJob::finalizeFileName / GenerateAccountStatisticsReportJob).
  */
 return new class extends Migration
 {
@@ -19,13 +21,11 @@ return new class extends Migration
             $table->id();
             // Not prefect-specific — super_admin can generate reports too.
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete()->cascadeOnUpdate();
-            $table->string('report_number')->unique();
             $table->string('report_name');
             $table->string('report_type');
             $table->string('file_type');
             $table->json('filters')->nullable();
             $table->string('filters_hash', 32)->nullable();
-            $table->string('file_name');
             $table->timestamp('created_at')->useCurrent();
 
             $table->index(['user_id', 'filters_hash']);

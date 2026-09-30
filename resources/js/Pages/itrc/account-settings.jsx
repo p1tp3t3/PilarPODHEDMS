@@ -21,7 +21,7 @@ const UserAccountSettings = (props) => {
                 </div>
 
                 <AccountSettingsForm
-                    user={props.user}
+                    user={props.auth.user}
                     targetAccount={props.otherUserAccount}
                     reload={loadRegister}
                     forceAccountSetup={props.force_account_setup}

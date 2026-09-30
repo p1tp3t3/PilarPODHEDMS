@@ -1,5 +1,7 @@
 import QuantityCard from "@/Components/card/qntty-statistic-card";
 import AuthLayout from "@/Layouts/auth-layout";
+import CurrentSemesterBanner from "@/Components/other/current-semester-banner";
+import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder";
 import "../style.css";
 import AppointmentScheduleList from "@/Components/list/upcoming-sched-list";
 import TabSwitcher from "@/Components/other/tab-switcher";
@@ -31,6 +33,9 @@ const StudentDashboard = (props) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
       >
+        <MaintenanceScheduleReminder />
+        <CurrentSemesterBanner />
+
         {/* === Tab Buttons === */}
         <div className="mb-6">
           <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
@@ -82,7 +87,7 @@ const StudentDashboard = (props) => {
             {/* === Incident Risk & Appointments === */}
             <div className="flex flex-col lg:flex-row gap-5 justify-between">
               <div className="w-full lg:w-1/2">
-                <IncidentRiskCard user_id={props.user.id} />
+                <IncidentRiskCard user_id={props.auth.user.id} />
               </div>
 
               <div className="w-full lg:w-1/2">

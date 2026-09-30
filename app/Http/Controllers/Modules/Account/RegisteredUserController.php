@@ -43,7 +43,6 @@ class RegisteredUserController extends Controller
         $student = new User;
 
         return Inertia::render('itrc/register', [
-            'user' => auth()->user(),
             'authType' => auth()->user()->role,
             'student' => $student->getAllStudent(),
             'program' => Program::select('id', 'name', 'description')->get(),

@@ -179,7 +179,6 @@ class ProfileController extends Controller
         $userId = $account->id;
 
         $props = [
-            'user' => auth()->user(),
             'otherUserProfile' => $account,
             'program' => Program::latest('created_at')->get(['id', 'description']),
             'education_background' => EducationBackground::where('student_id', $userId)

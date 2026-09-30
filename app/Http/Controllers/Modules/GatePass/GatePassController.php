@@ -105,16 +105,12 @@ class GatePassController extends Controller
 
     public function prefectIndex()
     {
-        return Inertia::render('prefect/gatepass', [
-            'user' => auth()->user(),
-        ]);
+        return Inertia::render('prefect/gatepass', []);
     }
 
     public function gatePassApproveUserIndex()
     {
         return Inertia::render('staff/gatepass-approval', [
-            'user' => auth()->user(),
-
             'gatepass_approved_list' => self::getAllGatePass()->get(),
         ]);
     }

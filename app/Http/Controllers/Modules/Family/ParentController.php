@@ -25,7 +25,6 @@ class ParentController extends Controller
         $parentRequests = ParentRegistrationRequest::latest('created_at')->get();
 
         return Inertia::render('itrc/parent-approval-request', [
-            'user' => auth()->user(),
             'parent_requests' => $parentRequests,
         ]);
     }

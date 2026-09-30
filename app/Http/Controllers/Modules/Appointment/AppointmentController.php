@@ -34,9 +34,7 @@ class AppointmentController extends Controller
     public function index(Request $request)
     {
         $isPrefect = (auth()->user()->role == 'sub_admin') ? 'prefect' : 'other';
-        $props = [
-            'user' => auth()->user(),
-        ];
+        $props = [];
         if (auth()->user()->role == 'sub_admin') {
             $props = array_merge($props, [
                 'appointment_request_list' => null,

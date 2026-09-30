@@ -21,7 +21,7 @@ const ComplaintNotification = (props) => {
             (data != '')
             ?
             <NotifDetailCard icon={AlertTriangle} tone="default" title="Complaint Details">
-                <ViewComplaintModal.Body data={data} usr={props.user} />
+                <ViewComplaintModal.Body data={data} usr={props.auth.user} />
             </NotifDetailCard>
             :
             <NotifEmptyState icon={AlertTriangle} message="No Complaint Found" />

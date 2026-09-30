@@ -23,7 +23,7 @@ const StudentRiskPrediction = (props) => {
                     ?
                     (data != '')
                     ?
-                    <ViewStudentIncidentListModal.Body data={data} usr={props.student} reload={loadRegister} type={props.user.user_type} />
+                    <ViewStudentIncidentListModal.Body data={data} usr={props.student} reload={loadRegister} type={props.auth.user.user_type} />
                     :
                     <div className="text-[1.2em] text-gray-500 w-full grid place-items-center h-full">
                         <div className="grid place-items-center">

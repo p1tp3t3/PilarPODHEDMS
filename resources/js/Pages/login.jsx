@@ -52,32 +52,45 @@ const LogInInner = () => {
         setSubmitting(true);
         loadRegister(true, "logo");
 
+        // On success the backend calls Inertia::location(intendedUrl). That
+        // helper only replies with the interceptable 409 + X-Inertia-Location
+        // form when the request is marked as coming from Inertia (the
+        // X-Inertia header below) — otherwise it does a plain 302, which the
+        // browser's XHR layer follows on its own before this code ever sees
+        // it, so the visible page never actually changes. Sending the header
+        // (without switching this page to Inertia's own router) gets the
+        // 409 back, which the .catch() below turns into a real navigation —
+        // landing on whatever route the user was trying to reach before
+        // being sent to log in, or the dashboard if there wasn't one.
+        localStorage.setItem("show-login-success", "1");
+        localStorage.setItem("is-unresolved-complaint-modal-clicked", true);
+
         axios
-            .post(route("log-in"), data)
-            .then((res) => {
-
-                // Show success modal FIRST. It auto-dismisses after 5s (via
-                // the timer arg) so the redirect below fires on its own if
-                // the user doesn't click through — clicking OK still works
-                // as the immediate option.
-                showOutputModal("Login Successfully", "s", () => {
-                    localStorage.setItem("show-login-success", "1");
-                    localStorage.setItem("is-unresolved-complaint-modal-clicked", true)
-                    setData({
-                        username: '',
-                        password: ''
-                    })
-                    loadRegister(false)
-                    window.location.reload();
-                }, null, 5000);
-
-            })
+            .post(route("log-in"), data, { headers: { "X-Inertia": true } })
             .catch((err) => {
+                const redirect = err.response?.headers?.["x-inertia-location"];
+                if (err.response?.status === 409 && redirect) {
+                    // The modal is the feedback from here — drop the
+                    // loading screen the moment it takes over instead of
+                    // leaving both stacked until the redirect fires.
+                    loadRegister(false);
+
+                    // Shown here rather than on the destination page — it
+                    // auto-dismisses after 5s (via the timer arg) so the
+                    // redirect fires on its own if the user doesn't click
+                    // through, immediate click-through still works too.
+                    showOutputModal("Login Successfully", "s", () => {
+                        window.location.href = redirect;
+                    }, null, 5000);
+                    return;
+                }
+
+                localStorage.removeItem("show-login-success");
+                localStorage.removeItem("is-unresolved-complaint-modal-clicked");
                 loadRegister(false);
                 setSubmitting(false);
 
-                const backend = err.response.data;
-                console.log(backend)
+                const backend = err.response?.data || {};
                 setValidationError({
                     username: backend.username || "",
                     password: backend.password || "",

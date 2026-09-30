@@ -16,7 +16,6 @@ class SchoolYearController extends Controller
     public function index()
     {
         return Inertia::render('itrc/school-year', [
-            'user' => auth()->user(),
             'school_years' => self::listWithCounts(),
         ]);
     }

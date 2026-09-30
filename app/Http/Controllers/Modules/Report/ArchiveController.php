@@ -57,7 +57,6 @@ class ArchiveController extends Controller
     public function index()
     {
         return Inertia::render('prefect/archive', [
-            'user' => auth()->user(),
             'document' => self::getDocuments('all'),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
         ]);
@@ -293,6 +292,8 @@ class ArchiveController extends Controller
             'user.profile',
             'user.program',
             'user.enrollments',
+            'user.teachingStaff.program',
+            'user.nonTeachingStaff',
             'subject.profile',
             'subject.program',
             'subject.enrollments',
@@ -324,6 +325,8 @@ class ArchiveController extends Controller
             'user.profile',
             'user.program',
             'user.enrollments',
+            'user.teachingStaff.program',
+            'user.nonTeachingStaff',
             'referredStudent.profile',
             'referredStudent.program',
             'referredStudent.enrollments',

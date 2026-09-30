@@ -23,12 +23,42 @@ class ReferralFactory extends Factory
 {
     public function definition(): array
     {
-        $referrer = User::where('role', 'sub_admin')->inRandomOrder()->first()
-            ?? User::inRandomOrder()->first();
+        $teachingStaff = User::where('role', 'teaching_staff')->inRandomOrder()->first();
+        $subAdmin = User::where('role', 'sub_admin')->inRandomOrder()->first();
+
+        // Most referrals are filed by teaching staff — the normal case,
+        // going through the prefect's pending -> approve/reject workflow.
+        // A prefect filing their own referral is the minority case, and
+        // (per ReferralController::store()) is auto-approved the instant
+        // it's created, so it can never end up pending/rejected/revoked.
+        $referrer = ($teachingStaff && (! $subAdmin || $this->faker->boolean(85)))
+            ? $teachingStaff
+            : ($subAdmin ?? $teachingStaff ?? User::inRandomOrder()->first());
 
         $createdAt = $this->faker->dateTimeBetween('-1 year', 'now');
-        $confirmedAt = Carbon::parse($createdAt)->addDays(rand(1, 5));
-        $status = $this->faker->randomElement(['pending', 'approved', 'approved', 'rejected']);
+
+        if ($referrer?->role === 'sub_admin') {
+            $status = 'approved';
+            $confirmedAt = $createdAt;
+            $rejectedAt = null;
+            $revokedAt = null;
+        } else {
+            $status = $this->faker->randomElement(['pending', 'approved', 'approved', 'rejected', 'revoked']);
+            $confirmedAt = $status === 'approved' ? Carbon::parse($createdAt)->addDays(rand(1, 5)) : null;
+            $rejectedAt = $status === 'rejected' ? Carbon::parse($createdAt)->addDays(rand(1, 5)) : null;
+            // Matches revokeReferral()'s real window — only reachable while
+            // still pending and unconfirmed, so this always happens soon
+            // after filing, never days later.
+            $revokedAt = $status === 'revoked' ? Carbon::parse($createdAt)->addHours(rand(1, 48)) : null;
+        }
+
+        $retentionYears = (int) config('app.archive_retention_years', 5);
+        $archivedAt = match (true) {
+            $confirmedAt !== null => Carbon::parse($confirmedAt)->addYears($retentionYears),
+            $rejectedAt !== null => Carbon::parse($rejectedAt)->addYears($retentionYears),
+            $revokedAt !== null => Carbon::parse($revokedAt)->addYears($retentionYears),
+            default => null,
+        };
 
         // Matches the real "{MMDDYY}{daily-seq}" format from
         // GeneratesSequenceCode/ReferralController.
@@ -41,13 +71,15 @@ class ReferralFactory extends Factory
             'reason_description' => $this->faker->paragraph(2),
             'referral_status' => $status,
             'rejected_reason' => $status === 'rejected' ? $this->faker->sentence(8) : null,
-            'rejected_at' => $status === 'rejected' ? $confirmedAt : null,
+            'rejected_at' => $rejectedAt,
+            'revoked_at' => $revokedAt,
             'send_to_guidance' => $this->faker->boolean(40) ? 1 : 0,
-            'confirmed_at' => $status === 'approved' ? $confirmedAt : null,
-            'archived_at' => $status !== 'pending' ? Carbon::parse($confirmedAt)->addYears(5) : null,
+            'confirmed_at' => $confirmedAt,
+            'archived_at' => $archivedAt,
             'school_year_semester_id' => SchoolYearSemester::idForDate($createdAt),
-            'confirmed_school_year_semester_id' => $status === 'approved' ? SchoolYearSemester::idForDate($confirmedAt) : null,
-            'rejected_school_year_semester_id' => $status === 'rejected' ? SchoolYearSemester::idForDate($confirmedAt) : null,
+            'confirmed_school_year_semester_id' => $confirmedAt ? SchoolYearSemester::idForDate($confirmedAt) : null,
+            'rejected_school_year_semester_id' => $rejectedAt ? SchoolYearSemester::idForDate($rejectedAt) : null,
+            'revoked_school_year_semester_id' => $revokedAt ? SchoolYearSemester::idForDate($revokedAt) : null,
             'created_at' => $createdAt,
         ];
     }

@@ -203,7 +203,7 @@ const PrefectReport = (props) => {
             pd={['px-10', 'py-7']}
             isEnableOuterClose={true}
             complainant={id}
-            usr={props.user}
+            usr={props.auth.user}
         />
         <ViewReferralModal
             close={referral}
@@ -211,7 +211,7 @@ const PrefectReport = (props) => {
             pd={['px-10', 'py-7']}
             isEnableOuterClose={true}
             referralId={id}
-            usr={props.user}
+            usr={props.auth.user}
         />
         <ViewReportModal
             close={viewReport}
@@ -231,7 +231,7 @@ const PrefectReport = (props) => {
             programs={props.programs}
             students={props.students}
             schoolYears={props.school_years}
-            userId={props.user.id}
+            userId={props.auth.user.id}
             editingFilter={editingFilter}
             onSaved={loadReportFilters}
             defaultType={TAB_TO_TYPE[choose] ?? TAB_TO_TYPE[lastReportTab]}
@@ -353,7 +353,7 @@ const PrefectReport = (props) => {
                             incidentTrendSeries={props.incident_trend_series}
                             incidentTrendLabels={props.incident_trend_labels}
                             violationProgram={props.violation_program}
-                            userId={props.user.id}
+                            userId={props.auth.user.id}
                             schoolYears={props.school_years}
                         />}
                         {choose == 'saved-filters' &&

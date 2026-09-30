@@ -81,6 +81,19 @@ const PrefectReferral = (props) => {
             return
         }
 
+        if (type === 'revoke') {
+            showWarningModal(
+                'Are You Sure You Want To Revoke This Referral? This will not delete it, but it will still be visible in the Archives.',
+                'Revoke Referral',
+                'Cancel',
+                () => {
+                    loadRegister(true, 'text-wait', 'Revoking Referral Is Processing')
+                    ReferralService.revoke(id, setter, successRevoke, errorRevoke)
+                }
+            )
+            return
+        }
+
         switch(type) {
             case 'confirm':
                 route = `/referral/verify/${id}/confirm`
@@ -135,6 +148,22 @@ const PrefectReferral = (props) => {
         loadRegister(true, '')
         showOutputModal(
             "Failed to Reject Referral",
+            'e',
+            () => loadRegister(false)
+        )
+    }
+    const successRevoke = () => {
+        loadRegister(true, '')
+        showOutputModal(
+            "Referral Revoked Successfully",
+            's',
+            () => loadRegister(false)
+        )
+    }
+    const errorRevoke = () => {
+        loadRegister(true, '')
+        showOutputModal(
+            "Failed to Revoke Referral",
             'e',
             () => loadRegister(false)
         )

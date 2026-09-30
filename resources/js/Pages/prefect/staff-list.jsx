@@ -23,7 +23,7 @@ const PrefectStaffList = (props) => {
     // (routes/auth.php's /super-admin/staff/position/* group) — this page
     // is shared with the prefect's own staff list, so the action is only
     // shown/wired up when the viewer is actually super_admin.
-    const canManagePosition = props.user.role === "super_admin"
+    const canManagePosition = props.auth.user.role === "super_admin"
     const [positions, setPositions] = useState(props.positions ?? [])
     const [managePositionsModal, openManagePositionsModal] = useState(false)
 

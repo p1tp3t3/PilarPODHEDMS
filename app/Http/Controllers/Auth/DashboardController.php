@@ -20,6 +20,7 @@ use App\Models\TeachingStaff;
 use App\Models\User;
 use App\Models\Violation;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -116,27 +117,18 @@ class DashboardController extends Controller
 
     public function itrcDashboard()
     {
-        $itrcProps = array_merge([
-            'user' => auth()->user(),
-        ], self::getITRCStatistics());
-
-        return Inertia::render('itrc/dashboard', $itrcProps);
+        return Inertia::render('itrc/dashboard', self::getITRCStatistics());
     }
 
     public function studentDashboard()
     {
-        $studentProps = array_merge([
-            'user' => auth()->user(),
-        ], self::getStudentStatistics());
-
-        return Inertia::render('student/dashboard', $studentProps);
+        return Inertia::render('student/dashboard', self::getStudentStatistics());
     }
 
     public function prefectDashboard()
     {
         $appointment = new AppointmentController;
         $prefectProps = array_merge([
-            'user' => auth()->user(),
             'students' => User::with(['program', 'profile', 'enrollments'])
                 ->where('role', 'student')
                 ->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
@@ -158,27 +150,17 @@ class DashboardController extends Controller
 
     public function teachingStaffDashboard()
     {
-        $teachingStaffProps = array_merge([
-            'user' => auth()->user(),
-        ], self::getTeachingStaffStatistics());
-
-        return Inertia::render('teaching-staff/dashboard', $teachingStaffProps);
+        return Inertia::render('teaching-staff/dashboard', self::getTeachingStaffStatistics());
     }
 
     public function nonTeachingStaffDashboard()
     {
-        $staffProps = array_merge([
-            'user' => auth()->user(),
-        ], self::getStaffStatictics());
-
-        return Inertia::render('staff/dashboard', $staffProps);
+        return Inertia::render('staff/dashboard', self::getStaffStatictics());
     }
 
     public function parentDashboard()
     {
-        $parentProps = array_merge([
-            'user' => auth()->user(),
-        ], self::getParentStatistics());
+        $parentProps = self::getParentStatistics();
 
         return Inertia::render('parent/dashboard', $parentProps);
     }
@@ -227,6 +209,8 @@ class DashboardController extends Controller
             'program' => Program::count(),
             'report' => ActionLog::count(),
             'account_total' => $account->count('id'),
+            'total_violation' => Violation::count(),
+            'maintenance_mode' => Cache::get('maintenance_mode', false),
             'bargraph' => array_values($monthlyData),
             'role' => $roles,
             'active' => User::with('profile')
@@ -274,6 +258,7 @@ class DashboardController extends Controller
             'referral' => $referral,
             'archive' => $archivedCount,
             'appointment' => $appointment,
+            'total_violation' => Violation::count(),
             'complaint_piechart' => $complaintPieChart,
             'program' => Program::select(['name', 'color_code'])->get()->toArray(),
             'bargraph' => self::getPrefectBarGraph(),

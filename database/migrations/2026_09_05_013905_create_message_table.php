@@ -18,7 +18,17 @@ return new class extends Migration
             $table->id();
             $table->foreignId('sender_id')->constrained('users')->cascadeOnDelete()->cascadeOnUpdate();
             $table->foreignId('receiver_id')->constrained('users')->cascadeOnDelete()->cascadeOnUpdate();
+            $table->foreignId('reply_to_id')->nullable()->constrained('message')->nullOnDelete()->cascadeOnUpdate();
             $table->text('body');
+            // "Unsend" is a soft delete (body kept, just hidden) rather than
+            // a real row delete — so reply_to references from the other
+            // side stay intact and can render an "unsent" placeholder.
+            $table->dateTime('unsent_at')->nullable();
+            // message.body always holds the CURRENT text; every time it's
+            // edited, the text it had right before the edit is archived
+            // into message_edit so both sides can look back at prior
+            // versions instead of the history just being overwritten.
+            $table->dateTime('edited_at')->nullable();
             $table->dateTime('read_at')->nullable();
             $table->timestamp('created_at')->useCurrent();
 

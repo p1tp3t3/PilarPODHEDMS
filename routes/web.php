@@ -40,18 +40,18 @@ Route::post('/contact/{username}', [AccountController::class, 'getContact']);
 Route::get('/forgot-password', [PasswordResetController::class, 'requestIndex'])
 ->name('password.request');
 
-Route::post('/forgot-password/send-link', [PasswordResetController::class, 'sendLink'])
-->name('password.send-link');
+Route::post('/forgot-password/send-otp', [PasswordResetController::class, 'sendOtp'])
+->name('password.send-otp');
 
-Route::get('/reset-password/{username}', [PasswordResetController::class, 'resetForm'])
-->name('password.reset.form');
+Route::post('/forgot-password/verify-otp', [PasswordResetController::class, 'verifyOtp'])
+->name('password.verify-otp');
 
 Route::post('/reset-password/{username}', [PasswordResetController::class, 'reset'])
 ->name('password.reset');
 
 // Still used by account-settings-form.jsx's voluntary "change my password"
-// identity-verification step — unrelated to forgot-password/parent
-// registration, which no longer use OTP at all.
+// identity-verification step — a separate, email-keyed OTP flow from the
+// username-keyed one above used for forgot-password.
 Route::post('/otp/verify', [OTPVerificationController::class, 'verify']);
 
 Route::post('/forgot-password/otp', [OTPVerificationController::class, 'store'])

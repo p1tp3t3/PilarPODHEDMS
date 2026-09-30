@@ -23,7 +23,7 @@ const ReferralNotification = (props) => {
             <NotifDetailCard icon={Share2} tone="default" title="Referral Notification">
                 <div className="w-full space-y-5">
                     <ViewReferralModal.Body data={data} />
-                    {props.user.role == 'staff' &&
+                    {props.auth.user.role == 'staff' &&
                     <>
                     <div>
                         <h1 className="text-[1em]"><b>Message from Prefect:</b></h1>

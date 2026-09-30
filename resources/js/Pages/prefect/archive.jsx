@@ -141,7 +141,7 @@ const PrefectArchive = (props) => {
             pd={['px-10', 'py-7']}
             isEnableOuterClose={true} 
             complainant={id}
-            usr={props.user}
+            usr={props.auth.user}
         />
         <ViewReferralModal 
             close={referral} 

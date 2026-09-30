@@ -10,6 +10,7 @@ use App\Http\Requests\Program\StoreProgramRequest;
 use App\Http\Requests\Program\UpdateProgramRequest;
 use App\Http\Resources\ProgramResource;
 use App\Http\Resources\UserResource;
+use App\Jobs\SendMaintenanceNoticeJob;
 use App\Models\ComplaintSubject;
 use App\Models\ComplaintSubjectViolation;
 use App\Models\Enrollment;
@@ -37,8 +38,8 @@ class MaintenanceController extends Controller
     public function index()
     {
         return Inertia::render('itrc/system-maintenance', [
-            'user' => auth()->user(),
             'maintenance_mode' => Cache::get('maintenance_mode', false),
+            'maintenance_mode_scheduled_at' => Cache::get('maintenance_mode_scheduled_at'),
         ]);
     }
 
@@ -70,7 +71,6 @@ class MaintenanceController extends Controller
             ->get();
 
         return Inertia::render('other/violation-management', [
-            'user' => auth()->user(),
             'violation' => $violations,
             'penalty' => Penalty::latest('created_at')->get(),
             'program' => Program::all(['id', 'name', 'color_code']),
@@ -132,9 +132,49 @@ class MaintenanceController extends Controller
 
         Cache::forever('maintenance_mode', $enabled);
 
+        // Toggling by hand (in either direction) supersedes any pending
+        // schedule — most obviously so once it's already been turned on,
+        // but also if a super admin decides to just flip it on themselves
+        // before the scheduled time, or backs out and turns it off again.
+        Cache::forget('maintenance_mode_scheduled_at');
+
         broadcast(new MaintenanceModeToggled($enabled));
 
         return response()->json(['maintenance_mode' => $enabled]);
+    }
+
+    /**
+     * Schedules maintenance mode to turn itself on at a future date/time
+     * instead of the super admin having to flip the switch by hand at that
+     * moment — ActivateScheduledMaintenanceCommand (scheduled every minute)
+     * is what actually flips it once the time arrives.
+     */
+    public function scheduleMaintenanceMode(Request $request)
+    {
+        if (Cache::get('maintenance_mode', false)) {
+            return response()->json(['message' => 'Maintenance mode is already active.'], 400);
+        }
+
+        $data = $request->validate([
+            'starts_at' => 'required|date|after:now',
+            'message' => 'required|string',
+        ]);
+
+        Cache::forever('maintenance_mode_scheduled_at', $data['starts_at']);
+
+        $notified = self::notifyAllUsers($data['message']);
+
+        return response()->json([
+            'maintenance_mode_scheduled_at' => $data['starts_at'],
+            'notified' => $notified,
+        ]);
+    }
+
+    public function cancelScheduledMaintenanceMode()
+    {
+        Cache::forget('maintenance_mode_scheduled_at');
+
+        return response()->json(['message' => 'success']);
     }
 
     /**
@@ -148,31 +188,33 @@ class MaintenanceController extends Controller
             'message' => 'required|string',
         ]);
 
+        $notified = self::notifyAllUsers($request->message);
+
+        return response()->json(['message' => 'success', 'notified' => $notified]);
+    }
+
+    /**
+     * Shared by notifyMaintenance() (a standalone heads-up) and
+     * scheduleMaintenanceMode() (the same notice sent as part of scheduling
+     * a maintenance window in one step) — notifies every activated user
+     * except the super admin sending it. Queued one job per recipient
+     * (SendMaintenanceNoticeJob) instead of notifying everyone inline, so
+     * this request doesn't block on hundreds of DB inserts/broadcasts/
+     * web-pushes.
+     */
+    private function notifyAllUsers(string $message): int
+    {
+        $senderId = auth()->id();
+
         $userIds = User::where('activate', true)
-            ->where('id', '!=', auth()->id())
+            ->where('id', '!=', $senderId)
             ->pluck('id');
 
         foreach ($userIds as $userId) {
-            notify_single_user(
-                [
-                    'sender_id' => auth()->id(),
-                    'receiver_id' => $userId,
-                    'notif_type' => 'maintenance_notice',
-                    'content' => json_encode([
-                        'sender_notif_message' => 'Sent a maintenance notice to all users.',
-                        'receiver_notif_message' => $request->message,
-                    ]),
-                ],
-                [
-                    'title' => 'Scheduled Maintenance Notice',
-                    'body' => strip_tags($request->message),
-                    'url' => '',
-                    'icon' => '',
-                ]
-            );
+            SendMaintenanceNoticeJob::dispatch($senderId, $userId, $message);
         }
 
-        return response()->json(['message' => 'success', 'notified' => $userIds->count()]);
+        return $userIds->count();
     }
 
     /**
@@ -222,18 +264,46 @@ class MaintenanceController extends Controller
                 'version' => $dbVersion,
                 'size' => $dbSize,
             ],
+            'queues' => $this->getQueueInfo(),
         ]);
     }
 
     /**
-     * `free` on Linux, PowerShell's Get-CimInstance on Windows (wmic is
-     * deprecated/removed on newer Windows). Deliberately shells out rather
-     * than reading /proc/meminfo directly — that file is commonly blocked
-     * by open_basedir in hardened PHP-FPM pools, while a separate `free`
-     * process isn't subject to PHP's own restriction. This page is
-     * super_admin-only with fixed command strings (no user input reaches
-     * the shell), so shelling out here is safe. Degrades gracefully to
-     * "unavailable" if the command isn't there or its output can't be parsed.
+     * Pending/failed job counts grouped by queue name — jobs are now
+     * dispatched onto named queues by purpose (notifications, reports,
+     * csv-processing) instead of the single default queue, so an admin can
+     * see at a glance what kind of work is backed up.
+     */
+    private function getQueueInfo(): array
+    {
+        $pending = DB::table('jobs')
+            ->selectRaw('queue, count(*) as count')
+            ->groupBy('queue')
+            ->pluck('count', 'queue');
+
+        $failed = DB::table('failed_jobs')
+            ->selectRaw('queue, count(*) as count')
+            ->groupBy('queue')
+            ->pluck('count', 'queue');
+
+        $queueNames = $pending->keys()->merge($failed->keys())->unique()->sort()->values();
+
+        return $queueNames->map(fn ($name) => [
+            'name' => $name,
+            'pending' => $pending[$name] ?? 0,
+            'failed' => $failed[$name] ?? 0,
+        ])->all();
+    }
+
+    /**
+     * Linux: /proc/meminfo first (cheap, no process spawn), falling back to
+     * shelling out to `free` if that file is blocked (open_basedir commonly
+     * restricts it in hardened PHP-FPM pools, but doesn't affect what a
+     * separate `free` process can read). Windows: PowerShell's
+     * Get-CimInstance (wmic is deprecated/removed on newer Windows). This
+     * page is super_admin-only with fixed command strings (no user input
+     * reaches the shell), so shelling out here is safe. Degrades gracefully
+     * to "unavailable" if nothing works.
      */
     private function getMemoryInfo(): array
     {
@@ -247,6 +317,31 @@ class MaintenanceController extends Controller
         |--------------------------------------------------------------------------
         */
         if (PHP_OS_FAMILY === 'Linux') {
+            if (is_readable('/proc/meminfo')) {
+                $meminfo = [];
+                foreach (explode("\n", file_get_contents('/proc/meminfo')) as $line) {
+                    if (preg_match('/^(\w+):\s+(\d+)/', $line, $matches)) {
+                        $meminfo[$matches[1]] = (int) $matches[2] * 1024; // kB -> bytes
+                    }
+                }
+
+                $total = $meminfo['MemTotal'] ?? null;
+                $available = $meminfo['MemAvailable'] ?? $meminfo['MemFree'] ?? null;
+
+                if ($total !== null && $available !== null) {
+                    return [
+                        'available' => true,
+                        'total' => $total,
+                        'used' => $total - $available,
+                        'free' => $total - $available,
+                        'available_memory' => $available,
+                    ];
+                }
+            }
+
+            // /proc/meminfo is commonly blocked by open_basedir in hardened
+            // PHP-FPM pools — fall back to shelling out to `free`, which
+            // isn't subject to PHP's own file-read restriction.
             $output = @shell_exec('free -b 2>/dev/null');
 
             if ($output) {
@@ -351,7 +446,6 @@ class MaintenanceController extends Controller
     public function programIndex()
     {
         return Inertia::render('itrc/program', [
-            'user' => auth()->user(),
             'program' => ProgramResource::collection(self::programsWithUserCount()),
         ]);
     }
@@ -387,7 +481,6 @@ class MaintenanceController extends Controller
             ->get();
 
         return Inertia::render('itrc/program-users', [
-            'user' => auth()->user(),
             'program' => new ProgramResource($program),
             'faculty' => UserResource::collection($faculty),
             'students' => UserResource::collection($students),

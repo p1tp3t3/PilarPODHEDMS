@@ -138,7 +138,7 @@ const StudentEditProfileForm = (props) => {
     }
 
     // Check if the logged-in user is editing someone else's profile
-    const isEditingOtherUser = props.user.id != profileData.user_id;
+    const isEditingOtherUser = props.auth.user.id != profileData.user_id;
 
     // Helper label for messages
     const nameLabel = isEditingOtherUser ? `${profileData.first_name} ${profileData.last_name}'s` : "Your";
@@ -204,7 +204,7 @@ const StudentEditProfileForm = (props) => {
     if (isForceSetup && props.setupStep === 'password') {
         return (
             <AccountSettingsForm
-                user={props.user}
+                user={props.auth.user}
                 targetAccount={props.otherUserProfile}
                 reload={loadRegister}
                 forceAccountSetup={true}
@@ -218,7 +218,7 @@ const StudentEditProfileForm = (props) => {
             <div className="py-5">
                 <div className="bg-white py-5 px-10 shadow-md rounded-md">
                     <EditProfileModal.Body
-                        user={props.user}
+                        user={props.auth.user}
                         data={data}
                         profilePic={profilePic}
                         change={handleChange}

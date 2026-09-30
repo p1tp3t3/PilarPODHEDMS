@@ -31,7 +31,6 @@ class ChatController extends Controller
     public function index()
     {
         return Inertia::render('chat/index', [
-            'user' => auth()->user(),
             'contacts' => $this->getContacts(),
         ]);
     }

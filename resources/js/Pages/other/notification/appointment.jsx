@@ -15,7 +15,7 @@ const AppointmentNotification = (props) => {
   const { loadRegister } = useReload();
   const [data, setData] = useState(props.notif);
   const [data2, setData2] = useState({
-    user_id: props.user.id,
+    user_id: props.auth.user.id,
     reason: ''
   })
 
@@ -26,11 +26,11 @@ const AppointmentNotification = (props) => {
 
   // Student who receives the notification
   const receiver =
-    props.user.id === data.receiver_id &&
-    props.user.role !== "sub_admin";
+    props.auth.user.id === data.receiver_id &&
+    props.auth.user.role !== "sub_admin";
 
   // Prefect who sent the notification
-  const isSender = props.user.id === data.receiver_id;
+  const isSender = props.auth.user.id === data.receiver_id;
 
   // ----------------------------------------
   // FIXED TITLE LOGIC FOR BOTH SCHED & RESCHED
@@ -163,7 +163,7 @@ const AppointmentNotification = (props) => {
         closeModal={setReasonModalOpen}
         pd={["px-10", "py-7"]}
         isEnableOuterClose={true}
-        user_id={props.user.user_id}
+        user_id={props.auth.user.user_id}
         data={data2}
         setData={setData2}
         decline_title={

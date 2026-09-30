@@ -144,29 +144,9 @@ const PrefectComplaint = (props) => {
       }
 
   const handleAction = (type) => {
-    let route = '',
-        confirmTxt = '',
-        confirm = false,
-        label = '',
-        btn = ''
-        
-    switch(type) {
-        case 'approve':
-            confirmTxt = 'Approving the Complaint'
-            label = 'Are You Sure You Want To Approve The Selected Complaint?'
-            btn = 'Approve Complaint'
-            confirm = true
-            break
-        case 'reject':
-            confirmTxt = 'Rejecting the Complaint'
-            label = 'Are You Sure You Want To Reject The Selected Complaint?'
-            btn = 'Reject Complaint'
-            confirm = false
-            break
-    }
     showWarningModal(
-        label,
-        btn,
+        'Are You Sure You Want To Approve The Selected Complaint?',
+        'Approve Complaint',
         'Cancel',
         () => {
             const checkboxes = document.querySelectorAll(
@@ -174,10 +154,9 @@ const PrefectComplaint = (props) => {
             );
             const ids = Array.from(checkboxes).map((checkbox) => checkbox.value);
             const param = new URLSearchParams(window.location.search);
-            const callBack = (confirm) ? successConfirm : successCancel
 
-            loadRegister(true, "text-wait", confirmTxt)
-            ComplaintService.bulkAction(type, ids, param.get("page") || 1, setter, callBack, error)
+            loadRegister(true, "text-wait", 'Approving the Complaint')
+            ComplaintService.bulkAction(type, ids, param.get("page") || 1, setter, successConfirm, error)
         }
     )
   }
@@ -348,17 +327,11 @@ const PrefectComplaint = (props) => {
                         <label htmlFor="select-all">Select All</label>
                       </div>
                       <div className="flex gap-2 text-[0.9em]">
-                        <ActionBtn 
+                        <ActionBtn
                             className={"bg-green-600 text-white hover:bg-green-700"}
                             onClick={() => handleAction('approve')}
                         >
                             Approve
-                        </ActionBtn>
-                        <ActionBtn 
-                            className={"bg-red-600 text-white hover:bg-red-700"}
-                            onClick={() => handleAction('reject')}
-                        >
-                            Reject
                         </ActionBtn>
                       </div>
                     </div>

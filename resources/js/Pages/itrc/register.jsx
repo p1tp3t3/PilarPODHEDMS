@@ -368,7 +368,7 @@ const Register = (props) => {
             closeModal={openCsvProgress}
             batchId={csvBatchId}
             total={csvBatchTotal}
-            userId={props.user?.id}
+            userId={props.auth?.user?.id}
             onDone={closeCsvProgress}
         />
         <NormalValidationModal

@@ -14,7 +14,7 @@ class ProcessGatePassExpirationNotificationJob implements ShouldQueue
      */
     public function __construct()
     {
-        //
+        $this->onQueue('notifications');
     }
 
     /**

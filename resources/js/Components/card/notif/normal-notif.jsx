@@ -15,9 +15,10 @@ const NormalNotif = ({ obj }) => {
            <div className="grid gap-2">
                <div className="flex gap-2 items-center">
                    <div className="w-full flex flex-col gap-1">
-                       <p className={`text-[0.8em] ${(obj.read_since == null) ? 'font-[600]' : 'text-gray-600'}`}>
-                            {content.receiver_notif_message}
-                       </p>
+                       <p
+                           className={`text-[0.8em] ${(obj.read_since == null) ? 'font-[600]' : 'text-gray-600'}`}
+                           dangerouslySetInnerHTML={{ __html: content.receiver_notif_message }}
+                       />
                    </div>
                    <div className="text-[0.7em] w-[0.8rem] h-[0.8rem] self-center relative">        
                        {(obj.read_since == null) &&

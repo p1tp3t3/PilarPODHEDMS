@@ -36,6 +36,7 @@ class ProcessEnrollmentUpdateCsvRow implements ShouldQueue
         $this->rowIndex = $rowIndex;
         $this->total = $total;
         $this->userId = $userId;
+        $this->onQueue('csv-processing');
     }
 
     public function handle(): void

@@ -1,7 +1,9 @@
 import AuthLayout from "@/Layouts/auth-layout";
 import QuantityCard from "@/Components/card/qntty-statistic-card";
 import AvailabilityList from "@/Components/list/availability-list";
-import '../style.css'   
+import CurrentSemesterBanner from "@/Components/other/current-semester-banner";
+import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder";
+import '../style.css'
 import PendingRequestList from "@/Components/list/pending-request-list";
 import AppointmentScheduleList from "@/Components/list/upcoming-sched-list";
 import { Link } from "@inertiajs/react";
@@ -21,6 +23,9 @@ const ParentDashboard = (props) => {
     ]
     return (
             <div className="w-full py-10">
+                <MaintenanceScheduleReminder />
+                <CurrentSemesterBanner />
+
                 <div className="w-full flex gap-5">
                     <div className="w-full flex flex-col gap-5 pt-6">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

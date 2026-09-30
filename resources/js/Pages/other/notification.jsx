@@ -25,7 +25,7 @@ const Notification = (props) => {
         if(choose != type) {
             setNotifList(null)
             setChoose(type)
-            NotificationService.list(type, props.user.id, 10, (e) => setNotifList(e.notif))
+            NotificationService.list(type, props.auth.user.id, 10, (e) => setNotifList(e.notif))
         }
     }
     const deleteNotif = (e) => {
@@ -46,7 +46,7 @@ const Notification = (props) => {
         })
     }
     const handlePaginate = () => {
-        NotificationService.list(choose, props.user.id, notif_list.length + 10, (e) => {
+        NotificationService.list(choose, props.auth.user.id, notif_list.length + 10, (e) => {
             setNotifList(e.notif)
             setSize(e.size)
         })

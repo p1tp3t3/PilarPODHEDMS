@@ -133,12 +133,12 @@ const PrefectAppointment2 = (props) => {
         pd={["px-5", "py-7"]}
         isEnableOuterClose={true}
         date={date}
-        id={props.user.id}
+        id={props.auth.user.id}
         reload={(r, t, l) => {
           loadRegister(r, t, l);
           if (t === "") setRefreshKey((k) => k + 1);
         }}
-        user_type={props.user.role}
+        user_type={props.auth.user.role}
         student_parent_list={props.student_parent_list}
         isValid={isValid}
         reschedUser={selectedUser}

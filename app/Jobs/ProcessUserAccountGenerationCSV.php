@@ -41,6 +41,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
         $this->activate = $activate;
         $this->userId = $userId;
         $this->date = $date;
+        $this->onQueue('csv-processing');
     }
 
     public function handle(): void

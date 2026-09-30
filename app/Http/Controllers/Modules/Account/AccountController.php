@@ -79,7 +79,6 @@ class AccountController extends Controller
 
         $props = $programHead
                  ? array_merge([
-                     'user' => auth()->user(),
                      'students' => [
                          'data' => self::getStudent(),
                      ],
@@ -91,7 +90,6 @@ class AccountController extends Controller
                      'school_years_full' => $schoolYearsFull,
                  ])
                  : [
-                     'user' => auth()->user(),
                      'students' => [
                          'data' => self::getStudent(),
                      ],
@@ -299,13 +297,11 @@ class AccountController extends Controller
 
         $props = $programHead
                  ? array_merge([
-                     'user' => auth()->user(),
                      'faculty' => self::getFaculty(),
                      'program_name' => is_program_head(),
                      'file_name' => "faculty-account-{$programHead->program_id}-{$programHead->program->name}.csv",
                  ])
                  : [
-                     'user' => auth()->user(),
                      'faculty' => self::getFaculty(),
                      'program_name' => is_program_head(),
                      'program' => Program::all(['id', 'name']),
@@ -377,7 +373,6 @@ class AccountController extends Controller
     public function staffListIndex()
     {
         return Inertia::render('prefect/staff-list', [
-            'user' => auth()->user(),
             'staff' => self::getStaffList(),
             'programs' => Program::all(['id', 'name']),
             'positions' => Position::orderBy('name')->get(),
@@ -387,7 +382,6 @@ class AccountController extends Controller
     public function parentListIndex()
     {
         return Inertia::render('prefect/parent-list', [
-            'user' => auth()->user(),
             'parents' => self::getParentList(),
         ]);
     }
@@ -405,7 +399,6 @@ class AccountController extends Controller
         $tab = request('tab', 'student');
 
         $props = [
-            'user' => auth()->user(),
             'tab' => $tab,
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
             'school_years_full' => SchoolYear::orderByDesc('year')->get(['id', 'year']),
@@ -603,7 +596,6 @@ class AccountController extends Controller
         }
 
         return Inertia::render('other/program-account-files', [
-            'user' => auth()->user(),
             'program_name' => is_program_head(),
             'students' => ['data' => self::getStudent()],
             'faculty' => self::getFaculty(),
@@ -616,7 +608,6 @@ class AccountController extends Controller
         $familyId = FamilyMember::where('member_id', auth()->user()->id)->value('family_id');
 
         return Inertia::render('parent/children-monitoring', [
-            'user' => auth()->user(),
             'children' => UserResource::collection(User::with(['profile', 'program', 'enrollments'])
                 ->whereIn('id', FamilyMember::where('family_id', $familyId)->pluck('member_id'))
                 ->where('role', 'student')
@@ -626,15 +617,12 @@ class AccountController extends Controller
 
     public function userRequestMonitoring()
     {
-        return Inertia::render('itrc/user-request-monitoring', [
-            'user' => auth()->user(),
-        ]);
+        return Inertia::render('itrc/user-request-monitoring', []);
     }
 
     public function accountSettingsIndex($id)
     {
         $props = [
-            'user' => auth()->user(),
             'program_name' => is_program_head(),
             'otherUserAccount' => new UserResource(User::with('profile')->where('username', $id)->first()),
         ];
@@ -788,9 +776,7 @@ class AccountController extends Controller
 
     public function accountSettings()
     {
-        return Inertia::render('other/account-settings', [
-            'user' => auth()->user(),
-        ]);
+        return Inertia::render('other/account-settings', []);
     }
 
     public function toggle($username, Request $request)

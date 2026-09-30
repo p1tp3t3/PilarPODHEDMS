@@ -140,67 +140,40 @@ const ComplaintList = ({
         },
       },
       {
+        // A single column whose content adapts to each row's own status,
+        // rather than one that only made sense for whichever tab happened
+        // to be active — the "All Complaints" tab mixes every status
+        // together, so "Reported Since" alone was misleading for anything
+        // past pending (an ongoing complaint's most relevant date is when
+        // it was confirmed, a rejected one's is when it was rejected, etc).
         field: "created_at",
-        headerName: "Reported Since",
+        headerName: "Date",
         width: 200,
-        renderCell: (params) => (
-          <div className="leading-tight py-2">
-            <div>{`${readableDate(params.value)} (${readableTime(params.value)})`}</div>
-            {formatSchoolYearSemester(params.row.school_year_semester) && (
-              <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.school_year_semester)}</div>
-            )}
-          </div>
-        ),
+        renderCell: (params) => {
+          const row = params.row;
+          const byStatus = {
+            rejected: { label: "Rejected Since", date: row.rejected_at, sem: row.rejected_school_year_semester },
+            revoked: { label: "Revoked Since", date: row.revoked_at, sem: row.revoked_school_year_semester },
+            ongoing: { label: "Confirmed Since", date: row.confirmed_at, sem: row.confirmed_school_year_semester },
+            resolved: { label: "Confirmed Since", date: row.confirmed_at, sem: row.confirmed_school_year_semester },
+          };
+          const { label, date, sem } = byStatus[row.complaint_status] ?? {
+            label: "Reported Since",
+            date: row.created_at,
+            sem: row.school_year_semester,
+          };
+          return (
+            <div className="leading-tight py-2">
+              <div className="text-[0.7em] font-semibold text-gray-500">{label}</div>
+              <div>{`${readableDate(date)} (${readableTime(date)})`}</div>
+              {formatSchoolYearSemester(sem) && (
+                <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(sem)}</div>
+              )}
+            </div>
+          );
+        },
       }
     );
-
-    if (statusQuery === "ongoing" && type === 'prefect') {
-      cols.push({
-        field: "confirmed_at",
-        headerName: "Confirmed Since",
-        width: 200,
-        renderCell: (params) => (
-          <div className="leading-tight py-2">
-            <div>{`${readableDate(params.value)} (${readableTime(params.value)})`}</div>
-            {formatSchoolYearSemester(params.row.confirmed_school_year_semester) && (
-              <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.confirmed_school_year_semester)}</div>
-            )}
-          </div>
-        ),
-      });
-    }
-
-    if (statusQuery === "rejected" && type === 'prefect') {
-      cols.push({
-        field: "rejected_at",
-        headerName: "Rejected Since",
-        width: 200,
-        renderCell: (params) => (
-          <div className="leading-tight py-2">
-            <div>{`${readableDate(params.value)} (${readableTime(params.value)})`}</div>
-            {formatSchoolYearSemester(params.row.rejected_school_year_semester) && (
-              <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.rejected_school_year_semester)}</div>
-            )}
-          </div>
-        ),
-      });
-    }
-
-    if (statusQuery === "revoked" && type === 'prefect') {
-      cols.push({
-        field: "revoked_at",
-        headerName: "Revoked Since",
-        width: 200,
-        renderCell: (params) => (
-          <div className="leading-tight py-2">
-            <div>{`${readableDate(params.value)} (${readableTime(params.value)})`}</div>
-            {formatSchoolYearSemester(params.row.revoked_school_year_semester) && (
-              <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(params.row.revoked_school_year_semester)}</div>
-            )}
-          </div>
-        ),
-      });
-    }
 
     // Action column
     cols.push({

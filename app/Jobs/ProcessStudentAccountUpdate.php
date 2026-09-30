@@ -23,6 +23,7 @@ class ProcessStudentAccountUpdate implements ShouldQueue
     {
         $this->csvPath = $csvPath;
         $this->schoolYear = $schoolYear;
+        $this->onQueue('csv-processing');
     }
 
     /**

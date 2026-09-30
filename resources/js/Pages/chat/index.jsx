@@ -1,6 +1,6 @@
 import AuthLayout from "@/Layouts/auth-layout"
 import { useState, useEffect, useRef, useContext } from "react"
-import { Head } from "@inertiajs/react"
+import { Head, usePage } from "@inertiajs/react"
 import ProfilePic from "@/Components/other/profile-pic"
 import { getProfilePic, readableDate, readableTime, toTitleCase, showUserType, showWarningModal, checkActiveStatus, readableActiveDuration } from "@/others/function"
 import { ChatService } from "@/others/services/chat-service"
@@ -16,7 +16,12 @@ import { Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material"
 // contacts are always just the admin(s), already fully listed.
 const isAdminRole = (role) => role === 'sub_admin' || role === 'super_admin'
 
-const Chat = ({ user, contacts: initialContacts }) => {
+const Chat = ({ contacts: initialContacts }) => {
+    // ChatController::index() no longer passes its own `user` prop — it
+    // reads from the shared `auth.user` prop instead (HandleInertiaRequests),
+    // the same one AuthLayout itself uses.
+    const { props } = usePage()
+    const user = props.auth?.user
     const { isUserOnline } = useContext(AuthContext)
     const [contacts, setContacts] = useState(initialContacts || [])
     const [activeId, setActiveId] = useState(null)

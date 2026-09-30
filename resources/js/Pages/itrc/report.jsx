@@ -59,7 +59,7 @@ const ITRCReport = (props) => {
             <AccountStatistics
                 initial={props.statistics}
                 schoolYears={props.school_years ?? []}
-                userId={props.user?.id}
+                userId={props.auth?.user?.id}
             />}
 
             {tab === "action-log" &&

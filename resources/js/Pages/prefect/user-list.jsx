@@ -51,7 +51,7 @@ const PrefectUserList = (props) => {
     const staffType = params.get("type") ?? "teaching"
     const staffProgram = params.get("program") ?? ""
     const staffPosition = params.get("position") ?? ""
-    const canManagePosition = props.user.role === "super_admin"
+    const canManagePosition = props.auth.user.role === "super_admin"
     const [positions, setPositions] = useState(props.positions ?? [])
     const [managePositionsModal, openManagePositionsModal] = useState(false)
 
