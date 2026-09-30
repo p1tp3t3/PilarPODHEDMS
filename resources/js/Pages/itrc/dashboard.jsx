@@ -2,6 +2,7 @@ import AuthLayout from "@/Layouts/auth-layout";
 import QuantityCard from "@/Components/card/qntty-statistic-card";
 import CurrentSemesterBanner from "@/Components/other/current-semester-banner";
 import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder";
+import CurrentDateTime from "@/Components/other/current-datetime";
 import SystemInfoPanel from "@/Components/other/system-info-panel";
 import "../style.css";
 import BarGraph from "@/Components/card/bar-graph-statistic-card";
@@ -111,6 +112,7 @@ const ITRCDashboard = (props) => {
           {activeTab === "overview" && (
           <div className="w-full flex flex-col gap-6 lg:gap-8">
           <div className="-mb-4 lg:-mb-6">
+            <CurrentDateTime />
             <CurrentSemesterBanner />
           </div>
 

@@ -2,6 +2,7 @@ import AuthLayout from "@/Layouts/auth-layout";
 import QuantityCard from "@/Components/card/qntty-statistic-card";
 import CurrentSemesterBanner from "@/Components/other/current-semester-banner";
 import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder";
+import CurrentDateTime from "@/Components/other/current-datetime";
 import '../style.css'
 import PendingRequestList from "@/Components/list/pending-request-list";
 import AvailabilityList from "@/Components/list/availability-list";
@@ -12,6 +13,7 @@ const NonTeachingStaffDashboard = (props) => {
     return (
             <div className="w-full py-10">
                 <MaintenanceScheduleReminder />
+                <CurrentDateTime />
                 <CurrentSemesterBanner />
 
                 <div className="w-full flex gap-5">

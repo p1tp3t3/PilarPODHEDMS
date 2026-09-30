@@ -3,6 +3,7 @@ import QuantityCard from "@/Components/card/qntty-statistic-card";
 import AvailabilityList from "@/Components/list/availability-list";
 import CurrentSemesterBanner from "@/Components/other/current-semester-banner";
 import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder";
+import CurrentDateTime from "@/Components/other/current-datetime";
 import '../style.css'
 import PendingRequestList from "@/Components/list/pending-request-list";
 import AppointmentScheduleList from "@/Components/list/upcoming-sched-list";
@@ -24,6 +25,7 @@ const ParentDashboard = (props) => {
     return (
             <div className="w-full py-10">
                 <MaintenanceScheduleReminder />
+                <CurrentDateTime />
                 <CurrentSemesterBanner />
 
                 <div className="w-full flex gap-5">

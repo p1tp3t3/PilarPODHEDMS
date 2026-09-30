@@ -18,6 +18,7 @@ import TabSwitcher from "@/Components/other/tab-switcher"
 import UnresolvedComplaintModal from "@/Components/modal/validation/unresolved-complaint-modal"
 import CurrentSemesterBanner from "@/Components/other/current-semester-banner"
 import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder"
+import CurrentDateTime from "@/Components/other/current-datetime"
 import { Link, router } from "@inertiajs/react"
 import LatestActiveAccountList from "@/Components/list/latest-active-user-list"
 import OffenseList from "@/Components/list/offense-list"
@@ -218,6 +219,7 @@ const PrefectDashBoard = (props) => {
     <>
         <div className="w-full py-10">
           <MaintenanceScheduleReminder />
+          <CurrentDateTime />
           <CurrentSemesterBanner />
 
           <div>

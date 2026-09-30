@@ -2,6 +2,7 @@ import AuthLayout from "@/Layouts/auth-layout";
 import QuantityCard from "@/Components/card/qntty-statistic-card";
 import CurrentSemesterBanner from "@/Components/other/current-semester-banner";
 import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder";
+import CurrentDateTime from "@/Components/other/current-datetime";
 import "../style.css";
 import LatestActiveAccountList from "@/Components/list/latest-active-user-list";
 import { Head, Link } from "@inertiajs/react";
@@ -22,6 +23,7 @@ const TeachingStaffDashboard = (props) => {
         >
           <div className="w-full flex flex-col gap-6 pt-4">
             <MaintenanceScheduleReminder />
+            <CurrentDateTime />
             <CurrentSemesterBanner />
 
             {/* === STAT CARDS SECTION === */}

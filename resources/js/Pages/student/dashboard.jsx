@@ -2,6 +2,7 @@ import QuantityCard from "@/Components/card/qntty-statistic-card";
 import AuthLayout from "@/Layouts/auth-layout";
 import CurrentSemesterBanner from "@/Components/other/current-semester-banner";
 import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder";
+import CurrentDateTime from "@/Components/other/current-datetime";
 import "../style.css";
 import AppointmentScheduleList from "@/Components/list/upcoming-sched-list";
 import TabSwitcher from "@/Components/other/tab-switcher";
@@ -34,6 +35,7 @@ const StudentDashboard = (props) => {
         transition={{ duration: 0.4, ease: "easeOut" }}
       >
         <MaintenanceScheduleReminder />
+        <CurrentDateTime />
         <CurrentSemesterBanner />
 
         {/* === Tab Buttons === */}
