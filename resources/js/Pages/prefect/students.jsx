@@ -4,7 +4,7 @@ import StudentList from "@/Components/list/student-list"
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import { useState } from "react"
-import { router } from "@inertiajs/react"
+import { Head, router } from "@inertiajs/react"
 
 const PrefectStudents = (props) => {
   const [search, setSearch] = useState("")
@@ -33,6 +33,8 @@ const PrefectStudents = (props) => {
     )
   }
   return (
+    <>
+      <Head title="Student List" />
       <PageLayout title="STUDENT LIST">
           {/* Search + Filters */}
           <div className="flex justify-between">
@@ -66,6 +68,7 @@ const PrefectStudents = (props) => {
             <StudentList list={props.students} />
           </div>
       </PageLayout>
+    </>
   )
 }
 

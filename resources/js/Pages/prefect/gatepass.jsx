@@ -14,6 +14,7 @@ import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
 import { router } from "@inertiajs/react"
 import { showOutputModal, showWarningModal } from "@/others/function"
 import { List, Clock, CheckCircle2, XCircle, Ban, Undo2 } from "lucide-react"
+import { Head } from "@inertiajs/react"
 
 const PrefectGatePass = (props) => {
     const url = new URLSearchParams(window.location.search)
@@ -173,7 +174,7 @@ const PrefectGatePass = (props) => {
 
     return (
         <>
-
+            <Head title="Gate Pass" />
             <ViewGatePassModal
                 close={viewGatePass}
                 closeModal={openViewGatePass}

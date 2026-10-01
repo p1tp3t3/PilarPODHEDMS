@@ -16,6 +16,7 @@ import withReactContent from "sweetalert2-react-content"
 import { showWarningModal, showOutputModal } from "@/others/function"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
 import { List, Clock, CheckCircle2, XCircle, Ban, Undo2 } from "lucide-react"
+import { Head } from "@inertiajs/react"
 
 const PrefectAbsentForm = (props) => {
     const MySwal = withReactContent(Swal)
@@ -82,6 +83,7 @@ const PrefectAbsentForm = (props) => {
 
     return (
         <>
+            <Head title="Absent Form" />
             <NoteAbsentFormModal
                 close={noteAbsent}
                 closeModal={openNoteAbsent}

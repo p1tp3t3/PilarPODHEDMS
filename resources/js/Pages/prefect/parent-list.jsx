@@ -1,12 +1,16 @@
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import ParentList from "@/Components/list/parent-list"
+import { Head } from "@inertiajs/react"
 
 const PrefectParentList = (props) => {
     return (
-        <PageLayout title="PARENT LIST">
-                <ParentList list={props.parents} />
-        </PageLayout>
+        <>
+            <Head title="Parent List" />
+            <PageLayout title="PARENT LIST">
+                    <ParentList list={props.parents} />
+            </PageLayout>
+        </>
     )
 }
 

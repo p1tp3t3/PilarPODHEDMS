@@ -9,6 +9,7 @@ import { DataGrid } from "@/Components/other/data-grid";
 import { useEffect, useMemo, useState } from "react";
 import { ShieldHalf, Clock, FolderOpen, GraduationCap, CalendarRange, AlertTriangle } from "lucide-react";
 import axios from "axios";
+import { Head } from "@inertiajs/react";
 
 // offense_issued_at is only set once a prefect actually issues the offense —
 // until then (or in seeded/demo data) it's null. Fall back to whichever
@@ -29,6 +30,8 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
   ]
 
   return (
+        <>
+        <Head title="Student Violation" />
         <PageLayout title="STUDENT VIOLATION">
                 <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm p-5">
                     <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
@@ -74,6 +77,7 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
                     </div>
                 </div>
         </PageLayout>
+        </>
   );
 }
 

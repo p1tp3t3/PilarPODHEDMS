@@ -24,6 +24,7 @@ import TardyReport from "./report/tardy-report"
 import AppointmentReport from "./report/appointment-report"
 import GatePassReport from "./report/gatepass-report"
 import { Plus } from "lucide-react"
+import { Head } from "@inertiajs/react"
 
 const semesterList = [
     { val: 1, label: "1st Semester" },
@@ -190,6 +191,7 @@ const PrefectReport = (props) => {
 
     return (
         <>
+        <Head title="Report" />
         <ViewAbsentFormModal
             close={absent}
             closeModal={openAbsentForm}

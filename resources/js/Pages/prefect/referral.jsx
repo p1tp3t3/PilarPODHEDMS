@@ -16,6 +16,7 @@ import withReactContent from "sweetalert2-react-content"
 import { showOutputModal, showWarningModal } from "@/others/function"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
 import { List, Clock, CheckCircle2, Ban, Undo2 } from "lucide-react"
+import { Head } from "@inertiajs/react"
 
 const PrefectReferral = (props) => {
     const MySwal = withReactContent(Swal)
@@ -180,6 +181,7 @@ const PrefectReferral = (props) => {
 
     return (
         <>
+            <Head title="Referral" />
             <ViewReferralModal
                 close={viewReferral}
                 closeModal={openViewReferral}

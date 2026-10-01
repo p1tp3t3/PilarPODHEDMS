@@ -20,6 +20,7 @@ import ActionBtn from "@/Components/button/action-btn"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
 import IssueViolationModal2 from "@/Components/modal/submission-form/issue-violation-modal2"
 import { List, Clock, RotateCw, Ban, Undo2, X, Check } from "lucide-react"
+import { Head } from "@inertiajs/react"
 
 const PrefectComplaint = (props) => {
   const url = new URLSearchParams(window.location.search)
@@ -213,6 +214,7 @@ const PrefectComplaint = (props) => {
 
   return (
     <>
+      <Head title="Complaint" />
       {/* Modals */}
       <IssueViolationModal2
         close={issueViolation}

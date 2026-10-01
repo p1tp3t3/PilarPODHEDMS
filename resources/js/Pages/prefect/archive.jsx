@@ -15,6 +15,7 @@ import NoteAbsentFormModal from "@/Components/modal/submission-form/note-absent-
 import BulkArchiveModal from "@/Components/modal/submission-form/bulk-archive-modal"
 import Btn from "@/Components/button/normal-btn"
 import DropdownField from "@/Components/input/dropdown"
+import { Head } from "@inertiajs/react"
 
 
 const PrefectArchive = (props) => {
@@ -126,6 +127,7 @@ const PrefectArchive = (props) => {
     }
     return (
         <>
+        <Head title="Archive" />
         <NoteAbsentFormModal
             close={noteAbsent}
             closeModal={openNoteAbsent}

@@ -4,6 +4,7 @@ import AuthLayout from "@/Layouts/auth-layout";
 import SetupLayout from "@/Layouts/setup-layout";
 import AccountSettingsForm from "@/Components/other/account-settings-form";
 import { useReload } from "@/context-provider/reload-provider";
+import { Head } from "@inertiajs/react";
 
 const UserAccountSettings = (props) => {
     const [tab, setTab] = useState("account_settings");
@@ -11,6 +12,7 @@ const UserAccountSettings = (props) => {
 
     return (
         <>
+            <Head title="Account Settings" />
             <div className="w-full md:w-[45rem] mx-auto py-4">
                 <div className="w-full grid gap-5 relative">
                     <div className="flex flex-col sm:flex-row justify-between items-center">

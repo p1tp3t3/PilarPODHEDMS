@@ -10,7 +10,7 @@ import NewUserList from "@/Components/list/new-user-list";
 import "../../Responsive/dashboard-responsive.css";
 import PendingRequestList from "@/Components/list/pending-request-list";
 import { toTitleCase } from "@/others/function";
-import { Link } from "@inertiajs/react";
+import { Head, Link } from "@inertiajs/react";
 import LatestActiveAccountList from "@/Components/list/latest-active-user-list";
 import TabSwitcher from "@/Components/other/tab-switcher";
 import { Broadcast } from "@/others/classes/broadcast-cofiguration";
@@ -79,6 +79,8 @@ const ITRCDashboard = (props) => {
   };
 
   return (
+    <>
+      <Head title="Dashboard" />
       <motion.div
         className="w-full pt-2 sm:pt-3 pb-6 sm:pb-10"
         initial={{ opacity: 0, y: 10 }}
@@ -205,6 +207,7 @@ const ITRCDashboard = (props) => {
           )}
         </div>
       </motion.div>
+    </>
   );
 };
 

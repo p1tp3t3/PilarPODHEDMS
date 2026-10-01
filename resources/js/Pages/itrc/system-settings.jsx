@@ -8,6 +8,7 @@ import { SystemService } from "@/others/services/system-service";
 import { change, showOutputModal } from "@/others/function";
 import TabSwitcher from "@/Components/other/tab-switcher";
 import { useReload } from "@/context-provider/reload-provider";
+import { Head } from "@inertiajs/react";
 
 const SystemSettings = (props) => {
     const [activeTab, setActiveTab] = useState("login_portal");
@@ -15,6 +16,7 @@ const SystemSettings = (props) => {
 
     return (
         <>
+            <Head title="System Settings" />
             <PageLayout title="System Settings">
                     {/* Tabs */}
                     <TabSwitcher

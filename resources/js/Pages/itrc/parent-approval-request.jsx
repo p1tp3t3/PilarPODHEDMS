@@ -6,6 +6,7 @@ import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import { FamilyService } from "@/others/services/family-service"
 import { useState } from "react"
+import { Head } from "@inertiajs/react"
 
 const ParentApprovalRequest = (props) => {
     const [viewParent, openParent] = useState(false),
@@ -71,6 +72,7 @@ const ParentApprovalRequest = (props) => {
 
     return (
         <>
+        <Head title="Parent Request List" />
         <SetReasonModal
             close={rejectReason}
             closeModal={openRejectReason}

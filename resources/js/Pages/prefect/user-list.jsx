@@ -10,6 +10,7 @@ import ManagePositionsModal from "@/Components/modal/submission-form/manage-posi
 import { useState } from "react"
 import { router } from "@inertiajs/react"
 import { GraduationCap, UserRoundCog, Users, Settings } from "lucide-react"
+import { Head } from "@inertiajs/react"
 
 const userTabs = [
     { key: "student", label: "Student List", icon: GraduationCap },
@@ -70,6 +71,7 @@ const PrefectUserList = (props) => {
 
     return (
         <>
+            <Head title="User List" />
             {canManagePosition && tab === "staff" && (
                 <ManagePositionsModal
                     close={managePositionsModal}

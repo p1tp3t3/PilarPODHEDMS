@@ -1,7 +1,7 @@
 import AuthLayout from "@/Layouts/auth-layout";
 import PageLayout from "@/Layouts/page-layout";
 import { useEffect, useState } from "react";
-import { router } from "@inertiajs/react";
+import { Head, router } from "@inertiajs/react";
 import AccountList from "@/Components/list/account-list";
 import AccountFilesTab from "@/Components/other/account-files-tab";
 import TabSwitcher from "@/Components/other/tab-switcher";
@@ -101,6 +101,7 @@ const Accounts = (props) => {
 
   return (
     <>
+      <Head title="User List" />
       <EditUserInfoModal
         close={editUserInfo}
         closeModal={openEditUserInfo}

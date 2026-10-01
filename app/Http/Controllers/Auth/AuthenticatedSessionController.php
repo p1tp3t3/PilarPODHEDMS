@@ -124,7 +124,9 @@ class AuthenticatedSessionController extends Controller
             if (in_array($user->role, $forcedRoles, true) && (! $user->already_update_profile || ! $user->already_update_password)) {
                 $request->session()->put('force_account_setup', true);
 
-                if (! $user->hasVerifiedEmail()) {
+                // Some non_teaching_staff accounts have no email at all
+                // (bulk-uploaded without one) — nothing to verify or send to.
+                if ($user->email && ! $user->hasVerifiedEmail()) {
                     $user->sendEmailVerificationNotification();
                 }
             }

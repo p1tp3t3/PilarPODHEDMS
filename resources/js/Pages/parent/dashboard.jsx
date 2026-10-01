@@ -7,7 +7,7 @@ import CurrentDateTime from "@/Components/other/current-datetime";
 import '../style.css'
 import PendingRequestList from "@/Components/list/pending-request-list";
 import AppointmentScheduleList from "@/Components/list/upcoming-sched-list";
-import { Link } from "@inertiajs/react";
+import { Head, Link } from "@inertiajs/react";
 import { Users, FileText } from "lucide-react";
 
 const ParentDashboard = (props) => {
@@ -23,6 +23,8 @@ const ParentDashboard = (props) => {
         }
     ]
     return (
+        <>
+            <Head title="Dashboard" />
             <div className="w-full py-10">
                 <MaintenanceScheduleReminder />
                 <CurrentDateTime />
@@ -68,9 +70,10 @@ const ParentDashboard = (props) => {
                                 </div>
                             </div>
                         </div>
-                    </div> 
+                    </div>
                 </div>
             </div>
+        </>
     )
 }
 

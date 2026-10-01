@@ -7,6 +7,7 @@ import { showOutputModal, showWarningModal, readableDate, readableTime, parseNot
 import { useState } from "react";
 import { CalendarClock } from "lucide-react";
 import NotifDetailCard from "@/Components/other/notif-detail-card";
+import { Head } from "@inertiajs/react";
 
 const AppointmentNotification = (props) => {
   useMarkNotificationRead();
@@ -157,6 +158,7 @@ const AppointmentNotification = (props) => {
 
   return (
     <>
+      <Head title="Appointment Notification" />
       {/* DECLINE MODAL */}
       <SetAppointmentReasonModal
         close={reasonModalOpen}

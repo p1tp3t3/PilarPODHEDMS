@@ -6,6 +6,7 @@ import { GatePassService } from "@/others/services/gatepass-service"
 import { useState, useEffect, useMemo } from "react"
 import { Paper, IconButton, Tooltip, Typography, Chip } from "@mui/material"
 import { RefreshCw, ShieldCheck } from "lucide-react"
+import { Head } from "@inertiajs/react"
 
 const StaffGatePassVerification = (props) => {
     const [gatepassApprovedList, setGatePassApprovedList] = useState(null),
@@ -58,6 +59,8 @@ const StaffGatePassVerification = (props) => {
     }, [gatepassApprovedList, programFilter, search])
 
     return (
+        <>
+        <Head title="Gate Pass Verification" />
         <div className="w-full py-4 grid gap-5">
             <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-3">
                 <div>
@@ -109,6 +112,7 @@ const StaffGatePassVerification = (props) => {
                 <GatePassApprovedList list={filteredList} />
             </Paper>
         </div>
+        </>
     )
 }
 

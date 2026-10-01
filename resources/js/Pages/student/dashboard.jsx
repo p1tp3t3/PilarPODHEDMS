@@ -7,7 +7,7 @@ import "../style.css";
 import AppointmentScheduleList from "@/Components/list/upcoming-sched-list";
 import TabSwitcher from "@/Components/other/tab-switcher";
 import OffenseList from "@/Components/list/offense-list";
-import { Link } from "@inertiajs/react";
+import { Head, Link } from "@inertiajs/react";
 import IncidentRiskCard from "@/Components/card/incident-risk-card";
 import { useState } from "react";
 import PenaltyList from "@/Components/list/penalty-list";
@@ -28,6 +28,8 @@ const StudentDashboard = (props) => {
   ];
 
   return (
+    <>
+      <Head title="Dashboard" />
       <motion.div
         className="w-full py-10"
         initial={{ opacity: 0, y: 10 }}
@@ -116,6 +118,7 @@ const StudentDashboard = (props) => {
           </div>
         )}
       </motion.div>
+    </>
   );
 };
 

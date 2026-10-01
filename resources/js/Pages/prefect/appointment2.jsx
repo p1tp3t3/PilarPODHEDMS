@@ -10,6 +10,7 @@ import { useReload } from "@/context-provider/reload-provider";
 import { showWarningModal, showOutputModal } from "@/others/function";
 import { Paper, Popover, List, ListItemButton } from "@mui/material";
 import { CalendarPlus, Eye } from "lucide-react";
+import { Head } from "@inertiajs/react";
 
 const PrefectAppointment2 = (props) => {
   const [appointmentId, setAppointmentId] = useState("");
@@ -142,6 +143,7 @@ const PrefectAppointment2 = (props) => {
 
   return (
     <>
+      <Head title="Appointment" />
       <AppointmentModal
         label={formLabel}
         close={appoint}

@@ -11,6 +11,7 @@ import { UserPlus } from "lucide-react";
 import { showOutputModal, showWarningModal, toTitleCase } from "@/others/function";
 import CsvStudentPreviewPage from "@/Components/other/csv-student-preview-page";
 import CsvStudentProgressModal from "@/Components/modal/view/csv-student-progress-modal";
+import { Head } from "@inertiajs/react";
 
 const Register = (props) => {
     const { loadRegister } = useReload();
@@ -363,6 +364,7 @@ const Register = (props) => {
 
     return (
         <>
+        <Head title="User Registration" />
         <CsvStudentProgressModal
             close={csvProgress}
             closeModal={openCsvProgress}

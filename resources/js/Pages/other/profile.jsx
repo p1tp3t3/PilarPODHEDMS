@@ -20,6 +20,7 @@ import GatePassRequestList from "@/Components/list/gatepass-request-list";
 import ViewGatePassModal from "@/Components/modal/view/view-gatepass-modal";
 import AuthLayout from "@/Layouts/auth-layout";
 import TabSwitcher from "@/Components/other/tab-switcher";
+import { Head } from "@inertiajs/react";
 import { motion } from "framer-motion";
 import { User as UserIcon, ShieldAlert, GraduationCap, FileWarning, FileText, CalendarX, DoorOpen, UserPen, Settings } from "lucide-react";
 
@@ -432,6 +433,7 @@ const Profile = (props) => {
 
     return (
         <>
+            <Head title="Profile" />
             {(canEditProfile() && user.role != 'student') &&
             <EditProfileModal
                 profilePic={profilePic}

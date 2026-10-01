@@ -4,7 +4,7 @@ import FormButton from "@/Components/button/button"
 import { change, showOutputModal, showWarningModal } from "@/others/function"
 import { PasswordRecoveryService } from "@/others/services/password-recovery-service"
 import { useEffect, useRef, useState } from "react"
-import { Link } from "@inertiajs/react"
+import { Head, Link } from "@inertiajs/react"
 import { motion } from "framer-motion"
 import { User, Lock } from "lucide-react"
 import shield from "@/images/shield.png"
@@ -120,14 +120,17 @@ const PasswordRecovery = () => {
 }
 
 const Card = ({ children }) => (
-    <div className="flex justify-center items-center bg-gradient-to-br">
-        <motion.div
-            className="w-full max-w-md sm:max-w-lg bg-white rounded-2xl shadow-xl p-6 hover:shadow-2xl"
-            whileHover={{ scale: 1.01 }}
-        >
-            {children}
-        </motion.div>
-    </div>
+    <>
+        <Head title="Password Recovery" />
+        <div className="flex justify-center items-center bg-gradient-to-br">
+            <motion.div
+                className="w-full max-w-md sm:max-w-lg bg-white rounded-2xl shadow-xl p-6 hover:shadow-2xl"
+                whileHover={{ scale: 1.01 }}
+            >
+                {children}
+            </motion.div>
+        </div>
+    </>
 )
 
 const OtpStep = ({ username, maskedEmail, onVerified, onResend }) => {

@@ -5,6 +5,7 @@ import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-re
 import ViewReferralModal from "@/Components/modal/view/view-referral-modal"
 import { Share2 } from "lucide-react"
 import NotifDetailCard, { NotifEmptyState, NotifLoadingState } from "@/Components/other/notif-detail-card"
+import { Head } from "@inertiajs/react"
 
 const ReferralNotification = (props) => {
     useMarkNotificationRead()
@@ -16,7 +17,9 @@ const ReferralNotification = (props) => {
         ReferralService.getReferralInfo(id, setData)
     }, [])
     return  (
-            data != null
+        <>
+            <Head title="Referral Notification" />
+            {data != null
             ?
             (data != '')
             ?
@@ -44,6 +47,8 @@ const ReferralNotification = (props) => {
             <NotifEmptyState icon={Share2} message="No Referral Found" />
             :
             <NotifLoadingState size={5} />
+            }
+        </>
     )
 }
 

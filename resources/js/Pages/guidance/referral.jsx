@@ -3,6 +3,7 @@ import PageLayout from "@/Layouts/page-layout"
 import { useState } from "react"
 import ReferralList from "@/Components/list/referral-list"
 import ViewReferralModal from "@/Components/modal/view/view-referral-modal"
+import { Head } from "@inertiajs/react"
 
 const GuidanceReferral = (props) => {
     const [viewReferral, openViewReferral] = useState(false)
@@ -15,6 +16,7 @@ const GuidanceReferral = (props) => {
 
     return (
         <>
+            <Head title="Referral" />
             <ViewReferralModal
                 close={viewReferral}
                 closeModal={openViewReferral}

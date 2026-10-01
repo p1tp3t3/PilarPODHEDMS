@@ -5,6 +5,7 @@ import { RiskPredictionService } from "@/others/services/risk-prediction-service
 import { useReload } from "@/context-provider/reload-provider"
 import AuthLayout from "@/Layouts/auth-layout"
 import { AlertCircle } from "lucide-react"
+import { Head } from "@inertiajs/react"
 
 const StudentRiskPrediction = (props) => {
     const [data, setData] = useState(null)
@@ -17,6 +18,7 @@ const StudentRiskPrediction = (props) => {
 
     return (
         <>
+            <Head title="Student Risk Prediction" />
             <div className="py-8">
                 <div className="py-8 px-10 bg-white">
                     {data != null

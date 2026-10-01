@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { CalendarX } from "lucide-react"
 import NotifDetailCard, { NotifEmptyState, NotifLoadingState } from "@/Components/other/notif-detail-card"
 import { parseNotifContent } from "@/others/function"
+import { Head } from "@inertiajs/react"
 
 const AbsentNotification  = (props) => {
     const content = parseNotifContent(props.notif.content)
@@ -21,7 +22,9 @@ const AbsentNotification  = (props) => {
 
 
     return (
-                props.notif.confirmed_at == null
+        <>
+            <Head title="Absent Notification" />
+            {props.notif.confirmed_at == null
                 ?
                 ((data != null)
                 ?
@@ -36,6 +39,8 @@ const AbsentNotification  = (props) => {
                 <NotifLoadingState size={5} />)
                 :
                 <NotifEmptyState icon={CalendarX} message="No Absent Form Found" />
+            }
+        </>
     )
 }
 

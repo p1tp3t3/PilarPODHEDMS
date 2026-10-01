@@ -19,7 +19,7 @@ import UnresolvedComplaintModal from "@/Components/modal/validation/unresolved-c
 import CurrentSemesterBanner from "@/Components/other/current-semester-banner"
 import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder"
 import CurrentDateTime from "@/Components/other/current-datetime"
-import { Link, router } from "@inertiajs/react"
+import { Head, Link, router } from "@inertiajs/react"
 import LatestActiveAccountList from "@/Components/list/latest-active-user-list"
 import OffenseList from "@/Components/list/offense-list"
 import PenaltyList from "@/Components/list/penalty-list"
@@ -217,6 +217,7 @@ const PrefectDashBoard = (props) => {
    */
   return (
     <>
+        <Head title="Dashboard" />
         <div className="w-full py-10">
           <MaintenanceScheduleReminder />
           <CurrentDateTime />

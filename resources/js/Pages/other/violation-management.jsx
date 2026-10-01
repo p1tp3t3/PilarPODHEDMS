@@ -10,6 +10,7 @@ import ViolationAccessRequests from "../itrc/maintenance/violation-access-reques
 import { useReload } from "@/context-provider/reload-provider";
 import { ViolationAccessService } from "@/others/services/violation-access-service";
 import PageLayout from "@/Layouts/page-layout";
+import { Head } from "@inertiajs/react";
 
 const ViolationManagement = (props) => {
     const isSuperAdmin = props.auth?.user?.role === 'super_admin';
@@ -58,6 +59,7 @@ const ViolationManagement = (props) => {
 
     return (
         <>
+        <Head title="Violation Management" />
         <SetViolationModal
             close={violation}
             closeModal={openViolation}

@@ -7,6 +7,7 @@ import DropdownField from "@/Components/input/dropdown"
 import ManagePositionsModal from "@/Components/modal/submission-form/manage-positions-modal"
 import Btn from "@/Components/button/normal-btn"
 import { Settings } from "lucide-react"
+import { Head } from "@inertiajs/react"
 
 // 'faculty'/'program_head' live in the same shared positions table but are
 // teaching_staff-only — never assigned to a non_teaching_staff account, so
@@ -59,6 +60,7 @@ const PrefectStaffList = (props) => {
 
     return (
         <>
+            <Head title="Staff List" />
             {canManagePosition && (
                 <ManagePositionsModal
                     close={managePositionsModal}

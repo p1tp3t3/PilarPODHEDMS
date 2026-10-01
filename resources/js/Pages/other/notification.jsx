@@ -7,6 +7,7 @@ import { NotificationService } from "@/others/services/notification-service"
 import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-read"
 import { useState } from "react"
 import { X, Check, Trash2 } from "lucide-react"
+import { Head } from "@inertiajs/react"
 
 const Notification = (props) => {
 
@@ -53,6 +54,8 @@ const Notification = (props) => {
     }
 
     return (
+        <>
+            <Head title="Notifications" />
             <PageLayout title="Notifications">
                     <div>
                         <div className="flex justify-between items-center">
@@ -95,6 +98,7 @@ const Notification = (props) => {
                         </div>
                     </div>
             </PageLayout>
+        </>
     )
 }
 

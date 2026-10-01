@@ -41,9 +41,15 @@ const UploadGuidelines = (props) => {
           { field: "program (Optional)", value: "Optional program assignment", example: "3" },
         ]);
       case "staff":
-        return baseFields.concat([
+        return [
+          { field: "id", value: "School I.D (must start with 'C' followed by digits)", example: "c2210213" },
+          { field: "first_name", value: "Given name of the user", example: "John" },
+          { field: "middle_name", value: "Middle name of the user", example: "Alexander" },
+          { field: "last_name", value: "Surname or family name", example: "Doe" },
+          { field: "sex", value: "Sex", example: "m/f" },
+          { field: "email (Optional)", value: "Email (Optional — some staff don't have one, can be left blank)", example: "email123@gmail.com" },
           { field: "position", value: "Assigned position, by exact name", example: props.positions?.[0]?.name ?? "Guard" },
-        ]);
+        ];
       case "enrollment_update":
         return [
           { field: "id", value: "School I.D of an already-registered student", example: "c2210213" },

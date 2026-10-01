@@ -1,7 +1,7 @@
 import EditProfileModal from "@/Components/modal/submission-form/edit-profile-modal"
 import AccountSettingsForm from "@/Components/other/account-settings-form"
 import { change, getProfilePic, showOutputModal, showWarningModal, splitStr } from "@/others/function";
-import { useForm } from "@inertiajs/react";
+import { Head, useForm } from "@inertiajs/react";
 import { useEffect, useState } from "react";
 import { useReload } from "@/context-provider/reload-provider";
 import { ProfileService } from "@/others/services/profile-service";
@@ -215,6 +215,7 @@ const StudentEditProfileForm = (props) => {
 
     return (
         <>
+            <Head title="Edit Profile" />
             <div className="py-5">
                 <div className="bg-white py-5 px-10 shadow-md rounded-md">
                     <EditProfileModal.Body

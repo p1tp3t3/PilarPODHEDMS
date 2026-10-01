@@ -7,6 +7,7 @@ import SetViolationModal from "@/Components/modal/submission-form/set-violation-
 import AuthLayout from "@/Layouts/auth-layout";
 import PageLayout from "@/Layouts/page-layout";
 import Btn from "@/Components/button/normal-btn";
+import { Head } from "@inertiajs/react";
 
 const ITRCProgram = (props) => {
     const [program, openProgram] = useState(false),
@@ -40,6 +41,7 @@ const ITRCProgram = (props) => {
 
     return (
         <>
+        <Head title="College Programs" />
         <SetProgramModal
             close={program} 
             closeModal={openProgram} 

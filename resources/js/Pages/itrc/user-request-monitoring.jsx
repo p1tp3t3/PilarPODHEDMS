@@ -1,11 +1,15 @@
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
+import { Head } from "@inertiajs/react"
 
 const UserRequestMonitoring = (props) => {
     return (
-        <PageLayout title="User Request Monitoring">
-            {/* Content for user request monitoring goes here */}
-        </PageLayout>
+        <>
+            <Head title="User Request Monitoring" />
+            <PageLayout title="User Request Monitoring">
+                {/* Content for user request monitoring goes here */}
+            </PageLayout>
+        </>
     )
 }
 

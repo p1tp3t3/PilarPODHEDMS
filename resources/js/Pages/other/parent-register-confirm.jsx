@@ -1,9 +1,11 @@
 import GuestLayout from "@/Layouts/guest-layout"
-import { Link } from "@inertiajs/react"
+import { Head, Link } from "@inertiajs/react"
 import { CheckCircle2, ShieldAlert } from "lucide-react"
 
 const ParentRegisterConfirm = (props) => {
     return (
+        <>
+        <Head title="Registration Confirmation" />
         <div className="flex justify-center items-center bg-gradient-to-br">
             <div className="w-full max-w-md sm:max-w-lg bg-white rounded-2xl shadow-xl p-6 text-center grid gap-4">
                 {props.success ? (
@@ -20,6 +22,7 @@ const ParentRegisterConfirm = (props) => {
                 </Link>
             </div>
         </div>
+        </>
     )
 }
 

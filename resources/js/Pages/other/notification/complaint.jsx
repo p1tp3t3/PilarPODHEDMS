@@ -5,6 +5,7 @@ import ViewComplaintModal from "@/Components/modal/view/view-complaint-modal"
 import { ComplaintService } from "@/others/services/complaint-service"
 import { AlertTriangle } from "lucide-react"
 import NotifDetailCard, { NotifEmptyState, NotifLoadingState } from "@/Components/other/notif-detail-card"
+import { Head } from "@inertiajs/react"
 
 const ComplaintNotification = (props) => {
     useMarkNotificationRead()
@@ -16,7 +17,9 @@ const ComplaintNotification = (props) => {
         ComplaintService.getComplaintInfo(id, setData)
     }, [])
     return  (
-            data != null
+        <>
+            <Head title="Complaint Notification" />
+            {data != null
             ?
             (data != '')
             ?
@@ -27,6 +30,8 @@ const ComplaintNotification = (props) => {
             <NotifEmptyState icon={AlertTriangle} message="No Complaint Found" />
             :
             <NotifLoadingState size={5} />
+            }
+        </>
     )
 }
 

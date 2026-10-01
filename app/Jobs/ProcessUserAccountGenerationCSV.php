@@ -76,11 +76,18 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
                     $hashedPassword = Hash::make($plainPassword);
                 }
 
+                // A blank email must be stored as NULL, not '' — the column
+                // is unique, and multiple non_teaching_staff rows (the only
+                // type allowed to omit it) with an empty string would
+                // collide on that constraint, where MySQL allows any number
+                // of NULLs.
+                $email = trim((string) ($csv['email'] ?? ''));
+
                 $userFields = [
                     'id_number' => $id,
                     'role' => $userType,
                     'username' => $username,
-                    'email' => strtolower($csv['email']),
+                    'email' => $email !== '' ? strtolower($email) : null,
                     'activate' => $activate,
                 ];
 
@@ -277,9 +284,11 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
             ],
 
             'non_teaching_staff' => [
+                // Email isn't required here — some non-teaching staff (e.g.
+                // guards) don't have one, unlike students/teaching staff.
                 'required' => [
                     'id', 'first_name', 'middle_name', 'last_name',
-                    'sex', 'email', 'position'
+                    'sex', 'position'
                 ],
                 'extra_validation' => function ($row, $rowNum, &$rowErrors) use ($assignablePositions) {
                     if (empty($row['position'])) {
@@ -326,8 +335,9 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
                 $rowErrors[$rowNum][] = "Row $rowNum: Sex must be 'm' or 'f'.";
             }
 
-            // EMAIL
-            if (!filter_var($row['email'], FILTER_VALIDATE_EMAIL)) {
+            // EMAIL — only validated when actually provided; non_teaching_staff
+            // is the only type where the "required" list above allows it blank.
+            if (trim((string) ($row['email'] ?? '')) !== '' && !filter_var($row['email'], FILTER_VALIDATE_EMAIL)) {
                 $rowErrors[$rowNum][] = "Row $rowNum: Invalid email format.";
             }
 

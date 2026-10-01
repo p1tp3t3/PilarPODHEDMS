@@ -7,6 +7,7 @@ import Btn from "@/Components/button/normal-btn"
 import { readableDate, readableTime, parseNotifContent } from "@/others/function"
 import { UserPlus } from "lucide-react"
 import NotifDetailCard from "@/Components/other/notif-detail-card"
+import { Head } from "@inertiajs/react"
 
 const UserNotification = ({ user, notif }) => {
     useMarkNotificationRead()
@@ -51,6 +52,8 @@ const UserNotification = ({ user, notif }) => {
 
 
     return (
+        <>
+        <Head title="User Notification" />
         <div className="w-full max-w-4xl mx-auto py-6 sm:py-10 space-y-5">
             <NotifDetailCard
                 icon={UserPlus}
@@ -76,6 +79,7 @@ const UserNotification = ({ user, notif }) => {
                 </div>
             )}
         </div>
+        </>
     )
 }
 

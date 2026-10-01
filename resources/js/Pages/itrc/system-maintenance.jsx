@@ -13,6 +13,7 @@ import TabSwitcher from "@/Components/other/tab-switcher";
 import { DataGrid } from "@/Components/other/data-grid";
 import Box from "@mui/material/Box";
 import { Database, Folder, Archive, CalendarClock } from "lucide-react";
+import { Head } from "@inertiajs/react";
 
 const formatBytes = (bytes) => {
     if (!bytes) return "0 B";
@@ -80,6 +81,7 @@ const SystemMaintenance = (props) => {
 
     return (
         <>
+        <Head title="System Maintenance" />
         <ScheduleMaintenanceModal
             close={scheduleModal}
             closeModal={openScheduleModal}

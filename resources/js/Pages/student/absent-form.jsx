@@ -8,7 +8,7 @@ import TabSwitcher from "@/Components/other/tab-switcher"
 import { readableDate, readableTime, showWarningModal, toTitleCase } from "@/others/function"
 import { AbsentFormService } from "@/others/services/absent-form-service"
 import { FileText, Clock, CheckCircle2, XCircle, Ban, FolderOpen } from "lucide-react"
-import { router } from "@inertiajs/react"
+import { Head, router } from "@inertiajs/react"
 
 // revoked_at is deliberately not one of these tab keys — the requester
 // already knows they revoked their own form, so there's no need for a
@@ -94,6 +94,7 @@ const AbsentForm = (props) => {
 
     return (
         <>
+            <Head title="Absent Form" />
             <ViewAbsentFormModal
                 close={viewOpen}
                 closeModal={setViewOpen}

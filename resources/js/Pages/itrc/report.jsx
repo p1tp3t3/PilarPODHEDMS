@@ -4,7 +4,7 @@ import PageLayout from "@/Layouts/page-layout"
 import DropdownField from "@/Components/input/dropdown"
 import Btn from "@/Components/button/normal-btn"
 import TabSwitcher from "@/Components/other/tab-switcher"
-import { router } from "@inertiajs/react"
+import { Head, router } from "@inertiajs/react"
 import { useState } from "react"
 import GenerateActionLogReportMoodal from "@/Components/modal/submission-form/generate-action-log-report-modal"
 import AccountStatistics from "./report/account-statistics"
@@ -45,6 +45,7 @@ const ITRCReport = (props) => {
     };
     return (
         <>
+        <Head title="Report" />
         <GenerateActionLogReportMoodal
             close={report} 
             closeModal={openGenerateReport} 

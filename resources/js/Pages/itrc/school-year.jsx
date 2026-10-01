@@ -11,6 +11,7 @@ import { SchoolYearService } from "@/others/services/school-year-service"
 import { DataGrid } from "@/Components/other/data-grid"
 import { Box } from "@mui/material"
 import { CalendarRange, Pencil } from "lucide-react"
+import { Head } from "@inertiajs/react"
 
 function CustomNoRowsOverlay() {
   return (
@@ -202,6 +203,7 @@ const ITRCSchoolYear = (props) => {
 
     return (
         <>
+            <Head title="School Year" />
             <SetSchoolYearModal
                 close={addSchoolYear}
                 closeModal={openAddSchoolYear}

@@ -4,6 +4,7 @@ import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-re
 import { DoorOpen } from "lucide-react"
 import NotifDetailCard from "@/Components/other/notif-detail-card"
 import { parseNotifContent } from "@/others/function"
+import { Head } from "@inertiajs/react"
 
 const GatePassNotification = (props) => {
     useMarkNotificationRead()
@@ -12,9 +13,12 @@ const GatePassNotification = (props) => {
 
 
     return (
-        <NotifDetailCard icon={DoorOpen} tone="default" title="Gate Pass">
-            <ViewGatePassModal.Body data={content['gatepass']} />
-        </NotifDetailCard>
+        <>
+            <Head title="Gate Pass Notification" />
+            <NotifDetailCard icon={DoorOpen} tone="default" title="Gate Pass">
+                <ViewGatePassModal.Body data={content['gatepass']} />
+            </NotifDetailCard>
+        </>
     )
 }
 
