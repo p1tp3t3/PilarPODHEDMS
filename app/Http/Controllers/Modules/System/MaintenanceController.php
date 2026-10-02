@@ -10,6 +10,7 @@ use App\Http\Requests\Program\StoreProgramRequest;
 use App\Http\Requests\Program\UpdateProgramRequest;
 use App\Http\Resources\ProgramResource;
 use App\Http\Resources\UserResource;
+use App\Jobs\ActivateScheduledMaintenanceJob;
 use App\Jobs\SendMaintenanceNoticeJob;
 use App\Models\ComplaintSubject;
 use App\Models\ComplaintSubjectViolation;
@@ -29,6 +30,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Excel as ExcelFormat;
 use Maatwebsite\Excel\Facades\Excel;
@@ -146,8 +148,12 @@ class MaintenanceController extends Controller
     /**
      * Schedules maintenance mode to turn itself on at a future date/time
      * instead of the super admin having to flip the switch by hand at that
-     * moment — ActivateScheduledMaintenanceCommand (scheduled every minute)
-     * is what actually flips it once the time arrives.
+     * moment. A delayed queue job (ActivateScheduledMaintenanceJob) is the
+     * primary trigger — it fires at the right time regardless of whether a
+     * cron/schedule:run trigger is set up on the server, since it only
+     * needs the queue worker that's already running. The minute-by-minute
+     * ActivateScheduledMaintenanceCommand is kept as a redundant fallback
+     * for whichever server does have a working scheduler.
      */
     public function scheduleMaintenanceMode(Request $request)
     {
@@ -162,6 +168,8 @@ class MaintenanceController extends Controller
 
         Cache::forever('maintenance_mode_scheduled_at', $data['starts_at']);
 
+        ActivateScheduledMaintenanceJob::dispatch()->delay(Carbon::parse($data['starts_at']));
+
         $notified = self::notifyAllUsers($data['message']);
 
         return response()->json([
@@ -175,6 +183,35 @@ class MaintenanceController extends Controller
         Cache::forget('maintenance_mode_scheduled_at');
 
         return response()->json(['message' => 'success']);
+    }
+
+    /**
+     * Turns maintenance mode on if a schedule is still pending and its time
+     * has arrived — shared by ActivateScheduledMaintenanceJob (the delayed
+     * job dispatched from scheduleMaintenanceMode(), the primary trigger)
+     * and ActivateScheduledMaintenanceCommand (the scheduler-based
+     * fallback). Self-validates against the current cache state, so it's
+     * a safe no-op if the schedule was since canceled, rescheduled, or
+     * already activated by the other trigger. Returns whether it activated.
+     */
+    public static function activateScheduledMaintenanceIfDue(): bool
+    {
+        $scheduledAt = Cache::get('maintenance_mode_scheduled_at');
+
+        if (! $scheduledAt || Cache::get('maintenance_mode', false)) {
+            return false;
+        }
+
+        if (now()->lessThan($scheduledAt)) {
+            return false;
+        }
+
+        Cache::forever('maintenance_mode', true);
+        Cache::forget('maintenance_mode_scheduled_at');
+
+        broadcast(new MaintenanceModeToggled(true));
+
+        return true;
     }
 
     /**
