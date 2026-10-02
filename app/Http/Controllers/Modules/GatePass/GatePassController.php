@@ -363,7 +363,7 @@ class GatePassController extends Controller
 
     private function isPrefect()
     {
-        return in_array(auth()->user()->role, ['sub_admin', 'super_admin'], true);
+        return auth()->user()->role == 'sub_admin';
     }
 
     public function getAllGatePassRequest()
