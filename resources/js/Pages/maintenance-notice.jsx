@@ -3,8 +3,25 @@ import { motion } from "framer-motion";
 import { Wrench } from "lucide-react";
 import logo from "@/images/pilar.png";
 import background from "@/images/bg-pilar2.jpg";
+import { useEffect } from "react";
+import { Broadcast } from "@/others/classes/broadcast-cofiguration";
 
 const MaintenanceNotice = () => {
+    // A visitor stuck on this page has no reason to keep refreshing by hand
+    // to find out when the site's back — listen for the same broadcast the
+    // super admin's own toggle/schedule-activation already fires, and send
+    // them back in automatically the moment maintenance mode turns off.
+    useEffect(() => {
+        new Broadcast(
+            'public',
+            'maintenance',
+            'MaintenanceModeToggled',
+            (e) => {
+                if (!e.enabled) window.location.href = '/'
+            }
+        ).configure('maintenance mode status (blocked page)');
+    }, []);
+
     return (
         <>
             <Head title="Under Maintenance" />

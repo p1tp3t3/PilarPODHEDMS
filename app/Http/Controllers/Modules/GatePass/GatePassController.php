@@ -117,14 +117,7 @@ class GatePassController extends Controller
 
     public function gatepassRequest(GatepassRequestRequest $request)
     {
-        $senderName = auth()->user()->profile?->first_name.' '.auth()->user()->profile?->last_name;
         $prefectId = User::where('role', 'sub_admin')->first()?->id;
-        $webpushNotif = [
-            'title' => 'Gate Pass Request',
-            'body' => "$senderName Has Requested a Gate Pass.",
-            'icon' => '',
-            'url' => url('/prefect/gatepass'),
-        ];
         DB::beginTransaction();
         try {
 
@@ -136,7 +129,6 @@ class GatePassController extends Controller
             ]);
             notify_single_user(
                 self::getGatePassRequestNotif($lastIndex, $prefectId),
-                $webpushNotif,
                 new SendGatePass($prefectId)
             );
             ActionLog::create([
@@ -191,17 +183,10 @@ class GatePassController extends Controller
                 'created_at' => $gatepass->created_at,
             ];
 
-            $webpushNotif = [
-                'title' => 'Gate Pass Request',
-                'body' => 'Your Gate Pass Has Been Approved.',
-                'icon' => '',
-                'url' => url('/prefect/gatepass'),
-            ];
             $gatepass = $gatepass->first();
 
             notify_single_user(
                 self::getGatePassResponseNotif($gatepass->user_id, $dataNotif),
-                $webpushNotif,
                 new SendGatePass($gatepass->user_id)
             );
             ActionLog::log(

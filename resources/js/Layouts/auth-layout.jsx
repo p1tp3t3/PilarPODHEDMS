@@ -5,7 +5,7 @@ import '@/Responsive/sidebar-responsive.css'
 import AuthSideBar from "@/Components/sidebar/auth-side-bar";
 import { useEffect } from "react";
 import { usePage } from "@inertiajs/react";
-import { showOutputModal, registerServiceWorker } from "@/others/function";
+import { showOutputModal } from "@/others/function";
 
 const AuthLayout = ({ children, program = '' }) => {
     const path = window.location.pathname
@@ -29,10 +29,6 @@ const AuthLayout = ({ children, program = '' }) => {
         }
     }, [user])
 
-    useEffect(() => {
-        registerServiceWorker(props.vapid_public_key)
-    }, [props.vapid_public_key])
-    
     return (
         <>
         <AuthProvider usr={user} >

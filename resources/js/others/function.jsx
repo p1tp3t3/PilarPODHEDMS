@@ -2,7 +2,6 @@ import axios from "axios";
 import CryptoJS from "crypto-js";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
-import { PushNotificationService } from "./services/push-notification-service";
 
 const MySwal = withReactContent(Swal)
 const cryptoKey = 'gh4mdvcf'
@@ -390,36 +389,6 @@ export const configBroadcast = (
             break
     }
 }
-export const notify = (
-    title, 
-    body, 
-    icon
-) => {
-    const data = {
-        "title": title,
-        "body": body,
-        "icon": icon
-    }
-    sendData(`${getWebLink(null, null, 5000)}/python/webpush`, data)
-    /*
-    if ("Notification" in window) {
-        if (Notification.permission === "granted") {
-            new Notification(title, {
-                body: body,
-                icon: icon,
-            });
-        } else if (Notification.permission !== "denied") {
-            Notification.requestPermission().then(permission => {
-                if (permission === "granted") {
-                    new Notification("Notification", {
-                        body: body,
-                        icon: icon,
-                    });
-                }
-            });
-        }
-    }*/
-}
 export const check = (e, setter, type = 'val') => {
     const name = e.target.name;
     console.log(name)
@@ -680,30 +649,13 @@ export function canEdit(targetRole, userRole) {
     return allowed.includes(targetRole);
 }
 
-export const registerServiceWorker = (vapidPublicKey) => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !vapidPublicKey) return;
+// Best-effort only — browsers block audio playback until the user has
+// interacted with the page at least once, so a rejected play() (e.g. the
+// very first notification before any click) is silently ignored instead
+// of surfacing an error.
+export const playNotificationSound = () => {
+    try {
+        new Audio('/sounds/notif-sound.wav').play().catch(() => {});
+    } catch (e) {}
+}
 
-    navigator.serviceWorker.register("/sw.js");
-    Notification.requestPermission().then((permission)=> {
-        if (permission === 'granted') {
-            // get service worker
-            navigator.serviceWorker.ready.then((sw)=> {
-                // subscribe
-                sw.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: vapidPublicKey
-                }).then((subscription)=> {
-                    const sub = JSON.parse(JSON.stringify(subscription))
-
-                    const data = {
-                        endpoint: sub.endpoint,
-                        public_key: sub.keys.p256dh,
-                        auth: sub.keys.auth
-                    }
-                    const f = e => console.log('go')
-                    PushNotificationService.storeSubscription(data, f, f)
-                }).catch(x => console.log(x));
-            });
-        }
-    });
-};

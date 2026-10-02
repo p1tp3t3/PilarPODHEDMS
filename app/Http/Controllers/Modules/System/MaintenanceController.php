@@ -199,8 +199,7 @@ class MaintenanceController extends Controller
      * a maintenance window in one step) — notifies every activated user
      * except the super admin sending it. Queued one job per recipient
      * (SendMaintenanceNoticeJob) instead of notifying everyone inline, so
-     * this request doesn't block on hundreds of DB inserts/broadcasts/
-     * web-pushes.
+     * this request doesn't block on hundreds of DB inserts/broadcasts.
      */
     private function notifyAllUsers(string $message): int
     {

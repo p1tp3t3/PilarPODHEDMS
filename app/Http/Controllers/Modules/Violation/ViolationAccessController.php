@@ -59,11 +59,6 @@ class ViolationAccessController extends Controller
                     'receiver_notif_message' => auth()->user()->username." is requesting $label.",
                 ]),
                 'read_since' => null,
-            ], [
-                'title' => 'Violation Access Request',
-                'body' => auth()->user()->username." is requesting $label.",
-                'url' => '',
-                'icon' => '',
             ]);
         }
 
@@ -208,11 +203,6 @@ class ViolationAccessController extends Controller
                 'receiver_notif_message' => $message,
             ]),
             'read_since' => null,
-        ], [
-            'title' => 'Violation Access Request',
-            'body' => $message,
-            'url' => '',
-            'icon' => '',
         ]);
     }
 }

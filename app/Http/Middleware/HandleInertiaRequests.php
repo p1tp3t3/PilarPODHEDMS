@@ -54,7 +54,6 @@ class HandleInertiaRequests extends Middleware
             ],
             'app_name' => config('app.name'),
             'force_account_setup' => (bool) session('force_account_setup'),
-            'vapid_public_key' => config('webpush.vapid.public_key'),
             // Shared (not per-dashboard-controller) so every dashboard page
             // can show it without each one needing to remember to query and
             // pass it separately.

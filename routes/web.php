@@ -7,7 +7,6 @@ use App\Http\Controllers\Modules\Account\RegisteredUserController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\OTPVerificationController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::get('/', [AuthenticatedSessionController::class, 'create'])
 ->name('type.user');
@@ -64,10 +63,6 @@ Route::middleware('auth')
 Route::middleware(['auth', 'activate'])
      ->get('/gatepass-verification', [GatePassController::class, 'qrcodeIndex'])
      ->name('gatepass-validation');
-
-Route::get('/webpush', function() {
-     return Inertia::render('test', ['keys' => 't']);
-});
 
 require __DIR__ . '/auth.php';
 

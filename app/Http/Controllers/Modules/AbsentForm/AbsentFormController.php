@@ -119,20 +119,10 @@ class AbsentFormController extends Controller
 
         // Notification (best-effort only)
         try {
-            $sender = auth()->user()->profile?->first_name.' '.auth()->user()->profile?->last_name;
-
-            $webpushNotif = [
-                'title' => 'Absent Form Submission!',
-                'body' => "$sender submits an Absent Form",
-                'icon' => Storage::disk('public')->url('profile-pictures/'.auth()->user()->profile?->profile_picture),
-                'url' => url('/prefect/absent-form'),
-            ];
-
             $prefectId = User::where('role', 'sub_admin')->value('id');
 
             notify_single_user(
-                self::getAbsentFormSubmissionNotifMessage($absenceId, $prefectId),
-                $webpushNotif
+                self::getAbsentFormSubmissionNotifMessage($absenceId, $prefectId)
             );
 
         } catch (\Exception $notifyError) {
@@ -383,19 +373,13 @@ class AbsentFormController extends Controller
             ], 500);
         }
 
-        // --- WebPush (non-critical) ---
+        // --- Notification (non-critical) ---
         try {
             notify_single_user(
-                self::getAbsentFormConfirmationNotifMessage($id, $student->user->id),
-                [
-                    'title' => "Hello {$student->user->profile?->first_name}",
-                    'body' => 'Your Absent Form has been Approved',
-                    'icon' => Storage::disk('public')->url('profile-pictures/'.$student->user->profile?->profile_picture),
-                    'url' => url('/absent-form'),
-                ]
+                self::getAbsentFormConfirmationNotifMessage($id, $student->user->id)
             );
         } catch (\Exception $e) {
-            Log::error("WebPush failed for absence ID {$id}: ".$e->getMessage());
+            Log::error("Notification failed for absence ID {$id}: ".$e->getMessage());
         }
 
         return self::getAllAbsentForm();
@@ -489,19 +473,13 @@ class AbsentFormController extends Controller
             'Rejected the absent form of '.$record->user->profile?->first_name,
             ['status' => ['from' => 'pending', 'to' => 'rejected']]
         );
-        // --- WebPush (non-critical) ---
+        // --- Notification (non-critical) ---
         try {
             notify_single_user(
-                self::getAbsentFormRejectNotifMessage($id, $record->user->id),
-                [
-                    'title' => "Hello {$record->user->profile?->first_name}",
-                    'body' => 'Your Absent Form has been rejected',
-                    'icon' => Storage::disk('public')->url('profile-pictures/'.$record->user->profile?->profile_picture),
-                    'url' => url('/absent-form'),
-                ]
+                self::getAbsentFormRejectNotifMessage($id, $record->user->id)
             );
         } catch (\Exception $e) {
-            Log::error("WebPush failed for absence ID {$id}: ".$e->getMessage());
+            Log::error("Notification failed for absence ID {$id}: ".$e->getMessage());
         }
 
         return self::getAllAbsentForm();

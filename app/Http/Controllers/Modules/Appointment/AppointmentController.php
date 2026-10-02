@@ -158,13 +158,7 @@ class AppointmentController extends Controller
                 'reason' => $request->reason,
             ];
             notify_single_user(
-                self::getAppointmentNotifMessage($data),
-                [
-                    'title' => 'Appointment',
-                    'body' => 'You Have Been Scheduled for an Appointment',
-                    'url' => '',
-                    'icon' => '',
-                ]
+                self::getAppointmentNotifMessage($data)
             );
             $student = User::with('profile')->where('id', $request->user_id)->first();
             $prefect = User::with('profile')->where('id', auth()->user()->id)->first();
@@ -262,34 +256,16 @@ class AppointmentController extends Controller
                         ]);
                         $data['id'] = $lastIndex;
                         $notifMessage = self::notifMessage($data);
-                        $notifMessage2 = self::notifMessage($data, false);
 
-                        notify_single_user(
-                            $notifMessage,
-                            [
-                                'title' => 'Appointment',
-                                'body' => $notifMessage2['content']['receiver_notif_message'],
-                                'icon' => '',
-                                'url' => '',
-                            ]
-                        );
+                        notify_single_user($notifMessage);
                     }if ($type === 'resched') {
                         Appointment::where('id', $request->appointment_id)->update([
                             'date_time_appoint' => $dateTimeAppoint,
                         ]);
                         $data['id'] = $request->appointment_id;
                         $notifMessage = self::notifMessage($data);
-                        $notifMessage2 = self::notifMessage($data, false);
 
-                        notify_single_user(
-                            $notifMessage,
-                            [
-                                'title' => 'Appointment',
-                                'body' => $notifMessage2['content']['receiver_notif_message'],
-                                'icon' => '',
-                                'url' => '',
-                            ]
-                        );
+                        notify_single_user($notifMessage);
                     }
                     DB::commit();
 
@@ -302,18 +278,9 @@ class AppointmentController extends Controller
 
                     // Build notification message (dynamic accept/decline + sched/resched)
                     $notifMessage = self::notifMessage($data);
-                    $notifMessage2 = self::notifMessage($data, false);
 
                     // Send new notification to the Prefect
-                    notify_single_user(
-                        $notifMessage,
-                        [
-                            'title' => 'Appointment',
-                            'body' => $notifMessage2['content']['receiver_notif_message'],
-                            'icon' => '',
-                            'url' => '',
-                        ]
-                    );
+                    notify_single_user($notifMessage);
 
                     DB::commit();
 
@@ -398,13 +365,7 @@ class AppointmentController extends Controller
 
             // ✅ Send reschedule notification
             notify_single_user(
-                self::getAppointmentNotifMessage($data, 'resched'),
-                [
-                    'title' => 'Appointment',
-                    'body' => 'You have been rescheduled for an appointment.',
-                    'url' => '',
-                    'icon' => '',
-                ]
+                self::getAppointmentNotifMessage($data, 'resched')
             );
 
             // ✅ Get user type

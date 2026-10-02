@@ -192,15 +192,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
 
 
             // ✅ Success notification
-            notify_single_user(
-                self::getUserAccountGenerationNotif(true),
-                [
-                    'title' => 'User Account Registration',
-                    'body' => 'User Accounts Have Been Successfully Generated.',
-                    'url' => config('app.url'),
-                    'icon' => ''
-                ]
-            );
+            notify_single_user(self::getUserAccountGenerationNotif(true));
             DB::commit(); // ✅ Commit transaction
 
         } catch (\Throwable $e) {
@@ -223,15 +215,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
                 $errorFile = $this->generateValidationErrorTxtBlob([$e->getMessage()]);
             }
 
-            notify_single_user(
-                $this->getUserAccountGenerationNotif(false, $errorFile),
-                [
-                    'title' => 'User Account Registration',
-                    'body' => "There were errors during account generation.",
-                    'url' => config('app.url'),
-                    'icon' => ''
-                ]
-            );
+            notify_single_user($this->getUserAccountGenerationNotif(false, $errorFile));
         }
     }
 

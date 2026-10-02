@@ -81,12 +81,6 @@ class NotifyUnresolvedCasesCommand extends Command
                             'counts' => $counts,
                         ]),
                         'school_year_semester_id' => $semester->id,
-                    ],
-                    [
-                        'title' => 'Semester Ended — Unresolved Cases',
-                        'body' => $message,
-                        'url' => '',
-                        'icon' => '',
                     ]
                 );
             }

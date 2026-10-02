@@ -174,13 +174,6 @@ class ArchiveController extends Controller
             ]);
             $complaint = Complaint::with('user.profile')->where('id', $request->id)->first();
 
-            $webpushNotif = [
-                'title' => 'Complaint Recovered',
-                'body' => 'Your complaint has been recovered from archive and is now ongoing.',
-                'icon' => '',
-                'url' => '/student/complaint/view/'.$complaint->id,
-            ];
-
             notify_single_user(
                 [
                     'sender_id' => auth()->user()->id,
@@ -191,8 +184,7 @@ class ArchiveController extends Controller
                         'receiver_id' => $complaint->user->id,
                         'message' => 'Your complaint has been recovered from archive and is now ongoing.',
                     ]),
-                ],
-                $webpushNotif
+                ]
             );
 
         }if ($request->type == 'referral') {

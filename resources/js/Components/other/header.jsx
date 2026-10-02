@@ -2,7 +2,7 @@ import ProfilePic from "./profile-pic";
 import { useState, useEffect, useRef, useContext } from "react";
 import NotificationModal from "../modal/notification-modal";
 import AccountModal from "../modal/account-modal";
-import { getChannelList, getProfilePic } from "../../others/function";
+import { getChannelList, getProfilePic, playNotificationSound } from "../../others/function";
 import CallInModal from "../modal/submission-form/call-in-modal";
 import { UserService } from "@/others/services/user-service";
 import { NotificationService } from "@/others/services/notification-service";
@@ -61,6 +61,7 @@ const AuthHeader = (props) => {
         setNotifList(e.response)
         setNotifCount(e.count)
         setSize(e.size)
+        playNotificationSound()
       }
     )
     .configure('enable notification')

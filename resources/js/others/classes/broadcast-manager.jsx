@@ -1,4 +1,3 @@
-import { getWebLink, notify } from "../function";
 import { Broadcast } from "./broadcast-cofiguration";
 
 export class BroadcastManager extends Broadcast {
@@ -60,7 +59,6 @@ export class BroadcastManager extends Broadcast {
                     this.setNotificationTitle(`${student.first_name} ${student.last_name} Request A Referral`)
                     this.setNotificationDescription(res['response'][notif]['content'])
                     super.getSetter()(res['response'][notif])
-                    this.showNotification(student)
                 }
                 break
         }
@@ -98,16 +96,6 @@ export class BroadcastManager extends Broadcast {
             super.getSetter()(res.response)
         })
         super.configure('send gatepass request')
-    }
-    showNotification(user) {
-        if(this.isNotifEnabled()) {
-            const path = getWebLink()
-            const username = user.username
-
-            const icon = `${path}/user-assets/${username}/profile-${username}.jpg`
-
-            notify(this.getNotificationTitle(), this.getNotificationDescription(), icon)
-        }
     }
     setNotificationTitle(s) {
         this.notificationTitle = s

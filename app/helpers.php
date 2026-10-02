@@ -4,9 +4,6 @@ use App\Events\NotifyUser;
 use App\Models\Notifications;
 use App\Models\Position;
 use App\Models\TeachingStaff;
-use App\Models\User;
-use App\Notifications\WebPushGenericNotification;
-use Illuminate\Support\Facades\Log;
 
 /*
 |--------------------------------------------------------------------------
@@ -24,48 +21,12 @@ use Illuminate\Support\Facades\Log;
 
 if (!function_exists('notify_single_user')) {
     /**
-     * Insert a notification row, broadcast it, and fire a web-push (a
-     * web-push failure must never block or roll back the notification
-     * itself).
+     * Insert a notification row and broadcast it.
      */
-    function notify_single_user($notifField, $webpushNotifField, $broadcast = null, $enableWebPush = true)
+    function notify_single_user($notifField, $broadcast = null)
     {
         Notifications::insert($notifField);
         broadcast(new NotifyUser($notifField['receiver_id']));
-
-        if ($enableWebPush) {
-            try {
-                send_web_push($webpushNotifField, $notifField['receiver_id']);
-            } catch (\Exception $e) {
-                Log::error('WebPush failed: ' . $e->getMessage());
-            }
-        }
-    }
-}
-
-if (!function_exists('send_web_push')) {
-    /**
-     * Push a web notification to every subscription registered for
-     * $userId via Laravel's own WebPush channel (VAPID keys in .env).
-     * Expired/unsubscribed subscriptions are pruned automatically by the
-     * package's ReportHandler.
-     */
-    function send_web_push($payload, $userId)
-    {
-        $user = User::find($userId);
-
-        if (!$user) {
-            return;
-        }
-
-        $user->notify(new WebPushGenericNotification([
-            'title' => $payload['title'],
-            'body' => $payload['body'],
-            'icon' => ($payload['icon'] == '' || $payload['icon'] == null)
-                      ? '/default-pic/pilar.png'
-                      : $payload['icon'],
-            'url' => $payload['url'],
-        ]));
     }
 }
 

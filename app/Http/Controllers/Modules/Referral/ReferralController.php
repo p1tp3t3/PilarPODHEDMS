@@ -109,19 +109,10 @@ class ReferralController extends Controller
                     ->where('id', $lastIndex)
                     ->first();
 
-                $name = $referral->user->profile?->first_name;
                 $studentName = $referral->referredStudent->profile?->first_name;
-
-                $webpushNotif = [
-                    'title' => 'Referral Report',
-                    'body' => "$name has reported a referral against $studentName.",
-                    'icon' => '',
-                    'url' => '',
-                ];
 
                 notify_single_user(
                     self::getReferralNotifMessageReportFields($request, $prefect, $lastIndex, $referral),
-                    $webpushNotif,
                     new SendReferral($prefect->id)
                 );
 
@@ -298,16 +289,9 @@ class ReferralController extends Controller
         self::generateReferralDocuments($referralRecord, $referredStudents, $prefectName);
 
         $referral = Referral::with(['user.profile', 'referredStudent.profile'])->where('id', $id)->first();
-        $webpushNotif = [
-            'title' => 'Referral Report',
-            'body' => 'Your Referral Has Already Approved.',
-            'icon' => '',
-            'url' => '',
-        ];
 
         notify_single_user(
-            self::getReferralNotifMessageResponseFields($referral),
-            $webpushNotif,
+            self::getReferralNotifMessageResponseFields($referral)
         );
 
         return self::getAllReferral();
@@ -470,13 +454,7 @@ class ReferralController extends Controller
         ]);
 
         notify_single_user(
-            self::getReferralNotifMessageResponseFields($record, 'reject'),
-            [
-                'title' => 'Referral Report',
-                'body' => 'Your Referral Has Been Rejected.',
-                'icon' => '',
-                'url' => '',
-            ]
+            self::getReferralNotifMessageResponseFields($record, 'reject')
         );
 
         ActionLog::log(

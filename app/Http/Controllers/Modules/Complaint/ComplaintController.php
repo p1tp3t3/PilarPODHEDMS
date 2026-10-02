@@ -79,10 +79,6 @@ class ComplaintController extends Controller
         DB::beginTransaction(); // start transaction
         try {
             $isPrefect = self::isPrefect();
-            $complainant = User::with('profile')->where('id', $request->complainant)->first();
-            $profile = ($complainant && $complainant->profile?->profile_picture)
-                    ? Storage::disk('public')->url("profile-pictures/{$complainant->profile->profile_picture}")
-                    : asset('default-pic/profile-'.($complainant?->profile?->sex === 'f' ? 'f' : 'm').'-pic.jpg');
             $prefect = User::where('role', 'sub_admin')
                 ->where('activate', true);
             $lastIndex = null;
@@ -107,16 +103,8 @@ class ComplaintController extends Controller
                     $lastIndex,
                     $complaintNotif
                 );
-                $webpushNotif = [
-                    'title' => 'Complaint Report!!!',
-                    'body' => "{$complaintNotif->user?->profile?->first_name} Reported a Complaint on {$complaintNotif->subject?->profile?->first_name}",
-                    'icon' => $profile,
-                    'url' => url('/prefect/complaint'),
-                ];
-
                 notify_single_user(
                     $complaintNotifField,
-                    $webpushNotif,
                     new SendComplaint($prefect->id)
                 );
 
@@ -141,17 +129,8 @@ class ComplaintController extends Controller
                         ->first();
                     if (($request->has('complainant_name') && $request->complainant_name == '' && is_null($request->complainant_name) && $isPrefect)) {
                         $complaintNotifField = self::getComplaintNotifMessageResponseFields($complaint);
-                        $webpushNotif = [
-                            'title' => 'Complaint Report!!!',
-                            'body' => "{$complaint->user?->profile?->first_name} Reported a Complaint on {$complaint->subject?->profile?->first_name}",
-                            'icon' => $profile,
-                            'url' => url('/complaints'),
-                        ];
 
-                        notify_single_user(
-                            $complaintNotifField,
-                            $webpushNotif
-                        );
+                        notify_single_user($complaintNotifField);
                     }
                 }
 
@@ -276,12 +255,6 @@ class ComplaintController extends Controller
             ->where('id', $id)
             ->first();
         $complainantName = $complaint->user?->profile?->first_name;
-        $webpushNotif = [
-            'title' => 'Complaint Report!!!',
-            'body' => "{$complaint->user?->profile?->first_name} Report An Complaint {$complaint->subject?->profile?->first_name}",
-            'icon' => '',
-            'url' => url('/complaints'),
-        ];
         $complaint2 = $complaint;
         $oldStatus = $complaint->complaint_status;
 
@@ -298,7 +271,6 @@ class ComplaintController extends Controller
             ]);
         notify_single_user(
             $complaintNotifField,
-            $webpushNotif,
             new SendComplaintConfirmation(self::getSentComplaints())
         );
         if (self::isPrefect()) {
@@ -339,16 +311,9 @@ class ComplaintController extends Controller
 
             $complainantName = $complaint->user?->profile?->first_name;
             $complaintNotifField = self::getComplaintNotifMessageResponseFields($complaint, 'rejected');
-            $webpushNotif = [
-                'title' => 'Complaint Report!!!',
-                'body' => "Your Complaint Against {$complaint->subject?->profile?->first_name} {$complaint->subject?->profile?->last_name} Has Been Rejected",
-                'icon' => '',
-                'url' => url('/complaints'),
-            ];
 
             notify_single_user(
                 $complaintNotifField,
-                $webpushNotif,
                 new SendComplaintConfirmation(self::getSentComplaints())
             );
             ActionLog::log(
@@ -572,16 +537,8 @@ class ComplaintController extends Controller
                             'confirmed_school_year_semester_id' => SchoolYearSemester::currentId(),
                         ]);
 
-                        $webpushNotif = [
-                            'title' => 'Complaint Approved',
-                            'body' => "Your complaint against {$complaint->subject?->profile?->first_name} {$complaint->subject?->profile?->last_name} is now under investigation.",
-                            'icon' => '',
-                            'url' => url('/complaints'),
-                        ];
-
                         notify_single_user(
-                            self::getComplaintNotifMessageResponseFields($complaint),
-                            $webpushNotif,
+                            self::getComplaintNotifMessageResponseFields($complaint)
                         );
 
                         $userNames[] = $complaint->user?->profile?->first_name;
@@ -611,16 +568,8 @@ class ComplaintController extends Controller
                             'rejected_school_year_semester_id' => SchoolYearSemester::currentId(),
                         ]);
 
-                        $webpushNotif = [
-                            'title' => 'Complaint Rejected',
-                            'body' => "Your complaint against {$complaint->subject?->profile?->first_name} {$complaint->subject?->profile?->last_name} has been rejected.",
-                            'icon' => '',
-                            'url' => url('/complaints'),
-                        ];
-
                         notify_single_user(
-                            self::getComplaintNotifMessageResponseFields($complaint, 'rejected'),
-                            $webpushNotif,
+                            self::getComplaintNotifMessageResponseFields($complaint, 'rejected')
                         );
 
                         $userNames[] = $complaint->user?->profile?->first_name;

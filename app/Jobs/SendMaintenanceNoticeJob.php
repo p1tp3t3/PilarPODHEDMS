@@ -11,8 +11,8 @@ use Illuminate\Queue\SerializesModels;
 /**
  * One job per recipient, so notifying every activated user (potentially
  * hundreds) doesn't block the request that triggered it — each notification
- * involves a DB insert, a real-time broadcast, and a web-push send, all
- * queued via QUEUE_CONNECTION=database instead of running inline per user.
+ * involves a DB insert and a real-time broadcast, queued via
+ * QUEUE_CONNECTION=database instead of running inline per user.
  */
 class SendMaintenanceNoticeJob implements ShouldQueue
 {
@@ -28,22 +28,14 @@ class SendMaintenanceNoticeJob implements ShouldQueue
 
     public function handle(): void
     {
-        notify_single_user(
-            [
-                'sender_id' => $this->senderId,
-                'receiver_id' => $this->receiverId,
-                'notif_type' => 'maintenance_notice',
-                'content' => json_encode([
-                    'sender_notif_message' => 'Sent a maintenance notice to all users.',
-                    'receiver_notif_message' => $this->message,
-                ]),
-            ],
-            [
-                'title' => 'Scheduled Maintenance Notice',
-                'body' => strip_tags($this->message),
-                'url' => '',
-                'icon' => '',
-            ]
-        );
+        notify_single_user([
+            'sender_id' => $this->senderId,
+            'receiver_id' => $this->receiverId,
+            'notif_type' => 'maintenance_notice',
+            'content' => json_encode([
+                'sender_notif_message' => 'Sent a maintenance notice to all users.',
+                'receiver_notif_message' => $this->message,
+            ]),
+        ]);
     }
 }
