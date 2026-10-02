@@ -521,7 +521,7 @@ class AbsentFormController extends Controller
 
     private function isPrefect()
     {
-        return auth()->user()->role == 'sub_admin';
+        return in_array(auth()->user()->role, ['sub_admin', 'super_admin'], true);
     }
 
     private function getAbsentFormSubmissionNotifMessage($absentFormId, $receiver)

@@ -178,7 +178,7 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
               View
             </ActionBtn>
 
-            {(row.status === "pending" || row.status === "expired") && usr.role === "sub_admin" && (
+            {(row.status === "pending" || row.status === "expired") && ["sub_admin", "super_admin"].includes(usr.role) && (
               <>
                 <ActionBtn
                   className="bg-green-600 text-white hover:bg-green-700"

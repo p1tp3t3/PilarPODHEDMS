@@ -57,7 +57,7 @@ const MaintenanceNotice = () => {
                             We'll Be Right Back
                         </h1>
                         <p className="text-gray-500 text-[0.95em] leading-relaxed">
-                            PilarPODHED is currently undergoing scheduled maintenance.
+                            PilarPODHEDMS is currently undergoing scheduled maintenance.
                             We're working to improve things and will be back online shortly.
                         </p>
                     </div>

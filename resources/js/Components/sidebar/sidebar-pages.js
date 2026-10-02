@@ -53,6 +53,8 @@ export const sidebarPages = [
     { type: "link", id: "program", href: "/super-admin/program", icon: GraduationCap, label: "College Programs", roles: ["super_admin"] },
     { type: "link", id: "report", href: "/super-admin/report", icon: BarChart3, label: "Reports", roles: ["super_admin"] },
     { type: "link", id: "violation-management", href: "/violation-management", icon: AlertTriangle, label: "Violation Management", roles: ["super_admin"] },
+    { type: "link", id: "absent-form", href: "/prefect/absent-form", icon: CalendarX, label: "Absent Forms", roles: ["super_admin"] },
+    { type: "link", id: "gatepass", href: "/prefect/gatepass", icon: DoorOpen, label: "Gate-Pass", roles: ["super_admin"] },
     {
         type: "dropdown", id: "system-administrator", icon: Settings, label: "System Administrator", roles: ["super_admin"],
         items: [

@@ -151,7 +151,7 @@ const GatePassRequestList = (props) => {
                             View
                         </ActionBtn>
 
-                        {usr?.role === "sub_admin" && params.row.status === "pending" && (
+                        {["sub_admin", "super_admin"].includes(usr?.role) && params.row.status === "pending" && (
                             <>
                                 <ActionBtn
                                     className="bg-green-500 hover:bg-green-600"

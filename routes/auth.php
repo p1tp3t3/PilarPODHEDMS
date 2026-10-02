@@ -188,15 +188,7 @@ Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(functi
     Route::get('/prefect/complaints', [ComplaintController::class, 'index']);
 
     Route::get('/prefect/referrals', [ReferralController::class, 'index']);
-    Route::get('/prefect/absent-form', [AbsentFormController::class, 'index']);
-    Route::post('/prefect/absent-form/verify/{id}/confirm', [AbsentFormController::class, 'confirmAbsentForm']);
-    Route::post('/prefect/absent-form/verify/{id}/cancel', [AbsentFormController::class, 'cancelAbsentForm']);
     Route::get('/prefect/appointment', [AppointmentController::class, 'index']);
-
-    Route::post('/prefect/gatepass/verify/{id}/confirm', [GatePassController::class, 'approveGatePassRequest']);
-    Route::post('/prefect/gatepass/verify/{id}/cancel', [GatePassController::class, 'disapproveGatePassRequest']);
-
-    Route::get('/prefect/gatepass', [GatePassController::class, 'index']);
 
     Route::post('/referral/verify/{id}/confirm', [ReferralController::class, 'confirmReferral']);
     Route::get('/referral/verify/{id}/send-guidance', [ReferralController::class, 'printReferralGuidance']);
@@ -224,6 +216,25 @@ Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(functi
     Route::post('/prefect/archive/delete', [ArchiveController::class, 'destroy']);
     Route::post('/prefect/archive/transfer', [ArchiveController::class, 'transfer']);
     Route::post('/prefect/archive/bulk', [ArchiveController::class, 'bulkArchive']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| role:super_admin,sub_admin
+|--------------------------------------------------------------------------
+| Super admin needs the same oversight the prefect has over students'
+| absent forms and gate passes (view + approve/reject), so these share
+| the prefect's own pages/controllers instead of super_admin having no
+| access to this data at all.
+*/
+Route::middleware(['role:super_admin,sub_admin', 'activate', 'user-activity'])->group(function() {
+    Route::get('/prefect/absent-form', [AbsentFormController::class, 'index']);
+    Route::post('/prefect/absent-form/verify/{id}/confirm', [AbsentFormController::class, 'confirmAbsentForm']);
+    Route::post('/prefect/absent-form/verify/{id}/cancel', [AbsentFormController::class, 'cancelAbsentForm']);
+
+    Route::get('/prefect/gatepass', [GatePassController::class, 'index']);
+    Route::post('/prefect/gatepass/verify/{id}/confirm', [GatePassController::class, 'approveGatePassRequest']);
+    Route::post('/prefect/gatepass/verify/{id}/cancel', [GatePassController::class, 'disapproveGatePassRequest']);
 });
 
 /*
