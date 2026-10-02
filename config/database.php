@@ -59,6 +59,15 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            // Without this, MySQL's own NOW()/CURRENT_TIMESTAMP (used by
+            // DB::raw('NOW()') call sites and DB-default timestamp columns)
+            // reflect whichever timezone the MySQL SERVER itself is
+            // configured with — typically UTC on a stock install — no
+            // matter what APP_TIMEZONE says. Setting this makes every
+            // connection issue `SET time_zone` on connect, so DB-side
+            // "now" always matches the app's Asia/Manila time regardless
+            // of the server's own OS/MySQL default.
+            'timezone' => env('DB_TIMEZONE', '+08:00'),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
@@ -79,6 +88,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            'timezone' => env('DB_TIMEZONE', '+08:00'),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
