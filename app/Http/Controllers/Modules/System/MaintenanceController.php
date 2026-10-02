@@ -202,11 +202,12 @@ class MaintenanceController extends Controller
         $scheduledAt = Cache::get('maintenance_mode_scheduled_at');
         $now = now();
         $alreadyActive = Cache::get('maintenance_mode', false);
-
+        
+        Log::info('TARGET: ' . $scheduledAt);
         Log::info('[Maintenance Schedule Check] TARGET: '.($scheduledAt ?? 'none (no schedule pending)'));
         Log::info('[Maintenance Schedule Check] NOW: '.$now);
 
-        if (! $scheduledAt || $alreadyActive) {
+        if ($scheduledAt == null || $alreadyActive) {
             Log::info('[Maintenance Schedule Check] Condition: SKIP — '.(! $scheduledAt
                 ? 'no schedule pending.'
                 : 'maintenance mode is already active.'));
