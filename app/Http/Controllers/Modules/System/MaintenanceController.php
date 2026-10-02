@@ -168,6 +168,9 @@ class MaintenanceController extends Controller
 
         Cache::forever('maintenance_mode_scheduled_at', $data['starts_at']);
 
+        Log::info('[Maintenance Schedule Check] SET maintenance_mode_scheduled_at = '.$data['starts_at']);
+        Log::info('[Maintenance Schedule Check] Readback immediately after write: '.(Cache::get('maintenance_mode_scheduled_at') ?? 'NULL (write did not persist!)'));
+
         ActivateScheduledMaintenanceJob::dispatch()->delay(Carbon::parse($data['starts_at']));
 
         $notified = self::notifyAllUsers($data['message']);
