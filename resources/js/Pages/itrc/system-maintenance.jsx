@@ -12,7 +12,7 @@ import { readableDate, readableTime, showOutputModal, showWarningModal } from "@
 import TabSwitcher from "@/Components/other/tab-switcher";
 import { DataGrid } from "@/Components/other/data-grid";
 import Box from "@mui/material/Box";
-import { Database, Folder, Archive, CalendarClock } from "lucide-react";
+import { Database, Folder, Archive, CalendarClock, RefreshCw, Download, Trash2 } from "lucide-react";
 import { Head } from "@inertiajs/react";
 
 const formatBytes = (bytes) => {
@@ -93,6 +93,7 @@ const SystemMaintenance = (props) => {
                     tabs={[
                         { key: "maintenance_mode", label: "Maintenance Mode" },
                         { key: "backup", label: "Backup" },
+                        { key: "logs", label: "Logs" },
                     ]}
                     value={activeTab}
                     onChange={setActiveTab}
@@ -174,6 +175,10 @@ const SystemMaintenance = (props) => {
 
                     {activeTab === "backup" && (
                         <BackupTab reload={loadRegister} />
+                    )}
+
+                    {activeTab === "logs" && (
+                        <LogsTab />
                     )}
                 </div>
         </PageLayout>
@@ -372,6 +377,95 @@ const BackupCard = ({ icon: Icon, title, description, buttonLabel, loading, disa
         </ActionBtn>
     </div>
 );
+
+const LogsTab = () => {
+    const [content, setContent] = useState("");
+    const [size, setSize] = useState(0);
+    const [truncated, setTruncated] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [clearing, setClearing] = useState(false);
+
+    const fetchLogs = () => {
+        setLoading(true);
+        SystemService.getLogs(
+            (res) => {
+                setContent(res.content || "");
+                setSize(res.size || 0);
+                setTruncated(!!res.truncated);
+                setLoading(false);
+            },
+            () => {
+                setLoading(false);
+                showOutputModal("Failed To Load Logs", "e");
+            }
+        );
+    };
+
+    useEffect(() => {
+        fetchLogs();
+    }, []);
+
+    const handleClear = () => {
+        showWarningModal(
+            "Are You Sure You Want To Clear The Log File? This Cannot Be Undone.",
+            "Clear Log",
+            "Cancel",
+            () => {
+                setClearing(true);
+                SystemService.clearLogs(
+                    () => {
+                        setClearing(false);
+                        fetchLogs();
+                    },
+                    () => {
+                        setClearing(false);
+                        showOutputModal("Failed To Clear Log", "e");
+                    }
+                );
+            }
+        );
+    };
+
+    return (
+        <div className="grid gap-4 min-w-0">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-[0.85em] text-gray-500">
+                    {size > 0
+                        ? `${formatBytes(size)} total${truncated ? " — showing the last ~500 KB" : ""}`
+                        : "Log file is empty."}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                    <ActionBtn
+                        className="bg-gray-600 hover:bg-gray-700"
+                        onClick={fetchLogs}
+                    >
+                        <RefreshCw size={14} className="inline mr-1" />
+                        Refresh
+                    </ActionBtn>
+                    <a href="/maintenance/logs/download">
+                        <ActionBtn className="bg-blue-600 hover:bg-blue-700">
+                            <Download size={14} className="inline mr-1" />
+                            Download
+                        </ActionBtn>
+                    </a>
+                    <ActionBtn
+                        className={`bg-red-600 hover:bg-red-700 ${clearing ? "opacity-50 cursor-not-allowed" : ""}`}
+                        onClick={clearing ? () => {} : handleClear}
+                    >
+                        <Trash2 size={14} className="inline mr-1" />
+                        {clearing ? "Clearing..." : "Clear Log"}
+                    </ActionBtn>
+                </div>
+            </div>
+
+            <div className="bg-gray-900 rounded-md overflow-hidden">
+                <pre className="text-[0.8em] text-gray-100 p-4 h-[32rem] overflow-auto whitespace-pre-wrap break-all">
+                    {loading ? "Loading..." : (content || "No log entries.")}
+                </pre>
+            </div>
+        </div>
+    );
+};
 
 SystemMaintenance.layout = (page) => <AuthLayout user={page.props.user}>{page}</AuthLayout>
 

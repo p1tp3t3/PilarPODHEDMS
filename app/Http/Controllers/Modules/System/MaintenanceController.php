@@ -322,6 +322,72 @@ class MaintenanceController extends Controller
     }
 
     /**
+     * The last slice of storage/logs/laravel.log (LOG_CHANNEL=stack /
+     * LOG_STACK=single writes everything to this one file). Only the tail
+     * end is returned — the full file can grow to many megabytes/gigabytes
+     * over time, and reading all of it into memory on every request would
+     * be wasteful (and slow) when recent entries are almost always what's
+     * actually needed for debugging. The full file is still available via
+     * downloadLog() below.
+     */
+    public function getLogs()
+    {
+        $path = storage_path('logs/laravel.log');
+
+        if (! File::exists($path)) {
+            return response()->json(['content' => '', 'size' => 0, 'truncated' => false, 'exists' => false]);
+        }
+
+        $size = File::size($path);
+        $maxBytes = 500 * 1024;
+        $start = max(0, $size - $maxBytes);
+
+        $handle = fopen($path, 'r');
+        fseek($handle, $start);
+        $content = fread($handle, $size - $start);
+        fclose($handle);
+
+        // Started reading mid-file — drop the partial first line so the
+        // displayed log doesn't open on a half-cut-off entry.
+        if ($start > 0) {
+            $firstNewline = strpos($content, "\n");
+            $content = $firstNewline !== false ? substr($content, $firstNewline + 1) : $content;
+        }
+
+        return response()->json([
+            'content' => $content,
+            'size' => $size,
+            'truncated' => $start > 0,
+            'exists' => true,
+        ]);
+    }
+
+    /**
+     * Empties the log file rather than deleting it, so the app doesn't
+     * have to recreate it (and whatever file permissions it was given) on
+     * the next write.
+     */
+    public function clearLogs()
+    {
+        $path = storage_path('logs/laravel.log');
+
+        if (File::exists($path)) {
+            File::put($path, '');
+        }
+
+        return response()->json(['message' => 'success']);
+    }
+
+    public function downloadLog()
+    {
+        $path = storage_path('logs/laravel.log');
+
+        abort_unless(File::exists($path), 404, 'No log file found.');
+
+        return response()->download($path, 'laravel-'.now()->format('Y-m-d_His').'.log');
+    }
+
+    /**
      * Pending/failed job counts grouped by queue name — jobs are now
      * dispatched onto named queues by purpose (notifications, reports,
      * csv-processing) instead of the single default queue, so an admin can

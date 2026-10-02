@@ -23,6 +23,14 @@ export const SystemService = {
         const api = new APIRequest("/maintenance/system-info", "get", {}, setter);
         api.fetchData();
     },
+    getLogs(setter, error) {
+        const api = new APIRequest("/maintenance/logs", "get", {}, setter, () => {}, error);
+        api.fetchData();
+    },
+    clearLogs(success, error) {
+        const api = new APIRequest("/maintenance/logs/clear", "post", {}, () => {}, success, error);
+        api.sendPostData();
+    },
     createBackup(endpoint, success, error) {
         const api = new APIRequest(endpoint, "post", {}, () => {}, success, error);
         api.sendPostData();

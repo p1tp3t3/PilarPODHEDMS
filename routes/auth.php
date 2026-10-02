@@ -43,6 +43,10 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      Route::post('/maintenance/notify', [MaintenanceController::class, 'notifyMaintenance']);
      Route::get('/maintenance/system-info', [MaintenanceController::class, 'systemInfo']);
 
+     Route::get('/maintenance/logs', [MaintenanceController::class, 'getLogs']);
+     Route::post('/maintenance/logs/clear', [MaintenanceController::class, 'clearLogs']);
+     Route::get('/maintenance/logs/download', [MaintenanceController::class, 'downloadLog']);
+
      Route::get('/maintenance/backups', [BackupController::class, 'index']);
      Route::post('/maintenance/backups/database', [BackupController::class, 'createDatabaseBackup']);
      Route::post('/maintenance/backups/storage', [BackupController::class, 'createStorageBackup']);
