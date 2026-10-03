@@ -12,11 +12,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use NotificationChannels\WebPush\HasPushSubscriptions;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, \Illuminate\Auth\MustVerifyEmail, Notifiable;
+    use HasFactory, HasPushSubscriptions, \Illuminate\Auth\MustVerifyEmail, Notifiable;
 
     public $timestamps = true;
 

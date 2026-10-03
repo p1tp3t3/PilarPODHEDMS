@@ -125,7 +125,15 @@ class NotificationController extends Controller
             /** Email Sending - rollback on failure */
             Mail::to($student->email)->send(new CallInMail($emailNotifData));
 
-            /** Notify Program Head (if enabled) */
+            /** WebPush to student */
+            send_web_push([
+                'title' => 'Hello '.$student->profile?->first_name,
+                'body' => 'You have been called in by the office of the prefect.',
+                'icon' => '',
+                'url' => "/notification/$id",
+            ], $student->id);
+
+            /** WebPush to Program Head (if enabled) */
             if ($programHead && $request->boolean('notify_program_head')) {
                 $programHeadNotifId = Notifications::insertGetId([
                     'sender_id' => auth()->id(),
@@ -150,6 +158,12 @@ class NotificationController extends Controller
                     ]),
                 ]);
 
+                send_web_push([
+                    'title' => 'Student Call-In Notice',
+                    'body' => "{$student->profile?->first_name} {$student->profile?->last_name} has been called in by the office of the prefect.",
+                    'icon' => '',
+                    'url' => "/notification/$id",
+                ], $programHead->id);
                 $dataProg = [
                     'program_head_name' => $programHead->profile?->first_name.' '.$programHead->profile?->last_name,
                     'date_reported' => Carbon::parse(now())->format('Y-d-m'),

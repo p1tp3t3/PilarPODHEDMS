@@ -21,6 +21,7 @@ use App\Http\Controllers\Modules\Report\ReportController;
 use App\Http\Controllers\Modules\System\SystemSettingsController;
 use App\Http\Controllers\Modules\System\SchoolYearController;
 use App\Http\Controllers\Resource\FileController;
+use App\Http\Controllers\Resource\WebPushController;
 use App\Http\Controllers\TransactionController;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
@@ -329,6 +330,8 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/notifications', [NotificationController::class, 'index']);
      Route::post('/notifications/delete/{type}', [NotificationController::class, 'destroy']);
      Route::post('/notification/read', [NotificationController::class, 'markAsRead']);
+
+     Route::post('/store-subscription', [WebPushController::class, 'store']);
 
      Route::get('/transaction/limit', [TransactionController::class, 'getLimit']);
 
