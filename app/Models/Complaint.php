@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasDerivedSchoolYearSemester;
 use Database\Factories\ComplaintFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 class Complaint extends Model
 {
     /** @use HasFactory<ComplaintFactory> */
-    use HasFactory;
+    use HasFactory, HasDerivedSchoolYearSemester;
 
     protected $table = 'complaint';
 
@@ -36,54 +37,22 @@ class Complaint extends Model
         'complaint_status',
         'resolved_at',
         'archived_at',
-        'school_year_semester_id',
-        'confirmed_school_year_semester_id',
-        'resolved_school_year_semester_id',
-        'rejected_school_year_semester_id',
-        'revoked_school_year_semester_id',
     ];
 
     protected $dates = ['created_at', 'confirmed_at'];
-
-    // Eager-loaded on every fetch so the school year/semester tags show up
-    // everywhere a complaint is listed or viewed, without every controller
-    // query needing to remember to load them individually.
-    protected $with = [
-        'schoolYearSemester.schoolYear',
-        'confirmedSchoolYearSemester.schoolYear',
-        'resolvedSchoolYearSemester.schoolYear',
-        'rejectedSchoolYearSemester.schoolYear',
-        'revokedSchoolYearSemester.schoolYear',
-    ];
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'complainant_id', 'id');
     }
 
-    public function schoolYearSemester(): BelongsTo
+    // resolved_at itself is never actually set when a complaint transitions
+    // to 'resolved' (see ViolationController) — offense_issued_at is what
+    // gets stamped at that exact moment instead, so it's the faithful
+    // basis for "which semester was this resolved in".
+    public function resolvedSchoolYearSemester(): ?SchoolYearSemester
     {
-        return $this->belongsTo(SchoolYearSemester::class);
-    }
-
-    public function confirmedSchoolYearSemester(): BelongsTo
-    {
-        return $this->belongsTo(SchoolYearSemester::class, 'confirmed_school_year_semester_id');
-    }
-
-    public function resolvedSchoolYearSemester(): BelongsTo
-    {
-        return $this->belongsTo(SchoolYearSemester::class, 'resolved_school_year_semester_id');
-    }
-
-    public function rejectedSchoolYearSemester(): BelongsTo
-    {
-        return $this->belongsTo(SchoolYearSemester::class, 'rejected_school_year_semester_id');
-    }
-
-    public function revokedSchoolYearSemester(): BelongsTo
-    {
-        return $this->belongsTo(SchoolYearSemester::class, 'revoked_school_year_semester_id');
+        return SchoolYearSemester::forDate($this->offense_issued_at);
     }
 
     public function subject(): HasOneThrough

@@ -8,7 +8,6 @@ use App\Models\Enrollment;
 use App\Models\SchoolYear;
 use App\Models\SchoolYearSemester;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class SchoolYearController extends Controller
@@ -29,7 +28,6 @@ class SchoolYearController extends Controller
     {
         return SchoolYear::withCount('enrollments')
             ->with('semesters')
-            ->orderByDesc('activate')
             ->orderByDesc('year')
             ->get();
     }
@@ -38,7 +36,6 @@ class SchoolYearController extends Controller
     {
         $schoolYear = SchoolYear::create([
             'year' => $request->year,
-            'activate' => false,
         ]);
 
         // Prefilled with the standard Aug-Jul academic calendar — an admin
@@ -54,6 +51,8 @@ class SchoolYearController extends Controller
             ]);
         }
 
+        SchoolYearSemester::flushCache();
+
         return self::listWithCounts();
     }
 
@@ -68,7 +67,7 @@ class SchoolYearController extends Controller
         $semester = SchoolYearSemester::findOrFail($request->id);
 
         // A gap between semesters is fine, but overlapping ranges would
-        // make SchoolYearSemester::current()/idForDate() match more than
+        // make SchoolYearSemester::current()/forDate() match more than
         // one semester for the same date — silently picking whichever one
         // the query happens to return first.
         $overlaps = SchoolYearSemester::where('school_year_id', $semester->school_year_id)
@@ -88,30 +87,7 @@ class SchoolYearController extends Controller
             'date_end' => $request->date_end,
         ]);
 
-        return self::listWithCounts();
-    }
-
-    public function activate(Request $request)
-    {
-        $request->validate([
-            'id' => 'required|exists:school_year,id',
-        ]);
-
-        DB::transaction(function () use ($request) {
-            SchoolYear::query()->update(['activate' => false]);
-            SchoolYear::where('id', $request->id)->update(['activate' => true]);
-        });
-
-        return self::listWithCounts();
-    }
-
-    public function close(Request $request)
-    {
-        $request->validate([
-            'id' => 'required|exists:school_year,id',
-        ]);
-
-        SchoolYear::where('id', $request->id)->update(['activate' => false]);
+        SchoolYearSemester::flushCache();
 
         return self::listWithCounts();
     }
@@ -122,11 +98,11 @@ class SchoolYearController extends Controller
             'id' => 'required|exists:school_year,id',
         ]);
 
-        $schoolYear = SchoolYear::find($request->id);
+        $schoolYear = SchoolYear::with('semesters')->find($request->id);
 
-        if ($schoolYear->activate) {
+        if ($schoolYear->isCurrent()) {
             return response()->json([
-                'message' => 'This is the currently active school year — activate a different one before deleting it.',
+                'message' => 'This is the current school year — it can\'t be deleted while one of its semesters is in progress.',
             ], 409);
         }
 
@@ -137,6 +113,8 @@ class SchoolYearController extends Controller
         }
 
         $schoolYear->delete();
+
+        SchoolYearSemester::flushCache();
 
         return self::listWithCounts();
     }

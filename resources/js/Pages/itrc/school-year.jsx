@@ -37,6 +37,18 @@ function CustomNoRowsOverlay() {
   );
 }
 
+// A school year is "current" purely based on whether today falls inside
+// one of its semesters' date ranges — mirrors SchoolYear::isCurrent() on
+// the backend. No more manually-toggled activate flag to go stale.
+const isSchoolYearCurrent = (row) => {
+    const today = new Date().toISOString().slice(0, 10)
+    return (row.semesters ?? []).some((s) => {
+        const start = (s.date_start || "").slice(0, 10)
+        const end = (s.date_end || "").slice(0, 10)
+        return start && end && today >= start && today <= end
+    })
+}
+
 const ITRCSchoolYear = (props) => {
     const [addSchoolYear, openAddSchoolYear] = useState(false)
     const [editSemester, openEditSemester] = useState(false)
@@ -44,40 +56,6 @@ const ITRCSchoolYear = (props) => {
     const [siblingSemester, setSiblingSemester] = useState(null)
     const [school_year_list, setSchoolYearList] = useState(props.school_years)
     const { loadRegister } = useReload()
-
-    const activateSchoolYear = (row) => {
-        showWarningModal(
-            `Are You Sure You Want To Activate School Year ${row.year}?`,
-            "Activate School Year",
-            "Cancel",
-            () => {
-                loadRegister(true, "text-wait", "Activating School Year")
-                SchoolYearService.activate(
-                    row.id,
-                    setSchoolYearList,
-                    () => loadRegister(true, "success", `School Year ${row.year} Activated Successfully`),
-                    (err) => loadRegister(true, "error", err?.response?.data?.message || "Failed to Activate School Year")
-                )
-            }
-        )
-    }
-
-    const closeSchoolYear = (row) => {
-        showWarningModal(
-            `Are You Sure You Want To End School Year ${row.year}? Enrollment records are not affected — you'll need to manually activate the next school year afterward.`,
-            "End School Year",
-            "Cancel",
-            () => {
-                loadRegister(true, "text-wait", "Ending School Year")
-                SchoolYearService.close(
-                    row.id,
-                    setSchoolYearList,
-                    () => loadRegister(true, "success", `School Year ${row.year} Ended Successfully`),
-                    (err) => loadRegister(true, "error", err?.response?.data?.message || "Failed to End School Year")
-                )
-            }
-        )
-    }
 
     const openSemesterDates = (semesterRow, allSemesters) => {
         setSemesterToEdit(semesterRow)
@@ -123,8 +101,8 @@ const ITRCSchoolYear = (props) => {
             width: 120,
             sortable: false,
             renderCell: ({ row }) => (
-                <span className={`font-semibold ${row.activate ? "text-green-600" : "text-gray-500"}`}>
-                    {row.activate ? "Active" : "Inactive"}
+                <span className={`font-semibold ${isSchoolYearCurrent(row) ? "text-green-600" : "text-gray-500"}`}>
+                    {isSchoolYearCurrent(row) ? "Active" : "Inactive"}
                 </span>
             ),
         },
@@ -140,7 +118,7 @@ const ITRCSchoolYear = (props) => {
                         {(row.semesters ?? []).map((s) => {
                             const start = (s.date_start || "").slice(0, 10)
                             const end = (s.date_end || "").slice(0, 10)
-                            const isCurrent = row.activate && start && end && today >= start && today <= end
+                            const isCurrent = start && end && today >= start && today <= end
                             return (
                                 <div key={s.id} className="flex items-center gap-2">
                                     <span className={`text-[0.75em] font-semibold w-[3.5rem] ${isCurrent ? "text-blue-600" : "text-gray-500"}`}>
@@ -180,21 +158,6 @@ const ITRCSchoolYear = (props) => {
             headerAlign: "left",
             renderCell: ({ row }) => (
                 <div className="flex gap-2 items-center h-full">
-                    {row.activate ? (
-                        <ActionBtn
-                            onClick={() => closeSchoolYear(row)}
-                            className="bg-amber-600 text-white hover:bg-amber-700"
-                        >
-                            End School Year
-                        </ActionBtn>
-                    ) : (
-                        <ActionBtn
-                            onClick={() => activateSchoolYear(row)}
-                            className="bg-green-600 text-white hover:bg-green-700"
-                        >
-                            Activate
-                        </ActionBtn>
-                    )}
                     <DeleteSchoolYearButton row={row} deleteSchoolYear={deleteSchoolYear} />
                 </div>
             ),
@@ -248,10 +211,11 @@ const ITRCSchoolYear = (props) => {
 }
 
 const DeleteSchoolYearButton = ({ row, deleteSchoolYear }) => {
-    const canDelete = !row.activate && !row.enrollments_count
+    const isCurrent = isSchoolYearCurrent(row)
+    const canDelete = !isCurrent && !row.enrollments_count
 
-    const title = row.activate
-        ? "Activate a different school year before deleting this one"
+    const title = isCurrent
+        ? "This is the current school year — it can't be deleted while one of its semesters is in progress"
         : row.enrollments_count
         ? "Students are still enrolled under this school year"
         : "Delete school year"

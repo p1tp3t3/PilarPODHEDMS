@@ -7,7 +7,6 @@ use App\Mail\CallInMail;
 use App\Mail\ProgramHeadCallInMail;
 use App\Models\ActionLog;
 use App\Models\Notifications;
-use App\Models\SchoolYearSemester;
 use App\Models\User;
 use Carbon\Carbon;
 use Exception;
@@ -79,7 +78,6 @@ class NotificationController extends Controller
                 'sender_id' => $request->sender_id,
                 'receiver_id' => $request->receiver_id,
                 'content' => 'c',
-                'school_year_semester_id' => SchoolYearSemester::currentId(),
             ];
 
             $prefect = User::where('role', 'sub_admin')

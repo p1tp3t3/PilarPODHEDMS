@@ -168,9 +168,6 @@ class MaintenanceController extends Controller
 
         Cache::forever('maintenance_mode_scheduled_at', $data['starts_at']);
 
-        Log::info('[Maintenance Schedule Check] SET maintenance_mode_scheduled_at = '.$data['starts_at']);
-        Log::info('[Maintenance Schedule Check] Readback immediately after write: '.(Cache::get('maintenance_mode_scheduled_at') ?? 'NULL (write did not persist!)'));
-
         ActivateScheduledMaintenanceJob::dispatch()->delay(Carbon::parse($data['starts_at']));
 
         $notified = self::notifyAllUsers($data['message']);
@@ -202,26 +199,14 @@ class MaintenanceController extends Controller
         $scheduledAt = Cache::get('maintenance_mode_scheduled_at');
         $now = now();
         $alreadyActive = Cache::get('maintenance_mode', false);
-        
-        Log::info('TARGET: ' . $scheduledAt);
-        Log::info('[Maintenance Schedule Check] TARGET: '.($scheduledAt ?? 'none (no schedule pending)'));
-        Log::info('[Maintenance Schedule Check] NOW: '.$now);
 
         if ($scheduledAt == null || $alreadyActive) {
-            Log::info('[Maintenance Schedule Check] Condition: SKIP — '.(! $scheduledAt
-                ? 'no schedule pending.'
-                : 'maintenance mode is already active.'));
-
             return false;
         }
 
         if ($now->lessThan($scheduledAt)) {
-            Log::info('[Maintenance Schedule Check] Condition: SKIP — target time has not passed yet.');
-
             return false;
         }
-
-        Log::info('[Maintenance Schedule Check] Condition: ACTIVATE — target time has passed.');
 
         Cache::forever('maintenance_mode', true);
         Cache::forget('maintenance_mode_scheduled_at');

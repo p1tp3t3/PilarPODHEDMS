@@ -42,11 +42,11 @@ class ComplaintResource extends JsonResource
             'complaintSubjectViolation' => $this->whenLoaded('complaintSubjectViolation'),
             'violation' => $this->whenLoaded('violation'),
             'revisions' => $this->whenLoaded('revisions'),
-            'school_year_semester' => $this->whenLoaded('schoolYearSemester'),
-            'confirmed_school_year_semester' => $this->whenLoaded('confirmedSchoolYearSemester'),
-            'resolved_school_year_semester' => $this->whenLoaded('resolvedSchoolYearSemester'),
-            'rejected_school_year_semester' => $this->whenLoaded('rejectedSchoolYearSemester'),
-            'revoked_school_year_semester' => $this->whenLoaded('revokedSchoolYearSemester'),
+            'school_year_semester' => $this->schoolYearSemester(),
+            'confirmed_school_year_semester' => $this->confirmedSchoolYearSemester(),
+            'resolved_school_year_semester' => $this->resolvedSchoolYearSemester(),
+            'rejected_school_year_semester' => $this->rejectedSchoolYearSemester(),
+            'revoked_school_year_semester' => $this->revokedSchoolYearSemester(),
             'context_analysis' => $this->when(isset($this->context_analysis), $this->context_analysis),
         ];
     }

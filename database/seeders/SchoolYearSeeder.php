@@ -19,11 +19,8 @@ class SchoolYearSeeder extends Seeder
         $currentStartYear = now()->month >= 8 ? now()->year : now()->year - 1;
 
         foreach ([$currentStartYear - 1, $currentStartYear] as $startYear) {
-            $isCurrent = $startYear === $currentStartYear;
-
             $schoolYear = SchoolYear::firstOrCreate(
-                ['year' => "{$startYear}-" . ($startYear + 1)],
-                ['activate' => $isCurrent]
+                ['year' => "{$startYear}-" . ($startYear + 1)]
             );
 
             foreach ([1, 2] as $semester) {

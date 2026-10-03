@@ -42,17 +42,19 @@ class NotifyUnresolvedCasesCommand extends Command
 
     private function notifyForSemester(SchoolYearSemester $semester): void
     {
+        $range = [$semester->date_start->copy()->startOfDay(), $semester->date_end->copy()->endOfDay()];
+
         $counts = [
-            'complaint' => Complaint::where('school_year_semester_id', $semester->id)
+            'complaint' => Complaint::whereBetween('created_at', $range)
                 ->whereIn('complaint_status', ['pending', 'ongoing'])
                 ->count(),
-            'referral' => Referral::where('school_year_semester_id', $semester->id)
+            'referral' => Referral::whereBetween('created_at', $range)
                 ->where('referral_status', 'pending')
                 ->count(),
-            'absent form' => Absence::where('school_year_semester_id', $semester->id)
+            'absent form' => Absence::whereBetween('created_at', $range)
                 ->whereNull('confirmed_at')->whereNull('rejected_at')->whereNull('revoked_at')
                 ->count(),
-            'gate pass' => GatePass::where('school_year_semester_id', $semester->id)
+            'gate pass' => GatePass::whereBetween('created_at', $range)
                 ->whereNull('confirmed_at')->whereNull('rejected_at')->whereNull('revoked_at')
                 ->count(),
         ];
@@ -80,7 +82,6 @@ class NotifyUnresolvedCasesCommand extends Command
                             'label' => $label,
                             'counts' => $counts,
                         ]),
-                        'school_year_semester_id' => $semester->id,
                     ]
                 );
             }

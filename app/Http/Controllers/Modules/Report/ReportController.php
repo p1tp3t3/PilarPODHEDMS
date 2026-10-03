@@ -19,6 +19,7 @@ use App\Models\Program;
 use App\Models\Report;
 use App\Models\ReportFilter;
 use App\Models\SchoolYear;
+use App\Models\SchoolYearSemester;
 use App\Models\User;
 use App\Models\Violation;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -37,9 +38,9 @@ class ReportController extends Controller
      * Report page — one filter card in report.jsx covers every tab instead
      * of each report list having its own copy. Date Range narrows by a raw
      * timestamp column (the caller passes which one); School Year narrows
-     * by the record's own `school_year_semester_id` tag (exact, since it's
-     * stamped at filing time) rather than a guessed calendar span, and
-     * "semester" further narrows within that school year when picked.
+     * by whether that same column falls within the matching semester's
+     * date_start/date_end range, and "semester" further narrows within
+     * that school year when picked.
      */
     /**
      * Generated report files live under generated-reports/{super-admin|sub-admin}/{userId}
@@ -65,12 +66,21 @@ class ReportController extends Controller
         if ($filterBy === 'date' && $dateFrom && $dateTo) {
             $constrain = fn ($q) => $q->whereBetween($dateColumn, [$dateFrom, "$dateTo 23:59:59"]);
         } elseif ($filterBy === 'school_year' && $schoolYearId) {
-            $constrain = fn ($q) => $q->whereHas('schoolYearSemester', function ($sq) use ($schoolYearId, $semester) {
-                $sq->where('school_year_id', $schoolYearId);
-                if ($semester) {
-                    $sq->where('semester', $semester);
-                }
-            });
+            $semesters = SchoolYearSemester::allCached()->filter(
+                fn (SchoolYearSemester $s) => $s->date_start && $s->date_end
+                    && (string) $s->school_year_id === (string) $schoolYearId
+                    && (! $semester || (string) $s->semester === (string) $semester)
+            );
+
+            $constrain = $semesters->isEmpty()
+                ? fn ($q) => $q->whereRaw('1 = 0')
+                : function ($q) use ($semesters, $dateColumn) {
+                    $q->where(function ($qq) use ($semesters, $dateColumn) {
+                        foreach ($semesters as $s) {
+                            $qq->orWhereBetween($dateColumn, [$s->date_start->startOfDay(), $s->date_end->endOfDay()]);
+                        }
+                    });
+                };
         }
 
         if (! $constrain) {

@@ -12,7 +12,7 @@ class Appointment extends Model
 
     protected $table = 'appointment';
 
-    protected $fillable = ['appointment_number', 'user_id', 'date_time_appoint', 'appointment_status', 'attendance_status', 'rejected_reason', 'confirmed_at', 'description', 'archived_at', 'school_year_semester_id'];
+    protected $fillable = ['appointment_number', 'user_id', 'date_time_appoint', 'appointment_status', 'attendance_status', 'rejected_reason', 'confirmed_at', 'description', 'archived_at'];
 
     public $timestamps = false;
 
@@ -28,8 +28,8 @@ class Appointment extends Model
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
 
-    public function schoolYearSemester(): BelongsTo
+    public function schoolYearSemester(): ?SchoolYearSemester
     {
-        return $this->belongsTo(SchoolYearSemester::class);
+        return SchoolYearSemester::forDate($this->created_at);
     }
 }

@@ -3,7 +3,6 @@
 namespace Database\Factories;
 
 use App\Models\Complaint;
-use App\Models\SchoolYearSemester;
 use App\Models\User;
 use App\Models\Violation;
 use Database\Factories\Concerns\GeneratesSampleFiles;
@@ -71,10 +70,6 @@ class ComplaintFactory extends Factory
             // complaints display that stat too.
             'offense_issued_at' => $resolvedAt,
             'archived_at' => in_array($status, ['resolved', 'rejected']) ? Carbon::parse($confirmedAt)->addYears(5) : null,
-            'school_year_semester_id' => SchoolYearSemester::idForDate($createdAt),
-            'confirmed_school_year_semester_id' => $status !== 'pending' ? SchoolYearSemester::idForDate($confirmedAt) : null,
-            'resolved_school_year_semester_id' => $resolvedAt ? SchoolYearSemester::idForDate($resolvedAt) : null,
-            'rejected_school_year_semester_id' => $status === 'rejected' ? SchoolYearSemester::idForDate($confirmedAt) : null,
             'created_at' => $createdAt,
         ];
     }
@@ -103,10 +98,6 @@ class ComplaintFactory extends Factory
                 'resolved_at' => $resolvedAt,
                 'offense_issued_at' => $resolvedAt,
                 'archived_at' => Carbon::parse($confirmedAt)->addYears(5),
-                'school_year_semester_id' => SchoolYearSemester::idForDate($createdAt),
-                'confirmed_school_year_semester_id' => SchoolYearSemester::idForDate($confirmedAt),
-                'resolved_school_year_semester_id' => SchoolYearSemester::idForDate($resolvedAt),
-                'rejected_school_year_semester_id' => null,
                 'created_at' => $createdAt,
             ];
         });

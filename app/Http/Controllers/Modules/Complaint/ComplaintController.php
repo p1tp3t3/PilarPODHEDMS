@@ -267,7 +267,6 @@ class ComplaintController extends Controller
                 'case_number' => $count,
                 'confirmed_at' => DB::raw('NOW()'),
                 'complaint_status' => 'ongoing',
-                'confirmed_school_year_semester_id' => SchoolYearSemester::currentId(),
             ]);
         notify_single_user(
             $complaintNotifField,
@@ -306,7 +305,6 @@ class ComplaintController extends Controller
                 'rejected_reason' => $request->reason,
                 'rejected_at' => now(),
                 'archived_at' => archive_retention_date(),
-                'rejected_school_year_semester_id' => SchoolYearSemester::currentId(),
             ]);
 
             $complainantName = $complaint->user?->profile?->first_name;
@@ -491,7 +489,6 @@ class ComplaintController extends Controller
             'complaint_status' => 'revoked',
             'revoked_at' => now(),
             'archived_at' => archive_retention_date(),
-            'revoked_school_year_semester_id' => SchoolYearSemester::currentId(),
         ]);
 
         ActionLog::log(
@@ -534,7 +531,6 @@ class ComplaintController extends Controller
                             'case_number' => $count,
                             'confirmed_at' => DB::raw('NOW()'),
                             'complaint_status' => 'ongoing',
-                            'confirmed_school_year_semester_id' => SchoolYearSemester::currentId(),
                         ]);
 
                         notify_single_user(
@@ -565,7 +561,6 @@ class ComplaintController extends Controller
                             'complaint_status' => 'rejected',
                             'rejected_at' => now(),
                             'archived_at' => archive_retention_date(),
-                            'rejected_school_year_semester_id' => SchoolYearSemester::currentId(),
                         ]);
 
                         notify_single_user(
@@ -648,16 +643,7 @@ class ComplaintController extends Controller
                 $q->where('role', $role);
             });
         }
-        if (isset($_GET['school-year']) && $_GET['school-year'] != 'all') {
-            $data->whereHas('schoolYearSemester', function ($q) {
-                $q->whereHas('schoolYear', fn ($sq) => $sq->where('year', $_GET['school-year']));
-            });
-        }
-        if (isset($_GET['semester']) && $_GET['semester'] != 'all') {
-            $data->whereHas('schoolYearSemester', function ($q) {
-                $q->where('semester', $_GET['semester']);
-            });
-        }
+        SchoolYearSemester::applyFilter($data, 'created_at', $_GET['school-year'] ?? null, $_GET['semester'] ?? null);
         // rejected/revoked complaints get archived_at set the moment they
         // reach that status (see cancelComplaint()/revokeComplaint()) — that
         // field is the same one the Archives page filters on
@@ -742,7 +728,7 @@ class ComplaintController extends Controller
     public function getComplainantComplaint($id)
     {
         return ['data' => ComplaintResource::collection(
-            Complaint::with(['user.profile', 'schoolYearSemester.schoolYear'])
+            Complaint::with(['user.profile'])
                 ->where('complainant_id', $id)
                 ->latest('created_at')
                 ->get()
@@ -831,7 +817,6 @@ class ComplaintController extends Controller
             'complaint_status' => $isPrefect ? 'ongoing' : 'pending',
             'confirmed_at' => $isPrefect ? now() : null,
             'case_number' => $isPrefect ? $nextCaseNumber : null,
-            'school_year_semester_id' => SchoolYearSemester::currentId(),
         ];
 
         if ($request->has('complainant_name') && ! empty($request->complainant_name)) {

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasDerivedSchoolYearSemester;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 
 class Referral extends Model
 {
-    use HasFactory;
+    use HasFactory, HasDerivedSchoolYearSemester;
 
     protected $table = 'referral';
 
@@ -26,44 +27,13 @@ class Referral extends Model
         'send_to_guidance',
         'confirmed_at',
         'archived_at',
-        'school_year_semester_id',
-        'confirmed_school_year_semester_id',
-        'rejected_school_year_semester_id',
-        'revoked_school_year_semester_id',
     ];
 
     public $timestamps = false;
 
-    protected $with = [
-        'schoolYearSemester.schoolYear',
-        'confirmedSchoolYearSemester.schoolYear',
-        'rejectedSchoolYearSemester.schoolYear',
-        'revokedSchoolYearSemester.schoolYear',
-    ];
-
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'teaching_staff_id', 'id');
-    }
-
-    public function schoolYearSemester(): BelongsTo
-    {
-        return $this->belongsTo(SchoolYearSemester::class);
-    }
-
-    public function confirmedSchoolYearSemester(): BelongsTo
-    {
-        return $this->belongsTo(SchoolYearSemester::class, 'confirmed_school_year_semester_id');
-    }
-
-    public function rejectedSchoolYearSemester(): BelongsTo
-    {
-        return $this->belongsTo(SchoolYearSemester::class, 'rejected_school_year_semester_id');
-    }
-
-    public function revokedSchoolYearSemester(): BelongsTo
-    {
-        return $this->belongsTo(SchoolYearSemester::class, 'revoked_school_year_semester_id');
     }
 
     public function referredStudent(): HasOneThrough

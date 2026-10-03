@@ -568,49 +568,61 @@ class DashboardController extends Controller
      * "Report ..." buttons elsewhere — a type is included only if the user
      * is allowed to submit it in the first place.
      */
+    /**
+     * Narrows a query to "created during the current semester" — replaces
+     * the old where('school_year_semester_id', ...) now that semesters are
+     * identified by date range instead of a stored FK. No current semester
+     * (gap between semesters, or none configured) means nothing qualifies.
+     */
+    private static function scopeToCurrentSemester($query)
+    {
+        $semester = SchoolYearSemester::current();
+
+        if (! $semester) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereBetween('created_at', [
+            $semester->date_start->copy()->startOfDay(),
+            $semester->date_end->copy()->endOfDay(),
+        ]);
+    }
+
     public function myCurrentSemesterRecords()
     {
         $user = auth()->user();
         $permissions = $user->permissions;
-        $semesterId = SchoolYearSemester::currentId();
 
         $records = [];
 
         if ($permissions?->allow_complaint) {
-            $records['complaint'] = Complaint::with(['user.profile', 'subject.profile'])
-                ->where('complainant_id', $user->id)
-                ->where('school_year_semester_id', $semesterId)
-                ->latest('created_at')
-                ->get();
+            $records['complaint'] = self::scopeToCurrentSemester(
+                Complaint::with(['user.profile', 'subject.profile'])->where('complainant_id', $user->id)
+            )->latest('created_at')->get();
         }
 
         if ($permissions?->allow_referral) {
-            $records['referral'] = Referral::with(['user.profile', 'referredStudent.profile'])
-                ->where('teaching_staff_id', $user->id)
-                ->where('school_year_semester_id', $semesterId)
-                ->latest('created_at')
-                ->get();
+            $records['referral'] = self::scopeToCurrentSemester(
+                Referral::with(['user.profile', 'referredStudent.profile'])->where('teaching_staff_id', $user->id)
+            )->latest('created_at')->get();
         }
 
         if ($permissions?->allow_absent_form) {
-            $records['absent_form'] = Absence::where('student_id', $user->id)
-                ->where('school_year_semester_id', $semesterId)
-                ->latest('created_at')
-                ->get();
+            $records['absent_form'] = self::scopeToCurrentSemester(
+                Absence::where('student_id', $user->id)
+            )->latest('created_at')->get();
         }
 
         if ($permissions?->allow_gatepass) {
-            $records['gate_pass'] = GatePass::where('user_id', $user->id)
-                ->where('school_year_semester_id', $semesterId)
-                ->latest('created_at')
-                ->get();
+            $records['gate_pass'] = self::scopeToCurrentSemester(
+                GatePass::where('user_id', $user->id)
+            )->latest('created_at')->get();
         }
 
         if ($permissions?->allow_appointment) {
-            $records['appointment'] = Appointment::where('user_id', $user->id)
-                ->where('school_year_semester_id', $semesterId)
-                ->latest('created_at')
-                ->get();
+            $records['appointment'] = self::scopeToCurrentSemester(
+                Appointment::where('user_id', $user->id)
+            )->latest('created_at')->get();
         }
 
         return response()->json($records);
@@ -627,29 +639,22 @@ class DashboardController extends Controller
     {
         abort_unless(auth()->user()->role === 'sub_admin', 403);
 
-        $semesterId = SchoolYearSemester::currentId();
-
         return response()->json([
-            'complaint' => Complaint::with(['user.profile', 'subject.profile'])
-                ->where('school_year_semester_id', $semesterId)
-                ->latest('created_at')
-                ->get(),
-            'referral' => Referral::with(['user.profile', 'referredStudent.profile'])
-                ->where('school_year_semester_id', $semesterId)
-                ->latest('created_at')
-                ->get(),
-            'absent_form' => Absence::with('user.profile')
-                ->where('school_year_semester_id', $semesterId)
-                ->latest('created_at')
-                ->get(),
-            'gate_pass' => GatePass::with('user.profile')
-                ->where('school_year_semester_id', $semesterId)
-                ->latest('created_at')
-                ->get(),
-            'appointment' => Appointment::with('user.profile')
-                ->where('school_year_semester_id', $semesterId)
-                ->latest('created_at')
-                ->get(),
+            'complaint' => self::scopeToCurrentSemester(
+                Complaint::with(['user.profile', 'subject.profile'])
+            )->latest('created_at')->get(),
+            'referral' => self::scopeToCurrentSemester(
+                Referral::with(['user.profile', 'referredStudent.profile'])
+            )->latest('created_at')->get(),
+            'absent_form' => self::scopeToCurrentSemester(
+                Absence::with('user.profile')
+            )->latest('created_at')->get(),
+            'gate_pass' => self::scopeToCurrentSemester(
+                GatePass::with('user.profile')
+            )->latest('created_at')->get(),
+            'appointment' => self::scopeToCurrentSemester(
+                Appointment::with('user.profile')
+            )->latest('created_at')->get(),
         ]);
     }
 }

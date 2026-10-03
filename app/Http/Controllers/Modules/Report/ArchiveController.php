@@ -480,20 +480,20 @@ class ArchiveController extends Controller
      */
     private static function effectiveSemester($item): ?int
     {
-        if ($item->revoked_at && $item->revokedSchoolYearSemester) {
-            return $item->revokedSchoolYearSemester->semester;
+        if ($item->revoked_at && ($s = $item->revokedSchoolYearSemester())) {
+            return $s->semester;
         }
-        if ($item->rejected_at && $item->rejectedSchoolYearSemester) {
-            return $item->rejectedSchoolYearSemester->semester;
+        if ($item->rejected_at && ($s = $item->rejectedSchoolYearSemester())) {
+            return $s->semester;
         }
-        if ($item->type === 'complaint' && $item->complaint_status === 'resolved' && $item->resolvedSchoolYearSemester) {
-            return $item->resolvedSchoolYearSemester->semester;
+        if ($item->type === 'complaint' && $item->complaint_status === 'resolved' && ($s = $item->resolvedSchoolYearSemester())) {
+            return $s->semester;
         }
-        if ($item->confirmed_at && $item->confirmedSchoolYearSemester) {
-            return $item->confirmedSchoolYearSemester->semester;
+        if ($item->confirmed_at && ($s = $item->confirmedSchoolYearSemester())) {
+            return $s->semester;
         }
 
-        return $item->schoolYearSemester?->semester;
+        return $item->schoolYearSemester()?->semester;
     }
 
     public function matchStudentSearch($user, $search, $parts)

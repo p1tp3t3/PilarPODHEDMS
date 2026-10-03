@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\SchoolYearSemester;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -47,7 +46,6 @@ class AppointmentFactory extends Factory
             'rejected_reason' => $status === 'rejected' ? $this->faker->sentence(8) : null,
             'confirmed_at' => $confirmedAt,
             'description' => $this->faker->sentence(10),
-            'school_year_semester_id' => SchoolYearSemester::idForDate($createdAt),
             'created_at' => $createdAt,
         ];
     }

@@ -16,12 +16,9 @@ class EnrollmentFactory extends Factory
     {
         // enrollment.school_year (string) was replaced by school_year_id (FK)
         // in a later migration — firstOrCreate rather than SchoolYear::factory()
-        // so every seeded enrollment shares the ONE active "2025-2026" row
-        // instead of tripping the `year` column's unique constraint.
-        $schoolYearId = SchoolYear::firstOrCreate(
-            ['year' => '2025-2026'],
-            ['activate' => true]
-        )->id;
+        // so every seeded enrollment shares the ONE "2025-2026" row instead
+        // of tripping the `year` column's unique constraint.
+        $schoolYearId = SchoolYear::firstOrCreate(['year' => '2025-2026'])->id;
 
         return [
             'student_id' => User::factory(),

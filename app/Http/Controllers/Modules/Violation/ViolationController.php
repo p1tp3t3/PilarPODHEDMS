@@ -8,7 +8,6 @@ use App\Models\ActionLog;
 use App\Models\Complaint;
 use App\Models\ComplaintSubject;
 use App\Models\ComplaintSubjectViolation;
-use App\Models\SchoolYearSemester;
 use App\Models\User;
 use App\Models\Violation;
 use App\Models\ViolationPenalty;
@@ -266,7 +265,6 @@ class ViolationController extends Controller
                 'offense_issued_at' => now(),
                 'archived_at' => archive_retention_date(),
                 'incident_summary' => $summary,
-                'resolved_school_year_semester_id' => SchoolYearSemester::currentId(),
             ]);
 
             DB::commit();

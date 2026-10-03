@@ -87,7 +87,6 @@ class ReferralController extends Controller
                 'teaching_staff_id' => $request->referrer_id,
                 'reason_description' => $request->referral_reason,
                 'referral_number' => $this->generateSequenceCode(Referral::class, 'referral_number'),
-                'school_year_semester_id' => SchoolYearSemester::currentId(),
             ];
 
             // 🧍 If the user is not a sub_admin (prefect)
@@ -226,16 +225,7 @@ class ReferralController extends Controller
             $referrals->whereNull('confirmed_at')->whereNull('rejected_at')->whereNull('revoked_at')->latest('created_at');
         }
 
-        if (request('school-year') && request('school-year') != 'all') {
-            $referrals->whereHas('schoolYearSemester', function ($q) {
-                $q->whereHas('schoolYear', fn ($sq) => $sq->where('year', request('school-year')));
-            });
-        }
-        if (request('semester') && request('semester') != 'all') {
-            $referrals->whereHas('schoolYearSemester', function ($q) {
-                $q->where('semester', request('semester'));
-            });
-        }
+        SchoolYearSemester::applyFilter($referrals, 'created_at', request('school-year'), request('semester'));
 
         return ReferralResource::collection($referrals->paginate(20));
     }
@@ -248,7 +238,7 @@ class ReferralController extends Controller
     public function getReferrerReferral($id)
     {
         return ['data' => ReferralResource::collection(
-            Referral::with(['user.profile', 'referredStudent.profile', 'referredStudent.program', 'schoolYearSemester.schoolYear'])
+            Referral::with(['user.profile', 'referredStudent.profile', 'referredStudent.program'])
                 ->where('teaching_staff_id', $id)
                 ->latest('created_at')
                 ->get()
@@ -275,7 +265,6 @@ class ReferralController extends Controller
         Referral::where('id', $id)->update([
             'confirmed_at' => now(),
             'archived_at' => archive_retention_date(),
-            'confirmed_school_year_semester_id' => SchoolYearSemester::currentId(),
         ]);
 
         $referralRecord = Referral::findOrFail($id);
@@ -334,7 +323,6 @@ class ReferralController extends Controller
             'referral_status' => 'revoked',
             'revoked_at' => now(),
             'archived_at' => archive_retention_date(),
-            'revoked_school_year_semester_id' => SchoolYearSemester::currentId(),
         ]);
 
         ActionLog::log(
@@ -450,7 +438,6 @@ class ReferralController extends Controller
             'rejected_reason' => $request->reason,
             'rejected_at' => now(),
             'archived_at' => archive_retention_date(),
-            'rejected_school_year_semester_id' => SchoolYearSemester::currentId(),
         ]);
 
         notify_single_user(

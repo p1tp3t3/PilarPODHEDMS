@@ -13,7 +13,6 @@ class SchoolYearFactory extends Factory
     {
         return [
             'year' => '2025-2026',
-            'activate' => true,
         ];
     }
 }

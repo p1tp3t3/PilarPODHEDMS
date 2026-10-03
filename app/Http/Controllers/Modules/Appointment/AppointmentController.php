@@ -18,7 +18,6 @@ use App\Models\AppointmentRequest;
 use App\Models\AppointmentSlot;
 use App\Models\FamilyMember;
 use App\Models\Notifications;
-use App\Models\SchoolYearSemester;
 use App\Models\User;
 use App\Traits\GeneratesSequenceCode;
 use Carbon\Carbon;
@@ -252,7 +251,6 @@ class AppointmentController extends Controller
                             'user_id' => $notifData->receiver_id,
                             'date_time_appoint' => $dateTimeAppoint,
                             'description' => $parsed['reason'],
-                            'school_year_semester_id' => SchoolYearSemester::currentId(),
                         ]);
                         $data['id'] = $lastIndex;
                         $notifMessage = self::notifMessage($data);

@@ -74,7 +74,6 @@ class AbsentFormController extends Controller
                 'reason' => json_encode($request->reason),
                 'date_from' => $request->date_from,
                 'date_to' => $request->date_to,
-                'school_year_semester_id' => SchoolYearSemester::currentId(),
             ]);
 
             ActionLog::create([
@@ -287,7 +286,6 @@ class AbsentFormController extends Controller
                 'confirmed_at' => now(),
                 'note' => $request->note,
                 'archived_at' => archive_retention_date(),
-                'confirmed_school_year_semester_id' => SchoolYearSemester::currentId(),
             ]);
 
             $student->refresh();
@@ -399,7 +397,7 @@ class AbsentFormController extends Controller
      */
     public function getStudentAbsentForms($id)
     {
-        return Absence::with(['user.profile', 'schoolYearSemester.schoolYear'])
+        return Absence::with(['user.profile'])
             ->where('student_id', $id)
             ->latest('created_at')
             ->get();
@@ -435,16 +433,7 @@ class AbsentFormController extends Controller
                 ->latest('created_at');
         }
 
-        if (request('school-year') && request('school-year') != 'all') {
-            $absence->whereHas('schoolYearSemester', function ($q) {
-                $q->whereHas('schoolYear', fn ($sq) => $sq->where('year', request('school-year')));
-            });
-        }
-        if (request('semester') && request('semester') != 'all') {
-            $absence->whereHas('schoolYearSemester', function ($q) {
-                $q->where('semester', request('semester'));
-            });
-        }
+        SchoolYearSemester::applyFilter($absence, 'created_at', request('school-year'), request('semester'));
 
         return AbsenceResource::collection($absence->paginate(100)->appends(['status' => $status]));
     }
@@ -464,7 +453,6 @@ class AbsentFormController extends Controller
             'rejected_reason' => $request->reason,
             'rejected_at' => now(),
             'archived_at' => archive_retention_date(),
-            'rejected_school_year_semester_id' => SchoolYearSemester::currentId(),
         ]);
         $record = $absent->first();
         ActionLog::log(
@@ -506,7 +494,6 @@ class AbsentFormController extends Controller
         $absence->update([
             'revoked_at' => now(),
             'archived_at' => archive_retention_date(),
-            'revoked_school_year_semester_id' => SchoolYearSemester::currentId(),
         ]);
 
         ActionLog::log(

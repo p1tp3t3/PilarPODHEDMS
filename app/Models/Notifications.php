@@ -9,7 +9,7 @@ class Notifications extends Model
 {
     protected $table = 'notification';
 
-    protected $fillable = ['sender_id', 'receiver_id', 'notif_type', 'content', 'school_year_semester_id'];
+    protected $fillable = ['sender_id', 'receiver_id', 'notif_type', 'content'];
 
     public $timestamps = false;
 
@@ -21,10 +21,5 @@ class Notifications extends Model
     public function receiver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'receiver_id', 'id');
-    }
-
-    public function schoolYearSemester(): BelongsTo
-    {
-        return $this->belongsTo(SchoolYearSemester::class);
     }
 }
