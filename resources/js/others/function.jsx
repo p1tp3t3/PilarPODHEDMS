@@ -2,7 +2,6 @@ import axios from "axios";
 import CryptoJS from "crypto-js";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
-import { PushNotificationService } from "./services/push-notification-service";
 
 const MySwal = withReactContent(Swal)
 const cryptoKey = 'gh4mdvcf'
@@ -659,32 +658,4 @@ export const playNotificationSound = () => {
         new Audio('/sounds/notif-sound.wav').play().catch(() => {});
     } catch (e) {}
 }
-
-export const registerServiceWorker = (vapidPublicKey) => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !vapidPublicKey) return;
-
-    navigator.serviceWorker.register("/sw.js");
-    Notification.requestPermission().then((permission)=> {
-        if (permission === 'granted') {
-            // get service worker
-            navigator.serviceWorker.ready.then((sw)=> {
-                // subscribe
-                sw.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: vapidPublicKey
-                }).then((subscription)=> {
-                    const sub = JSON.parse(JSON.stringify(subscription))
-
-                    const data = {
-                        endpoint: sub.endpoint,
-                        public_key: sub.keys.p256dh,
-                        auth: sub.keys.auth
-                    }
-                    const f = e => console.log('go')
-                    PushNotificationService.storeSubscription(data, f, f)
-                }).catch(x => console.log(x));
-            });
-        }
-    });
-};
 

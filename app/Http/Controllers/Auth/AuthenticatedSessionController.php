@@ -149,18 +149,6 @@ class AuthenticatedSessionController extends Controller
     {
         $user = auth()->user();
 
-        // Get the stored endpoint (only this device)
-        $endpoint = session('webpush_endpoint');
-
-        if ($user && $endpoint) {
-
-            // Delete WebPush subscription ONLY for this browser
-            $user->deletePushSubscription($endpoint);
-
-            // Remove session key
-            session()->forget('webpush_endpoint');
-        }
-
         // Log user action
         ActionLog::create([
             'user_id' => $user->id,

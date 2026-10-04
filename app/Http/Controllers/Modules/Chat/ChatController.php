@@ -275,17 +275,6 @@ class ChatController extends Controller
 
         broadcast(new MessageSent($message));
 
-        try {
-            send_web_push([
-                'title' => trim("{$me->profile?->first_name} {$me->profile?->last_name}") ?: 'New message',
-                'body' => $message->body,
-                'icon' => '',
-                'url' => '/chat',
-            ], $receiver->id);
-        } catch (\Throwable $e) {
-            // best-effort — chat still works without push
-        }
-
         return response()->json(['message' => $message]);
     }
 

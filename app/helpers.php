@@ -4,9 +4,6 @@ use App\Events\NotifyUser;
 use App\Models\Notifications;
 use App\Models\Position;
 use App\Models\TeachingStaff;
-use App\Models\User;
-use App\Notifications\WebPushGenericNotification;
-use Illuminate\Support\Facades\Log;
 
 /*
 |--------------------------------------------------------------------------
@@ -24,90 +21,12 @@ use Illuminate\Support\Facades\Log;
 
 if (!function_exists('notify_single_user')) {
     /**
-     * Insert a notification row, broadcast it, and fire a web-push derived
-     * straight from that same row (a web-push failure must never block or
-     * roll back the notification itself). Deriving the push payload here
-     * instead of taking it as a separate parameter means every single
-     * caller gets a push automatically — no call site has to remember to
-     * build one.
+     * Insert a notification row and broadcast it.
      */
     function notify_single_user($notifField, $broadcast = null)
     {
         Notifications::insert($notifField);
         broadcast(new NotifyUser($notifField['receiver_id']));
-
-        try {
-            send_web_push_for_notification($notifField);
-        } catch (\Exception $e) {
-            Log::error('WebPush failed: '.$e->getMessage());
-        }
-    }
-}
-
-if (!function_exists('send_web_push_for_notification')) {
-    /**
-     * Title comes from notif_type, body from the notification's own
-     * receiver_notif_message — the same content every in-app notification
-     * already carries, so nothing new has to be authored per call site.
-     * The link always opens the in-app notification center rather than
-     * guessing a role-specific deep link (the receiver's role varies by
-     * notif_type, and /notifications is reachable by every role).
-     */
-    function send_web_push_for_notification(array $notifField): void
-    {
-        $content = json_decode($notifField['content'] ?? '', true) ?: [];
-        $body = $content['receiver_notif_message'] ?? $content['sender_notif_message'] ?? null;
-
-        if (!$body || empty($notifField['receiver_id'])) {
-            return;
-        }
-
-        $titles = [
-            'complaint' => 'Complaint',
-            'referral' => 'Referral',
-            'absent' => 'Absent Form',
-            'violation' => 'Violation',
-            'appointment' => 'Appointment',
-            'gatepass' => 'Gate Pass',
-            'call_in' => 'Call In',
-            'user' => 'Notification',
-            'violation_access' => 'Violation Access Request',
-            'semester_summary' => 'Semester Summary',
-            'maintenance_notice' => 'Maintenance Notice',
-        ];
-
-        send_web_push([
-            'title' => $titles[$notifField['notif_type'] ?? ''] ?? 'New Notification',
-            'body' => $body,
-            'icon' => '',
-            'url' => '/notifications',
-        ], $notifField['receiver_id']);
-    }
-}
-
-if (!function_exists('send_web_push')) {
-    /**
-     * Push a web notification to every subscription registered for
-     * $userId via Laravel's own WebPush channel (VAPID keys in .env).
-     * Expired/unsubscribed subscriptions are pruned automatically by the
-     * package's ReportHandler.
-     */
-    function send_web_push($payload, $userId)
-    {
-        $user = User::find($userId);
-
-        if (!$user) {
-            return;
-        }
-
-        $user->notify(new WebPushGenericNotification([
-            'title' => $payload['title'],
-            'body' => $payload['body'],
-            'icon' => ($payload['icon'] == '' || $payload['icon'] == null)
-                      ? '/default-pic/pilar.png'
-                      : $payload['icon'],
-            'url' => $payload['url'],
-        ]));
     }
 }
 
