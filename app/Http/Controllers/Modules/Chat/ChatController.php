@@ -75,6 +75,7 @@ class ChatController extends Controller
 
             return [
                 'id' => $contact->id,
+                'encrypted_id' => encrypt_id($contact->id),
                 'username' => $contact->username,
                 'role' => $contact->role,
                 'profile' => $contact->profile,
@@ -97,6 +98,8 @@ class ChatController extends Controller
 
     public function getThread($userId)
     {
+        $userId = decrypt_id($userId) ?? abort(404);
+
         $me = auth()->user();
         $contact = User::with(['profile', 'program', 'enrollments', 'teachingStaff.program', 'nonTeachingStaff'])->findOrFail($userId);
 
@@ -214,6 +217,8 @@ class ChatController extends Controller
 
     public function getEditHistory($id)
     {
+        $id = decrypt_id($id) ?? abort(404);
+
         $message = Message::findOrFail($id);
         $me = auth()->user();
 

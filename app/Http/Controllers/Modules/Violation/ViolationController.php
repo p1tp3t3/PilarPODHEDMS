@@ -42,6 +42,7 @@ class ViolationController extends Controller
     {
         return response()->json(
             Violation::with(['penalties.penalty'])->latest('created_at')->get()
+                ->each(fn ($v) => $v->encrypted_id = encrypt_id($v->id))
         );
     }
 
@@ -53,6 +54,8 @@ class ViolationController extends Controller
      */
     public function violationStudentsIndex($id)
     {
+        $id = decrypt_id($id) ?? abort(404);
+
         $violation = Violation::with(['penalties.penalty'])->findOrFail($id);
 
         $students = ComplaintSubjectViolation::with(['user.profile', 'user.program', 'user.enrollments', 'user.teachingStaff.program'])
@@ -64,6 +67,7 @@ class ViolationController extends Controller
             ->groupBy('student_id')
             ->map(function ($group) {
                 $first = $group->first();
+                $first->user->encrypted_id = encrypt_id($first->user->id);
 
                 return [
                     'student_id' => $first->student_id,
@@ -97,6 +101,8 @@ class ViolationController extends Controller
 
     public function studentViolationIndex($id)
     {
+        $id = decrypt_id($id) ?? abort(404);
+
         if (self::isSuperAdmin()) {
             return redirect('/violation-management');
         }
@@ -131,6 +137,8 @@ class ViolationController extends Controller
 
     public function studentRiskIndex($id)
     {
+        $id = decrypt_id($id) ?? abort(404);
+
         if (self::isSuperAdmin()) {
             return redirect('/violation-management');
         }
@@ -296,6 +304,8 @@ class ViolationController extends Controller
 
     public function getStudentIncident($studentId)
     {
+        $studentId = decrypt_id($studentId) ?? abort(404);
+
         if (self::isSuperAdmin()) {
             return response()->json(['message' => 'Not authorized to view student violation data.'], 403);
         }
@@ -328,6 +338,8 @@ class ViolationController extends Controller
 
     public function getStudentViolation($studentId = null)
     {
+        $studentId = decrypt_id($studentId) ?? abort(404);
+
         if (self::isSuperAdmin()) {
             return response()->json(['message' => 'Not authorized to view student violation data.'], 403);
         }
@@ -486,6 +498,19 @@ class ViolationController extends Controller
         }
 
         return $result;
+    }
+
+    /**
+     * Route-facing entry point for GET /violation-occurence/list/{id} —
+     * decrypts the id then delegates to getStudentViolationOccurence(),
+     * which stays untouched because it's ALSO called directly in PHP with
+     * an already-raw id by ProfileController::index() (building the
+     * "Incidents" tab) — decrypting inside that shared method would break
+     * that internal caller.
+     */
+    public function getStudentViolationOccurenceRoute($id)
+    {
+        return $this->getStudentViolationOccurence(decrypt_id($id) ?? abort(404));
     }
 
     /**

@@ -188,7 +188,7 @@ const ComplaintList = ({
         return (
             <div className="flex flex-wrap gap-2 items-center py-1">
                 <ActionBtn
-                onClick={() => setId(obj.id, "c")}
+                onClick={() => setId(obj.encrypted_id, "c")}
                 className="bg-blue-600 text-white hover:bg-blue-700"
                 >
                 View
@@ -230,7 +230,7 @@ const ComplaintList = ({
                 )}
                 {obj.complainant_id === user?.id && obj.complaint_status === "pending" && !obj.edited_at && (
                 <ActionBtn
-                    onClick={() => actionEvent("edit", obj.id)}
+                    onClick={() => actionEvent("edit", obj.encrypted_id)}
                     className="bg-indigo-600 text-white hover:bg-indigo-700"
                 >
                     Edit

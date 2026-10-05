@@ -325,6 +325,8 @@ class GatePassController extends Controller
 
     public function get($id)
     {
+        $id = decrypt_id($id) ?? abort(404);
+
         $data = GatePass::with(['user' => function ($q) {
             $q->with(['profile', 'program']);
         }])

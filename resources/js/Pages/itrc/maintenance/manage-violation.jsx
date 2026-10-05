@@ -177,7 +177,7 @@ const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditR
                                         <div className="flex gap-2 items-center h-full py-2">
                                             <ActionBtn
                                                 className="bg-blue-600 hover:bg-blue-700"
-                                                onClick={() => router.visit(`/violation-management/${row.id}/students`)}
+                                                onClick={() => router.visit(`/violation-management/${row.encrypted_id}/students`)}
                                             >
                                                 View
                                             </ActionBtn>

@@ -103,7 +103,7 @@ const ManageProgram = ({ list, original_list, events, reload, setter }) => {
       renderCell: ({ row }) => (
         <div className="flex gap-2 items-center h-full">
           <ActionBtn
-            onClick={() => router.visit(`/super-admin/program/${row.id}/users`)}
+            onClick={() => router.visit(`/super-admin/program/${row.encrypted_id}/users`)}
             className="bg-blue-600 text-white hover:bg-blue-700"
           >
             View

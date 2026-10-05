@@ -15,7 +15,14 @@ class Message extends Model
 
     protected $fillable = ['sender_id', 'receiver_id', 'reply_to_id', 'body', 'read_at', 'unsent_at', 'edited_at'];
 
+    protected $appends = ['encrypted_id'];
+
     public $timestamps = false;
+
+    public function getEncryptedIdAttribute(): string
+    {
+        return encrypt_id($this->id);
+    }
 
     public function sender(): BelongsTo
     {

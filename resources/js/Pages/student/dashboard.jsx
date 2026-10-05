@@ -91,7 +91,7 @@ const StudentDashboard = (props) => {
             {/* === Incident Risk & Appointments === */}
             <div className="flex flex-col lg:flex-row gap-5 justify-between">
               <div className="w-full lg:w-1/2">
-                <IncidentRiskCard user_id={props.auth.user.id} />
+                <IncidentRiskCard user_id={props.auth.user.encrypted_id} />
               </div>
 
               <div className="w-full lg:w-1/2">

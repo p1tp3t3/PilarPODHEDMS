@@ -15,6 +15,7 @@ class AbsenceResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'encrypted_id' => encrypt_id($this->id),
             'form_number' => $this->form_number,
             'student_id' => $this->student_id,
             'reason' => $this->reason,

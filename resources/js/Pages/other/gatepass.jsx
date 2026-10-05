@@ -82,7 +82,7 @@ const GatePass = (props) => {
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("view");
     if (!id) return;
-    const match = allGatePasses.find((gp) => String(gp.id) === id);
+    const match = allGatePasses.find((gp) => gp.encrypted_id === id);
     if (match) setTab(gatePassStatusKey(match));
     setViewId(id);
     setViewOpen(true);

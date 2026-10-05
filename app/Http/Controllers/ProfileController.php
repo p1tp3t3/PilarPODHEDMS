@@ -32,10 +32,6 @@ use Inertia\Inertia;
 
 class ProfileController extends Controller
 {
-    protected $apiKey = [
-        'pexels' => 'tXInTzEb1j3w0U1sEosQn6vWS7wfFmW53IihHaZ2jL2GkNYpKDKRZqKf',
-    ];
-
     private $src;
 
     private $id;
@@ -448,7 +444,7 @@ class ProfileController extends Controller
     public function getPicture($query)
     {
         $response = Http::withHeaders([
-            'Authorization' => $this->apiKey['pexels'],
+            'Authorization' => env('PEXELS_API_KEY'),
         ])->get('https://api.pexels.com/v1/search', [
             'query' => $query,
             'per_page' => 15,

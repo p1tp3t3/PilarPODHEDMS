@@ -133,6 +133,7 @@ class AbsentFormController extends Controller
 
     public function downloadEvidence($id, $fileName)
     {
+        $id = decrypt_id($id) ?? abort(404);
         $fileName = basename($fileName);
         $formNumber = Absence::where('id', $id)->value('form_number');
         $path = storage_path("app/private/absent-forms/absent-form-{$formNumber}/evidences/$fileName");
@@ -150,6 +151,7 @@ class AbsentFormController extends Controller
     // into its own folder at edit time, see updateAbsentForm().
     public function downloadPreviousEvidence($id, $fileName)
     {
+        $id = decrypt_id($id) ?? abort(404);
         $fileName = basename($fileName);
         $formNumber = Absence::where('id', $id)->value('form_number');
         $path = storage_path("app/private/absent-forms/absent-form-{$formNumber}/previous_evidences/$fileName");
@@ -440,6 +442,8 @@ class AbsentFormController extends Controller
 
     public function get($id)
     {
+        $id = decrypt_id($id) ?? abort(404);
+
         return new AbsenceResource(Absence::with(['user.profile', 'user.program', 'user.enrollments', 'revisions'])
             ->where('id', $id)
             ->first());

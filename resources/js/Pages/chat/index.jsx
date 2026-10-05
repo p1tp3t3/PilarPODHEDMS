@@ -25,6 +25,7 @@ const Chat = ({ contacts: initialContacts }) => {
     const { isUserOnline } = useContext(AuthContext)
     const [contacts, setContacts] = useState(initialContacts || [])
     const [activeId, setActiveId] = useState(null)
+    const [activeEncryptedId, setActiveEncryptedId] = useState(null)
     const [search, setSearch] = useState("")
     const [searchResults, setSearchResults] = useState(null)
     const canSearch = isAdminRole(user.role)
@@ -40,18 +41,20 @@ const Chat = ({ contacts: initialContacts }) => {
     const [actionMenu, setActionMenu] = useState(null) // { anchorEl, message } | null
     const bottomRef = useRef(null)
     const activeIdRef = useRef(activeId)
+    const activeEncryptedIdRef = useRef(activeEncryptedId)
     const messageRefs = useRef({})
     const textareaRef = useRef(null)
     const isTouchDevice = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
 
     useEffect(() => { activeIdRef.current = activeId }, [activeId])
+    useEffect(() => { activeEncryptedIdRef.current = activeEncryptedId }, [activeEncryptedId])
 
     useEffect(() => {
         if (activeId == null) return
         setReplyingTo(null)
         setEditingMessage(null)
         setBody("")
-        ChatService.getThread(activeId, (d) => setMessages(d.messages || []))
+        ChatService.getThread(activeEncryptedId, (d) => setMessages(d.messages || []))
     }, [activeId])
 
     useEffect(() => {
@@ -68,7 +71,7 @@ const Chat = ({ contacts: initialContacts }) => {
 
                 if (msg.sender_id === activeIdRef.current) {
                     setMessages((prev) => [...prev, msg])
-                    ChatService.getThread(activeIdRef.current, () => {})
+                    ChatService.getThread(activeEncryptedIdRef.current, () => {})
                 }
 
                 setContacts((prev) => {
@@ -160,8 +163,9 @@ const Chat = ({ contacts: initialContacts }) => {
     // first time someone not yet in `contacts` (found via search, not an
     // existing conversation) is opened, so they appear in the list and a
     // thread can start with them.
-    const openContact = (id, stub) => {
+    const openContact = (id, encryptedId, stub) => {
         setActiveId(id)
+        setActiveEncryptedId(encryptedId)
         setContacts((prev) => {
             if (prev.some((c) => c.id === id)) {
                 return prev.map((c) => c.id === id ? { ...c, unread_count: 0 } : c)
@@ -193,13 +197,14 @@ const Chat = ({ contacts: initialContacts }) => {
         }
 
         const sentTo = activeId
+        const sentToEncrypted = activeEncryptedId
         const replyId = replyingTo?.id ?? null
         setSending(true)
         ChatService.send(sentTo, text, replyId, () => {
             setSending(false)
             setBody("")
             setReplyingTo(null)
-            ChatService.getThread(sentTo, (d) => setMessages(d.messages || []))
+            ChatService.getThread(sentToEncrypted, (d) => setMessages(d.messages || []))
             setContacts((prev) => {
                 const next = prev.map((c) => c.id === sentTo
                     ? { ...c, last_message: text, last_message_at: new Date().toISOString() }
@@ -346,7 +351,7 @@ const Chat = ({ contacts: initialContacts }) => {
                                 return (
                                 <button
                                     key={c.id}
-                                    onClick={() => openContact(c.id, c)}
+                                    onClick={() => openContact(c.id, c.encrypted_id, c)}
                                     className={`w-full text-left px-4 py-3 flex items-center gap-3 border-b border-gray-100 hover:bg-gray-50 ${activeId === c.id ? 'bg-blue-50' : ''}`}
                                 >
                                     <ProfilePic
@@ -392,7 +397,7 @@ const Chat = ({ contacts: initialContacts }) => {
                                 <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-3">
                                     <button
                                         type="button"
-                                        onClick={() => setActiveId(null)}
+                                        onClick={() => { setActiveId(null); setActiveEncryptedId(null) }}
                                         className="sm:hidden text-gray-500 hover:text-gray-800 shrink-0"
                                         title="Back to contacts"
                                     >
@@ -470,7 +475,7 @@ const Chat = ({ contacts: initialContacts }) => {
                                                         {m.edited_at && !m.unsent_at && (
                                                             <button
                                                                 type="button"
-                                                                onClick={() => openHistory(m.id)}
+                                                                onClick={() => openHistory(m.encrypted_id)}
                                                                 className={`flex items-center gap-0.5 underline decoration-dotted ${mine ? 'text-blue-100 hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}
                                                                 title="See edit history"
                                                             >

@@ -598,31 +598,31 @@ class DashboardController extends Controller
         if ($permissions?->allow_complaint) {
             $records['complaint'] = self::scopeToCurrentSemester(
                 Complaint::with(['user.profile', 'subject.profile'])->where('complainant_id', $user->id)
-            )->latest('created_at')->get();
+            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
         }
 
         if ($permissions?->allow_referral) {
             $records['referral'] = self::scopeToCurrentSemester(
                 Referral::with(['user.profile', 'referredStudent.profile'])->where('teaching_staff_id', $user->id)
-            )->latest('created_at')->get();
+            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
         }
 
         if ($permissions?->allow_absent_form) {
             $records['absent_form'] = self::scopeToCurrentSemester(
                 Absence::where('student_id', $user->id)
-            )->latest('created_at')->get();
+            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
         }
 
         if ($permissions?->allow_gatepass) {
             $records['gate_pass'] = self::scopeToCurrentSemester(
                 GatePass::where('user_id', $user->id)
-            )->latest('created_at')->get();
+            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
         }
 
         if ($permissions?->allow_appointment) {
             $records['appointment'] = self::scopeToCurrentSemester(
                 Appointment::where('user_id', $user->id)
-            )->latest('created_at')->get();
+            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
         }
 
         return response()->json($records);
@@ -642,19 +642,19 @@ class DashboardController extends Controller
         return response()->json([
             'complaint' => self::scopeToCurrentSemester(
                 Complaint::with(['user.profile', 'subject.profile'])
-            )->latest('created_at')->get(),
+            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id)),
             'referral' => self::scopeToCurrentSemester(
                 Referral::with(['user.profile', 'referredStudent.profile'])
-            )->latest('created_at')->get(),
+            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id)),
             'absent_form' => self::scopeToCurrentSemester(
                 Absence::with('user.profile')
-            )->latest('created_at')->get(),
+            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id)),
             'gate_pass' => self::scopeToCurrentSemester(
                 GatePass::with('user.profile')
-            )->latest('created_at')->get(),
+            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id)),
             'appointment' => self::scopeToCurrentSemester(
                 Appointment::with('user.profile')
-            )->latest('created_at')->get(),
+            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id)),
         ]);
     }
 }

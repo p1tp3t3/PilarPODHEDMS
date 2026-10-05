@@ -9,6 +9,7 @@ const GatePassList = (props) => {
     const rows = props.list.length !== 0
         ? props.list.map((e, i) => ({
             id: e.gatepass?.[0]?.id ?? i,
+            encrypted_id: e.gatepass?.[0]?.encrypted_id,
             index: i + 1,
             fullName: `${e.profile?.first_name || ""} ${e.profile?.last_name || ""}`,
             userType: showUserType(e),
@@ -94,7 +95,7 @@ const GatePassList = (props) => {
                 <div className="flex gap-2 items-center h-full">
                     <ActionBtn
                         className="bg-blue-700 hover:bg-blue-800"
-                        onClick={() => props.view(params.row.id)}
+                        onClick={() => props.view(params.row.encrypted_id)}
                     >
                         View
                     </ActionBtn>

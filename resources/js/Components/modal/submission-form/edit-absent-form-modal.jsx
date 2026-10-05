@@ -181,8 +181,8 @@ const EditAbsentFormModal = (props) => {
                                 fileList={picture_list}
                                 existingList={existingEvidence.map((e) => ({
                                     key: e.file,
-                                    src: `/absent-form/${props.data?.id}/evidence/${e.file}`,
-                                    href: `/absent-form/${props.data?.id}/evidence/${e.file}`,
+                                    src: `/absent-form/${props.data?.encrypted_id}/evidence/${e.file}`,
+                                    href: `/absent-form/${props.data?.encrypted_id}/evidence/${e.file}`,
                                 }))}
                                 onRemoveExisting={(file) =>
                                     setExistingEvidence((prev) => prev.filter((e) => e.file !== file))

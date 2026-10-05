@@ -14,8 +14,11 @@ class SystemSettingsController extends Controller
 {
     public function index()
     {
+        $user = auth()->user();
+        $user->encrypted_id = encrypt_id($user->id);
+
         return Inertia::render('itrc/system-settings', [
-            'user' => auth()->user(),
+            'user' => $user,
             'has_login_portal_password' => ! empty(config('app.maintenance_login_secret')),
             'mail_config' => [
                 'username' => config('mail.mailers.smtp.username') ?? '',

@@ -156,7 +156,7 @@ const RecordRow = ({ type, row, showOwner }) => {
     if (meta.route) {
         return (
             <Link
-                href={`${meta.route}?view=${row.id}`}
+                href={`${meta.route}?view=${row.encrypted_id}`}
                 className="flex items-center justify-between gap-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-md px-4 py-3 transition-colors"
             >
                 {body}

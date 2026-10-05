@@ -16,6 +16,7 @@ const ParentRequestList = ({ list = null, paginate = true, event }) => {
     return {
       i: i + 1,
       id: obj.id,
+      encrypted_id: obj.encrypted_id,
       name: obj.name,
       role: toTitleCase(JSON.parse(obj.parent_details).parent_role),
       parent_details: obj.parent_details,
@@ -60,7 +61,7 @@ const ParentRequestList = ({ list = null, paginate = true, event }) => {
       align: "left",
       renderCell: (params) => (
         <div className="flex flex-wrap gap-1 py-1">
-            <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => event('v', params.row.id, params.row)}>
+            <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => event('v', params.row.encrypted_id, params.row)}>
               View
             </ActionBtn>
             <ActionBtn className="bg-green-600 text-white hover:bg-green-700" onClick={() => event('a', params.row.id, params.row)}>

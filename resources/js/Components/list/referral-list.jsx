@@ -184,7 +184,7 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
                     <div className="flex flex-wrap items-center gap-2 text-[0.9em] py-1">
                         <ActionBtn
                             className="bg-blue-700 hover:bg-blue-800"
-                            onClick={() => viewReferral(row.id)}
+                            onClick={() => viewReferral(row.raw?.encrypted_id)}
                         >
                             View
                         </ActionBtn>
@@ -200,14 +200,14 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
 
                                 <ActionBtn
                                     className="bg-orange-500 hover:bg-orange-600"
-                                    onClick={() => window.open(`/referral/verify/${row.id}/send-guidance`, "_blank")}
+                                    onClick={() => window.open(`/referral/verify/${row.raw?.encrypted_id}/send-guidance`, "_blank")}
                                 >
                                     Send to Guidance
                                 </ActionBtn>
 
                                 <ActionBtn
                                     className="bg-purple-500 hover:bg-purple-600"
-                                    onClick={() => window.open(`/referral/verify/${row.id}/send-it-staff`, "_blank")}
+                                    onClick={() => window.open(`/referral/verify/${row.raw?.encrypted_id}/send-it-staff`, "_blank")}
                                 >
                                     Send to IT Staff
                                 </ActionBtn>

@@ -15,6 +15,7 @@ class GatePassResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'encrypted_id' => encrypt_id($this->id),
             'gatepass_number' => $this->gatepass_number,
             'user_id' => $this->user_id,
             'reason' => $this->reason,

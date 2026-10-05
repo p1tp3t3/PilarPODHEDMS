@@ -14,7 +14,7 @@ const tabs = [
 const ProgramUsers = ({ program, faculty, students }) => {
     const head = program.program_head
     const activeTab = new URLSearchParams(window.location.search).get("tab") || "faculty"
-    const goToTab = (tab) => router.visit(`/super-admin/program/${program.id}/users?tab=${tab}`)
+    const goToTab = (tab) => router.visit(`/super-admin/program/${program.encrypted_id}/users?tab=${tab}`)
 
     return (
         <>

@@ -463,6 +463,10 @@ class AppointmentController extends Controller
 
     public function getReqList($reqId = null, $json = false)
     {
+        if ($reqId !== null) {
+            $reqId = decrypt_id($reqId) ?? abort(404);
+        }
+
         $appointmentReq = new AppointmentRequest;
         $appointmentReq = $appointmentReq->with(['user' => function ($q) {
             $q->with(['program', 'parent']);
@@ -747,6 +751,8 @@ class AppointmentController extends Controller
      */
     public function show($id)
     {
+        $id = decrypt_id($id) ?? abort(404);
+
         $appointment = Appointment::with('user.profile')->findOrFail($id);
 
         abort_unless(

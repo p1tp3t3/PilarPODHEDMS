@@ -342,7 +342,7 @@ const AnalyticalReport = (props) => {
       <div
         key={index}
         className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border border-gray-300 bg-white shadow-sm hover:shadow-md transition-shadow px-4 py-3 rounded-lg"
-        onClick={() => router.visit(`/student-violation/${violator.user.id}`)}
+        onClick={() => router.visit(`/student-violation/${violator.user.encrypted_id}`)}
       >
         {/* Left Side (Rank + Profile) */}
         <div className="flex items-center gap-3">

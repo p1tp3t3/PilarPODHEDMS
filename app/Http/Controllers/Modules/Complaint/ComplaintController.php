@@ -204,6 +204,7 @@ class ComplaintController extends Controller
 
     public function downloadEvidence($id, $fileName)
     {
+        $id = decrypt_id($id) ?? abort(404);
         $fileName = basename($fileName);
         $complaintNumber = Complaint::where('id', $id)->value('complaint_number');
         $path = storage_path("app/private/complaints/complaint-{$complaintNumber}/evidences/$fileName");
@@ -221,6 +222,7 @@ class ComplaintController extends Controller
     // into its own folder at edit time, see updateComplaint().
     public function downloadPreviousEvidence($id, $fileName)
     {
+        $id = decrypt_id($id) ?? abort(404);
         $fileName = basename($fileName);
         $complaintNumber = Complaint::where('id', $id)->value('complaint_number');
         $path = storage_path("app/private/complaints/complaint-{$complaintNumber}/previous_evidences/$fileName");
@@ -236,6 +238,7 @@ class ComplaintController extends Controller
 
     public function downloadSubjectDocument($id, $fileName)
     {
+        $id = decrypt_id($id) ?? abort(404);
         $fileName = basename($fileName);
         $complaintNumber = Complaint::where('id', $id)->value('complaint_number');
         $path = storage_path("app/private/complaints/complaint-{$complaintNumber}/subjects/$fileName");
@@ -737,6 +740,8 @@ class ComplaintController extends Controller
 
     public function get($id)
     {
+        $id = decrypt_id($id) ?? abort(404);
+
         $complaint = Complaint::with([
             // COMPLAINT OWNER (User)
             'user.profile',

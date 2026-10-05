@@ -66,7 +66,7 @@ const AbsentForm = (props) => {
     useEffect(() => {
         const id = new URLSearchParams(window.location.search).get("view")
         if (!id) return
-        const match = allForms.find((form) => String(form.id) === id)
+        const match = allForms.find((form) => form.encrypted_id === id)
         if (match) setTab(absentFormStatusKey(match))
         setViewId(id)
         setViewOpen(true)

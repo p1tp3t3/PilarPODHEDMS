@@ -53,7 +53,7 @@ const ViewProgramViolationModal = (props) => {
                 data.students.map((row, i) => (
                   <div key={i} className="border border-gray-300 bg-white shadow-sm rounded-lg px-4 py-3">
                     <Link
-                      href={`/student-violation/${row.user.id}`}
+                      href={`/student-violation/${row.user.encrypted_id}`}
                       className="flex justify-between items-center gap-3 hover:opacity-80"
                     >
                       <div className="flex items-center gap-3">

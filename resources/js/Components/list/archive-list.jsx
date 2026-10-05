@@ -59,7 +59,7 @@ const downloadDocument = (type, id, data) => {
   if (type === "referral") file = `referral-files-${data.referral_number}.zip`;
   if (type === "absent form") file = `absence-files-${data.form_number}.zip`;
 
-  link.href = `/download/${type}/${id}`;
+  link.href = `/download/${type}/${data.encrypted_id}`;
   link.setAttribute("download", file);
   document.body.appendChild(link);
   link.click();

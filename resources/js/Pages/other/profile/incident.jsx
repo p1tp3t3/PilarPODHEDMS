@@ -27,9 +27,9 @@ const Incident = (props) => {
     const renderContent = () => {
         switch (option) {
             case 'recent_incidents':
-                return <IncidentGroupList user_id={props.data.id} list={props.incidentGroups} />
+                return <IncidentGroupList user_id={props.data.encrypted_id} list={props.incidentGroups} />
             case 'occurence':
-                return <RecentViolationOccurenceList user_id={props.data.id} list={props.violationOccurrences} />
+                return <RecentViolationOccurenceList user_id={props.data.encrypted_id} list={props.violationOccurrences} />
         }
     }
     return (

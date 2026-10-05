@@ -15,6 +15,7 @@ class ReferralResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'encrypted_id' => encrypt_id($this->id),
             'teaching_staff_id' => $this->teaching_staff_id,
             'referral_number' => $this->referral_number,
             'reason_description' => $this->reason_description,

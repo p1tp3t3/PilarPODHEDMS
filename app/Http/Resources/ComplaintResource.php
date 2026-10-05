@@ -18,6 +18,7 @@ class ComplaintResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'encrypted_id' => encrypt_id($this->id),
             'complaint_number' => $this->complaint_number,
             'case_number' => $this->case_number,
             'complainant_name' => $this->complainant_name,

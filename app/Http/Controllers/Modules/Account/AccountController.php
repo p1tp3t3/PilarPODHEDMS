@@ -722,7 +722,7 @@ class AccountController extends Controller
     {
         $user = auth()->user();
 
-        if (! $user || (int) $id !== $user->id) {
+        if (! $user || decrypt_id($id) !== $user->id) {
             return response()->json(false);
         }
 

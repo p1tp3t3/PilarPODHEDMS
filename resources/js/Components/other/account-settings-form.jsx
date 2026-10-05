@@ -244,7 +244,7 @@ const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, r
         if (!validate()) return;
 
         if (showCurrentPassword) {
-            const isCorrect = await checkCurrentPassword(authUser.id, data.current_password);
+            const isCorrect = await checkCurrentPassword(authUser.encrypted_id, data.current_password);
             setVerifyCurrentPassword(isCorrect);
             if (!isCorrect) {
                 setError((prev) => ({
@@ -350,7 +350,7 @@ const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, r
                             type="password"
                             val={data.current_password}
                             change={(e) => change(e, setData)}
-                            checkExists={(e) => checkCurrentPassword(authUser.id, e)}
+                            checkExists={(e) => checkCurrentPassword(authUser.encrypted_id, e)}
                             enableShowPassword={true}
                             setExist={setVerifyCurrentPassword}
                             error={error.current_password}

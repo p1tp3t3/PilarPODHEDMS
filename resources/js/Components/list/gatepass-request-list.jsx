@@ -31,6 +31,7 @@ const GatePassRequestList = (props) => {
         return props.list.map((e, i) => ({
             i: i + 1,
             id: e.id,
+            encrypted_id: e.encrypted_id,
             gatepass_number: e.gatepass_number,
             user_id: e.user?.id_number,
             name: (e.user.profile?.first_name ?? '') + ' ' + (e.user.profile?.middle_name ?? '') + " " + (e.user.profile?.last_name ?? '') + ' ' + e.user.role,
@@ -146,7 +147,7 @@ const GatePassRequestList = (props) => {
                     <div className="flex flex-wrap gap-2 items-center py-1">
                         <ActionBtn
                             className="bg-blue-700 hover:bg-blue-800"
-                            onClick={() => props.view(params.row.id)}
+                            onClick={() => props.view(params.row.encrypted_id)}
                         >
                             View
                         </ActionBtn>

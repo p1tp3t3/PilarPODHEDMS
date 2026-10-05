@@ -40,6 +40,7 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
     const data = Array.isArray(list) ? list : list.data || [];
     return data.map((e, i) => ({
       id: e.id,
+      encrypted_id: e.encrypted_id,
       index: i + 1,
       form_number: e.form_number,
       student_id: e.user.id_number,
@@ -173,7 +174,7 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
           <div className="flex flex-wrap gap-2">
             <ActionBtn
               className="bg-blue-600 text-white hover:bg-blue-700"
-              onClick={() => events(row.id, "view")}
+              onClick={() => events(row.encrypted_id, "view")}
             >
               View
             </ActionBtn>

@@ -4,6 +4,7 @@ use App\Events\NotifyUser;
 use App\Models\Notifications;
 use App\Models\Position;
 use App\Models\TeachingStaff;
+use Illuminate\Support\Facades\Crypt;
 
 /*
 |--------------------------------------------------------------------------
@@ -130,5 +131,49 @@ if (!function_exists('archive_retention_date')) {
     function archive_retention_date(): \Carbon\Carbon
     {
         return now()->addYears((int) config('app.archive_retention_years', 5));
+    }
+}
+
+if (!function_exists('encrypt_id')) {
+    /**
+     * A URL-safe encrypted token for a numeric ID — used wherever an ID
+     * travels through a GET route segment or query string instead of a
+     * raw, sequential, enumerable integer. Crypt::encryptString()'s own
+     * output uses the standard (+ / =) base64 alphabet; only +/ are
+     * swapped for the URL-safe -_ pair. The '=' padding is deliberately
+     * left untouched (it's already valid unencoded in both a URL path
+     * segment and a query string per RFC 3986) — stripping and later
+     * recomputing it from the token's length was tried and is NOT safe:
+     * it lets a tampered/appended suffix land in its own aligned base64
+     * group that decodes independently of the real payload, which
+     * Crypt::decryptString's json_decode() then silently ignores as
+     * trailing garbage instead of failing the MAC check.
+     */
+    function encrypt_id(int|string $id): string
+    {
+        return strtr(Crypt::encryptString((string) $id), '+/', '-_');
+    }
+}
+
+if (!function_exists('decrypt_id')) {
+    /**
+     * Reverses encrypt_id(). Returns null (instead of throwing) on a
+     * missing/malformed/tampered token so route handlers can abort(404)
+     * instead of leaking a stack trace to someone poking at the URL by
+     * hand.
+     */
+    function decrypt_id(?string $token): ?int
+    {
+        if (!$token) {
+            return null;
+        }
+
+        try {
+            $value = Crypt::decryptString(strtr($token, '-_', '+/'));
+
+            return ctype_digit($value) ? (int) $value : null;
+        } catch (\Illuminate\Contracts\Encryption\DecryptException) {
+            return null;
+        }
     }
 }

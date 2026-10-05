@@ -45,6 +45,13 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
     ];
 
+    protected $appends = ['encrypted_id'];
+
+    public function getEncryptedIdAttribute(): string
+    {
+        return encrypt_id($this->id);
+    }
+
     /**
      * Get the attributes that should be cast.
      *

@@ -144,7 +144,7 @@ const Body = ({ data, usr }) => {
                                     <div className="text-gray-500 mb-1">Evidence:</div>
                                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                                         {previousEvidences.map((e, i) => {
-                                            const src = `/complaint/${data.id}/previous-evidence/${e.file}`
+                                            const src = `/complaint/${data.encrypted_id}/previous-evidence/${e.file}`
                                             return (
                                                 <a key={i} href={src} target="_blank" rel="noreferrer" className="block rounded-lg overflow-hidden border border-gray-200 hover:border-gray-300">
                                                     {e.type === 'vid'
@@ -244,7 +244,7 @@ const Body = ({ data, usr }) => {
                     {evidences.length !== 0
                     ? <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {evidences.map((e, i) => {
-                            const src = `/complaint/${data.id}/evidence/${e.file}`
+                            const src = `/complaint/${data.encrypted_id}/evidence/${e.file}`
                             return (
                                 <a key={i} href={src} target="_blank" rel="noreferrer"
                                    className="group block rounded-lg overflow-hidden border border-gray-200 hover:border-gray-300 hover:shadow-sm transition">

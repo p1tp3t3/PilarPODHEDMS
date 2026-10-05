@@ -92,7 +92,7 @@ const StudentViolationList = ({ list = [] }) => {
             <div className="flex gap-2 items-center h-full">
                 <ActionBtn
                     className="bg-blue-600 text-white hover:bg-blue-700"
-                    onClick={() => router.visit(`/student-violation/${obj.student_id}`)}
+                    onClick={() => router.visit(`/student-violation/${obj.user?.encrypted_id}`)}
                 >
                 View
                 </ActionBtn>

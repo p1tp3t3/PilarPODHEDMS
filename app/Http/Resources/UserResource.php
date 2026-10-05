@@ -18,6 +18,7 @@ class UserResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'encrypted_id' => encrypt_id($this->id),
             'id_number' => $this->id_number,
             'role' => $this->role,
             'username' => $this->username,

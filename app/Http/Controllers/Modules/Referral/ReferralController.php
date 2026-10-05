@@ -515,6 +515,8 @@ class ReferralController extends Controller
 
     private function sendReferralToPosition($id, string $positionName)
     {
+        $id = decrypt_id($id) ?? abort(404);
+
         $referral = Referral::findOrFail($id);
         $referredStudents = ReferralReferredStudent::with(['referral', 'user.profile', 'user.program', 'user.enrollments'])
             ->where('referral_id', $id)
@@ -560,6 +562,8 @@ class ReferralController extends Controller
 
     public function get($id)
     {
+        $id = decrypt_id($id) ?? abort(404);
+
         return new ReferralResource(Referral::with([
             'user.profile',
             'user.teachingStaff.program',

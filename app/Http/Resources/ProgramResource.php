@@ -11,6 +11,7 @@ class ProgramResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'encrypted_id' => encrypt_id($this->id),
             'name' => $this->name,
             'description' => $this->description,
             'color_code' => $this->color_code,

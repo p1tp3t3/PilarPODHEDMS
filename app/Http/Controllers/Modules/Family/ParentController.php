@@ -22,7 +22,8 @@ class ParentController extends Controller
 {
     public function index()
     {
-        $parentRequests = ParentRegistrationRequest::latest('created_at')->get();
+        $parentRequests = ParentRegistrationRequest::latest('created_at')->get()
+            ->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
 
         return Inertia::render('itrc/parent-approval-request', [
             'parent_requests' => $parentRequests,
@@ -218,6 +219,8 @@ class ParentController extends Controller
 
     public function getParentRequest($id)
     {
+        $id = decrypt_id($id) ?? abort(404);
+
         return ParentRegistrationRequest::find($id);
     }
 }

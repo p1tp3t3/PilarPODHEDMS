@@ -70,7 +70,8 @@ class MaintenanceController extends Controller
         $violations = Violation::query()
             ->with(['penalties.penalty'])
             ->latest('created_at')
-            ->get();
+            ->get()
+            ->each(fn ($v) => $v->encrypted_id = encrypt_id($v->id));
 
         return Inertia::render('other/violation-management', [
             'violation' => $violations,
@@ -570,6 +571,8 @@ class MaintenanceController extends Controller
 
     public function programUsersIndex($id)
     {
+        $id = decrypt_id($id) ?? abort(404);
+
         $program = Program::with('programHead.user.profile')->findOrFail($id);
 
         $faculty = User::with(['profile', 'teachingStaff.program'])

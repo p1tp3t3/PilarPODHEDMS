@@ -308,6 +308,7 @@ class ArchiveController extends Controller
             unset($item->subject);
 
             $item->type = 'complaint';
+            $item->encrypted_id = encrypt_id($item->id);
         });
 
         // -----------------------
@@ -339,6 +340,7 @@ class ArchiveController extends Controller
             unset($item->referredStudent);
 
             $item->type = 'referral';
+            $item->encrypted_id = encrypt_id($item->id);
         });
 
         // -----------------------
@@ -354,6 +356,7 @@ class ArchiveController extends Controller
             unset($item->user);
 
             $item->type = 'absent form';
+            $item->encrypted_id = encrypt_id($item->id);
         });
 
         // -----------------------
@@ -369,6 +372,7 @@ class ArchiveController extends Controller
             unset($item->user);
 
             $item->type = 'gate pass';
+            $item->encrypted_id = encrypt_id($item->id);
         });
 
         // -----------------------
@@ -548,6 +552,8 @@ class ArchiveController extends Controller
 
     public function downloadDocument($type, $id)
     {
+        $id = decrypt_id($id) ?? abort(404);
+
         switch ($type) {
 
             case 'complaint':

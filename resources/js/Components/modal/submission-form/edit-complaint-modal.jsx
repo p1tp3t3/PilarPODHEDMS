@@ -230,8 +230,8 @@ const EditComplaintModal = (props) => {
                                 existingList={existingEvidence.filter((e) => e.type !== 'vid').map((e) => ({
                                     key: e.file,
                                     type: e.type,
-                                    src: `/complaint/${props.data.id}/evidence/${e.file}`,
-                                    href: `/complaint/${props.data.id}/evidence/${e.file}`,
+                                    src: `/complaint/${props.data.encrypted_id}/evidence/${e.file}`,
+                                    href: `/complaint/${props.data.encrypted_id}/evidence/${e.file}`,
                                 }))}
                                 onRemoveExisting={removeExistingEvidence}
                                 name='pic_evidence'
@@ -252,8 +252,8 @@ const EditComplaintModal = (props) => {
                                 existingList={existingEvidence.filter((e) => e.type === 'vid').map((e) => ({
                                     key: e.file,
                                     type: e.type,
-                                    src: `/complaint/${props.data.id}/evidence/${e.file}`,
-                                    href: `/complaint/${props.data.id}/evidence/${e.file}`,
+                                    src: `/complaint/${props.data.encrypted_id}/evidence/${e.file}`,
+                                    href: `/complaint/${props.data.encrypted_id}/evidence/${e.file}`,
                                 }))}
                                 onRemoveExisting={removeExistingEvidence}
                                 name='vid_evidence'

@@ -45,6 +45,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $user ? [
                     'id' => $user->id,
+                    'encrypted_id' => encrypt_id($user->id),
                     'username' => $user->username,
                     'role' => $user->role,
                     'profile' => $user->profile,

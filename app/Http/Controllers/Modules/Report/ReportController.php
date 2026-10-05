@@ -106,7 +106,8 @@ class ReportController extends Controller
             ->groupBy('student_id')
             ->orderByRaw('COUNT(*) DESC')
             ->take(5)
-            ->get();
+            ->get()
+            ->each(fn ($s) => $s->user->encrypted_id = encrypt_id($s->user->id));
 
         $violation = Violation::all(['id', 'violation_name']);
 
@@ -362,8 +363,8 @@ class ReportController extends Controller
         return response()->json([
             'exists' => true,
             'report' => $existing,
-            'download_url' => route('prefect.report.download', ['id' => $existing->id]),
-            'view_url' => $existing->file_type === 'pdf' ? route('prefect.report.view', ['id' => $existing->id]) : null,
+            'download_url' => route('prefect.report.download', ['id' => encrypt_id($existing->id)]),
+            'view_url' => $existing->file_type === 'pdf' ? route('prefect.report.view', ['id' => encrypt_id($existing->id)]) : null,
         ]);
     }
 
@@ -433,8 +434,8 @@ class ReportController extends Controller
             ->latest('created_at')
             ->get()
             ->map(fn ($r) => array_merge($r->toArray(), [
-                'download_url' => route('prefect.report.download', ['id' => $r->id]),
-                'view_url' => $r->file_type === 'pdf' ? route('prefect.report.view', ['id' => $r->id]) : null,
+                'download_url' => route('prefect.report.download', ['id' => encrypt_id($r->id)]),
+                'view_url' => $r->file_type === 'pdf' ? route('prefect.report.view', ['id' => encrypt_id($r->id)]) : null,
                 'filters_summary' => $this->summarizeReportFilters($r->filters ?? [], $r->report_type),
             ]));
     }
@@ -571,7 +572,9 @@ class ReportController extends Controller
             ->select('cs.student_id', 'cso.violation_id', 'c.case_number', 'c.offense_issued_at')
             ->get();
 
-        $users = User::with('profile')->whereIn('id', $rows->pluck('student_id')->unique())->get()->keyBy('id');
+        $users = User::with('profile')->whereIn('id', $rows->pluck('student_id')->unique())->get()
+            ->each(fn ($u) => $u->encrypted_id = encrypt_id($u->id))
+            ->keyBy('id');
         $violations = Violation::whereIn('id', $rows->pluck('violation_id')->filter()->unique())->get()->keyBy('id');
 
         $result = $rows->groupBy('student_id')->map(fn ($group, $studentId) => [
@@ -680,7 +683,8 @@ class ReportController extends Controller
             ->groupBy('student_id')
             ->orderByRaw('COUNT(*) DESC')
             ->take(5)
-            ->get();
+            ->get()
+            ->each(fn ($s) => $s->user->encrypted_id = encrypt_id($s->user->id));
 
         // === Violations Per Program ===
         $violationPerProgram = DB::query()
@@ -816,6 +820,7 @@ class ReportController extends Controller
      */
     public function downloadReport($id)
     {
+        $id = decrypt_id($id) ?? abort(404);
         $report = Report::where('user_id', auth()->id())->findOrFail($id);
         $fileName = $this->reportFileName($report);
         $path = storage_path('app/private/generated-reports/'.$this->reportRoleDir().'/'.auth()->id()."/$fileName");
@@ -838,6 +843,7 @@ class ReportController extends Controller
      */
     public function viewReport($id)
     {
+        $id = decrypt_id($id) ?? abort(404);
         $report = Report::where('user_id', auth()->id())->findOrFail($id);
         $fileName = $this->reportFileName($report);
         $path = storage_path('app/private/generated-reports/'.$this->reportRoleDir().'/'.auth()->id()."/$fileName");
