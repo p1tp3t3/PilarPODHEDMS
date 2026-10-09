@@ -131,6 +131,65 @@ class AbsentFormController extends Controller
         return response()->json(['message' => 'success']);
     }
 
+    /**
+     * The prefect filing an absent form on a student's behalf — created and
+     * then immediately run through the normal approval (PDF + email), all
+     * inside one transaction so a failed approval leaves nothing behind.
+     */
+    public function prefectStore(\Illuminate\Http\Request $request)
+    {
+        $request->validate(array_merge((new StoreAbsentFormRequest)->rules(), [
+            'student_id' => 'required|exists:users,id',
+            'note' => 'nullable|string',
+        ]));
+
+        if (! User::where('id', $request->student_id)->where('role', 'student')->exists()) {
+            return response()->json(['message' => 'Only students can be issued an absent form.'], 422);
+        }
+
+        $formNumber = $this->generateSequenceCode(Absence::class, 'form_number');
+        $folder = storage_path('app/private/absent-forms/absent-form-'.$formNumber);
+
+        DB::beginTransaction();
+        try {
+            $absenceId = Absence::insertGetId([
+                'form_number' => $formNumber,
+                'student_id' => $request->student_id,
+                'reason' => json_encode($request->reason),
+                'date_from' => $request->date_from,
+                'date_to' => $request->date_to,
+            ]);
+
+            File::makeDirectory("{$folder}/evidences", 0755, true, true);
+            $evidences = [];
+            foreach (array_values($request->file('evidence')) as $i => $evidenceFile) {
+                $fileName = ($i + 1)."-{$formNumber}.".$evidenceFile->getClientOriginalExtension();
+                $evidenceFile->move("{$folder}/evidences", $fileName);
+                $evidences[] = ['file' => $fileName];
+            }
+            Absence::where('id', $absenceId)->update(['evidences' => json_encode($evidences)]);
+
+            $result = $this->confirmAbsentForm($absenceId, ConfirmAbsentFormRequest::createFrom($request));
+            if ($result instanceof \Illuminate\Http\JsonResponse && $result->getStatusCode() >= 400) {
+                throw new \Exception($result->getData(true)['error'] ?? 'Failed to approve absent form.');
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            if (File::exists($folder)) {
+                File::deleteDirectory($folder);
+            }
+
+            return response()->json([
+                'message' => 'Failed to submit absent form.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+
+        return response()->json(['message' => 'success']);
+    }
+
     public function downloadEvidence($id, $fileName)
     {
         $id = decrypt_id($id) ?? abort(404);

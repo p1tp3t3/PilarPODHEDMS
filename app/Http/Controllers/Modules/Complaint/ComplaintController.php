@@ -479,6 +479,9 @@ class ComplaintController extends Controller
         if (! $complaint) {
             return response()->json(['message' => 'Complaint not found.'], 404);
         }
+        if (auth()->user()->role === 'sub_admin') {
+            return response()->json(['message' => 'The prefect cannot revoke complaints.'], 403);
+        }
         if ($complaint->complainant_id !== auth()->id()) {
             return response()->json(['message' => 'You can only revoke a complaint you filed yourself.'], 403);
         }
@@ -681,18 +684,10 @@ class ComplaintController extends Controller
         $data = Complaint::where('complainant_id', auth()->user()->id);
         $status = isset($_GET['status']) ? $_GET['status'] : null;
 
-        // Rejected complaints get archived_at set the moment they reach that
-        // status (see cancelComplaint()) — the same field the Archives page
-        // filters on (ArchiveController::index() uses whereNotNull('archived_at')),
-        // so this tab would be permanently empty if it also required
-        // archived_at to be null. Filter by status alone for this one.
-        //
-        // Revoked is deliberately NOT included here (nor reachable via any
-        // other $_GET['status'] value, which all fall through to the
-        // archived_at-null default below) — a complainant who revokes their
-        // own complaint shouldn't be able to see it again afterward; only
-        // the prefect can, via allComplaints()/getComplainantComplaint().
-        if (isset($_GET['status']) && $_GET['status'] === 'rejected') {
+        // Rejected/revoked complaints get archived_at set the moment they
+        // reach that status (see cancelComplaint()/revokeComplaint()) — so
+        // these tabs filter by status alone, archived or not.
+        if (isset($_GET['status']) && in_array($_GET['status'], ['rejected', 'revoked'])) {
             $data = $data->where('complaint_status', $status);
         } elseif (isset($_GET['status']) && in_array($_GET['status'], ['pending', 'ongoing', 'resolved'])) {
             $data = $data->where('complaint_status', $status)

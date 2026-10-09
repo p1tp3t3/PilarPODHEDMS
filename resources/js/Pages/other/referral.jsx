@@ -9,6 +9,16 @@ import EditReferralModal from "@/Components/modal/submission-form/edit-referral-
 import ReportReferralModal from "@/Components/modal/submission-form/report-referral-modal"
 import { showWarningModal } from "@/others/function"
 import { ReferralService } from "@/others/services/referral-service"
+import TabSwitcher from "@/Components/other/tab-switcher"
+import { List, Clock, CheckCircle2, Ban, Undo2 } from "lucide-react"
+
+const optionTab = [
+    { key: 'all', label: 'All Referrals', icon: List },
+    { key: 'req', label: 'Pending', icon: Clock },
+    { key: 'approve', label: 'Approved', icon: CheckCircle2 },
+    { key: 'rejected', label: 'Rejected', icon: Ban },
+    { key: 'revoked', label: 'Revoked', icon: Undo2 },
+]
 
 const Referral = (props) => {
     const [viewReferral, openViewReferral] = useState(false),
@@ -18,6 +28,13 @@ const Referral = (props) => {
           [reportReferral, openReportReferral] = useState(false)
 
     const { loadRegister } = useReload()
+    const [choose, setChoose] = useState(new URLSearchParams(window.location.search).get('status') || 'req')
+
+    const handleSelect = (type) => {
+        if (choose === type) return
+        setChoose(type)
+        router.visit(`${window.location.pathname}?status=${type}`)
+    }
 
     const setViewReferralId = (i) => {
         openViewReferral(true)
@@ -101,6 +118,9 @@ const Referral = (props) => {
                         </Btn>
                     </div>
                     : ''}
+                </div>
+                <div className="overflow-x-auto">
+                    <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
                 </div>
                 <div className="w-full min-w-0">
                     <ReferralList

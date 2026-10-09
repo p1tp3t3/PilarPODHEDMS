@@ -1,5 +1,7 @@
 import UpModal from "../up-modal";
-import { showWarningModal, showOutputModal, toTitleCase } from "../../../others/function";
+import { showWarningModal, showOutputModal, toTitleCase, getProfilePic } from "../../../others/function";
+import SearchUserBar from "@/Components/input/search-user-bar";
+import SelectedUser from "@/Components/other/selected-user";
 import RichTextEditor from "@/Components/input/rich-text-editor";
 import FormButton from "../../button/button";
 import CheckBoxButton from "@/Components/input/checkbox";
@@ -21,16 +23,24 @@ const RequestAbsentFormModal = (props) => {
       <div className="w-full">
         <div className="pt-3 text-[1.2em]">
           <h1 className="font-bold text-center sm:text-left">
-            Send Reason of Absence
+            {props.issue ? "Issue Absent Form" : "Send Reason of Absence"}
           </h1>
+          {props.issue && (
+            <p className="text-[0.7em] text-gray-500 text-center sm:text-left">
+              Absent forms issued by the prefect are approved immediately.
+            </p>
+          )}
         </div>
-        <Body id={props.id} reload={props.reload} />
+        <Body id={props.id} reload={props.reload} issue={props.issue} onIssued={() => {
+          props.closeModal(false);
+          props.onIssued?.();
+        }} />
       </div>
     </UpModal>
   );
 };
 
-const Body = ({ id, reload }) => {
+const Body = ({ id, reload, issue = false, onIssued }) => {
   const [data, setData] = useState({
     student_id: id,
     date_from: "",
@@ -43,6 +53,8 @@ const Body = ({ id, reload }) => {
   const [validationError, setValidationError] = useState({});
   const [picture_list, setPictureList] = useState([]);
   const [req_picture_list, setReqPictureList] = useState([]);
+  const [student, setStudent] = useState(null);
+  const [search, setSearch] = useState("");
 
   // Handles the reason checkboxes (multi-select)
   const handleReasonCheck = (value) => (e) => {
@@ -59,8 +71,10 @@ const Body = ({ id, reload }) => {
 
     if (validateForm()) {
       showWarningModal(
-        "Are You Sure You Want To Submit Your Absent Form To The Prefect?",
-        "Submit Absent Form",
+        issue
+          ? `Issue an Absent Form to ${student?.profile?.first_name ?? "this student"}? It will be approved immediately.`
+          : "Are You Sure You Want To Submit Your Absent Form To The Prefect?",
+        issue ? "Issue Absent Form" : "Submit Absent Form",
         "Cancel",
         () => {
           const f = new FormData();
@@ -74,7 +88,7 @@ const Body = ({ id, reload }) => {
             f.append(`reason[${index}]`, item)
           );
 
-          f.append("student_id", data.student_id);
+          f.append("student_id", issue ? student.id : data.student_id);
           f.append("date_from", data.date_from);
           f.append("date_to", data.date_to);
 
@@ -82,8 +96,8 @@ const Body = ({ id, reload }) => {
             f.append(`evidence[${index}]`, file);
           });
 
-          reload(true, "text-wait", "Your Absent Form is Processing");
-          AbsentFormService.submit(f, success, error);
+          reload(true, "text-wait", issue ? "Issuing Absent Form" : "Your Absent Form is Processing");
+          (issue ? AbsentFormService.issue : AbsentFormService.submit)(f, success, error);
         }
       );
     }
@@ -92,9 +106,13 @@ const Body = ({ id, reload }) => {
   const success = () => {
     reload(true, "");
     showOutputModal(
-      '"Your Absent Form Sent Successfully to the Prefect',
+      issue ? "Absent Form Issued Successfully" : "Your Absent Form Sent Successfully to the Prefect",
       's',
       () => {
+        if (issue) {
+          setStudent(null);
+          onIssued?.();
+        }
         setData((prev) => ({
       ...prev,
           date_from: "",
@@ -111,7 +129,7 @@ const Body = ({ id, reload }) => {
 
   const error = (e) => {
     showOutputModal(
-      toTitleCase(e.response.data.message),
+      toTitleCase(e.response?.data?.errors ? Object.values(e.response.data.errors)[0]?.[0] : (e.response?.data?.message ?? "There was an error. Please try again.")),
       'e',
       () => {
         reload(false)
@@ -124,6 +142,10 @@ const Body = ({ id, reload }) => {
   // ================================
   const validateForm = () => {
     let errors = {};
+
+    if (issue && !student) {
+      errors.student = "Please select a student.";
+    }
 
     // --- DATE VALIDATION ---
     if (!data.date_from) {
@@ -181,6 +203,41 @@ const Body = ({ id, reload }) => {
   return (
     <div className="py-3 w-full">
       <form onSubmit={handleSubmit} method="post" className="grid gap-5">
+        {issue && (
+          <div className="grid gap-2">
+            {!student ? (
+              <div className="w-full relative">
+                <SearchUserBar
+                  setSearch={setSearch}
+                  name="search_absent_form_student"
+                  search={search}
+                  plc="Search Student Full Name / ID"
+                  handleSearch={(e) => setSearch(e.target.value)}
+                  lim={5}
+                  def="Students Not Found"
+                  withLink={false}
+                  click={(_, user) => { setStudent(user); setSearch(""); }}
+                  apiLink="/api/all-users/student"
+                />
+              </div>
+            ) : (
+              <div>
+                <div className="text-[0.8em]">Student:</div>
+                <SelectedUser
+                  src={getProfilePic(student.profile?.profile_picture, student.profile?.sex)}
+                  name={[student.profile?.first_name, student.profile?.last_name]}
+                  user={student}
+                  unselect={() => setStudent(null)}
+                />
+              </div>
+            )}
+            {validationError.student && (
+              <div className="text-[#d12323] text-[12px] font-semibold">
+                {validationError.student}
+              </div>
+            )}
+          </div>
+        )}
         {/* === DATE RANGE === */}
         <div>
           <label className="text-[0.9em] font-bold">Absent Date</label>

@@ -237,7 +237,7 @@ const ComplaintList = ({
                 </ActionBtn>
                 )}
 
-                {obj.complainant_id === user?.id && obj.complaint_status === "pending" && (
+                {obj.complainant_id === user?.id && user?.role !== "sub_admin" && obj.complaint_status === "pending" && (
                 <ActionBtn
                     onClick={() => actionEvent("revoke", obj.id)}
                     className="bg-gray-600 text-white hover:bg-gray-700"

@@ -1,6 +1,7 @@
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
-import RequestGatePassModal from "@/Components/modal/submission-form/request-gatepass-modal"
+import IssueGatePassModal from "@/Components/modal/submission-form/issue-gatepass-modal"
+import Btn from "@/Components/button/normal-btn"
 import DropdownField from "@/Components/input/dropdown"
 import { useState, useEffect } from "react"
 import GatePassRequestList from "@/Components/list/gatepass-request-list"
@@ -186,13 +187,13 @@ const PrefectGatePass = (props) => {
                 events={setEvents}
             />
 
-            <RequestGatePassModal
+            <IssueGatePassModal
                 close={requestGatePass}
                 closeModal={openRequestGatePass}
-                val={data}
-                setter={setData}
                 pd={["px-5", "py-7"]}
                 isEnableOuterClose={true}
+                reload={loadRegister}
+                onIssued={() => router.visit(`${window.location.pathname}?status=confirmed-users&school-year=${schoolYear}&semester=${semester}`)}
             />
 
             <SetReasonModal
@@ -217,7 +218,14 @@ const PrefectGatePass = (props) => {
                 warning={{ title: "Are You Sure You Want To Reject This Gate Pass Request?", btn: "Reject Gate Pass Request" }}
             />
 
-                <PageLayout title="GATE PASS">
+                <PageLayout
+                    title="GATE PASS"
+                    rightSideComponent={
+                        <Btn onclick={() => openRequestGatePass(true)}>
+                            Issue Gate Pass
+                        </Btn>
+                    }
+                >
                         {/* Filters */}
                         <div className="flex flex-wrap gap-3">
                             <div className="w-full sm:w-56">

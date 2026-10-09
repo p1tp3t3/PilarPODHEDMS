@@ -172,13 +172,7 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
                 const canModerate = usr?.role === "sub_admin" && !row.confirmed_at && !row.rejected_at && !row.revoked_at
                 const isOwner = row.raw?.teaching_staff_id === usr?.id
                 const isPending = row.raw?.referral_status === "pending" && !row.confirmed_at
-                // A prefect's own referral is auto-approved the instant it's
-                // filed (no pending window like a teaching staff's), so it
-                // stays revocable any time up until it's rejected/revoked —
-                // everyone else keeps the narrower pending-only window.
-                const canRevoke = isOwner && (usr?.role === "sub_admin"
-                    ? !["rejected", "revoked"].includes(row.raw?.referral_status)
-                    : isPending)
+                const canRevoke = isOwner && usr?.role !== "sub_admin" && isPending
 
                 return (
                     <div className="flex flex-wrap items-center gap-2 text-[0.9em] py-1">

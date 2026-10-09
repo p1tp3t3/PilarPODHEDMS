@@ -136,6 +136,78 @@ class GatePassController extends Controller
         }
     }
 
+    /**
+     * The prefect issuing a gate pass directly to a student — no request
+     * step, so it's created already approved (confirmed_at set).
+     */
+    public function prefectCreateGatePass(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'reason' => 'required|string',
+            'expiration_date' => 'required|date|after:now',
+            'allow_to' => 'required|array|min:1',
+            'allow_to.*' => 'in:go-out,enter',
+        ]);
+
+        $student = User::with('profile')->where('role', 'student')->find($request->user_id);
+        if (! $student) {
+            return response()->json(['message' => 'Only students can be issued a gate pass.'], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            $gatepass = GatePass::create([
+                'gatepass_number' => $this->generateSequenceCode(GatePass::class, 'gatepass_number'),
+                'user_id' => $student->id,
+                'reason' => $request->reason,
+                'allow_to' => json_encode($request->allow_to),
+                'confirmed_at' => now(),
+                'date_expiration' => $request->expiration_date,
+            ]);
+            $gatepass->refresh();
+
+            notify_single_user(
+                self::getGatePassResponseNotif($student->id, [
+                    'id' => $gatepass->id,
+                    'first_name' => $student->profile?->first_name,
+                    'last_name' => $student->profile?->last_name,
+                    'profile_picture' => $student->profile?->profile_picture,
+                    'user_type' => $student->role,
+                    'name' => $student->program?->name,
+                    'reason' => $gatepass->reason,
+                    'allow_to' => $gatepass->allow_to,
+                    'confirmed_at' => $gatepass->confirmed_at,
+                    'date_expiration' => $gatepass->date_expiration,
+                    'created_at' => $gatepass->created_at,
+                ], 'The prefect has issued you a gate pass.'),
+                new SendGatePass($student->id)
+            );
+            ActionLog::log(
+                auth()->user()->id,
+                'gatepass',
+                'Issued a gatepass to '.$student->profile?->first_name,
+                ['status' => ['from' => null, 'to' => 'approved']]
+            );
+            Mail::to($student->email)->send(new GatePassMail([
+                'requester' => $student->profile?->first_name,
+                'status' => 'approve',
+                'date_requested' => $gatepass->created_at,
+                'date_time_expiration' => $gatepass->date_expiration,
+                'prefect_name' => auth()->user()->profile?->first_name.' '.auth()->user()->profile?->last_name,
+            ]));
+            DB::commit();
+
+            event(new GatePassApproved);
+
+            return response()->json(['message' => 'success']);
+        } catch (Exception $x) {
+            DB::rollBack();
+
+            return response()->json(['message' => $x->getMessage()], 400);
+        }
+    }
+
     public function approveGatePassRequest($id, ApproveGatePassRequest $request)
     {
         $gatepass = GatePass::with(['user.profile', 'user.program', 'user.enrollments'])->where('id', $id);
@@ -504,11 +576,11 @@ class GatePassController extends Controller
 
     }
 
-    public function getGatePassResponseNotif($receiver, $data)
+    public function getGatePassResponseNotif($receiver, $data, $message = 'Your gatepass request has been approved.')
     {
         $dataNotif = [
-            'sender_message' => 'Your gatepass request has been approved.',
-            'receiver_message' => 'Your gatepass request has been approved.',
+            'sender_message' => $message,
+            'receiver_message' => $message,
             'id' => $data['id'],
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],

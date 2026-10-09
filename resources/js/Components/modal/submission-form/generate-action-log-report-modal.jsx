@@ -10,13 +10,21 @@ import RadioButton from "@/Components/input/radio"
 import FormButton from "@/Components/button/button"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
 
+const semesterList = [
+    { val: 1, label: '1st Semester' },
+    { val: 2, label: '2nd Semester' },
+]
+
 const GenerateActionLogReportMoodal = (props) => {
     const [data, setData] = useState({
         report_type: '',
         individual: false,
         file_type: 'pdf',
+        filter_by: 'date',
         date_from: '',
         date_to: '',
+        school_year_id: '',
+        semester: '',
         user_id: ''
     })
 
@@ -37,7 +45,10 @@ const GenerateActionLogReportMoodal = (props) => {
         e.preventDefault()
         setReload(true)
         const f = data.file_type == 'excel' ? 'action-log-report.xlsx' : 'action-log-report.pdf'
-        ReportArchiveService.downloadActionLogReport(data, f, () => {
+        const payload = data.filter_by === 'date'
+            ? { ...data, school_year_id: '', semester: '' }
+            : { ...data, date_from: '', date_to: '' }
+        ReportArchiveService.downloadActionLogReport(payload, f, () => {
             setReload(false)
             showOutputModal(
                 'Action Log Report Generated Successfully',
@@ -150,7 +161,25 @@ const GenerateActionLogReportMoodal = (props) => {
                                     titleCase={true}
                                 />
                             </div>
-                            <div>
+                            <div className="grid gap-2">
+                                <RadioButton
+                                    list={[
+                                        { val: 'date', label: 'Date Range' },
+                                        { val: 'school_year', label: 'School Year' },
+                                    ]}
+                                    change={(e) => setData((prev) => ({
+                                        ...prev,
+                                        filter_by: e.target.value,
+                                        date_from: '',
+                                        date_to: '',
+                                        school_year_id: '',
+                                        semester: '',
+                                    }))}
+                                    name="report_filter_by"
+                                    id="report_filter_by"
+                                    val={data.filter_by}
+                                />
+                                {data.filter_by === 'date' &&
                                 <BetweenTextfield
                                     type="date"
                                     labels={['Date From', 'Date To']}
@@ -158,7 +187,25 @@ const GenerateActionLogReportMoodal = (props) => {
                                     id={['date_from',  'date_to']}
                                     data={[data.date_from, data.date_to]}
                                     setData={setData}
-                                />
+                                />}
+                                {data.filter_by === 'school_year' &&
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <DropdownField
+                                        default={{ val: '', label: 'Select School Year' }}
+                                        list={(props.schoolYears ?? []).map((y) => ({ val: y.id, label: y.year }))}
+                                        onChange={handleChange}
+                                        name="school_year_id"
+                                        val={data.school_year_id}
+                                        req={true}
+                                    />
+                                    <DropdownField
+                                        default={{ val: '', label: 'All Semesters' }}
+                                        list={semesterList}
+                                        onChange={handleChange}
+                                        name="semester"
+                                        val={data.semester}
+                                    />
+                                </div>}
                             </div>
                             <div>
                                 <RadioButton

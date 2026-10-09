@@ -5,6 +5,10 @@ export const AbsentFormService = {
         const api = new APIRequest("/student/absent-form/create", "post", formData, () => {}, success, error);
         api.sendPostData();
     },
+    issue(formData, success, error) {
+        const api = new APIRequest("/prefect/absent-form/create", "post", formData, () => {}, success, error);
+        api.sendPostData();
+    },
     update(id, formData, success, error) {
         const api = new APIRequest(`/student/absent-form/${id}/update`, "post", formData, () => {}, success, error);
         api.sendPostData();

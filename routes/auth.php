@@ -193,10 +193,12 @@ Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(functi
     Route::get('/prefect/absent-form', [AbsentFormController::class, 'index']);
     Route::post('/prefect/absent-form/verify/{id}/confirm', [AbsentFormController::class, 'confirmAbsentForm']);
     Route::post('/prefect/absent-form/verify/{id}/cancel', [AbsentFormController::class, 'cancelAbsentForm']);
+    Route::post('/prefect/absent-form/create', [AbsentFormController::class, 'prefectStore']);
     Route::get('/prefect/appointment', [AppointmentController::class, 'index']);
 
     Route::post('/prefect/gatepass/verify/{id}/confirm', [GatePassController::class, 'approveGatePassRequest']);
     Route::post('/prefect/gatepass/verify/{id}/cancel', [GatePassController::class, 'disapproveGatePassRequest']);
+    Route::post('/prefect/gatepass/create', [GatePassController::class, 'prefectCreateGatePass']);
 
     Route::get('/prefect/gatepass', [GatePassController::class, 'index']);
 

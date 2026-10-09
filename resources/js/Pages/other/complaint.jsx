@@ -13,7 +13,7 @@ import TabSwitcher from "@/Components/other/tab-switcher"
 import { Button, Paper } from "@mui/material"
 import { DataGrid } from '@/Components/other/data-grid';
 import QuickFilteringGrid from "@/Components/text-component"
-import { List, Ban, Clock, RotateCw } from "lucide-react"
+import { List, Ban, Clock, RotateCw, Undo2 } from "lucide-react"
 import { ComplaintService } from "@/others/services/complaint-service"
 
 
@@ -40,14 +40,12 @@ const Complaint = (props) => {
     const handleChange = (e) => {
         change(e, setData)
     }
-    // No "Revoked" tab here — once a complainant revokes their own
-    // complaint it drops out of their own view entirely; only the prefect
-    // can still see it (see ComplaintController::allUserComplaint()).
     const optionTab = [
       { key: "all", label: "All Complaints", icon: List },
       { key: "rejected", label: "Rejected", icon: Ban },
       { key: "pending", label: "Pending", icon: Clock },
       { key: "ongoing", label: "Ongoing", icon: RotateCw },
+      { key: "revoked", label: "Revoked", icon: Undo2 },
     ];
     const setId = (id) => {
         setComplainantId(id)

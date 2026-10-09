@@ -5,6 +5,9 @@ export const GatePassService = {
     request(data, success, error) {
         sendData("/gatepass/create", data, success, error);
     },
+    issue(data, success, error) {
+        sendData("/prefect/gatepass/create", data, success, error);
+    },
     getGatePassInfo(id, setter) {
         const api = new APIRequest(`/gatepass/${id}`, "get", {}, setter);
         api.fetchData();

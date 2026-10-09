@@ -7,12 +7,9 @@ import { useReload } from "@/context-provider/reload-provider"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import { readableDate, readableTime, showWarningModal, toTitleCase } from "@/others/function"
 import { AbsentFormService } from "@/others/services/absent-form-service"
-import { FileText, Clock, CheckCircle2, XCircle, Ban, FolderOpen } from "lucide-react"
+import { FileText, Clock, CheckCircle2, XCircle, Ban, FolderOpen, Undo2 } from "lucide-react"
 import { Head, router } from "@inertiajs/react"
 
-// revoked_at is deliberately not one of these tab keys — the requester
-// already knows they revoked their own form, so there's no need for a
-// dedicated tab to browse those (only the prefect's review page has one).
 const STATUS_META = {
     pending: { label: "Pending", className: "bg-yellow-100 text-yellow-700" },
     noted: { label: "Noted", className: "bg-green-100 text-green-700" },
@@ -38,6 +35,7 @@ const optionTab = [
     { key: "noted", label: "Noted", icon: CheckCircle2 },
     { key: "expired", label: "Expired", icon: XCircle },
     { key: "rejected", label: "Rejected", icon: Ban },
+    { key: "revoked", label: "Revoked", icon: Undo2 },
 ]
 
 const reasonLabel = (form) => {

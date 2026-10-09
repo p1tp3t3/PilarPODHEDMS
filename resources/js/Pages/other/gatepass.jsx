@@ -10,11 +10,8 @@ import { Head, Link, router } from "@inertiajs/react";
 import Btn from "@/Components/button/normal-btn";
 import ActionBtn from "@/Components/button/action-btn";
 import TabSwitcher from "@/Components/other/tab-switcher";
-import { Clock, CheckCircle2, XCircle, Ban, FolderOpen } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, Ban, FolderOpen, Undo2 } from "lucide-react";
 
-// revoked_at is deliberately not one of these tab keys — the requester
-// already knows they revoked their own request, so there's no need for a
-// dedicated tab to browse those (unlike the prefect's review page).
 const STATUS_META = {
   pending: { label: "Pending", className: "bg-yellow-100 text-yellow-700" },
   approved: { label: "Approved", className: "bg-green-100 text-green-700" },
@@ -59,6 +56,7 @@ const optionTab = [
   { key: "approved", label: "Approved", icon: CheckCircle2 },
   { key: "expired", label: "Expired", icon: XCircle },
   { key: "rejected", label: "Rejected", icon: Ban },
+  { key: "revoked", label: "Revoked", icon: Undo2 },
 ];
 
 const GatePass = (props) => {

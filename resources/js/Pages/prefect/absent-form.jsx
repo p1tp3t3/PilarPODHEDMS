@@ -3,6 +3,7 @@ import PageLayout from "@/Layouts/page-layout"
 import { useState } from "react"
 import DropdownField from "@/Components/input/dropdown"
 import RequestAbsentFormModal from "@/Components/modal/submission-form/request-absent-form-modal"
+import Btn from "@/Components/button/normal-btn"
 import AbsentFormList from "@/Components/list/absent-form-list"
 import AbsentFormRequestList from "@/Components/list/absent-form-request-list"
 import { useReload } from "@/context-provider/reload-provider"
@@ -29,6 +30,7 @@ const PrefectAbsentForm = (props) => {
     const [semester, setSemester] = useState(url.get('semester') || 'all')
     const [viewAbsentForm, openViewAbsentForm] = useState(false)
     const [noteAbsent, openNoteAbsent] = useState(false)
+    const [issueAbsent, openIssueAbsent] = useState(false)
     const { loadRegister } = useReload()
     const [rejectReason, openRejectReason] = useState(false)
     const [data, setData] = useState({
@@ -114,7 +116,23 @@ const PrefectAbsentForm = (props) => {
                 isEnableOuterClose={true}
                 id={id}
             />
-                <PageLayout title="STUDENT ABSENT FORMS">
+                <RequestAbsentFormModal
+                    close={issueAbsent}
+                    closeModal={openIssueAbsent}
+                    pd={["px-5", "py-7"]}
+                    isEnableOuterClose={true}
+                    reload={loadRegister}
+                    issue={true}
+                    onIssued={() => router.visit(`${window.location.pathname}?status=noted&school-year=${schoolYear}&semester=${semester}`)}
+                />
+                <PageLayout
+                    title="STUDENT ABSENT FORMS"
+                    rightSideComponent={
+                        <Btn onclick={() => openIssueAbsent(true)}>
+                            Issue Absent Form
+                        </Btn>
+                    }
+                >
                         {/* Filters */}
                         <div className="flex flex-wrap gap-3">
                             <div className="w-full sm:w-56">

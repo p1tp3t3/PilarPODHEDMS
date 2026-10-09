@@ -182,8 +182,7 @@
     <section class="report-title" aria-labelledby="reportTitle">
       <h2>Action Log Report</h2>
       <div style="font-size: 11px; color: #555;">
-        From <strong>{{ \Carbon\Carbon::parse($from)->format('F d, Y') }}</strong> 
-        to <strong>{{ \Carbon\Carbon::parse($to)->format('F d, Y') }}</strong>
+        <strong>{{ $period }}</strong>
       </div>
     </section>
 

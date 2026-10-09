@@ -897,13 +897,8 @@ class ReportController extends Controller
             $query->where('user_id', $request->user_id);
         }
 
-        if ($request->filled('date_from') && $request->filled('date_to')) {
-            $query->whereBetween('created_at', [$request->date_from, $request->date_to]);
-        } elseif ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
-        } elseif ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
-        }
+        $range = $this->resolveActionLogRange($request);
+        $this->applyActionLogRange($query, $range);
 
         $logs = $query->latest('created_at');
         $data = [];
@@ -938,12 +933,11 @@ class ReportController extends Controller
             }
             $data = [
                 'data' => $collection,
-                'from' => $request->date_from,
-                'to' => $request->date_to,
+                'period' => $range['label'],
             ];
         } else {
             $i = 0;
-            $user = $logs->first()->toArray()['user'];
+            $user = User::with('profile')->findOrFail($request->user_id)->toArray();
             $userProfile = $user['profile'] ?? [];
             foreach ($logs->get()->toArray() as $l) {
                 $collection[] = ($request->file_type == 'excel')
@@ -965,8 +959,7 @@ class ReportController extends Controller
             }
             $data = [
                 'data' => $collection,
-                'from' => $request->date_from,
-                'to' => $request->date_to,
+                'period' => $range['label'],
                 'id' => ucwords($user['id_number'] ?? ''),
                 'name' => ucwords(($userProfile['first_name'] ?? '').' '.($userProfile['middle_name'] ?? '').' '.($userProfile['last_name'] ?? '')),
                 'role' => ucwords($user['role'] ?? ''),
@@ -1041,13 +1034,65 @@ class ReportController extends Controller
             $query->where('action_type', request('action_type'));
         }
 
-        // Filter by date or date range
-        if (request()->filled('date')) {
-            // Single date filter
-            $query->whereDate('created_at', request('date'));
+        $this->applyActionLogRange($query, $this->resolveActionLogRange(request()));
+
+        return ActionLogResource::collection($query->paginate(100)->withQueryString());
+    }
+
+    /**
+     * Turns either filter mode (filter_by=date with date_from/date_to, or
+     * filter_by=school_year with school_year_id + optional semester) into
+     * one from/to window plus a human-readable label for the report header.
+     */
+    private function resolveActionLogRange(Request $request): array
+    {
+        $from = null;
+        $to = null;
+        $label = null;
+
+        if ($request->filter_by === 'school_year') {
+            $year = $request->filled('school_year_id')
+                ? SchoolYear::where('id', $request->school_year_id)->value('year')
+                : null;
+
+            if ($year) {
+                $resolved = Report::resolveSchoolYearDates([
+                    'school_year' => $year,
+                    'semester' => $request->semester,
+                ]);
+                $from = $resolved['date_from'] ?? null;
+                $to = $resolved['date_to'] ?? null;
+                $semesterLabel = match ((int) $request->semester) {
+                    1 => ' (1st Semester)',
+                    2 => ' (2nd Semester)',
+                    default => '',
+                };
+                $label = "School Year {$year}{$semesterLabel}";
+            }
+        } else {
+            $from = $request->date_from ?: null;
+            $to = $request->date_to ?: null;
         }
 
-        return ActionLogResource::collection($query->paginate(100));
+        $from = $from ? Carbon::parse($from)->startOfDay() : null;
+        $to = $to ? Carbon::parse($to)->endOfDay() : null;
+
+        if (! $label) {
+            $label = match (true) {
+                $from && $to => 'From '.$from->format('F d, Y').' to '.$to->format('F d, Y'),
+                (bool) $from => 'From '.$from->format('F d, Y').' onwards',
+                (bool) $to => 'Up to '.$to->format('F d, Y'),
+                default => 'All Dates',
+            };
+        }
+
+        return ['from' => $from, 'to' => $to, 'label' => $label];
+    }
+
+    private function applyActionLogRange($query, array $range): void
+    {
+        $query->when($range['from'], fn ($q) => $q->where('created_at', '>=', $range['from']))
+            ->when($range['to'], fn ($q) => $q->where('created_at', '<=', $range['to']));
     }
 
     public function getReportField($request)
