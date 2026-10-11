@@ -38,17 +38,23 @@ const UpModal = ({
       onClick={enableOuterClose}
     >
       {/* Wrapper for spacing and scroll */}
+      {/* On phones the modal becomes a bottom sheet: full width, pinned to
+          the bottom edge, scrolling inside itself. */}
       <div
-        className="w-full h-full px-4 py-5 sm:px-6 flex justify-center items-start"
+        className="w-full min-h-full px-4 py-5 sm:px-6 flex justify-center items-start max-md:p-0 max-md:items-end"
       >
         {/* Modal container */}
         <motion.div
           initial={false}
           animate={{ y: close ? 0 : 40, opacity: close ? 1 : 0 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
-          className={`relative ${w} max-w-[95vw] shadow-md rounded-md ${pd[0]} ${pd[1]} ${bgColor} ${textColor}`}
+          className={`relative ${w} max-w-[95vw] shadow-md rounded-md ${pd[0]} ${pd[1]} ${bgColor} ${textColor}
+            max-md:!w-full max-md:!max-w-full max-md:rounded-b-none max-md:rounded-t-2xl
+            max-md:max-h-[92dvh] max-md:overflow-y-auto max-md:!px-4 max-md:!pt-7
+            max-md:!pb-[calc(1.25rem+env(safe-area-inset-bottom))]`}
           onClick={(e) => e.stopPropagation()}
         >
+          <div className="md:hidden absolute top-2 left-1/2 -translate-x-1/2 h-1.5 w-10 rounded-full bg-gray-300" />
             {/* ❌ Close button */}
           {isEnableOuterClose &&
           <button

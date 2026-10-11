@@ -11,16 +11,16 @@ import { toTitleCase, parseNotifContent } from "@/others/function"
 import { motion } from "framer-motion"
 import { BellOff, Trash2 } from "lucide-react"
 
-const NotificationList = ({ 
-    list = null, 
-    overflow = true, 
-    enableDel = false, 
-    handlePaginate, 
+const NotificationList = ({
+    list = null,
+    overflow = true,
+    enableDel = false,
+    handlePaginate,
     select = false,
     deleteNotif = (i) => {},
     size = 0
 }) => {
-    
+
     const getGroupLabel = (timestamp) => {
         const created = new Date(timestamp);
         const today = new Date();
@@ -47,7 +47,7 @@ const NotificationList = ({
 
     return (
         <div>
-            <div className={`w-full flex flex-col ${overflow ? 'h-[23rem] overflow-hidden overflow-y-auto' : ''}`}>
+            <div className={`w-full flex flex-col ${overflow ? 'max-h-[23rem] overflow-hidden overflow-y-auto' : ''}`}>
                     {(list != null)
                     ?
                     (list.length != 0)
@@ -81,16 +81,16 @@ const NotificationList = ({
                     })
                     :
                     <motion.div
-                        className="w-full h-full flex flex-col items-center justify-center py-10"
+                        className="w-full h-full flex flex-col items-center justify-center py-8"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.4, ease: "easeOut" }}
                     >
-                        <div className="mb-3 text-gray-400">
-                            <BellOff size={48} />
+                        <div className="mb-3 w-14 h-14 rounded-full bg-gray-100 grid place-items-center text-gray-400">
+                            <BellOff size={26} />
                         </div>
 
-                        <h1 className="text-[1.2em] text-gray-500 font-semibold">
+                        <h1 className="text-[1em] text-gray-600 font-semibold">
                             No Notifications Yet
                         </h1>
 
@@ -117,9 +117,9 @@ const NotificationList = ({
                             ))}
                         </div>
                     </div>}
-                    {((list != null && list.length > 3 && list.length < size)) && 
+                    {((list != null && list.length > 3 && list.length < size)) &&
                     <div className="py-4 w-full">
-                        <button 
+                        <button
                             type="button"
                             className="w-full py-2 bg-gray-500 text-[0.8em] text-white rounded-md hover:bg-gray-600 transition-colors"
                             onClick={handlePaginate}
@@ -135,7 +135,7 @@ const NotificationList = ({
 const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
     const content = parseNotifContent(obj.content)
 
-    const d = <ActionBtn 
+    const d = <ActionBtn
                   className="hidden group-hover:block bg-red-600 hover:bg-red-700 absolute top-1/2 -translate-y-1/2 right-2 p-2"
                   onClick={(e) => {
                       e.stopPropagation();
@@ -150,8 +150,8 @@ const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
         case 'complaint':
             return <NotificationWrapper link={`/notifications?id=${obj.id}&complaint_id=${content.id}`}>
                        <ComplaintNotif obj={obj} />
-                       {(enableDel && !select) 
-                       ? 
+                       {(enableDel && !select)
+                       ?
                        d
                        :
                        (select)
@@ -161,8 +161,8 @@ const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
         case 'referral':
             return <NotificationWrapper link={`/notifications?id=${obj.id}&referral_id=${content.id}`}>
                        <ReferralNotif obj={obj} />
-                       {(enableDel && !select) 
-                       ? 
+                       {(enableDel && !select)
+                       ?
                        d
                        :
                        (select)
@@ -172,8 +172,8 @@ const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
         case 'absent':
             return <NotificationWrapper link={`/notifications?absent_id=${content.id}&id=${obj.id}`}>
                        <AbsentFormNotif obj={obj} />
-                       {(enableDel && !select) 
-                       ? 
+                       {(enableDel && !select)
+                       ?
                        d
                        :
                        (select)
@@ -183,8 +183,8 @@ const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
         case 'appointment':
             return <NotificationWrapper link={`/notifications?id=${obj.id}`}>
                        <AppointmentNotif obj={obj} />
-                       {(enableDel && !select) 
-                       ? 
+                       {(enableDel && !select)
+                       ?
                        d
                        :
                        (select)
@@ -194,8 +194,8 @@ const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
         case 'gatepass':
             return <NotificationWrapper link={`/notifications?gatepass_id=${content.id}&id=${obj.id}`}>
                        <GatePassNotif obj={obj} />
-                       {(enableDel && !select) 
-                       ? 
+                       {(enableDel && !select)
+                       ?
                        d
                        :
                        (select)
@@ -216,8 +216,8 @@ const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
         case 'call_in':
             return <NotificationWrapper link={`/notifications?id=${obj.id}`}>
                        <CallInNotif obj={obj} />
-                       {(enableDel && !select) 
-                       ? 
+                       {(enableDel && !select)
+                       ?
                        d
                        :
                        (select)
@@ -227,8 +227,8 @@ const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
         default:
             return <NotificationWrapper link={`/notifications?id=${obj.id}`}>
                        <NormalNotif obj={obj} />
-                       {(enableDel && !select) 
-                       ? 
+                       {(enableDel && !select)
+                       ?
                        d
                        :
                        (select)

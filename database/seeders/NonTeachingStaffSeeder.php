@@ -33,9 +33,8 @@ class NonTeachingStaffSeeder extends Seeder
 
     private function createNonTeachingStaff(int $i, string $position): void
     {
-        $user = User::factory()->create([
+        $user = User::factory()->role('non_teaching_staff')->create([
             'id_number' => 'NTS-' . str_pad($i, 4, '0', STR_PAD_LEFT),
-            'role' => 'non_teaching_staff',
         ]);
 
         Profile::factory()->for($user, 'user')->create([

@@ -13,11 +13,14 @@ import { Link, usePage } from "@inertiajs/react";
 import { Broadcast } from "@/others/classes/broadcast-cofiguration";
 import { IconButton } from "@mui/material";
 import { ChatService } from "@/others/services/chat-service";
-import { Home, Menu, Phone, MessageCircle, Bell } from "lucide-react";
+import { Home, Phone, MessageCircle, Bell, UsersRound } from "lucide-react";
+import ActiveUsersModal, { canSeeActiveUsers, useActiveUsers } from "../modal/active-users-modal";
+import MobileBottomNav from "../sidebar/mobile-bottom-nav";
+import { useIsMobile } from "@/others/use-is-mobile";
 
 const AuthHeader = (props) => {
   const [pane, setOpenPanelId] = useState(null),
-    panel = useRef({ notif: null, profile: null }),
+    panel = useRef({ notif: null, profile: null, active: null }),
     [student_list, setStudentList] = useState([]),
     [notifList, setNotifList] = useState(null),
     [notifCount, setNotifCount] = useState(0),
@@ -32,6 +35,9 @@ const AuthHeader = (props) => {
   // `usr`/`props.user` — see HandleInertiaRequests.
   const { auth } = usePage().props
   const identity = auth?.user ?? usr
+  const isMobile = useIsMobile()
+  const showActiveUsers = canSeeActiveUsers(props.user.role)
+  const activeUsers = useActiveUsers()
 
   useEffect(() => {
     const handlePopUpRemove = (e) => {
@@ -96,6 +102,7 @@ const AuthHeader = (props) => {
   const btnSx = {
     height: "2.5rem",
     width: "2.5rem",
+    "@media (max-width:767px)": { height: "2.15rem", width: "2.15rem" },
     position: "relative",
     borderRadius: "100%",
     fontSize: "1.2em",
@@ -133,30 +140,24 @@ const AuthHeader = (props) => {
         </>
       )}
 
-      <header className="w-full px-5 py-2 bg-blue-500 grid sticky top-0 z-20 shadow-md">
-        <div className="w-full flex justify-between relative">
-          <div className="flex gap-2">
+      <header className="w-full px-3 md:px-5 py-2 bg-blue-500 grid sticky top-0 z-20 shadow-md">
+        <div className="w-full flex justify-between items-center relative">
+          <div className="flex gap-2 items-center min-w-0">
             {props.profile && (
-              <a href={`/dashboard`}>
+              <a href={`/dashboard`} className="hidden md:block">
                 <IconButton sx={btnSx}>
                   <Home size={18} />
                 </IconButton>
               </a>
             )}
-            <IconButton
-                sx={{ ...btnSx, "@media (min-width:768px)": { display: "none" } }}
-                onClick={() => {
-                  const aside = document.querySelector("aside"),
-                        bg = document.querySelector('#sidebar-overlay')
-                  aside.classList.toggle("max-[768px]:w-0")
-                  bg.classList.toggle('hidden')
-                }}>
-                <Menu size={18} />
-            </IconButton>
+            <Link href="/dashboard" className="md:hidden flex items-center gap-1.5 min-w-0">
+              <ProfilePic src={"/default-pic/pilar.png"} size={1.9} />
+              <span className="text-white font-bold text-[0.95em] truncate">PilarPODHEDMS</span>
+            </Link>
           </div>
 
-          <div className="grid relative">
-            <div className="flex gap-2">
+          <div className="grid relative shrink-0">
+            <div className="flex gap-1.5 md:gap-2 items-center">
               {props.user.role == "sub_admin" && (
                 <IconButton
                   sx={btnSx}
@@ -165,7 +166,24 @@ const AuthHeader = (props) => {
                   <Phone size={18} />
                 </IconButton>
               )}
-              <a href="/chat">
+              {showActiveUsers && (
+                <IconButton
+                  sx={pane == "active" ? activeBtnSx : btnSx}
+                  title="Active users"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleTogglePanel("active");
+                  }}
+                >
+                  <UsersRound size={18} />
+                  {activeUsers.length > 0 && (
+                    <div className="absolute top-6 right-0 min-w-[1.2rem] h-[1.2rem] px-1 text-[0.6em] grid place-items-center bg-green-600 text-white rounded-full">
+                      {activeUsers.length > 99 ? "99+" : activeUsers.length}
+                    </div>
+                  )}
+                </IconButton>
+              )}
+              <a href="/chat" className="hidden md:block">
                 <IconButton sx={btnSx}>
                   <MessageCircle size={18} />
                   {(chatUnread != 0) && (
@@ -201,7 +219,7 @@ const AuthHeader = (props) => {
                 >
                   <ProfilePic
                     src={getProfilePic(identity.profile?.profile_picture, identity.profile?.sex)}
-                    size={2.5}
+                    size={isMobile ? 2.15 : 2.5}
                   />
                 </IconButton>
               </div>
@@ -218,8 +236,16 @@ const AuthHeader = (props) => {
             refs={(el) => (panel.current.profile = el)}
           />
 
+          {showActiveUsers && (
+            <ActiveUsersModal
+              click={pane == "active"}
+              refs={(el) => (panel.current.active = el)}
+            />
+          )}
+
           <NotificationModal
             click={pane == "notif"}
+            count={notifCount}
             refs={(el) => (panel.current.notif = el)}
             list={notifList}
             setter={[setNotifList, setNotifCount, setSize]}
@@ -228,6 +254,7 @@ const AuthHeader = (props) => {
           />
         </div>
       </header>
+      <MobileBottomNav chatUnread={chatUnread} />
     </>
   );
 };

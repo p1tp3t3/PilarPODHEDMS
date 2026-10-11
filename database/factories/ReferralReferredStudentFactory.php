@@ -32,7 +32,7 @@ class ReferralReferredStudentFactory extends Factory
         return $this->afterCreating(function (ReferralReferredStudent $item) {
             $referral = Referral::find($item->referral_id);
             $student = User::with(['profile', 'program', 'enrollments'])->find($item->student_id);
-            $prefect = User::with('profile')->where('role', 'sub_admin')->first();
+            $prefect = User::with('profile')->whereRole('sub_admin')->first();
 
             // Matches the real app: a per-student PDF only exists once the
             // referral is confirmed (ReferralController::store()/confirmReferral()).

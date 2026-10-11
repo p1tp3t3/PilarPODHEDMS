@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
     {
         self::refresh_storage();
         self::call([
+            RoleSeeder::class,
             AdminSeeder::class,
             SchoolYearSeeder::class,
             ProgramSeeder::class,

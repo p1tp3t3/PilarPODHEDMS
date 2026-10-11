@@ -14,7 +14,7 @@ class GatePassFactory extends Factory
 {
     public function definition(): array
     {
-        $user = User::where('role', 'student')->inRandomOrder()->first()
+        $user = User::whereRole('student')->inRandomOrder()->first()
             ?? User::inRandomOrder()->first();
 
         $createdAt = $this->faker->dateTimeBetween('-6 months', 'now');

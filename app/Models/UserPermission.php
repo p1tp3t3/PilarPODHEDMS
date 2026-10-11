@@ -12,6 +12,11 @@ class UserPermission extends Model
 
     protected $table = 'user_permissions';
 
+    // One row per user, keyed by user_id (the table has no id column).
+    protected $primaryKey = 'user_id';
+
+    public $incrementing = false;
+
     protected $fillable = [
         'user_id',
         'allow_complaint',

@@ -6,16 +6,15 @@ import { Tabs, Tab } from "@mui/material";
  * `onChange(key)`. Renders only the tab bar itself — each page still owns
  * rendering whatever content belongs to the active tab.
  */
-const TabSwitcher = ({ tabs, value, onChange }) => {
+const TabSwitcher = ({ tabs, value, onChange, fullWidth = false }) => {
     return (
         <Tabs
             value={value}
             onChange={(_, newValue) => onChange(newValue)}
             textColor="primary"
             indicatorColor="primary"
-            variant="scrollable"
-            scrollButtons="auto"
-            allowScrollButtonsMobile
+            variant={fullWidth ? "fullWidth" : "scrollable"}
+            {...(fullWidth ? {} : { scrollButtons: "auto", allowScrollButtonsMobile: true })}
             sx={{ minHeight: "2.5rem", borderBottom: 1, borderColor: "divider" }}
         >
             {tabs.map((tab) => (
@@ -25,7 +24,20 @@ const TabSwitcher = ({ tabs, value, onChange }) => {
                     label={tab.label}
                     icon={tab.icon ? <tab.icon size={16} /> : undefined}
                     iconPosition="start"
-                    sx={{ minHeight: "2.5rem", textTransform: "none", fontWeight: 600, fontSize: "0.875rem" }}
+                    sx={{
+                        minHeight: "2.5rem",
+                        textTransform: "none",
+                        fontWeight: 600,
+                        fontSize: "0.875rem",
+                        // Equal-width tabs on a phone: tighter text so each
+                        // label stays on one line.
+                        ...(fullWidth && {
+                            minWidth: 0,
+                            px: 1,
+                            whiteSpace: "nowrap",
+                            fontSize: { xs: "0.78rem", sm: "0.875rem" },
+                        }),
+                    }}
                 />
             ))}
         </Tabs>

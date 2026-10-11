@@ -22,6 +22,7 @@ use App\Models\NonTeachingStaff;
 use App\Models\Position;
 use App\Models\Program;
 use App\Models\Referral;
+use App\Models\Role;
 use App\Models\SchoolYear;
 use App\Models\TeachingStaff;
 use App\Models\User;
@@ -52,14 +53,214 @@ class AccountController extends Controller
                 'program_name' => is_program_head(),
                 'program' => Program::all(['id', 'name']),
                 'account_files' => FileController::scopedAccountFiles(),
+                'roles' => Role::orderBy('id')->get(['id', 'name', 'label', 'is_active']),
             ]));
     }
 
+    // Teaching positions; every other position belongs to non-teaching staff.
+    private const TEACHING_POSITIONS = ['faculty', 'program_head'];
+
+    /**
+     * Changes a user's current role. Adds a user_roles row instead of
+     * overwriting, so the registered role (is_original_role) and every
+     * earlier change stay on record — and creates/updates the new role's
+     * own record (enrollment, teaching/non-teaching staff, parent details)
+     * from the fields submitted with it.
+     */
+    public function changeRole(Request $request, $id)
+    {
+        $request->validate(['role' => 'required|exists:roles,name,is_active,1']);
+        $to = $request->role;
+
+        $nonTeachingPositions = Position::whereNotIn('name', self::TEACHING_POSITIONS)->pluck('name')->all();
+        $request->validate(match ($to) {
+            'student' => [
+                'program_id' => 'required|exists:program,id',
+                'year_level' => 'required|integer|min:1|max:5',
+            ],
+            'teaching_staff' => [
+                'program_id' => 'required|exists:program,id',
+                'position' => 'required|in:'.implode(',', self::TEACHING_POSITIONS),
+            ],
+            'non_teaching_staff' => [
+                'position' => 'required|in:'.implode(',', $nonTeachingPositions),
+            ],
+            'parent' => [
+                'parent_role' => 'required|in:mother,father,guardian',
+                'work_occupation' => 'nullable|string|max:255',
+            ],
+            default => [],
+        });
+
+        $user = User::with('profile')->findOrFail($id);
+        $from = $user->role;
+
+        if ($user->id === auth()->id()) {
+            return response()->json(['message' => 'You cannot change your own role.'], 422);
+        }
+        if ($from === $to) {
+            return response()->json(['message' => 'The user already has this role.'], 422);
+        }
+        if ($from === 'super_admin' && User::whereRole('super_admin')->count() <= 1) {
+            return response()->json(['message' => 'This is the only IT Admin account — assign another IT Admin first.'], 422);
+        }
+
+        if ($to === 'teaching_staff' && $request->position === 'program_head') {
+            $head = \App\Models\ProgramHeadProgram::with('program')
+                ->where('program_id', $request->program_id)
+                ->where('user_id', '!=', $user->id)
+                ->first();
+            if ($head) {
+                return response()->json(['message' => ($head->program?->name ?? 'This program').' already has a program head. Choose Faculty, or reassign that program first.'], 422);
+            }
+        }
+
+        $currentSemester = null;
+        if ($to === 'student') {
+            $currentSemester = \App\Models\SchoolYearSemester::current();
+            if (! $currentSemester) {
+                return response()->json(['message' => 'No active school year/semester is set, so the student can\'t be enrolled. Set one in School Year first.'], 422);
+            }
+        }
+
+        DB::transaction(function () use ($user, $from, $to, $request, $currentSemester) {
+            $user->assignRole($to);
+            $this->saveRoleData($user, $to, $request, $currentSemester);
+
+            if ($from === 'teaching_staff') {
+                \App\Models\ProgramHeadProgram::where('user_id', $user->id)->delete();
+            }
+
+            // user_permissions has no `id` key, so a query-level upsert
+            // instead of Eloquent's save-by-primary-key.
+            UserPermission::updateOrInsert(
+                ['user_id' => $user->id],
+                get_user_access_field([
+                    'allow_complaint' => 0,
+                    'allow_referral' => 0,
+                    'allow_absent_form' => 0,
+                    'allow_appointment' => 0,
+                    'allow_gatepass' => 0,
+                ], $to)
+            );
+
+            ActionLog::log(
+                auth()->id(),
+                'account update',
+                'Changed the role of '.trim(($user->profile?->first_name ?? '').' '.($user->profile?->last_name ?? $user->username)),
+                ['role' => ['from' => $from, 'to' => $to]]
+            );
+        });
+
+        return response()->json([
+            'message' => 'Role updated successfully.',
+            'role' => $user->role,
+            'history' => $user->userRoles()->with('role')->get(),
+        ]);
+    }
+
+    private function saveRoleData(User $user, string $role, Request $request, $currentSemester): void
+    {
+        switch ($role) {
+            case 'student':
+                Enrollment::updateOrCreate(
+                    [
+                        'student_id' => $user->id,
+                        'school_year_id' => $currentSemester->school_year_id,
+                        'semester' => $currentSemester->semester,
+                    ],
+                    [
+                        'program_id' => $request->program_id,
+                        'year_level' => $request->year_level,
+                        'status' => 'enrolled',
+                        'enrolled_at' => now(),
+                        'dropped_at' => null,
+                    ]
+                );
+
+                foreach ([['senior_high_school', 0], ['college', 0], ['college', 1]] as [$type, $transferee]) {
+                    \App\Models\EducationBackground::firstOrCreate([
+                        'student_id' => $user->id,
+                        'education_type' => $type,
+                        'transferee' => $transferee,
+                    ]);
+                }
+                break;
+
+            case 'teaching_staff':
+                TeachingStaff::updateOrCreate(
+                    ['user_id' => $user->id],
+                    ['program_id' => $request->program_id, 'position_id' => Position::idFor($request->position)]
+                );
+                \App\Models\ProgramHeadProgram::where('user_id', $user->id)->delete();
+                if ($request->position === 'program_head') {
+                    \App\Models\ProgramHeadProgram::create(['user_id' => $user->id, 'program_id' => $request->program_id]);
+                }
+                break;
+
+            case 'non_teaching_staff':
+                NonTeachingStaff::updateOrCreate(
+                    ['user_id' => $user->id],
+                    ['position_id' => Position::idFor($request->position)]
+                );
+                break;
+
+            case 'parent':
+                \App\Models\Parents::updateOrCreate(
+                    ['user_id' => $user->id],
+                    ['parent_role' => $request->parent_role, 'work_occupation' => $request->work_occupation]
+                );
+                break;
+        }
+    }
+
+    /**
+     * The user's role history, plus whatever role-specific data they
+     * already have on record (so switching back to a role can prefill it)
+     * and the position options for the staff roles.
+     */
+    public function roleHistory($id)
+    {
+        $id = decrypt_id($id) ?? abort(404);
+        $user = User::findOrFail($id);
+
+        $teaching = TeachingStaff::with('positionRef')->where('user_id', $id)->first();
+        $nonTeaching = NonTeachingStaff::with('positionRef')->where('user_id', $id)->first();
+
+        return response()->json([
+            'history' => $user->userRoles()->with('role')->get(),
+            'existing' => [
+                'student' => Enrollment::where('student_id', $id)->latest('id')->first(['program_id', 'year_level']),
+                'teaching_staff' => $teaching ? ['program_id' => $teaching->program_id, 'position' => $teaching->position] : null,
+                'non_teaching_staff' => $nonTeaching ? ['position' => $nonTeaching->position] : null,
+                'parent' => \App\Models\Parents::where('user_id', $id)->first(['parent_role', 'work_occupation']),
+            ],
+            'positions' => [
+                'teaching_staff' => self::TEACHING_POSITIONS,
+                'non_teaching_staff' => Position::whereNotIn('name', self::TEACHING_POSITIONS)->orderBy('name')->pluck('name'),
+            ],
+            'current_semester' => \App\Models\SchoolYearSemester::current()?->load('schoolYear'),
+        ]);
+    }
+
+    // What the IT admin / prefect may switch on or off per role.
+    private const ACCESS_FIELDS = [
+        'student' => ['allow_complaint', 'allow_absent_form', 'allow_gatepass'],
+        'teaching_staff' => ['allow_complaint', 'allow_referral'],
+    ];
+
     public function updateUserInformation(Request $request)
     {
+        $target = User::findOrFail($request->user_id);
+        $fields = self::ACCESS_FIELDS[$target->role] ?? null;
+
+        if (! $fields || $target->id === auth()->id()) {
+            return response()->json(['message' => 'Accessibility can only be set for students and teaching staff.'], 403);
+        }
+
         UserPermission::updateOrCreate(
-            ['user_id' => $request->user_id],
-            self::getUserFields($request)
+            ['user_id' => $target->id],
+            collect(self::getUserFields($request))->only($fields)->map(fn ($v) => $v ? 1 : 0)->all()
         );
 
         return response()->json(['status' => 'User Information Updated Successfully']);
@@ -121,7 +322,7 @@ class AccountController extends Controller
             'enrolled_at' => 'required|date',
         ]);
 
-        $student = User::where('id', $data['student_id'])->where('role', 'student')->firstOrFail();
+        $student = User::where('id', $data['student_id'])->whereRole('student')->firstOrFail();
 
         $existing = Enrollment::where('student_id', $student->id)
             ->where('program_id', $data['program_id'])
@@ -270,7 +471,7 @@ class AccountController extends Controller
         if (empty($errors)) {
             if (! preg_match('/^[Cc]\d+$/', $row['id'])) {
                 $errors[] = "Invalid ID format. Must start with 'C' followed by digits (e.g. C2210213).";
-            } elseif (! User::where('id_number', strtolower($row['id']))->where('role', 'student')->exists()) {
+            } elseif (! User::where('id_number', strtolower($row['id']))->whereRole('student')->exists()) {
                 $errors[] = "No existing student found with ID '{$row['id']}'.";
             }
             if (! Program::whereRaw('LOWER(name) = ?', [strtolower(trim($row['program']))])->exists()) {
@@ -326,7 +527,7 @@ class AccountController extends Controller
         };
 
         $data = User::with(['profile', 'teachingStaff.program', 'nonTeachingStaff'])
-            ->whereIn('role', $roles);
+            ->whereRole($roles);
 
         // Program only makes sense for teaching staff — non-teaching staff
         // aren't attached to a program at all, and "All Staff" mixes both
@@ -424,7 +625,7 @@ class AccountController extends Controller
 
     public function getParentList()
     {
-        $data = User::with(['profile', 'parent'])->where('role', 'parent');
+        $data = User::with(['profile', 'parent'])->whereRole('parent');
 
         if (isset($_GET['search']) && $_GET['search'] !== '') {
             $data->where('id_number', 'like', "%{$_GET['search']}%");
@@ -537,7 +738,7 @@ class AccountController extends Controller
             'position' => 'required|in:'.$assignable->implode(','),
         ]);
 
-        $user = User::where('id', $request->user_id)->where('role', 'non_teaching_staff')->first();
+        $user = User::where('id', $request->user_id)->whereRole('non_teaching_staff')->first();
 
         if (! $user) {
             return response()->json(['message' => 'This account is not a non-teaching staff account.'], 400);
@@ -610,7 +811,7 @@ class AccountController extends Controller
         return Inertia::render('parent/children-monitoring', [
             'children' => UserResource::collection(User::with(['profile', 'program', 'enrollments'])
                 ->whereIn('id', FamilyMember::where('family_id', $familyId)->pluck('member_id'))
-                ->where('role', 'student')
+                ->whereRole('student')
                 ->get()),
         ]);
     }
@@ -622,10 +823,18 @@ class AccountController extends Controller
 
     public function accountSettingsIndex($id)
     {
+        $target = User::with('profile')->where('username', $id)->first();
         $props = [
             'program_name' => is_program_head(),
-            'otherUserAccount' => new UserResource(User::with('profile')->where('username', $id)->first()),
+            'otherUserAccount' => new UserResource($target),
         ];
+
+        // The IT admin changes another user's role from that user's account
+        // settings — so only then load the roles/programs the form needs.
+        if (auth()->user()->role === 'super_admin' && $target && $target->id !== auth()->id()) {
+            $props['roles'] = Role::orderBy('id')->get(['id', 'name', 'label', 'is_active']);
+            $props['programs'] = Program::orderBy('id')->get(['id', 'name']);
+        }
 
         return Inertia::render('itrc/account-settings', $props);
     }
@@ -848,7 +1057,7 @@ class AccountController extends Controller
 
             // 🔶 super_admin / sub_admin — must leave at least 1 remaining
             if (in_array($role, ['super_admin', 'sub_admin'])) {
-                $count = User::where('role', $role)->count();
+                $count = User::whereRole($role)->count();
 
                 if ($count <= 1) {
                     $skipped[] = [
@@ -893,7 +1102,7 @@ class AccountController extends Controller
                         $familyId = $familyMember->family_id;
 
                         $parentCount = User::whereIn('id', FamilyMember::where('family_id', $familyId)->pluck('member_id'))
-                            ->where('role', 'parent')
+                            ->whereRole('parent')
                             ->count();
 
                         $deleteFamily = ($parentCount == 1);
@@ -1140,7 +1349,7 @@ class AccountController extends Controller
         $isProgramHead = $myTeachingStaff && $myTeachingStaff->position === 'program_head';
 
         $data = User::with(['profile', 'teachingStaff.program'])
-            ->where('role', 'teaching_staff');
+            ->whereRole('teaching_staff');
 
         if (in_array(auth()->user()->role, ['super_admin', 'sub_admin']) || $isProgramHead) {
             // Filter by program if not "all"
@@ -1199,10 +1408,16 @@ class AccountController extends Controller
         $isProgramHead = $myTeachingStaff && $myTeachingStaff->position === 'program_head';
 
         $data = User::with(['profile', 'program', 'enrollments.schoolYear'])
-            ->where('role', 'student')
+            ->whereRole('student')
             ->whereHas('enrollments', function ($q) {
                 $q->where('status', 'enrolled');
             });
+
+        // ?is-enrolled=1 (e.g. from the dashboard's "Total Enrolled Students"
+        // card): only students whose latest enrollment is still "enrolled".
+        if (filter_var(request('is-enrolled'), FILTER_VALIDATE_BOOLEAN)) {
+            $data->currentlyEnrolled();
+        }
 
         if (in_array(auth()->user()->role, ['sub_admin', 'super_admin']) || $isProgramHead) {
             // Filter by program if not "all"
@@ -1254,7 +1469,7 @@ class AccountController extends Controller
             self::setId($programId);
 
             $data = User::with(['profile', 'program', 'enrollments'])
-                ->where('role', 'student')
+                ->whereRole('student')
                 ->where('id', '!=', auth()->user()->id);
 
             if (self::getId()) {
@@ -1287,7 +1502,7 @@ class AccountController extends Controller
                 $hasId = $myTeachingStaff?->program_id ?? '';
 
                 $data = User::with(['profile', 'program'])
-                    ->where('role', 'student')
+                    ->whereRole('student')
                     ->where('id', '!=', $authId);
 
                 // if user has a program, filter students by it
@@ -1305,7 +1520,7 @@ class AccountController extends Controller
                 $hasId = $myTeachingStaff?->program_id;
 
                 $data = User::with(['profile', 'program'])
-                    ->where('role', 'student')
+                    ->whereRole('student')
                     ->where('id', '!=', $authId);
 
                 if ($hasId) {
@@ -1323,18 +1538,18 @@ class AccountController extends Controller
                 $data = (! $isProgramHead)
                         ?
                         $user->with(['profile', 'teachingStaff.program'])
-                            ->where('role', 'teaching_staff')
+                            ->whereRole('teaching_staff')
                             ->where('id', '!=', $authId)
                         :
                         $user->with(['profile', 'teachingStaff.program'])
-                            ->where('role', 'teaching_staff')
+                            ->whereRole('teaching_staff')
                             ->whereHas('teachingStaff', function ($q) use ($myTeachingStaff) {
                                 $q->where('program_id', $myTeachingStaff->program_id);
                             })
                             ->where('id', '!=', $authId);
                 break;
             case 'student_parent':
-                $data = $user->whereIn('role', ['student', 'parent'])
+                $data = $user->whereRole(['student', 'parent'])
                     ->with(['profile', 'program', 'parent.profile']);
                 break;
             case 'resolved_student_complaint':
@@ -1363,7 +1578,7 @@ class AccountController extends Controller
             case 'family-student':
                 $data = $user->whereNotIn('id', FamilyMember::pluck('member_id'))
                     ->with(['profile', 'program'])
-                    ->where('role', 'student')
+                    ->whereRole('student')
                     ->where('id', '!=', $authId);
                 break;
         }
@@ -1414,7 +1629,7 @@ class AccountController extends Controller
 
     public function getStudentParent()
     {
-        return UserResource::collection(User::whereIn('role', ['student', 'parent'])
+        return UserResource::collection(User::whereRole(['student', 'parent'])
             ->with(['program', 'parent'])
             ->get());
     }
@@ -1427,32 +1642,32 @@ class AccountController extends Controller
 
         switch ($type) {
             case 'faculty':
-                $query->where('role', 'teaching_staff');
+                $query->whereRole('teaching_staff');
                 break;
             case 'non-teaching-staff':
                 // Prefect's Staff List "Non-Teaching Staff" tab — the
                 // counterpart to 'faculty' (teaching_staff only).
-                $query->where('role', 'non_teaching_staff');
+                $query->whereRole('non_teaching_staff');
                 break;
             case 'student':
                 // Used to pick a target student for complaint/referral/call-in
                 // — must be a currently enrolled, activated account, not just
                 // any row with role='student'.
-                $query->where('role', 'student')
+                $query->whereRole('student')
                     ->where('activate', true)
                     ->whereHas('enrollment');
                 break;
             case 'family-student':
-                $query->where('role', 'student');
+                $query->whereRole('student');
                 break;
             case 'archive-student':
                 // Archived records span students regardless of their
                 // CURRENT status — unlike the 'student' case above, a
                 // graduated/deactivated student must still be findable here.
-                $query->where('role', 'student');
+                $query->whereRole('student');
                 break;
             case 'program_student':
-                $query->where('role', 'student');
+                $query->whereRole('student');
                 $myTeachingStaff = auth()->user()->role === 'teaching_staff'
                     ? TeachingStaff::where('user_id', auth()->id())->first()
                     : null;
@@ -1471,17 +1686,17 @@ class AccountController extends Controller
                 // a currently enrolled, activated account.
                 $query->where(function ($q) {
                     $q->where(function ($q2) {
-                        $q2->where('role', 'student')
+                        $q2->whereRole('student')
                             ->where('activate', true)
                             ->whereHas('enrollment');
-                    })->orWhere('role', 'parent');
+                    })->orWhereRole('parent');
                 });
                 break;
             case 'resolved_student_complaint':
                 $studentIds = ComplaintSubject::whereHas('complaint', function ($q) {
                     $q->where('complaint_status', 'resolved');
                 })->pluck('student_id');
-                $query->where('role', 'student')->whereIn('id', $studentIds);
+                $query->whereRole('student')->whereIn('id', $studentIds);
                 break;
             case 'all-2':
                 break;

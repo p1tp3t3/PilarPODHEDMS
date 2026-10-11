@@ -36,7 +36,7 @@ class ProcessStudentAccountUpdate implements ShouldQueue
             $csvArr = get_user_df($this->csvPath);
             $enrolledIds = collect($csvArr)->pluck('student_id')->map(fn($id) => strtolower($id))->all();
 
-            $students = User::where('role', 'student')->get(['id', 'id_number']);
+            $students = User::whereRole('student')->get(['id', 'id_number']);
 
             foreach ($students as $student) {
                 $isEnrolled = in_array(strtolower($student->id_number ?? ''), $enrolledIds, true);

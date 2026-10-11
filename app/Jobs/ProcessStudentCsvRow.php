@@ -92,7 +92,6 @@ class ProcessStudentCsvRow implements ShouldQueue
 
             $userFields = [
                 'id_number' => $idNumber,
-                'role' => 'student',
                 'username' => $username,
                 'email' => strtolower($row['email']),
                 'activate' => $this->activate,
@@ -103,6 +102,7 @@ class ProcessStudentCsvRow implements ShouldQueue
 
             User::updateOrInsert(['id_number' => $idNumber], $userFields);
             $user = User::where('id_number', $idNumber)->first();
+            $user->assignRole('student');
 
             Profile::updateOrInsert(['user_id' => $user->id], [
                 'first_name' => ucwords($row['first_name']),

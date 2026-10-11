@@ -1,4 +1,6 @@
 import { DataGrid as MuiDataGrid } from "@mui/x-data-grid"
+import { useIsMobile } from "@/others/use-is-mobile"
+import MobileCardList from "./mobile-card-list"
 
 export * from "@mui/x-data-grid"
 
@@ -27,19 +29,32 @@ const CELL_ALIGN_SX = {
 // "@mui/x-data-grid" and nothing else needs to change; per-table overrides
 // still work since `slotProps` passed in wins over these defaults, and any
 // `sx` a caller passes is merged (as an array) rather than overwritten.
-export const DataGrid = ({ slotProps, sx, ...props }) => (
-    <MuiDataGrid
-        {...props}
-        sx={[CELL_ALIGN_SX, ...(Array.isArray(sx) ? sx : sx ? [sx] : [])]}
-        slotProps={{
-            ...slotProps,
-            toolbar: {
-                csvOptions: { disableToolbarButton: true },
-                printOptions: { disableToolbarButton: true },
-                ...slotProps?.toolbar,
-            },
-        }}
-    />
-)
+//
+// On phones every table renders as a card list instead (MobileCardList),
+// except editable grids (inline cell editing needs the real table) or a
+// table that opts out with mobileCards={false}.
+export const DataGrid = ({ slotProps, sx, mobileCards = true, mobileSummary, ...props }) => {
+    const isMobile = useIsMobile()
+    const isEditable = !!props.processRowUpdate || (props.columns ?? []).some((c) => c.editable)
+
+    if (isMobile && mobileCards && !isEditable) {
+        return <MobileCardList {...props} mobileSummary={mobileSummary} />
+    }
+
+    return (
+        <MuiDataGrid
+            {...props}
+            sx={[CELL_ALIGN_SX, ...(Array.isArray(sx) ? sx : sx ? [sx] : [])]}
+            slotProps={{
+                ...slotProps,
+                toolbar: {
+                    csvOptions: { disableToolbarButton: true },
+                    printOptions: { disableToolbarButton: true },
+                    ...slotProps?.toolbar,
+                },
+            }}
+        />
+    )
+}
 
 export default DataGrid

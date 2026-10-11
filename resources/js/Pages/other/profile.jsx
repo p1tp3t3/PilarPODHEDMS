@@ -129,16 +129,14 @@ const Profile = (props) => {
     const absentFormStatusOptions = [
         { val: 'all', label: 'All Absent Forms' },
         { val: 'pending', label: 'Pending' },
-        { val: 'noted', label: 'Noted' },
+        { val: 'noted', label: 'Approved' },
         { val: 'rejected', label: 'Rejected' },
         { val: 'revoked', label: 'Revoked' },
-        { val: 'expired', label: 'Expired' },
     ];
     const absentFormStatusFor = (a) => {
         if (a.revoked_at) return 'revoked'
         if (a.rejected_at) return 'rejected'
         if (a.confirmed_at) return 'noted'
-        if (new Date(a.date_to) < new Date()) return 'expired'
         return 'pending'
     };
     const filteredAbsentFormsFiled = (props.absent_forms_filed ?? []).filter(
@@ -370,23 +368,18 @@ const Profile = (props) => {
     // Incidents/violations are restricted to the prefect, the student's
     // program head (not just any faculty), and the student's parent — not
     // the system admin, and not a plain (non-program-head) faculty member.
-    const isProgramHead = props.user.teachingStaff?.position === 'program_head';
-    const showIncidentsTab = props.otherUserProfile.role === 'student' &&
-        (props.user.role === 'sub_admin' || props.user.role === 'parent' || isProgramHead);
-    // Complaints a person has filed (as complainant) aren't role-specific —
-    // any role can file one, so every profile gets this tab. Referrals/
-    // absent forms/gate passes are each only filed by one specific role,
-    // so those tabs are further scoped to that role's own profile, and
-    // stay reviewable by super_admin/sub_admin or by the person themselves.
-    const canViewOwnFilings = ['super_admin', 'sub_admin'].includes(props.user.role) || props.user.id === props.otherUserProfile.id;
+    // The backend only sends this data for a student in the program head's
+    // own program(s), so the tab follows whether it arrived.
+    const showIncidentsTab = props.otherUserProfile.role === 'student' && props.incident_groups != null;
     // Complaint content itself is private from super_admin (data privacy)
     // — only the sub_admin (prefect) who actually handles it, or the
     // person who filed it, can view it.
     const canViewOwnComplaints = props.user.role === 'sub_admin' || props.user.id === props.otherUserProfile.id;
     const showComplaintsFiledTab = canViewOwnComplaints;
-    const showReferralsFiledTab = props.otherUserProfile.role === 'teaching_staff' && canViewOwnFilings;
-    const showAbsentFormsFiledTab = props.otherUserProfile.role === 'student' && canViewOwnFilings;
-    const showGatepassRequestedTab = props.otherUserProfile.role === 'student' && canViewOwnFilings;
+    // Referrals, absent forms and gate passes follow the same rule.
+    const showReferralsFiledTab = props.otherUserProfile.role === 'teaching_staff' && canViewOwnComplaints;
+    const showAbsentFormsFiledTab = props.otherUserProfile.role === 'student' && canViewOwnComplaints;
+    const showGatepassRequestedTab = props.otherUserProfile.role === 'student' && canViewOwnComplaints;
 
     const tabOptions = [
         { key: 'about', label: 'About', icon: UserIcon },

@@ -83,23 +83,21 @@ const ParentRegistrationInner = (props) => {
     return (
         <>
             <Head title="Pilar College Prefect of Discipline of the Higher Education Department" />
-            <div className="w-full h-full">
-                <div className="flex w-full h-full">
-                    <div className="hidden md:block w-full h-full sticky top-0">
-                        <div className="absolute w-full h-full bg-[#000000a6]"></div>
-                        <p className="text-white text-[3em] font-bold absolute frm px-10 mt-10">Welcome! Praised Be Jesus And Mary</p>
-                        <img src={background} alt="" srcset="" className="object-cover h-[100vh]" />
-                    </div>
-                    <ParentRegistrationForm
-                        submit={handleSubmit}
-                        data={data}
-                        programs={props.programs}
-                        setData={setData}
-                        onchange={handleChange}
-                        validationErr={validationErr}
-                        setExistEmail={setExistEmail}
-                    />
+            {/* Same as the login page: full-screen photo, form centered on top. */}
+            <div className="w-full min-h-[100vh] relative flex flex-col items-center justify-center px-4 py-10">
+                <div className="fixed inset-0">
+                    <img src={background} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-[#000000a6]"></div>
                 </div>
+                <ParentRegistrationForm
+                    submit={handleSubmit}
+                    data={data}
+                    programs={props.programs}
+                    setData={setData}
+                    onchange={handleChange}
+                    validationErr={validationErr}
+                    setExistEmail={setExistEmail}
+                />
             </div>
         </>
     );

@@ -1,4 +1,5 @@
 import AuthLayout from "@/Layouts/auth-layout"
+import PageLayout from "@/Layouts/page-layout"
 import RequestAbsentFormModal from "@/Components/modal/submission-form/request-absent-form-modal"
 import EditAbsentFormModal from "@/Components/modal/submission-form/edit-absent-form-modal"
 import ViewAbsentFormModal from "@/Components/modal/view/view-absent-form-modal"
@@ -7,13 +8,12 @@ import { useReload } from "@/context-provider/reload-provider"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import { readableDate, readableTime, showWarningModal, toTitleCase } from "@/others/function"
 import { AbsentFormService } from "@/others/services/absent-form-service"
-import { FileText, Clock, CheckCircle2, XCircle, Ban, FolderOpen, Undo2 } from "lucide-react"
+import { FileText, List, Clock, CheckCircle2, Ban, FolderOpen, Undo2 } from "lucide-react"
 import { Head, router } from "@inertiajs/react"
 
 const STATUS_META = {
     pending: { label: "Pending", className: "bg-yellow-100 text-yellow-700" },
-    noted: { label: "Noted", className: "bg-green-100 text-green-700" },
-    expired: { label: "Expired", className: "bg-gray-200 text-gray-600" },
+    noted: { label: "Approved", className: "bg-green-100 text-green-700" },
     rejected: { label: "Rejected", className: "bg-red-100 text-red-700" },
     revoked: { label: "Revoked", className: "bg-gray-200 text-gray-600" },
 }
@@ -22,7 +22,6 @@ const absentFormStatusKey = (form) => {
     if (form.revoked_at) return "revoked"
     if (form.rejected_at) return "rejected"
     if (form.confirmed_at) return "noted"
-    if (new Date(form.date_to) < new Date()) return "expired"
     return "pending"
 }
 
@@ -31,9 +30,9 @@ const isEditable = (form) => isRevocable(form) && !form.edited_at
 
 const optionTab = [
     { key: "request", label: "Request Absent Form", icon: FileText },
+    { key: "all", label: "All", icon: List },
     { key: "pending", label: "Pending", icon: Clock },
-    { key: "noted", label: "Noted", icon: CheckCircle2 },
-    { key: "expired", label: "Expired", icon: XCircle },
+    { key: "noted", label: "Approved", icon: CheckCircle2 },
     { key: "rejected", label: "Rejected", icon: Ban },
     { key: "revoked", label: "Revoked", icon: Undo2 },
 ]
@@ -56,7 +55,9 @@ const AbsentForm = (props) => {
 
     const { loadRegister } = useReload();
     const allForms = props.absent_form_list ?? []
-    const shownForms = allForms.filter((form) => absentFormStatusKey(form) === tab)
+    const shownForms = tab === "all"
+        ? allForms
+        : allForms.filter((form) => absentFormStatusKey(form) === tab)
 
     // Lets the "My Records This Semester" dashboard modal deep-link straight
     // to a specific absent form — jumps to whichever status tab it actually
@@ -109,16 +110,8 @@ const AbsentForm = (props) => {
                     if (args[0] === false) router.reload({ only: ['absent_form_list'] })
                 }}
             />
-            <div className="w-full py-4">
-                <div className="w-full grid gap-5 relative">
-                    {/* Header */}
-                    <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-3">
-                        <h1 className="text-[2em] sm:text-[1.5em] font-bold">STUDENT ABSENT FORM</h1>
-                    </div>
-
-                    <div className="w-full bg-white rounded-t-md shadow-black/20 shadow-sm border-b border-gray-200 px-4 sm:px-6 overflow-x-auto">
-                        <TabSwitcher tabs={optionTab} value={tab} onChange={setTab} />
-                    </div>
+            <PageLayout title="ABSENT FORM">
+                    <TabSwitcher tabs={optionTab} value={tab} onChange={setTab} />
 
                     {tab === "request" && (
                         <div className="w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm">
@@ -162,7 +155,7 @@ const AbsentForm = (props) => {
                             {shownForms.length === 0 ? (
                                 <div className="py-10 text-center text-gray-500">
                                     <FolderOpen size="2.5em" className="mx-auto mb-2 opacity-60" />
-                                    <p>No {STATUS_META[tab].label.toLowerCase()} absent form records found.</p>
+                                    <p>{tab === "all" ? "No absent form records found." : `No ${STATUS_META[tab].label.toLowerCase()} absent form records found.`}</p>
                                 </div>
                             ) : (
                                 <div className="grid gap-3">
@@ -227,8 +220,7 @@ const AbsentForm = (props) => {
                             )}
                         </div>
                     )}
-                </div>
-            </div>
+            </PageLayout>
         </>
     )
 }

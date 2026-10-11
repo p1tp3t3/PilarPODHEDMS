@@ -26,7 +26,6 @@ class UserFactory extends Factory
     {
         return [
             'id_number' => strtoupper(Str::random(2)) . '-' . fake()->unique()->numerify('####'),
-            'role' => 'student',
             'username' => fake()->unique()->userName(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
@@ -34,6 +33,29 @@ class UserFactory extends Factory
             'password' => static::$password ??= Hash::make('password'),
             'activate' => true,
         ];
+    }
+
+    /**
+     * Every factory user gets an original role in user_roles — student
+     * unless ->role(...) picked another one.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (User $user) {
+            if (! $user->userRoles()->exists()) {
+                $user->assignRole('student');
+            }
+        });
+    }
+
+    /**
+     * Create the user with this role (its original role in user_roles). Set
+     * while the model is being made, so User::save() writes the user_roles
+     * row before configure()'s student default runs.
+     */
+    public function role(string $role): static
+    {
+        return $this->afterMaking(fn (User $user) => $user->role = $role);
     }
 
     /**

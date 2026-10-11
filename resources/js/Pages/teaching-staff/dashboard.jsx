@@ -5,6 +5,8 @@ import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule
 import CurrentDateTime from "@/Components/other/current-datetime";
 import "../style.css";
 import LatestActiveAccountList from "@/Components/list/latest-active-user-list";
+import NewUserList from "@/Components/list/new-user-list";
+import DashboardTabs from "@/Components/other/dashboard-tabs";
 import { Head, Link } from "@inertiajs/react";
 import { motion } from "framer-motion";
 import { User, GraduationCap, FileText } from "lucide-react";
@@ -21,8 +23,9 @@ const TeachingStaffDashboard = (props) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
         >
-          <div className="w-full flex flex-col gap-6 pt-4">
-            <MaintenanceScheduleReminder />
+          <MaintenanceScheduleReminder />
+          <DashboardTabs>
+          <div className="w-full flex flex-col gap-6">
             <CurrentDateTime />
             <CurrentSemesterBanner />
 
@@ -85,27 +88,21 @@ const TeachingStaffDashboard = (props) => {
               )}
             </div>
 
-            {/* === ACTIVE ACCOUNT LISTS === */}
+            {/* === NEW USERS + ACTIVE USERS (their program) === */}
             <div className="flex flex-col lg:flex-row gap-6">
-              {isProgramHead && (
-                <div className="w-full lg:w-1/2">
-                  <LatestActiveAccountList
-                    list={props.active_faculty}
-                    type="Faculty Members"
-                    dataKey="active_faculty"
-                  />
-                </div>
-              )}
-
-              <div className={`w-full ${isProgramHead ? 'lg:w-1/2' : ''}`}>
-                <LatestActiveAccountList
-                  list={props.active_student}
-                  type="Students"
-                  dataKey="active_student"
+              <div className="w-full lg:w-1/2 min-w-0">
+                <NewUserList
+                  list={props.new_users}
+                  weekStart={props.new_users_week_start}
+                  weekEnd={props.new_users_week_end}
                 />
+              </div>
+              <div className="w-full lg:w-1/2 min-w-0">
+                <LatestActiveAccountList list={props.active} dataKey="active" />
               </div>
             </div>
           </div>
+          </DashboardTabs>
         </motion.div>
     </>
   );

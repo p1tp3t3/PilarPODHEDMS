@@ -77,40 +77,15 @@ class DashboardController extends Controller
                 return response()->json([
                     'active' => User::with('profile')
                         ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
-                        ->where('role', 'student')
                         ->whereNot('id', auth()->id())
                         ->get(),
                 ]);
             case 'teaching_staff':
-                $id = auth()->id();
-                $teachingStaff = TeachingStaff::where('user_id', $id)->first(['user_id', 'program_id', 'position_id']);
-                $programId = $teachingStaff?->program_id;
-                $isProgramHead = $teachingStaff?->position === 'program_head';
-                $programIds = $isProgramHead ? $teachingStaff->programsHandled->pluck('id') : collect([$programId]);
-
-                $data = [
-                    'active_student' => User::with('profile')
-                        ->where('role', 'student')
+                return response()->json([
+                    'active' => self::programPeopleQuery(TeachingStaff::programIdsFor(auth()->id()))
                         ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
-                        ->whereNot('id', $id)
-                        ->whereHas('enrollments', function ($q) use ($programIds) {
-                            $q->whereIn('program_id', $programIds);
-                        })
                         ->get(),
-                ];
-
-                if ($isProgramHead) {
-                    $data['active_faculty'] = User::with('profile')
-                        ->where('role', 'teaching_staff')
-                        ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
-                        ->whereNot('id', $id)
-                        ->whereHas('teachingStaff', function ($q) use ($programIds) {
-                            $q->whereIn('program_id', $programIds);
-                        })
-                        ->get();
-                }
-
-                return response()->json($data);
+                ]);
             default:
                 return response()->json([]);
         }
@@ -131,7 +106,7 @@ class DashboardController extends Controller
         $appointment = new AppointmentController;
         $prefectProps = array_merge([
             'students' => User::with(['program', 'profile', 'enrollments'])
-                ->where('role', 'student')
+                ->whereRole('student')
                 ->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
                 ->latest('created_at')
                 ->get(),
@@ -141,7 +116,6 @@ class DashboardController extends Controller
             'incident_risk_list' => [],
             'active' => User::with('profile')
                 ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
-                ->where('role', 'student')
                 ->whereNot('id', auth()->id())
                 ->get(),
         ], self::getPrefectDataStatistics());
@@ -179,11 +153,17 @@ class DashboardController extends Controller
 
         $complaint = Complaint::where('complainant_id', auth()->id())->count('case_number');
 
-        $roles = DB::table('users')->select('role')->distinct()->pluck('role')->values()->toArray();
+        $currentRoles = DB::table('user_roles as ur')
+            ->join('roles as r', 'r.id', '=', 'ur.role_id')
+            ->whereRaw('ur.id = (select max(ur2.id) from user_roles as ur2 where ur2.user_id = ur.user_id)')
+            ->select('ur.user_id', 'r.name as role');
 
-        $raw = DB::table('users')
-            ->selectRaw('MONTH(created_at) as month, role, COUNT(*) as count')
-            ->groupByRaw('MONTH(created_at), role')
+        $roles = DB::query()->fromSub($currentRoles, 'cr')->distinct()->pluck('role')->values()->toArray();
+
+        $raw = DB::table('users as u')
+            ->joinSub($currentRoles, 'cr', 'cr.user_id', '=', 'u.id')
+            ->selectRaw('MONTH(u.created_at) as month, cr.role, COUNT(*) as count')
+            ->groupByRaw('MONTH(u.created_at), cr.role')
             ->get();
 
         $monthlyData = [];
@@ -205,12 +185,16 @@ class DashboardController extends Controller
 
         return [
             'new_users' => $account->newUsers(),
+            'new_users_week_start' => now()->startOfWeek()->toDateString(),
+            'new_users_week_end' => now()->endOfWeek()->toDateString(),
             'user_list' => User::latest('created_at')->get(),
             'complaint' => $complaint,
             'program' => Program::count(),
             'report' => ActionLog::count(),
             'account_total' => $account->count('id'),
             'total_violation' => Violation::count(),
+            'total_roles' => \App\Models\Role::count(),
+            'active_roles' => \App\Models\Role::active()->count(),
             'maintenance_mode' => Cache::get('maintenance_mode', false),
             'bargraph' => array_values($monthlyData),
             'role' => $roles,
@@ -230,16 +214,18 @@ class DashboardController extends Controller
 
         $referral = Referral::count();
         $appointment = Appointment::count();
-        $student = User::where('role', 'student')->count();
+        // Same set the card links to: /prefect/user-list?is-enrolled=1.
+        $student = User::whereRole('student')->currentlyEnrolled()->count();
         $majorMinorCount = 0;
 
-        $currentDate = DB::raw("DATE_FORMAT(created_at, '%Y-%m-%d')");
+        // This week's complaints (Mon-Sun, same week as the "New Students" list).
+        $thisWeek = fn () => Complaint::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]);
 
         $complaintPieChart = [
-            'reported' => Complaint::where($currentDate, now()->toDateString())->count(),
-            'pending' => Complaint::where('complaint_status', 'pending')->where($currentDate, now()->toDateString())->count(),
-            'ongoing' => Complaint::where('complaint_status', 'ongoing')->where($currentDate, now()->toDateString())->count(),
-            'resolved' => Complaint::where('complaint_status', 'resolved')->where($currentDate, now()->toDateString())->count(),
+            'reported' => $thisWeek()->count(),
+            'pending' => $thisWeek()->where('complaint_status', 'pending')->count(),
+            'ongoing' => $thisWeek()->where('complaint_status', 'ongoing')->count(),
+            'resolved' => $thisWeek()->where('complaint_status', 'resolved')->count(),
         ];
 
         // NOTE: archived-document count computed directly here rather than via ArchiveController,
@@ -261,8 +247,10 @@ class DashboardController extends Controller
             'appointment' => $appointment,
             'total_violation' => Violation::count(),
             'complaint_piechart' => $complaintPieChart,
-            'program' => Program::select(['name', 'color_code'])->get()->toArray(),
+            'program' => Program::orderBy('id')->get(['name', 'color_code'])->toArray(),
             'bargraph' => self::getPrefectBarGraph(),
+            'bargraph_school_years' => \App\Models\SchoolYear::orderByDesc('year')->get(['id', 'year']),
+            'current_school_year_id' => SchoolYearSemester::current()?->school_year_id,
             'offense_list' => Violation::with(['penalties.penalty'])->latest('created_at')->get(),
             'penalty_list' => Penalty::latest('created_at')->get(),
             'countLastMonthUnresolvedComplaint' => $countUnresolvedComplaints->count(),
@@ -362,34 +350,48 @@ class DashboardController extends Controller
 
         $studentCount = Enrollment::whereIn('program_id', $programIds)->distinct('student_id')->count('student_id');
 
-        $activeStudent = User::where('role', 'student')
-            ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
-            ->whereNot('id', $id)
-            ->whereHas('enrollments', function ($q) use ($programIds) {
-                $q->whereIn('program_id', $programIds);
-            })
-            ->get();
+        // Everyone in this teacher's program(s): own program + any they head.
+        $myProgramIds = TeachingStaff::programIdsFor($id);
 
         $props = [
             'complaint' => $complaint,
             'referral' => $referral,
             'student_list' => $studentCount,
-            'active_student' => $activeStudent,
             'is_program_head' => $isProgramHead,
+            'active' => self::programPeopleQuery($myProgramIds)
+                ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
+                ->get(),
+            'new_users' => self::programPeopleQuery($myProgramIds)
+                ->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
+                ->latest('created_at')
+                ->get(),
+            'new_users_week_start' => now()->startOfWeek()->toDateString(),
+            'new_users_week_end' => now()->endOfWeek()->toDateString(),
         ];
 
         if ($isProgramHead) {
             $props['faculty'] = TeachingStaff::whereIn('program_id', $programIds)->count();
-            $props['active_faculty'] = User::where('role', 'teaching_staff')
-                ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
-                ->whereNot('id', $id)
-                ->whereHas('teachingStaff', function ($q) use ($programIds) {
-                    $q->whereIn('program_id', $programIds);
-                })
-                ->get();
         }
 
         return $props;
+    }
+
+    /**
+     * Students (latest enrollment) and teaching staff (own or headed program)
+     * in these programs, excluding the current user.
+     */
+    private static function programPeopleQuery($programIds)
+    {
+        $studentIds = Enrollment::whereIn('id', Enrollment::selectRaw('MAX(id)')->groupBy('student_id'))
+            ->whereIn('program_id', $programIds)
+            ->pluck('student_id');
+        $teacherIds = TeachingStaff::whereIn('program_id', $programIds)->pluck('user_id')
+            ->merge(\App\Models\ProgramHeadProgram::whereIn('program_id', $programIds)->pluck('user_id'));
+
+        return User::with(['profile', 'program', 'enrollments.program', 'teachingStaff.program'])
+            ->whereIn('id', $studentIds->merge($teacherIds)->unique())
+            ->whereRole(['student', 'teaching_staff'])
+            ->whereNot('id', auth()->id());
     }
 
     public function getStaffStatictics()
@@ -413,7 +415,7 @@ class DashboardController extends Controller
         $familyId = FamilyMember::where('member_id', $id)->value('family_id');
         $children = $familyId
             ? User::whereIn('id', FamilyMember::where('family_id', $familyId)->pluck('member_id'))
-                ->where('role', 'student')
+                ->whereRole('student')
                 ->count()
             : 0;
 
@@ -425,137 +427,111 @@ class DashboardController extends Controller
         ];
     }
 
+    /**
+     * Prefect dashboard bar graph: per-program counts of student complainants
+     * or offenders, bucketed over one of three ranges —
+     *   school_year: month by month from the school year's 1st semester start
+     *                to its 2nd semester end (period = school_year id; defaults
+     *                to the active school year) — or just one semester's
+     *                months when a semester (1|2) is given as the 4th filter,
+     *   yearly:      Jan–Dec of a calendar year (period = YYYY),
+     *   monthly:     each day of one month (period = YYYY-MM).
+     * Students are attributed to the program of their latest enrollment.
+     */
     public function getPrefectBarGraph()
     {
-        // Filter: [dimension, scope, period]
-        $filter = request()->has('filter') ? request('filter') : ['', '', ''];
-        [$dimension, $scope, $period] = $filter;
+        $filter = request('filter', []);
+        $dimension = $filter[0] ?? 'complainants';
+        $scope = $filter[1] ?? 'school_year';
+        $period = $filter[2] ?? null;
+        $semester = in_array((string) ($filter[3] ?? ''), ['1', '2'], true) ? (int) $filter[3] : null;
 
-        // List of programs for consistent chart indexing
-        $programs = Program::pluck('id')->toArray();
+        $programs = Program::orderBy('id')->pluck('id')->all();
 
-        /**
-         * ============================================
-         * DIMENSION SWITCH (violators | complainants)
-         * ============================================
-         */
-        if ($dimension === 'violators') {
-
-            // Count students who committed violations (complaint_subject_violation),
-            // joined through enrollment for program_id (student.program_id moved there).
-            $query = DB::table('complaint_subject_violation as cso')
-                ->join('enrollment', 'cso.student_id', '=', 'enrollment.student_id')
-                ->join('complaint', 'complaint.id', '=', 'cso.complaint_id')
-                ->selectRaw('
-                    enrollment.program_id,
-                    COUNT(DISTINCT cso.student_id) AS count
-                ');
-
-        } else {
-
-            // Count student complainants, same enrollment join.
-            $query = DB::table('complaint')
-                ->join('enrollment', 'complaint.complainant_id', '=', 'enrollment.student_id')
-                ->selectRaw('
-                    enrollment.program_id,
-                    COUNT(DISTINCT complaint.complainant_id) AS count
-                ');
-        }
-
-        /**
-         * ============================================
-         * DATE FILTERS (monthly | yearly)
-         * ============================================
-         */
         if ($scope === 'monthly') {
-            // YYYY-MM
-            $date = $period ?: now()->format('Y-m');
-            [$year, $month] = explode('-', $date);
-
-            $query->addSelect(DB::raw('DAY(complaint.created_at) AS day'))
-                ->whereYear('complaint.created_at', $year)
-                ->whereMonth('complaint.created_at', $month)
-                ->groupBy('day', 'enrollment.program_id');
-
+            $start = preg_match('/^\d{4}-\d{2}$/', (string) $period)
+                ? Carbon::createFromFormat('Y-m-d', "{$period}-01")->startOfDay()
+                : now()->startOfMonth();
+            $end = $start->copy()->endOfMonth();
+            $step = 'day';
         } elseif ($scope === 'yearly') {
-            // YYYY
-            $year = $period ?: now()->year;
-
-            $query->addSelect(DB::raw('MONTH(complaint.created_at) AS month'))
-                ->whereYear('complaint.created_at', $year)
-                ->groupBy('month', 'enrollment.program_id');
-
+            $year = ctype_digit((string) $period) ? (int) $period : now()->year;
+            $start = Carbon::create($year, 1, 1)->startOfDay();
+            $end = $start->copy()->endOfYear();
+            $step = 'month';
         } else {
-            // Default: current year monthly
-            $year = now()->year;
+            $schoolYear = $period
+                ? \App\Models\SchoolYear::with('semesters')->find($period)
+                : SchoolYearSemester::current()?->schoolYear?->load('semesters');
+            $schoolYear ??= \App\Models\SchoolYear::with('semesters')->orderByDesc('year')->first();
 
-            $query->addSelect(DB::raw('MONTH(complaint.created_at) as month'))
-                ->whereYear('complaint.created_at', $year)
-                ->groupBy('month', 'enrollment.program_id');
+            $semesters = $schoolYear?->semesters
+                ->when($semester, fn ($all) => $all->where('semester', $semester));
+            $first = $semesters?->min('date_start');
+            $last = $semesters?->max('date_end');
+            $start = $first ? Carbon::parse($first)->startOfMonth() : now()->startOfYear();
+            $end = $last ? Carbon::parse($last)->endOfMonth() : now()->endOfYear();
+            $step = 'month';
         }
 
-        $raw = $query->get();
+        $latestEnrollment = DB::table('enrollment')
+            ->selectRaw('student_id, MAX(id) AS id')
+            ->groupBy('student_id');
 
-        /**
-         * ============================================
-         * BUILD FINAL RESULT ARRAY
-         * ============================================
-         */
-        $result = [];
-
-        if ($scope === 'monthly') {
-
-            $daysInMonth = Carbon::createFromDate($year, $month, 1)->daysInMonth;
-
-            // Initialize structure
-            for ($d = 1; $d <= $daysInMonth; $d++) {
-                $result[$d] = [
-                    'label' => $d,
-                    'count' => array_fill(0, count($programs), 0),
-                    'others' => 0,
-                ];
-            }
-
-            // Fill with DB results
-            foreach ($raw as $row) {
-                $day = (int) $row->day;
-                $programIndex = array_search($row->program_id, $programs);
-
-                if ($programIndex !== false) {
-                    $result[$day]['count'][$programIndex] = (int) $row->count;
-                } else {
-                    $result[$day]['others'] += (int) $row->count;
-                }
-            }
-
+        if ($dimension === 'violators') {
+            $query = DB::table('complaint_subject_violation as cso')
+                ->join('complaint as c', 'c.id', '=', 'cso.complaint_id')
+                ->joinSub($latestEnrollment, 'le', 'le.student_id', '=', 'cso.student_id');
+            $countExpr = 'COUNT(DISTINCT cso.student_id)';
         } else {
+            $query = DB::table('complaint as c')
+                ->joinSub($latestEnrollment, 'le', 'le.student_id', '=', 'c.complainant_id');
+            $countExpr = 'COUNT(DISTINCT c.complainant_id)';
+        }
 
-            // Yearly 1–12
-            for ($m = 1; $m <= 12; $m++) {
-                $result[$m] = [
-                    'label' => Carbon::create()->month($m)->format('M'),
-                    'count' => array_fill(0, count($programs), 0),
-                    'others' => 0,
-                ];
+        $bucketExpr = $step === 'day'
+            ? "DATE_FORMAT(c.created_at, '%Y-%m-%d')"
+            : "DATE_FORMAT(c.created_at, '%Y-%m')";
+
+        $rows = $query->join('enrollment as e', 'e.id', '=', 'le.id')
+            ->whereBetween('c.created_at', [$start, $end])
+            ->selectRaw("e.program_id, {$bucketExpr} AS bucket, {$countExpr} AS count")
+            ->groupBy('e.program_id', 'bucket')
+            ->get();
+
+        // Every bucket in range, so empty days/months still show on the axis.
+        $buckets = [];
+        for ($cursor = $start->copy(); $cursor->lte($end); $step === 'day' ? $cursor->addDay() : $cursor->addMonthNoOverflow()) {
+            $key = $step === 'day' ? $cursor->format('Y-m-d') : $cursor->format('Y-m');
+            $buckets[$key] = [
+                'label' => match (true) {
+                    $step === 'day' => $cursor->format('M j'),
+                    $scope === 'school_year' => $cursor->format('M Y'),
+                    default => $cursor->format('M'),
+                },
+                'count' => array_fill(0, count($programs), 0),
+                'others' => 0,
+            ];
+        }
+
+        foreach ($rows as $row) {
+            if (! isset($buckets[$row->bucket])) {
+                continue;
             }
-
-            foreach ($raw as $row) {
-                $month = (int) $row->month;
-                $programIndex = array_search($row->program_id, $programs);
-
-                if ($programIndex !== false) {
-                    $result[$month]['count'][$programIndex] = (int) $row->count;
-                } else {
-                    $result[$month]['others'] += (int) $row->count;
-                }
+            $index = array_search($row->program_id, $programs);
+            if ($index === false) {
+                $buckets[$row->bucket]['others'] += (int) $row->count;
+            } else {
+                $buckets[$row->bucket]['count'][$index] = (int) $row->count;
             }
         }
 
-        // Reset indexing
-        $data = array_values($result);
+        return array_values($buckets);
+    }
 
-        return $data;
-
+    public function getBargraph()
+    {
+        return response()->json(self::getPrefectBarGraph());
     }
 
     /**

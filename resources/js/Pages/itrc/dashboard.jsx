@@ -16,7 +16,7 @@ import TabSwitcher from "@/Components/other/tab-switcher";
 import { Broadcast } from "@/others/classes/broadcast-cofiguration";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Users, GraduationCap, FileText, ShieldAlert, AlertTriangle } from "lucide-react";
+import { Users, GraduationCap, FileText, ShieldAlert, AlertTriangle, ShieldCheck } from "lucide-react";
 
 const ITRCDashboard = (props) => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -121,10 +121,10 @@ const ITRCDashboard = (props) => {
           {/* === TOP SECTION === */}
           <div className="w-full grid gap-5">
             {/* Quantity Cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4">
               <Link href="/super-admin/user-accounts">
                 <QuantityCard
-                  h="h-[9rem]"
+                  h="h-[6rem]"
                   num={props.account_total}
                   icon={Users}
                   label="Total Registered Users"
@@ -135,7 +135,7 @@ const ITRCDashboard = (props) => {
               </Link>
               <Link href="/super-admin/program">
                 <QuantityCard
-                  h="h-[9rem]"
+                  h="h-[6rem]"
                   num={props.program}
                   icon={GraduationCap}
                   label="Total College Programs"
@@ -146,7 +146,7 @@ const ITRCDashboard = (props) => {
               </Link>
               <Link href="/super-admin/report">
                 <QuantityCard
-                  h="h-[9rem]"
+                  h="h-[6rem]"
                   num={props.report}
                   icon={FileText}
                   label="Total Action Logs"
@@ -157,10 +157,21 @@ const ITRCDashboard = (props) => {
               </Link>
               <Link href="/violation-management">
                 <QuantityCard
-                  h="h-[9rem]"
+                  h="h-[6rem]"
                   num={props.total_violation}
                   icon={ShieldAlert}
                   label="Total Violations"
+                  color={{
+                    bg: "bg-white hover:bg-black/5 transition-all",
+                  }}
+                />
+              </Link>
+              <Link href="/super-admin/roles">
+                <QuantityCard
+                  h="h-[6rem]"
+                  num={props.total_roles}
+                  icon={ShieldCheck}
+                  label={`Total Roles (${props.active_roles ?? 0} active)`}
                   color={{
                     bg: "bg-white hover:bg-black/5 transition-all",
                   }}
@@ -191,7 +202,7 @@ const ITRCDashboard = (props) => {
           <div className="w-full flex flex-col lg:flex-row gap-5">
             {/* New Users */}
             <div className="w-full">
-              <NewUserList list={props.new_users} />
+              <NewUserList list={props.new_users} weekStart={props.new_users_week_start} weekEnd={props.new_users_week_end} />
             </div>
 
             {/* Latest Active Accounts */}

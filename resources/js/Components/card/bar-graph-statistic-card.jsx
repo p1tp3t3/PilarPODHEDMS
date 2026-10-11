@@ -23,6 +23,7 @@ const BarGraph = (props) => {
 
   const chartOptions = {
     responsive: true,
+    maintainAspectRatio: !props.height,
     plugins: {
       legend: {
         position: "top",
@@ -67,27 +68,30 @@ const BarGraph = (props) => {
 
   return (
     <div
-      className={`${props.w} h-full px-4 py-3 bg-white ${props.bg} ${
+      className={`${props.w} h-full min-w-0 px-4 py-3 bg-white ${props.bg} ${
         props.withBorder
           ? "border rounded-md shadow-md shadow-black/20 border-gray-300"
           : ""
       }`}
     >
-      <div className="text-[1.1em] flex justify-between">
-        <h1>
+      <div className="text-[1.1em] flex flex-wrap items-start justify-between gap-2">
+        <h1 className="min-w-0 w-full sm:w-auto max-w-full">
           <b>{props.title}</b>
         </h1>
-        <div>{props.side}</div>
+        <div className="w-full sm:w-auto max-w-full">{props.side}</div>
       </div>
 
-      {/* Chart with click event */}
-      <Bar
-        ref={chartRef}
-        data={chartData}
-        options={chartOptions}
-        onClick={handleClick}
-        className="w-full h-full"
-      />
+      {/* Chart with click event — a fixed-height box when `height` is set,
+          so the canvas can't grow past its card on narrow screens. */}
+      <div className="relative w-full min-w-0 mt-2" style={props.height ? { height: props.height } : undefined}>
+        <Bar
+          ref={chartRef}
+          data={chartData}
+          options={chartOptions}
+          onClick={handleClick}
+          className="w-full h-full"
+        />
+      </div>
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useContext } from "react";
+import LiveActiveSince from "@/Components/other/live-active-since";
 import { Box } from "@mui/material";
 import { DataGrid } from "@/Components/other/data-grid";
 import ProfilePic from "../other/profile-pic";
@@ -107,7 +108,7 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
       headerName: "Active Since",
       width: 150,
       renderCell: (params) => (
-        <ActiveStatusCell lastSeen={params.value} />
+        <LiveActiveSince userId={params.row.id} lastSeen={params.value} className="text-[0.8rem]" />
       ),
     },
     {
@@ -145,6 +146,13 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
       <DataGrid
         rows={rows}
         columns={columns}
+        mobileSummary={(row) => ({
+          name: row.fullName.replace(/\s+/g, " ").trim(),
+          role: ["Student", row.program].filter(Boolean).join(" • "),
+          picture: row.profile_picture,
+          sex: row.sex,
+          hide: ["full_name"],
+        })}
         disableRowSelectionOnClick
         hideFooterSelectedRowCount
         pagination
@@ -196,20 +204,6 @@ const StudentCell = ({ row }) => {
       </div>
     </div>
   );
-};
-
-const ActiveStatusCell = ({ lastSeen }) => {
-  const [text, setText] = useState(readableActiveDuration(lastSeen));
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setText(readableActiveDuration(lastSeen));
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [lastSeen]);
-
-  return <span className="text-[0.8rem]">{lastSeen ? text : "N/A"}</span>;
 };
 
 export default StudentList;

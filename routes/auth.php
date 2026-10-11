@@ -73,6 +73,12 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      Route::post('/super-admin/accounts/activation/{username}', [AccountController::class, 'toggle']);
 
      Route::post('/super-admin/user-accounts/del', [AccountController::class, 'destroy']);
+     Route::post('/super-admin/user-accounts/{id}/role', [AccountController::class, 'changeRole']);
+     Route::get('/super-admin/roles', [\App\Http\Controllers\Modules\System\RoleController::class, 'index']);
+     Route::post('/super-admin/roles', [\App\Http\Controllers\Modules\System\RoleController::class, 'store']);
+     Route::post('/super-admin/roles/{id}/toggle', [\App\Http\Controllers\Modules\System\RoleController::class, 'toggle']);
+     Route::post('/super-admin/roles/{id}/delete', [\App\Http\Controllers\Modules\System\RoleController::class, 'destroy']);
+     Route::get('/super-admin/user-accounts/{id}/roles', [AccountController::class, 'roleHistory']);
 
      Route::get('/super-admin/student-list', [AccountController::class, 'studentListIndex']);
 
@@ -86,9 +92,7 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      Route::get('/super-admin/parent-register/get/{id}', [ParentController::class, 'getParentRequest']);
 
      Route::get('/super-admin/school-year', [SchoolYearController::class, 'index']);
-     Route::post('/super-admin/school-year/create', [SchoolYearController::class, 'store']);
      Route::post('/super-admin/school-year/semester/update-dates', [SchoolYearController::class, 'updateSemesterDates']);
-     Route::post('/super-admin/school-year/delete', [SchoolYearController::class, 'destroy']);
 
      Route::get('/super-admin/program', [MaintenanceController::class, 'programIndex']);
      Route::get('/super-admin/program/{id}/users', [MaintenanceController::class, 'programUsersIndex']);
@@ -100,7 +104,6 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      Route::get('/super-admin/report/download/{id}', [ReportController::class, 'downloadReport'])->name('super-admin.report.download');
      Route::get('/super-admin/report/view/{id}', [ReportController::class, 'viewReport'])->name('super-admin.report.view');
 
-     Route::post('/super-admin/account/update', [AccountController::class, 'updateUserInformation']);
 
      Route::post('/super-admin/staff/position/assign', [AccountController::class, 'assignStaffPosition']);
      Route::post('/super-admin/staff/position/remove', [AccountController::class, 'removeStaffPosition']);
@@ -114,8 +117,6 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      Route::post('/system-settings/login-portal-password', [SystemSettingsController::class, 'updateLoginPortalPassword']);
      Route::post('/system-settings/mail-config', [SystemSettingsController::class, 'updateMailConfig']);
      Route::post('/system-settings/mail-config/test', [SystemSettingsController::class, 'sendTestMail']);
-     Route::post('/system-settings/app-name', [SystemSettingsController::class, 'updateAppName']);
-     Route::post('/system-settings/archive-retention', [SystemSettingsController::class, 'updateArchiveRetention']);
 });
 
 /*
@@ -124,6 +125,8 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
 |--------------------------------------------------------------------------
 */
 Route::middleware(['role:super_admin,sub_admin', 'activate', 'user-activity'])->group(function() {
+     // Accessibility (allowed submissions) for students and teaching staff.
+     Route::post('/super-admin/account/update', [AccountController::class, 'updateUserInformation']);
      Route::get('/violation-management', [MaintenanceController::class, 'violationManagementIndex']);
      Route::get('/violation-management/{id}/students', [ViolationController::class, 'violationStudentsIndex']);
 
@@ -273,6 +276,7 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/dashboard', [DashboardController::class, 'index'])
           ->name('auth.dashboard');
      Route::get('/dashboard/active-users', [DashboardController::class, 'getActiveUsers']);
+     Route::post('/api/bargraph', [DashboardController::class, 'getBargraph']);
      Route::get('/dashboard/my-current-semester-records', [DashboardController::class, 'myCurrentSemesterRecords']);
      Route::get('/dashboard/all-current-semester-records', [DashboardController::class, 'allCurrentSemesterRecords']);
 
@@ -283,6 +287,9 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::post('/chat/message/{id}/edit', [ChatController::class, 'editMessage']);
      Route::get('/chat/message/{id}/history', [ChatController::class, 'getEditHistory']);
      Route::get('/chat/unread-count', [ChatController::class, 'unreadCount']);
+     Route::get('/chat/group/{programId}', [ChatController::class, 'getGroupThread']);
+     Route::post('/chat/group/{programId}/send', [ChatController::class, 'sendGroupMessage']);
+     Route::post('/chat/group/{programId}/read', [ChatController::class, 'markGroupRead']);
 
      Route::get('/appointment', [AppointmentController::class, 'index']);
      Route::post('/prefect/appointment/req/get/{reqId}', [AppointmentController::class, 'getReqList']);
@@ -334,13 +341,13 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
 
      Route::get('/transaction/limit', [TransactionController::class, 'getLimit']);
 
-     Route::get('/student-risk/{id}', [ViolationController::class, 'studentRiskIndex']);
      Route::get('/student-violation/{id}', [ViolationController::class, 'studentViolationIndex']);
      Route::get('/incident/list/{id}', [ViolationController::class, 'getStudentIncident']);
      Route::get('/violation/list/{id}', [ViolationController::class, 'getStudentViolation']);
      Route::get('/violation-occurence/list/{id}', [ViolationController::class, 'getStudentViolationOccurenceRoute']);
      Route::get('/incident/student/{id}', [ViolationController::class, 'getStudentRiskStatus']);
      Route::get('/api/offense-list', [ViolationController::class, 'getOffenseList']);
+     Route::get('/api/penalty-list', [ViolationController::class, 'getPenaltyList']);
      Route::post('/api/student/violation/predict', [ViolationController::class, 'predictViolationRisk']);
 
      Route::post('/profile/{username}/edit', [ProfileController::class, 'update']);
@@ -355,7 +362,7 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/api/user-account/file/{fileName}/preview', [FileController::class, 'previewAccountFile']);
      Route::get('/api/user-account/file/{fileName}/preview-entry', [FileController::class, 'previewAccountFileEntry']);
      Route::get('/all-students', function() {
-          return User::with(['profile', 'program', 'enrollments'])->where('role', 'student')->get();
+          return User::with(['profile', 'program', 'enrollments'])->whereRole('student')->get();
      });
      Route::get('/settings/{id}', [AccountController::class, 'accountSettingsIndex']);
      Route::get('/referral', [ReferralController::class, 'index']);

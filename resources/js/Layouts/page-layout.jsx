@@ -8,9 +8,11 @@ const PageLayout = ({ title, rightSideComponent, children }) => {
     return (
         <div className="w-full py-4 min-w-0">
             <div className="w-full grid gap-5 relative min-w-0">
-                <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-3">
-                    <h1 className="text-[1.3em] sm:text-[1.5em] font-bold">{title}</h1>
-                    {rightSideComponent}
+                <div className="flex flex-col sm:flex-row w-full justify-between items-stretch sm:items-center gap-3">
+                    <h1 className="text-[1.15em] sm:text-[1.5em] font-bold">{title}</h1>
+                    {rightSideComponent && (
+                        <div className="max-sm:[&_button]:w-full max-sm:[&>div]:w-full">{rightSideComponent}</div>
+                    )}
                 </div>
                 {children}
             </div>

@@ -20,7 +20,7 @@ class ComplaintSeeder extends Seeder
 
     public function run(int $count = 40): void
     {
-        $students = User::where('role', 'student')->pluck('id')->all();
+        $students = User::whereRole('student')->pluck('id')->all();
 
         if (count($students) < 2) {
             $this->command?->warn('ComplaintSeeder skipped: needs at least 2 students (run StudentSeeder first).');

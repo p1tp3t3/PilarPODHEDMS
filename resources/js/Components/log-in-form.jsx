@@ -10,27 +10,23 @@ const LogInForm = (props) => {
 
 
   return (
-    <div className="w-full md:w-[35rem] grid items-center px-4 sm:px-6 md:px-0 md:flex-shrink-0 bg-white">
+    <div className="frm relative w-full max-w-[26rem] flex flex-col items-center gap-3">
+      {/* Logo sits on the background, just above the card. */}
+      <img
+        className="object-cover drop-shadow-lg"
+        width={90}
+        src={header}
+        alt="Pilar College logo"
+      />
       <form
-        className="w-full flex flex-col gap-5"
+        className="w-full flex flex-col bg-white rounded-xl shadow-2xl overflow-hidden"
         onSubmit={props.submit}
         method="post"
       >
         {/* Card Container */}
         <div className="flex flex-col">
-          {/* Header Text */}
-          <div className="w-full grid place-items-center text-white">
-            <div className="grid place-items-center">
-              <img
-                className="object-cover"
-                width={100}
-                src={header}
-                alt="header"
-              />
-            </div>
-          </div>
           <div>
-            <div className="py-4 px-6 flex flex-col gap-1 border-b border-gray-300">
+            <div className="pt-5 pb-4 px-6 flex flex-col gap-1 border-b border-gray-300">
               <div className="text-[0.9em] sm:text-[1em] md:text-[1.1em] text-center font-bold">
                 <div>Prefect of Discipline</div>
                 <div>Management System</div>
@@ -39,7 +35,7 @@ const LogInForm = (props) => {
                 Higher Education Department
               </p>
             </div>
-            <h1 className="text-[0.85em] text-center py-5 text-gray-700">
+            <h1 className="text-[0.85em] text-center py-4 text-gray-700">
               Please Log In to Continue
             </h1>
           </div>

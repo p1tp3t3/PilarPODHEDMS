@@ -87,7 +87,8 @@ class ProfileController extends Controller
         // gating in profile.jsx. Not computed for anyone else (not just
         // hidden in the UI), so the data never ships in the page payload
         // for a viewer who shouldn't see it in the first place.
-        $canViewIncidents = in_array(auth()->user()->role, ['sub_admin', 'parent']) || (bool) is_program_head();
+        $canViewIncidents = in_array(auth()->user()->role, ['sub_admin', 'parent'])
+            || (auth()->user()->role === 'teaching_staff' && ViolationController::canViewStudent($account->id));
 
         if ($account->role == 'student' && $canViewIncidents) {
             $props = array_merge($props, [
@@ -99,26 +100,22 @@ class ProfileController extends Controller
         // Any role can file a complaint, so "Complaints Filed" is a tab on
         // every profile — but complaint content is private from super_admin
         // (data privacy), reviewable only by the sub_admin (prefect) who
-        // actually handles them or by the person themselves. Referrals/
-        // absent forms/gate passes are each only filed by one specific
-        // role, so those tabs stay scoped to that role's own profile and
-        // remain visible to super_admin as before.
-        $canViewOwnFilings = in_array(auth()->user()->role, ['super_admin', 'sub_admin']) || auth()->id() === $account->id;
+        // actually handles them or by the person themselves.
         $canViewOwnComplaints = auth()->user()->role === 'sub_admin' || auth()->id() === $account->id;
 
         if ($canViewOwnComplaints) {
             $props['complaints_filed'] = (new ComplaintController)->getComplainantComplaint($account->id);
         }
 
-        if ($canViewOwnFilings) {
-            if ($account->role === 'teaching_staff') {
-                $props['referrals_filed'] = (new ReferralController)->getReferrerReferral($account->id);
-            }
+        // Referrals, absent forms and gate passes follow the complaint rule:
+        // the prefect or the person who filed them, never super_admin.
+        if ($canViewOwnComplaints && $account->role === 'teaching_staff') {
+            $props['referrals_filed'] = (new ReferralController)->getReferrerReferral($account->id);
+        }
 
-            if ($account->role === 'student') {
-                $props['absent_forms_filed'] = (new AbsentFormController)->getStudentAbsentForms($account->id);
-                $props['gatepass_requested'] = (new GatePassController)->getUserGatePassRequests($account->id);
-            }
+        if ($canViewOwnComplaints && $account->role === 'student') {
+            $props['absent_forms_filed'] = (new AbsentFormController)->getStudentAbsentForms($account->id);
+            $props['gatepass_requested'] = (new GatePassController)->getUserGatePassRequests($account->id);
         }
 
         return Inertia::render('other/profile', $props);

@@ -67,7 +67,7 @@ class RegisteredUserController extends Controller
         $year = date('Y');
 
         // Get last ID from the database, keyed off the human-readable id_number
-        $lastRecord = User::where('role', 'parent')->orderBy('id_number', 'desc')->first();
+        $lastRecord = User::whereRole('parent')->orderBy('id_number', 'desc')->first();
 
         if (! $lastRecord || ! $lastRecord->id_number) {
             // No records yet — first ID = pYYYY01
@@ -96,7 +96,7 @@ class RegisteredUserController extends Controller
                 $position = request('position');
 
                 if (in_array($role, ['super_admin', 'sub_admin'])) {
-                    $admin = User::where('role', $role);
+                    $admin = User::whereRole($role);
 
                     if ($admin->count() < 2 || $admin->exists()) {
                         $this->createUser($request);
@@ -754,11 +754,11 @@ class RegisteredUserController extends Controller
     {
         $parentList = User::whereNotIn('id', FamilyMember::pluck('member_id'))
             ->with(['profile', 'parent'])
-            ->where('role', 'parent')
+            ->whereRole('parent')
             ->get();
         $studentList = User::whereNotIn('id', FamilyMember::pluck('member_id'))
             ->with(['profile', 'program'])
-            ->where('role', 'student')
+            ->whereRole('student')
             ->where('id', '!=', auth()->user()->id)
             ->get();
 

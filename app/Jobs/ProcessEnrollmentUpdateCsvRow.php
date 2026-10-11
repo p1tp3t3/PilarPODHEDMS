@@ -54,7 +54,7 @@ class ProcessEnrollmentUpdateCsvRow implements ShouldQueue
             return;
         }
 
-        $student = User::where('id_number', $idNumber)->where('role', 'student')->first();
+        $student = User::where('id_number', $idNumber)->whereRole('student')->first();
         $fullName = trim(($student->profile->first_name ?? '') . ' ' . ($student->profile->last_name ?? ''));
         $program = Program::whereRaw('LOWER(name) = ?', [strtolower(trim($row['program']))])->first();
 

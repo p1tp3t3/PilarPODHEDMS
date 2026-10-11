@@ -118,7 +118,7 @@ class AbsentFormController extends Controller
 
         // Notification (best-effort only)
         try {
-            $prefectId = User::where('role', 'sub_admin')->value('id');
+            $prefectId = User::whereRole('sub_admin')->value('id');
 
             notify_single_user(
                 self::getAbsentFormSubmissionNotifMessage($absenceId, $prefectId)
@@ -143,7 +143,7 @@ class AbsentFormController extends Controller
             'note' => 'nullable|string',
         ]));
 
-        if (! User::where('id', $request->student_id)->where('role', 'student')->exists()) {
+        if (! User::where('id', $request->student_id)->whereRole('student')->exists()) {
             return response()->json(['message' => 'Only students can be issued an absent form.'], 422);
         }
 
@@ -464,24 +464,16 @@ class AbsentFormController extends Controller
             ->get();
     }
 
-    // "Pending" excludes forms whose date_to has already passed without any
-    // action taken on them — those are surfaced under "Expired" instead of
-    // sitting in Pending forever, since Absence (unlike GatePass) has no
-    // separate expiration field to key off of; only rejected/revoked/noted
-    // set archived_at, so those three branches deliberately don't also
+    // Absent forms have no expiration: one stays Pending until the prefect
+    // approves/rejects it or the student revokes it. Only rejected/revoked/
+    // approved set archived_at, so those branches deliberately don't also
     // filter on it (they'd otherwise always come back empty).
     public function getAllAbsentForm()
     {
         $status = request()->has('status') ? request()->status : null;
         $absence = Absence::with(['user.profile', 'user.program', 'user.enrollments']);
-        $today = now()->toDateString();
-
         if ($status === 'all') {
             $absence->latest('created_at');
-        } elseif ($status === 'expired') {
-            $absence->whereNull('confirmed_at')->whereNull('rejected_at')->whereNull('revoked_at')
-                ->whereDate('date_to', '<', $today)
-                ->latest('date_to');
         } elseif ($status === 'noted') {
             $absence->whereNotNull('confirmed_at')->latest('confirmed_at');
         } elseif ($status === 'rejected') {
@@ -490,7 +482,6 @@ class AbsentFormController extends Controller
             $absence->whereNotNull('revoked_at')->latest('revoked_at');
         } else {
             $absence->whereNull('confirmed_at')->whereNull('rejected_at')->whereNull('revoked_at')
-                ->whereDate('date_to', '>=', $today)
                 ->latest('created_at');
         }
 

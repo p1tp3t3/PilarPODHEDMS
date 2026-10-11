@@ -78,22 +78,21 @@ const SuperAdminLoginInner = (props) => {
         <>
             <Head title="Super Admin Access - Maintenance" />
 
-            <div className="w-full h-[100vh]">
-                <div className="flex w-full h-full">
-                    <div className="hidden md:block w-full h-full relative">
-                        <div className="absolute w-full h-full bg-[#000000a6]"></div>
-                        <p className="text-white text-[3em] font-bold absolute frm px-10 mt-10">
-                            System Under Maintenance — Super Admin Access Only
-                        </p>
-                        <img src={background} alt="" className="h-full object-cover" />
-                    </div>
-                    <LogInForm
-                        submit={handleSubmit}
-                        data={data}
-                        onchange={handleChange}
-                        validationErr={validationErr}
-                    />
+            {/* Full-screen photo with the login card centered on top. */}
+            <div className="w-full min-h-[100vh] relative flex flex-col items-center justify-center gap-5 px-4 py-8">
+                <div className="fixed inset-0">
+                    <img src={background} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-[#000000a6]"></div>
                 </div>
+                <p className="relative hidden md:block text-white text-[2.2em] font-bold text-center max-w-4xl leading-tight">
+                    System Under Maintenance — Super Admin Access Only
+                </p>
+                <LogInForm
+                    submit={handleSubmit}
+                    data={data}
+                    onchange={handleChange}
+                    validationErr={validationErr}
+                />
             </div>
         </>
     );

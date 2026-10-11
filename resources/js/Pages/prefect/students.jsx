@@ -38,7 +38,7 @@ const PrefectStudents = (props) => {
       <PageLayout title="STUDENT LIST">
           {/* Search + Filters */}
           <div className="flex justify-between">
-            <div className="flex gap-3">
+            <div className="w-full flex flex-col sm:flex-row gap-3">
               <DropdownField
                 default={{ val: "all", label: "All Programs" }}
                 list={props.program}

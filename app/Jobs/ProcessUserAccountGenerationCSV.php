@@ -85,7 +85,6 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
 
                 $userFields = [
                     'id_number' => $id,
-                    'role' => $userType,
                     'username' => $username,
                     'email' => $email !== '' ? strtolower($email) : null,
                     'activate' => $activate,
@@ -97,6 +96,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
 
                 User::updateOrInsert(['id_number' => $id], $userFields);
                 $user = User::where('id_number', $id)->first();
+                $user->assignRole($userType);
 
                 Profile::updateOrInsert(['user_id' => $user->id], [
                     'first_name' => ucwords($csv['first_name']),

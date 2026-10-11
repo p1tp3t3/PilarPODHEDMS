@@ -80,14 +80,14 @@ class NotificationController extends Controller
                 'content' => 'c',
             ];
 
-            $prefect = User::where('role', 'sub_admin')
+            $prefect = User::whereRole('sub_admin')
                 ->where('id', $data['sender_id'])
                 ->with('profile')
                 ->firstOrFail();
 
             // A student can only be called in if they're an enrolled,
             // activated account — not just any row with role='student'.
-            $student = User::where('role', 'student')
+            $student = User::whereRole('student')
                 ->where('id', $data['receiver_id'])
                 ->where('activate', true)
                 ->whereHas('enrollment')
@@ -310,7 +310,7 @@ class NotificationController extends Controller
     {
         $notif = Notifications::with(['receiver.program', 'receiver.profile', 'receiver.enrollments'])
             ->whereHas('receiver', function ($q) {
-                $q->where('role', 'student');
+                $q->whereRole('student');
             })
             ->where('notif_type', 'call_in')
             ->latest('created_at')

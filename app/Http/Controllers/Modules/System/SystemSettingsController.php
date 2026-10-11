@@ -24,37 +24,6 @@ class SystemSettingsController extends Controller
                 'username' => config('mail.mailers.smtp.username') ?? '',
                 'has_password' => ! empty(config('mail.mailers.smtp.password')),
             ],
-            'app_name' => config('app.name'),
-            'archive_retention_years' => config('app.archive_retention_years'),
-        ]);
-    }
-
-    public function updateAppName(Request $request)
-    {
-        $request->validate([
-            'app_name' => 'required|string|max:100',
-        ]);
-
-        self::setEnvValue('APP_NAME', $request->app_name);
-        Artisan::call('config:clear');
-        config(['app.name' => $request->app_name]);
-
-        return response()->json(['message' => 'System name updated successfully.', 'app_name' => $request->app_name]);
-    }
-
-    public function updateArchiveRetention(Request $request)
-    {
-        $request->validate([
-            'retention_years' => 'required|integer|min:1',
-        ]);
-
-        self::setEnvValue('ARCHIVE_RETENTION_YEARS', (string) $request->retention_years);
-        Artisan::call('config:clear');
-        config(['app.archive_retention_years' => (int) $request->retention_years]);
-
-        return response()->json([
-            'message' => 'Archive retention period updated successfully.',
-            'archive_retention_years' => (int) $request->retention_years,
         ]);
     }
 

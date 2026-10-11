@@ -1,6 +1,7 @@
 import Btn from "@/Components/button/normal-btn"
 import StudentList from "@/Components/list/student-list"
 import AuthLayout from "@/Layouts/auth-layout"
+import PageLayout from "@/Layouts/page-layout"
 import EditEnrollmentModal from "@/Components/modal/submission-form/edit-enrollment-modal"
 import CsvStudentPreviewPage from "@/Components/other/csv-student-preview-page"
 import CsvStudentProgressModal from "@/Components/modal/view/csv-student-progress-modal"
@@ -139,13 +140,18 @@ const Students = (props) => {
             userId={props.auth?.user?.id}
             onDone={closeCsvProgress}
         />
-        <div className="w-full py-10">
-            <div className="w-full grid gap-6 relative">
-                <div className="flex justify-between items-center">
-                    <h1 className="text-[1.4em]">
-                        <b>Manage Students</b>
-                    </h1>
-                </div>
+        <PageLayout
+            title="STUDENT LIST"
+            rightSideComponent={
+                activeTab === "list" && props.auth.user.user_type == 'administrative' ? (
+                    <a href={`/download/user/account/${fileName}`} download={fileName}>
+                        <Btn>
+                            <i className="fa-solid fa-download"></i> Download Student Accounts
+                        </Btn>
+                    </a>
+                ) : null
+            }
+        >
 
                 {isSuperAdmin ? (
                     <TabSwitcher
@@ -159,21 +165,11 @@ const Students = (props) => {
                 ) : null}
 
                 {activeTab === "list" && (
-                    <div className="grid gap-6">
-                        {props.auth.user.user_type == 'administrative' &&
-                        <div className="flex justify-end">
-                            <a href={`/download/user/account/${fileName}`} download={fileName}>
-                                <Btn>
-                                    <i className="fa-solid fa-download"></i> Download Student Accounts
-                                </Btn>
-                            </a>
-                        </div>}
-                        <StudentList
-                            list={props.students}
-                            canEditEnrollment={isSuperAdmin}
-                            onEditEnrollment={handleEditEnrollment}
-                        />
-                    </div>
+                    <StudentList
+                        list={props.students}
+                        canEditEnrollment={isSuperAdmin}
+                        onEditEnrollment={handleEditEnrollment}
+                    />
                 )}
 
                 {activeTab === "upload" && isSuperAdmin && (
@@ -204,8 +200,7 @@ const Students = (props) => {
                         )}
                     </div>
                 )}
-            </div>
-        </div>
+        </PageLayout>
         </>
     )
 }

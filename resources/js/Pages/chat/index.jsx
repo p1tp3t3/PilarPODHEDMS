@@ -9,6 +9,8 @@ import { Broadcast } from "@/others/classes/broadcast-cofiguration"
 import AuthContext from "@/context-provider/auth-provider"
 import { Send, MessageCircle, Reply, X, Check, CheckCheck, Trash2, Pencil, History, ArrowLeft, MoreVertical, Search } from "lucide-react"
 import { Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material"
+import GroupThread from "@/Components/chat/group-thread"
+import { UsersRound } from "lucide-react"
 
 // Only admins (prefect/itrc) can message any user — canChat() on the
 // backend treats sub_admin/super_admin identically as the "hub" in a
@@ -16,7 +18,7 @@ import { Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material"
 // contacts are always just the admin(s), already fully listed.
 const isAdminRole = (role) => role === 'sub_admin' || role === 'super_admin'
 
-const Chat = ({ contacts: initialContacts }) => {
+const Chat = ({ contacts: initialContacts, groups: initialGroups = [] }) => {
     // ChatController::index() no longer passes its own `user` prop — it
     // reads from the shared `auth.user` prop instead (HandleInertiaRequests),
     // the same one AuthLayout itself uses.
@@ -26,6 +28,12 @@ const Chat = ({ contacts: initialContacts }) => {
     const [contacts, setContacts] = useState(initialContacts || [])
     const [activeId, setActiveId] = useState(null)
     const [activeEncryptedId, setActiveEncryptedId] = useState(null)
+    // Program group chats (teaching staff only).
+    const [groups, setGroups] = useState(initialGroups || [])
+    const [activeGroupId, setActiveGroupId] = useState(null)
+    const [groupMessages, setGroupMessages] = useState(null)
+    const [groupMembers, setGroupMembers] = useState(null)
+    const activeGroupIdRef = useRef(null)
     const [search, setSearch] = useState("")
     const [searchResults, setSearchResults] = useState(null)
     const canSearch = isAdminRole(user.role)
@@ -158,12 +166,73 @@ const Chat = ({ contacts: initialContacts }) => {
     }, [search, contacts, canSearch])
 
     const active = contacts.find((c) => c.id === activeId)
+    const activeGroup = groups.find((g) => g.id === activeGroupId)
+
+    useEffect(() => { activeGroupIdRef.current = activeGroupId }, [activeGroupId])
+
+    // One Reverb subscription per group: append to the open thread, or bump
+    // that group's unread count and preview.
+    useEffect(() => {
+        if (typeof window === "undefined" || !window.Echo) return
+        const channels = (initialGroups || []).map((g) => {
+            const name = `program-chat.${g.id}`
+            window.Echo.private(name).listen("GroupMessageSent", (e) => {
+                const msg = e.message
+                const isOpen = activeGroupIdRef.current === msg.program_id
+                const mine = msg.sender_id === user.id
+                if (isOpen) {
+                    setGroupMessages((prev) => (prev ?? []).some((m) => m.id === msg.id) ? prev : [...(prev ?? []), msg])
+                    ChatService.markGroupRead(g.encrypted_id)
+                }
+                setGroups((prev) => prev.map((x) => x.id === msg.program_id
+                    ? {
+                        ...x,
+                        last_message: mine ? `You: ${msg.body}` : `${msg.sender_name}: ${msg.body}`,
+                        last_message_at: msg.created_at,
+                        // Your own messages never count as unread.
+                        unread_count: isOpen ? 0 : mine ? x.unread_count : (x.unread_count || 0) + 1,
+                    }
+                    : x))
+            })
+            return name
+        })
+        return () => channels.forEach((name) => window.Echo.leave(name))
+    }, [])
+
+    const openGroup = (g) => {
+        setActiveId(null)
+        setActiveEncryptedId(null)
+        setActiveGroupId(g.id)
+        setGroupMessages(null)
+        setGroupMembers(null)
+        setGroups((prev) => prev.map((x) => x.id === g.id ? { ...x, unread_count: 0 } : x))
+        setSearch("")
+        setSearchResults(null)
+        ChatService.getGroupThread(g.encrypted_id, (d) => {
+            setGroupMessages(d.messages || [])
+            setGroupMembers(d.members || [])
+        }, () => setGroupMessages([]))
+    }
+
+    const sendGroupMessage = (text, done, fail) => {
+        const g = activeGroup
+        ChatService.sendGroup(g.encrypted_id, text, (res) => {
+            const msg = res.message
+            // The sender also receives their own broadcast — skip duplicates.
+            setGroupMessages((prev) => (prev ?? []).some((m) => m.id === msg.id) ? prev : [...(prev ?? []), msg])
+            setGroups((prev) => prev.map((x) => x.id === g.id
+                ? { ...x, last_message: `You: ${text}`, last_message_at: msg.created_at }
+                : x))
+            done()
+        }, fail)
+    }
 
     // `stub` is the raw user object from a search result — used only the
     // first time someone not yet in `contacts` (found via search, not an
     // existing conversation) is opened, so they appear in the list and a
     // thread can start with them.
     const openContact = (id, encryptedId, stub) => {
+        setActiveGroupId(null)
         setActiveId(id)
         setActiveEncryptedId(encryptedId)
         setContacts((prev) => {
@@ -324,7 +393,7 @@ const Chat = ({ contacts: initialContacts }) => {
                             separate full-screen views (list until a contact
                             is picked, then just the thread) — on sm+ both
                             columns show side by side as normal. */}
-                        <div className={`border-r border-gray-200 overflow-y-auto ${active ? 'hidden sm:block' : ''}`}>
+                        <div className={`border-r border-gray-200 overflow-y-auto ${active || activeGroup ? 'hidden sm:block' : ''}`}>
                             <div className="px-4 py-3 border-b border-gray-200">
                                 <h1 className="text-[1.1em] font-bold">Chat</h1>
                             </div>
@@ -340,6 +409,36 @@ const Chat = ({ contacts: initialContacts }) => {
                                             className="w-full border border-gray-300 rounded-full pl-8 pr-3 py-1.5 text-[0.8em] focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         />
                                     </div>
+                                </div>
+                            )}
+                            {searchResults === null && groups.length > 0 && (
+                                <div className="border-b border-gray-200">
+                                    <div className="px-4 pt-3 pb-1 text-[0.7em] font-semibold uppercase tracking-wide text-gray-400">Program Groups</div>
+                                    {groups.map((g) => (
+                                        <button
+                                            key={`group-${g.id}`}
+                                            onClick={() => openGroup(g)}
+                                            className={`w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50 ${activeGroupId === g.id ? 'bg-blue-50' : ''}`}
+                                        >
+                                            <span className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 grid place-items-center shrink-0">
+                                                <UsersRound size={18} />
+                                            </span>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <div className={`text-[0.85em] truncate ${g.unread_count > 0 ? 'font-bold text-gray-900' : 'font-semibold'}`}>{g.name}</div>
+                                                    {g.unread_count > 0 && (
+                                                        <span className="shrink-0 bg-red-600 text-white text-[0.65em] font-bold rounded-full w-5 h-5 grid place-items-center">
+                                                            {g.unread_count > 9 ? '9+' : g.unread_count}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className={`text-[0.75em] truncate ${g.unread_count > 0 ? 'font-bold text-gray-900' : 'text-gray-500'}`}>
+                                                    {g.last_message ?? `${g.members_count} members`}
+                                                </div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                    <div className="px-4 pt-3 pb-1 text-[0.7em] font-semibold uppercase tracking-wide text-gray-400">Direct Messages</div>
                                 </div>
                             )}
                             {(searchResults ?? contacts).length === 0
@@ -391,8 +490,18 @@ const Chat = ({ contacts: initialContacts }) => {
                             })}
                         </div>
 
-                        <div className={`flex-col h-full min-h-0 ${active ? 'flex' : 'hidden sm:flex'}`}>
-                            {active
+                        <div className={`flex-col h-full min-h-0 ${active || activeGroup ? 'flex' : 'hidden sm:flex'}`}>
+                            {activeGroup && !active
+                            ? <GroupThread
+                                group={activeGroup}
+                                messages={groupMessages}
+                                members={groupMembers}
+                                user={user}
+                                onSend={sendGroupMessage}
+                                onBack={() => setActiveGroupId(null)}
+                                isTouchDevice={isTouchDevice}
+                              />
+                            : active
                             ? <>
                                 <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-3">
                                     <button

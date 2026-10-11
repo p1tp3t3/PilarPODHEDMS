@@ -17,7 +17,7 @@ const QuantityCard = ({ label, icon: Icon, num, h = "h-[6rem]", textColor }) => 
         <Tooltip title={`${label}: ${num}`} arrow placement="top">
         <Card
             elevation={1}
-            className={h}
+            className={`${h} max-md:!h-auto`}
             sx={{
                 width: "100%",
                 borderRadius: "0.5rem",
@@ -39,14 +39,15 @@ const QuantityCard = ({ label, icon: Icon, num, h = "h-[6rem]", textColor }) => 
                         gap: 1.5,
                         height: "100%",
                         "&:last-child": { pb: 2 },
+                        "@media (max-width:767px)": { py: 1.5, "&:last-child": { pb: 1.5 } },
                     }}
                 >
                     <Box
                         className={`${accent.bg} ${accent.text}`}
                         sx={{
                             flexShrink: 0,
-                            width: "3.3rem",
-                            height: "3.3rem",
+                            width: { xs: "2.75rem", md: "3.3rem" },
+                            height: { xs: "2.75rem", md: "3.3rem" },
                             borderRadius: "50%",
                             display: "grid",
                             placeItems: "center",

@@ -49,7 +49,7 @@ class ViolationAccessController extends Controller
 
         $label = "\"{$data['access_type']}\" access to ".ucfirst($data['resource']).' Management';
 
-        foreach (User::where('role', 'sub_admin')->get() as $prefect) {
+        foreach (User::whereRole('sub_admin')->get() as $prefect) {
             notify_single_user([
                 'notif_type' => 'violation_access',
                 'sender_id' => auth()->id(),

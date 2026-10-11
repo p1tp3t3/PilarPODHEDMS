@@ -11,15 +11,6 @@ import { useReload } from "@/context-provider/reload-provider";
 import { AccountService } from "@/others/services/account-service";
 import { showOutputModal, showWarningModal } from "@/others/function";
 
-const roleOptions = [
-  { val: "super_admin", label: "Super Admin" },
-  { val: "sub_admin", label: "Sub Admin" },
-  { val: "student", label: "Student" },
-  { val: "teaching_staff", label: "Teaching Staff" },
-  { val: "non_teaching_staff", label: "Non-Teaching Staff" },
-  { val: "parent", label: "Parent" },
-];
-
 const Accounts = (props) => {
   const [editUserInfo, openEditUserInfo] = useState(false),
     [data, setData] = useState(null),
@@ -127,10 +118,11 @@ const Accounts = (props) => {
             <div className="w-full sm:w-56 flex-shrink-0">
               <DropdownField
                 default={{ val: "all", label: "All Roles" }}
-                list={roleOptions}
+                list={(props.roles ?? []).map((r) => ({ val: r.name, label: r.label }))}
                 val={roleFilter}
                 onChange={handleRoleChange}
                 name="role_filter"
+                keepCase={true}
               />
             </div>
           )}
@@ -142,6 +134,7 @@ const Accounts = (props) => {
               row={props.account_list}
               openEditUserInfo={showEditUserInfo}
               deleteUser={openDeleteUserAccount}
+              roles={props.roles}
               program={props.program}
               reload={loadRegister}
             />

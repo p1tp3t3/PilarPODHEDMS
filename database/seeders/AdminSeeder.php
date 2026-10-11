@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -26,7 +27,7 @@ class AdminSeeder extends Seeder
             role: 'sub_admin',
             idNumber: 'SB-0001',
             username: 'subadmin',
-            email: 'subadmin@example.com',
+            email: 'marizdiaz101@gmail.com',
             firstName: 'Sub',
             lastName: 'Admin',
         );
@@ -42,7 +43,6 @@ class AdminSeeder extends Seeder
     ): void {
         $userId = DB::table('users')->insertGetId([
             'id_number' => $idNumber,
-            'role' => $role,
             'username' => $username,
             'email' => $email,
             'email_verified_at' => now(),
@@ -51,6 +51,7 @@ class AdminSeeder extends Seeder
             'activate' => true,
             'created_at' => now(),
         ]);
+        User::find($userId)->assignRole($role);
         $address = fake()->address();
 
         DB::table('profiles')->insert([

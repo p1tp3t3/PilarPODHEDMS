@@ -22,6 +22,18 @@ class TeachingStaff extends Model
 
     public $incrementing = false;
 
+    /** Program ids a teacher belongs to: their own program plus any they head. */
+    public static function programIdsFor(int $userId)
+    {
+        $staff = static::with('programsHandled')->where('user_id', $userId)->first();
+
+        return collect([$staff?->program_id])
+            ->merge($staff?->programsHandled->pluck('id') ?? [])
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
     // Every existing read of ->position (backend and, via
     // TeachingStaffResource/UserSearchResource/UserResource's
     // whenLoaded() pass-through, frontend JSON) expects 'faculty' or

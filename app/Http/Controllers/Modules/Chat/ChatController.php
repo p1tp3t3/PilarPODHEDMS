@@ -2,66 +2,162 @@
 
 namespace App\Http\Controllers\Modules\Chat;
 
+use App\Events\GroupMessageSent;
 use App\Events\MessageEdited;
 use App\Events\MessageSent;
 use App\Events\MessagesRead;
 use App\Events\MessageUnsent;
 use App\Http\Controllers\Controller;
+use App\Models\Enrollment;
+use App\Models\FamilyMember;
+use App\Models\GroupMessage;
+use App\Models\Program;
 use App\Models\Message;
 use App\Models\MessageEdit;
+use App\Models\TeachingStaff;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class ChatController extends Controller
 {
+    private const ADMIN_ROLES = ['sub_admin', 'super_admin'];
+
     /**
-     * Everyone can message sub_admin/super_admin, and sub_admin/super_admin
-     * can message anyone back (each other included) — a hub-and-spoke
-     * model with the two admin roles as the hubs, not a full mesh between
-     * regular users.
+     * Who may chat with whom ("program" = a teacher's own program or one they
+     * head; a student's program = their latest enrollment's):
+     * - the IT admin and the prefect can chat with anyone (and everyone can
+     *   chat with them);
+     * - a student and a teaching staff member, when the student is in one of
+     *   that teacher's programs;
+     * - two teaching staff members who share a program;
+     * - a parent and a teaching staff member, when one of the parent's
+     *   children is in one of that teacher's programs;
+     * - anything else (e.g. non-teaching staff with anyone but the admins)
+     *   is not allowed.
      */
     private function canChat(User $a, User $b): bool
     {
-        $isAdmin = fn (User $u) => in_array($u->role, ['sub_admin', 'super_admin']);
+        if (in_array($a->role, self::ADMIN_ROLES) || in_array($b->role, self::ADMIN_ROLES)) {
+            return true;
+        }
 
-        return $isAdmin($a) || $isAdmin($b);
+        $pair = collect([$a->role, $b->role])->sort()->values()->all();
+
+        if ($pair === ['student', 'teaching_staff']) {
+            [$student, $teacher] = $a->role === 'student' ? [$a, $b] : [$b, $a];
+
+            return $this->latestProgramIds(collect([$student->id]))
+                ->intersect($this->teacherProgramIds($teacher))
+                ->isNotEmpty();
+        }
+
+        if ($pair === ['teaching_staff', 'teaching_staff']) {
+            return $this->teacherProgramIds($a)
+                ->intersect($this->teacherProgramIds($b))
+                ->isNotEmpty();
+        }
+
+        if ($pair === ['parent', 'teaching_staff']) {
+            [$parent, $teacher] = $a->role === 'parent' ? [$a, $b] : [$b, $a];
+
+            return $this->childProgramIds($parent)
+                ->intersect($this->teacherProgramIds($teacher))
+                ->isNotEmpty();
+        }
+
+        return false;
+    }
+
+    // A teacher's own program plus any programs they head.
+    private function teacherProgramIds(User $teacher)
+    {
+        return TeachingStaff::programIdsFor($teacher->id);
+    }
+
+    // The latest-enrollment program of each student in the parent's family.
+    private function childProgramIds(User $parent)
+    {
+        $familyIds = FamilyMember::where('member_id', $parent->id)->pluck('family_id');
+        $childIds = FamilyMember::whereIn('family_id', $familyIds)
+            ->where('member_id', '!=', $parent->id)
+            ->pluck('member_id');
+        $studentIds = User::whereIn('id', $childIds)->whereRole('student')->pluck('id');
+
+        return $this->latestProgramIds($studentIds);
+    }
+
+    private function latestProgramIds($studentIds)
+    {
+        return Enrollment::whereIn('id', Enrollment::whereIn('student_id', $studentIds)
+            ->selectRaw('MAX(id)')
+            ->groupBy('student_id'))
+            ->pluck('program_id')
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
+    // Teaching staff who teach in or head one of these programs.
+    private function teachersInPrograms($programIds)
+    {
+        return TeachingStaff::whereIn('program_id', $programIds)->pluck('user_id')
+            ->merge(\App\Models\ProgramHeadProgram::whereIn('program_id', $programIds)->pluck('user_id'))
+            ->unique()
+            ->values();
+    }
+
+    // Students whose latest enrollment is in one of these programs.
+    private function studentsInPrograms($programIds)
+    {
+        return Enrollment::whereIn('id', Enrollment::selectRaw('MAX(id)')->groupBy('student_id'))
+            ->whereIn('program_id', $programIds)
+            ->pluck('student_id');
     }
 
     public function index()
     {
         return Inertia::render('chat/index', [
             'contacts' => $this->getContacts(),
+            'groups' => $this->getGroups(),
         ]);
     }
 
     /**
-     * A regular user's contacts are always the current sub_admin/super_admin
-     * accounts (so they can always start a conversation). An admin's
-     * contacts are the other admin(s) plus anyone who has ever messaged
-     * them, ranked by most recent activity.
+     * Contacts = everyone the user is allowed to start a chat with (see
+     * canChat) plus anyone they've already talked to, ranked by most recent
+     * activity. Admins don't get a pre-filled list of every user — they get
+     * the other admins plus their conversations, and search for the rest.
      */
     private function getContacts()
     {
         $me = auth()->user();
-        $isAdmin = in_array($me->role, ['sub_admin', 'super_admin']);
 
-        if ($isAdmin) {
-            $contactIds = User::where('id', '!=', $me->id)
-                ->where(function ($q) use ($me) {
-                    $q->whereIn('role', ['sub_admin', 'super_admin'])
-                        ->orWhereIn('id', Message::where('receiver_id', $me->id)->select('sender_id'))
-                        ->orWhereIn('id', Message::where('sender_id', $me->id)->select('receiver_id'));
-                })
-                ->pluck('id');
-        } else {
-            $contactIds = User::where('id', '!=', $me->id)
-                ->whereIn('role', ['sub_admin', 'super_admin'])
-                ->pluck('id');
+        $partnerIds = Message::where('receiver_id', $me->id)->pluck('sender_id')
+            ->merge(Message::where('sender_id', $me->id)->pluck('receiver_id'));
+
+        $suggestedIds = User::whereRole(self::ADMIN_ROLES)->pluck('id');
+
+        if ($me->role === 'student') {
+            $suggestedIds = $suggestedIds->merge($this->teachersInPrograms($this->latestProgramIds(collect([$me->id]))));
+        } elseif ($me->role === 'parent') {
+            $suggestedIds = $suggestedIds->merge($this->teachersInPrograms($this->childProgramIds($me)));
+        } elseif ($me->role === 'teaching_staff') {
+            $programIds = $this->teacherProgramIds($me);
+            $suggestedIds = $suggestedIds
+                ->merge($this->teachersInPrograms($programIds))
+                ->merge($this->studentsInPrograms($programIds));
         }
 
+        $contactIds = $suggestedIds->merge($partnerIds)
+            ->unique()
+            ->reject(fn ($id) => $id === $me->id)
+            ->values();
+
         $contacts = User::with(['profile', 'program', 'enrollments', 'teachingStaff.program', 'nonTeachingStaff'])
-            ->whereIn('id', $contactIds)->get();
+            ->whereIn('id', $contactIds)->get()
+            ->filter(fn (User $contact) => $this->canChat($me, $contact));
 
         return $contacts->map(function ($contact) use ($me) {
             $lastMessage = Message::where(function ($q) use ($me, $contact) {
@@ -94,6 +190,118 @@ class ChatController extends Controller
                     ->count(),
             ];
         })->sortByDesc('last_message_at')->values();
+    }
+
+    // ---- Program group chats (teaching staff only) ----------------------
+
+    /** The program groups the current user belongs to, with unread counts. */
+    private function getGroups()
+    {
+        $me = auth()->user();
+        if ($me->role !== 'teaching_staff') {
+            return [];
+        }
+
+        $programIds = $this->teacherProgramIds($me);
+        $reads = DB::table('group_message_reads')->where('user_id', $me->id)->pluck('last_read_message_id', 'program_id');
+
+        return Program::whereIn('id', $programIds)->orderBy('name')->get()->map(function (Program $program) use ($me, $reads) {
+            $last = GroupMessage::with('sender.profile')->where('program_id', $program->id)->latest('id')->first();
+
+            return [
+                'id' => $program->id,
+                'encrypted_id' => encrypt_id($program->id),
+                'name' => "{$program->name} Faculty",
+                'program' => $program->name,
+                'logo' => $program->logo,
+                'members_count' => $this->teachersInPrograms(collect([$program->id]))->count(),
+                'last_message' => $last ? "{$last->sender_name}: {$last->body}" : null,
+                'last_message_at' => $last?->created_at,
+                'unread_count' => GroupMessage::where('program_id', $program->id)
+                    ->where('id', '>', $reads[$program->id] ?? 0)
+                    ->where('sender_id', '!=', $me->id)
+                    ->count(),
+            ];
+        })->values();
+    }
+
+    private function groupProgramOrAbort($encryptedId): Program
+    {
+        $programId = decrypt_id($encryptedId) ?? abort(404);
+        $me = auth()->user();
+
+        if ($me->role !== 'teaching_staff' || ! $this->teacherProgramIds($me)->contains($programId)) {
+            abort(403, 'You are not a member of this group.');
+        }
+
+        return Program::findOrFail($programId);
+    }
+
+    public function getGroupThread($programId)
+    {
+        $program = $this->groupProgramOrAbort($programId);
+        $me = auth()->user();
+
+        $messages = GroupMessage::with('sender.profile')
+            ->where('program_id', $program->id)
+            ->orderBy('id')
+            ->get();
+
+        DB::table('group_message_reads')->updateOrInsert(
+            ['program_id' => $program->id, 'user_id' => $me->id],
+            ['last_read_message_id' => $messages->last()?->id ?? 0]
+        );
+
+        $members = User::with('profile')
+            ->whereIn('id', $this->teachersInPrograms(collect([$program->id])))
+            ->get()
+            ->map(fn (User $u) => [
+                'id' => $u->id,
+                'name' => trim(($u->profile?->first_name ?? '').' '.($u->profile?->last_name ?? '')) ?: $u->username,
+            ])
+            ->values();
+
+        return response()->json([
+            'group' => ['id' => $program->id, 'name' => "{$program->name} Faculty"],
+            'members' => $members,
+            'messages' => $messages,
+        ]);
+    }
+
+    public function sendGroupMessage(Request $request, $programId)
+    {
+        $request->validate(['body' => 'required|string|max:5000']);
+        $program = $this->groupProgramOrAbort($programId);
+        $me = auth()->user();
+
+        $message = GroupMessage::create([
+            'program_id' => $program->id,
+            'sender_id' => $me->id,
+            'body' => trim($request->body),
+        ]);
+        $message->created_at = now();
+        $message->load('sender.profile');
+
+        DB::table('group_message_reads')->updateOrInsert(
+            ['program_id' => $program->id, 'user_id' => $me->id],
+            ['last_read_message_id' => $message->id]
+        );
+
+        broadcast(new GroupMessageSent($message))->toOthers();
+
+        return response()->json(['message' => $message]);
+    }
+
+    public function markGroupRead($programId)
+    {
+        $program = $this->groupProgramOrAbort($programId);
+
+        DB::table('group_message_reads')->updateOrInsert(
+            ['program_id' => $program->id, 'user_id' => auth()->id()],
+            ['last_read_message_id' => GroupMessage::where('program_id', $program->id)->max('id') ?? 0]
+        );
+
+        return response()->json(['ok' => true]);
     }
 
     public function getThread($userId)

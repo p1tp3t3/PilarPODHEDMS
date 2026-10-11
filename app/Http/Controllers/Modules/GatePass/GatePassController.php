@@ -108,7 +108,7 @@ class GatePassController extends Controller
 
     public function gatepassRequest(GatepassRequestRequest $request)
     {
-        $prefectId = User::where('role', 'sub_admin')->first()?->id;
+        $prefectId = User::whereRole('sub_admin')->first()?->id;
         DB::beginTransaction();
         try {
 
@@ -150,7 +150,7 @@ class GatePassController extends Controller
             'allow_to.*' => 'in:go-out,enter',
         ]);
 
-        $student = User::with('profile')->where('role', 'student')->find($request->user_id);
+        $student = User::with('profile')->whereRole('student')->find($request->user_id);
         if (! $student) {
             return response()->json(['message' => 'Only students can be issued a gate pass.'], 422);
         }

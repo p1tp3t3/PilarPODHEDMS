@@ -31,7 +31,7 @@ const SetupLayout = ({ children, user }) => {
                     <div className="flex items-center gap-3">
                         <ProfilePic src={"/default-pic/pilar.png"} size={2.5} />
                         <div>
-                            <h1 className="text-[1em] font-bold">PilarPODHED</h1>
+                            <h1 className="text-[1em] font-bold">PilarPODHEDMS</h1>
                             <h1 className="text-[0.7em]">Pilar College of Zamboanga City, Inc.</h1>
                         </div>
                     </div>

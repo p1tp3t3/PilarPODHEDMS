@@ -7,7 +7,7 @@ import RadioButton from "@/Components/input/radio"
 
 const ParentFields = ({ data, handleChange }) => {
     return (
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
             <DropdownField
                 default={{ val: "", label: "Relationship to Child" }}
                 list={[

@@ -56,6 +56,7 @@ const ChildrenList = ({ list = null, style }) => {
                 <DataGrid
                     rows={rows}
                     columns={columns}
+                    mobileSummary={(row) => ({ name: row.name, role: row.subtitle, picture: row.profile_picture, sex: row.sex, hide: ["name"] })}
                     hideFooter
                     disableRowSelectionOnClick
                     getRowHeight={() => "auto"}

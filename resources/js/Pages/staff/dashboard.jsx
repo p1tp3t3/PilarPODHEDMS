@@ -6,6 +6,7 @@ import CurrentDateTime from "@/Components/other/current-datetime";
 import '../style.css'
 import PendingRequestList from "@/Components/list/pending-request-list";
 import AvailabilityList from "@/Components/list/availability-list";
+import DashboardTabs from "@/Components/other/dashboard-tabs";
 import { Head, Link } from "@inertiajs/react";
 import { FileText } from "lucide-react";
 
@@ -15,6 +16,7 @@ const NonTeachingStaffDashboard = (props) => {
             <Head title="Dashboard" />
             <div className="w-full py-10">
                 <MaintenanceScheduleReminder />
+                <DashboardTabs>
                 <CurrentDateTime />
                 <CurrentSemesterBanner />
 
@@ -45,6 +47,7 @@ const NonTeachingStaffDashboard = (props) => {
                         </div>
                     </div>
                 </div>
+                </DashboardTabs>
             </div>
         </>
     )

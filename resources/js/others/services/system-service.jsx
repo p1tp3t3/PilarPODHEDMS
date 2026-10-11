@@ -39,10 +39,6 @@ export const SystemService = {
         const api = new APIRequest(`/maintenance/backups/${name}/delete`, "post", {}, () => {}, success, error);
         api.sendPostData();
     },
-    updateAppName(appName, success, error) {
-        const api = new APIRequest("/system-settings/app-name", "post", { app_name: appName }, () => {}, success, error);
-        api.fetchData();
-    },
     updateLoginPortalPassword(data, success, error) {
         const api = new APIRequest("/system-settings/login-portal-password", "post", data, () => {}, success, error);
         api.fetchData();
@@ -54,11 +50,5 @@ export const SystemService = {
     sendTestEmail(testEmail, success, error) {
         const api = new APIRequest("/system-settings/mail-config/test", "post", { test_email: testEmail }, () => {}, success, error);
         api.fetchData();
-    },
-    updateArchiveRetention(years, success, error) {
-        const f = new FormData();
-        f.append("retention_years", years);
-        const api = new APIRequest("/system-settings/archive-retention", "post", f, () => {}, success, error);
-        api.sendPostData();
     },
 };

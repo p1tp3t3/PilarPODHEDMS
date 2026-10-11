@@ -52,7 +52,8 @@ const About = (props) => {
                 )
             case 'teaching_staff':
                 return requestType.filter((e, i) =>
-                    (e.val == 'complaint')
+                    (e.val == 'complaint' ||
+                        e.val == 'referral')
                 )
             case 'parent':
                 return requestType.filter((e, i) =>
@@ -102,8 +103,10 @@ const About = (props) => {
     return (
         <div className="flex gap-6">
             <div className="grid gap-6 w-full">
-                {((props.user.role == 'super_admin' && props.data.user_id != props.user.id) ||
-                  (props.user.role == 'sub_admin' && props.data.user_id != props.user.id && props.data.user_type == 'student')) &&
+                {/* IT admin and prefect control what students and teaching staff can submit. */}
+                {['super_admin', 'sub_admin'].includes(props.user.role) &&
+                  props.data.user_id != props.user.id &&
+                  ['student', 'teaching_staff'].includes(props.data.user_type) &&
                 <ProfileSectionWrapper
                     title='Accessibility'
                     icon={User}
@@ -176,21 +179,6 @@ const About = (props) => {
                                     ))}
                                 </div>
                             </div>
-                        )}
-                        {(props.data.user_type === 'student' && props.data.unique_att?.enrollments?.length > 0) && (
-                            <>
-                            <Label
-                                title="School Year"
-                                desc={props.data.unique_att.enrollments[props.data.unique_att.enrollments.length - 1].school_year?.year}
-                            />
-                            <Label
-                                title="Semester"
-                                desc={(() => {
-                                    const semester = props.data.unique_att.enrollments[props.data.unique_att.enrollments.length - 1].semester
-                                    return semester ? `${ordinal(semester)} Semester` : 'N/A'
-                                })()}
-                            />
-                            </>
                         )}
                         {!['super_admin', 'sub_admin'].includes(props.data.user_type) && !isStaffRole &&
                         <>
@@ -375,6 +363,21 @@ const EducationBackgroundSection = ({ type, list, student_data, program, usr, va
                                             <Label title="Date Last Attended" desc={(e.date_attended != null) ? readableDate(e.date_attended) : 'N/A'} />
                                             <Label title="Year Level" desc={e.year_level || 'N/A'} />
                                         </>
+                                    ) : e.education_type === 'college' ? (
+                                        // Current college: where they are now (latest enrollment),
+                                        // plus Year Graduated for graduates retaking a program.
+                                        (() => {
+                                            const enr = student_data?.unique_att?.enrollments
+                                            const latest = enr?.[enr.length - 1]
+                                            return (
+                                                <>
+                                                    <Label title="School Year" desc={latest?.school_year?.year || 'N/A'} />
+                                                    <Label title="Semester" desc={latest?.semester ? `${ordinal(latest.semester)} Semester` : 'N/A'} />
+                                                    <Label title="Year Level" desc={latest?.year_level ? getYearLevel(latest.year_level) : 'N/A'} />
+                                                    <Label title="Year Graduated" desc={e.year_graduated || 'N/A'} />
+                                                </>
+                                            )
+                                        })()
                                     ) : (
                                         <Label title="Year Graduated" desc={e.year_graduated || 'N/A'} />
                                     )}

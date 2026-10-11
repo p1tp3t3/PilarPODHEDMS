@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\Modules\System;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\SchoolYear\StoreSchoolYearRequest;
-use App\Models\Enrollment;
 use App\Models\SchoolYear;
 use App\Models\SchoolYearSemester;
 use Illuminate\Http\Request;
@@ -14,8 +12,13 @@ class SchoolYearController extends Controller
 {
     public function index()
     {
+        // Fallback for when the scheduler isn't running: opening this page
+        // also adds the next school year if the current one has ended.
+        SchoolYear::createUpcomingIfDue();
+
         return Inertia::render('itrc/school-year', [
             'school_years' => self::listWithCounts(),
+            'upcoming' => SchoolYear::upcoming(),
         ]);
     }
 
@@ -26,34 +29,17 @@ class SchoolYearController extends Controller
      */
     private static function listWithCounts()
     {
+        SchoolYearSemester::flushCache();
+        $currentId = SchoolYearSemester::currentId();
+
         return SchoolYear::withCount('enrollments')
             ->with('semesters')
             ->orderByDesc('year')
-            ->get();
-    }
-
-    public function store(StoreSchoolYearRequest $request)
-    {
-        $schoolYear = SchoolYear::create([
-            'year' => $request->year,
-        ]);
-
-        // Prefilled with the standard Aug-Jul academic calendar — an admin
-        // can adjust either semester's dates afterward via
-        // updateSemesterDates() if this school's calendar differs.
-        $startYear = (int) explode('-', $request->year)[0];
-        foreach ([1, 2] as $semester) {
-            [$dateStart, $dateEnd] = SchoolYearSemester::defaultDateRange($startYear, $semester);
-            $schoolYear->semesters()->create([
-                'semester' => $semester,
-                'date_start' => $dateStart,
-                'date_end' => $dateEnd,
-            ]);
-        }
-
-        SchoolYearSemester::flushCache();
-
-        return self::listWithCounts();
+            ->get()
+            ->each(function ($sy) use ($currentId) {
+                $sy->is_current = $sy->semesters->contains('id', $currentId);
+                $sy->semesters->each(fn ($s) => $s->is_current = $s->id === $currentId);
+            });
     }
 
     public function updateSemesterDates(Request $request)
@@ -86,33 +72,6 @@ class SchoolYearController extends Controller
             'date_start' => $request->date_start,
             'date_end' => $request->date_end,
         ]);
-
-        SchoolYearSemester::flushCache();
-
-        return self::listWithCounts();
-    }
-
-    public function destroy(Request $request)
-    {
-        $request->validate([
-            'id' => 'required|exists:school_year,id',
-        ]);
-
-        $schoolYear = SchoolYear::with('semesters')->find($request->id);
-
-        if ($schoolYear->isCurrent()) {
-            return response()->json([
-                'message' => 'This is the current school year — it can\'t be deleted while one of its semesters is in progress.',
-            ], 409);
-        }
-
-        if (Enrollment::where('school_year_id', $request->id)->exists()) {
-            return response()->json([
-                'message' => 'This school year cannot be deleted. Students are still enrolled under it.',
-            ], 409);
-        }
-
-        $schoolYear->delete();
 
         SchoolYearSemester::flushCache();
 

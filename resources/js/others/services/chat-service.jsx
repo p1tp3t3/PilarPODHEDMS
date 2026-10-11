@@ -1,6 +1,22 @@
 import { APIRequest } from "../classes/api-req";
 
 export const ChatService = {
+    getGroupThread(encryptedProgramId, setter, error) {
+        const api = new APIRequest(`/chat/group/${encryptedProgramId}`, "get", {}, setter, () => {}, error);
+        api.fetchData();
+    },
+    sendGroup(encryptedProgramId, body, success, error) {
+        const f = new FormData();
+        f.append("body", body);
+        // fetchData (method "post") hands the response to the setter slot —
+        // sendPostData() calls success with no data, and the sent message is needed.
+        const api = new APIRequest(`/chat/group/${encryptedProgramId}/send`, "post", f, success, () => {}, error);
+        api.fetchData();
+    },
+    markGroupRead(encryptedProgramId) {
+        const api = new APIRequest(`/chat/group/${encryptedProgramId}/read`, "post", new FormData(), () => {}, () => {}, () => {});
+        api.sendPostData();
+    },
     getThread(userId, setter, error) {
         const api = new APIRequest(`/chat/thread/${userId}`, "get", {}, setter, () => {}, error);
         api.fetchData();

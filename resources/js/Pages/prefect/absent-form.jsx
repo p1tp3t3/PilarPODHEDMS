@@ -16,7 +16,7 @@ import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
 import { showWarningModal, showOutputModal } from "@/others/function"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
-import { List, Clock, CheckCircle2, XCircle, Ban, Undo2 } from "lucide-react"
+import { List, Clock, CheckCircle2, Ban, Undo2 } from "lucide-react"
 import { Head } from "@inertiajs/react"
 
 const PrefectAbsentForm = (props) => {
@@ -40,8 +40,7 @@ const PrefectAbsentForm = (props) => {
     const option = [
         { key: 'all', label: 'All', icon: List },
         { key: 'req-current', label: 'Pending', icon: Clock },
-        { key: 'noted', label: 'Noted', icon: CheckCircle2 },
-        { key: 'expired', label: 'Expired', icon: XCircle },
+        { key: 'noted', label: 'Approved', icon: CheckCircle2 },
         { key: 'rejected', label: 'Rejected', icon: Ban },
         { key: 'revoked', label: 'Revoked', icon: Undo2 },
     ]
@@ -76,7 +75,7 @@ const PrefectAbsentForm = (props) => {
         }
     }
 
-    const successConfirm = () => loadRegister(true, 'success', 'Absent Form Noted Successfully')
+    const successConfirm = () => loadRegister(true, 'success', 'Absent Form Approved Successfully')
     const successCancel = () => loadRegister(true, 'success', 'Absent Form Rejected Successfully')
     const errorConfirm = () => loadRegister(true, 'error', 'Failed to Approve Absent Form')
     const errorCancel = () => loadRegister(true, 'error', 'Failed to Reject Absent Form')

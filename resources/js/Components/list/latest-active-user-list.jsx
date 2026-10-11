@@ -6,12 +6,30 @@ import { useContext, useState, useEffect, useRef } from "react"
 import SearchBar from "../input/search-bar"
 import { DashboardService } from "@/others/services/dashboard-service"
 import { AlertCircle } from "lucide-react"
+import DropdownField from "../input/dropdown"
+
+// Admins (IT admin, prefect) see every active user and can narrow the list
+// down by role.
+const ROLE_OPTIONS = [
+    { val: "super_admin", label: "IT Admin" },
+    { val: "sub_admin", label: "Prefect" },
+    { val: "student", label: "Student" },
+    { val: "teaching_staff", label: "Teaching Staff" },
+    { val: "non_teaching_staff", label: "Non-Teaching Staff" },
+    { val: "parent", label: "Parent" },
+]
 
 const LatestActiveAccountList = ({ dataKey = 'active', ...props }) => {
     const { usr, onlineUserIds } = useContext(AuthContext)
     const [list, setList] = useState(props.list);
     const [user_list, setUserList] = useState(props.list);
     const [search, setSearch] = useState("");
+    const [roleFilter, setRoleFilter] = useState("all");
+    const showRoleFilter = ['super_admin', 'sub_admin', 'teaching_staff'].includes(usr?.role);
+    // Teaching staff only ever see students and fellow teachers.
+    const roleOptions = usr?.role === 'teaching_staff'
+        ? ROLE_OPTIONS.filter((r) => ['student', 'teaching_staff'].includes(r.val))
+        : ROLE_OPTIONS;
     const debounceRef = useRef(null);
 
     // Re-fetch this widget's scoped active-user list whenever the global
@@ -23,15 +41,17 @@ const LatestActiveAccountList = ({ dataKey = 'active', ...props }) => {
             DashboardService.getActiveUsers((res) => {
                 const fresh = res?.[dataKey] ?? [];
                 setList(fresh);
-                setUserList(search ? filterList(fresh, search) : fresh);
+                setUserList(filterList(fresh, search, roleFilter));
             });
         }, 800);
 
         return () => clearTimeout(debounceRef.current);
     }, [onlineUserIds]);
 
-    const filterList = (source, value) => {
-        return source.filter((item) => {
+    const filterList = (source, value = "", role = "all") => {
+        return (source ?? []).filter((item) => {
+            if (role !== "all" && item.role !== role) return false;
+            if (!value) return true;
             const fullName = `${item.profile?.first_name ?? ""} ${item.profile?.middle_name ?? ""} ${item.profile?.last_name ?? ""}`.toLowerCase();
             const userId = String(item.id_number ?? "").toLowerCase();
 
@@ -44,9 +64,9 @@ const LatestActiveAccountList = ({ dataKey = 'active', ...props }) => {
             case 'super_admin':
                 return 'Users'
             case 'sub_admin':
-                return 'Students'
+                return 'Users'
             case 'teaching_staff':
-                return 'Students'
+                return 'Users'
             default:
                 return props.type
         }
@@ -55,14 +75,12 @@ const LatestActiveAccountList = ({ dataKey = 'active', ...props }) => {
     const handleSearch = (e) => {
         const value = e.target.value.toLowerCase();
         setSearch(value);
+        setUserList(filterList(list, value.trim(), roleFilter));
+    };
 
-        // If empty input → reset full list
-        if (!value.trim()) {
-            setUserList(list);
-            return;
-        }
-
-        setUserList(filterList(list, value));
+    const handleRoleFilter = (e) => {
+        setRoleFilter(e.target.value);
+        setUserList(filterList(list, search.trim(), e.target.value));
     };
 
 
@@ -81,14 +99,28 @@ const LatestActiveAccountList = ({ dataKey = 'active', ...props }) => {
                     <div><b>Active {userType()}</b></div>
                     
                 </div>
-                <div>
-                    <SearchBar
-                        plc='Search User'
-                        h='h-[2.2rem]'
-                        search={search}
-                        setSearch={setSearch}
-                        handleSearch={handleSearch}
-                    />
+                <div className={showRoleFilter ? "grid gap-2" : ""}>
+                    <div className="flex-1 min-w-0">
+                        <SearchBar
+                            plc='Search User'
+                            h='h-[2.2rem]'
+                            search={search}
+                            setSearch={setSearch}
+                            handleSearch={handleSearch}
+                        />
+                    </div>
+                    {showRoleFilter && (
+                        <div className="w-full">
+                            <DropdownField
+                                default={{ val: "all", label: "All Roles" }}
+                                list={roleOptions}
+                                val={roleFilter}
+                                onChange={handleRoleFilter}
+                                name="active_role_filter"
+                                keepCase={true}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
             <div className="px-4 py-3 h-[20rem] w-full overflow-auto overflow-x-hidden z-2">
@@ -138,7 +170,7 @@ const Row = ({ data }) => {
                     </div>
                     <div>
                         <h1 className="text-[0.9em] overflow-hidden w-20 text-ellipsis text-nowrap"><b>{data.profile?.first_name}</b></h1>
-                        <h1 className="text-[0.7em]">{toTitleCase(data.role ?? "")}</h1>
+                        <h1 className="text-[0.7em]">{ROLE_OPTIONS.find((r) => r.val === data.role)?.label ?? toTitleCase(data.role ?? "")}</h1>
                     </div>
                 </div>
                 <div className="text-[0.7em] flex mt-1">

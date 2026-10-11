@@ -16,8 +16,7 @@ import ListSkeleton from "../reload/list-skeleton";
 
 const STATUS_STYLES = {
   pending: "bg-yellow-100 text-yellow-700",
-  expired: "bg-gray-200 text-gray-700",
-  noted: "bg-green-100 text-green-700",
+  approved: "bg-green-100 text-green-700",
   rejected: "bg-red-100 text-red-700",
   revoked: "bg-gray-200 text-gray-700",
 };
@@ -25,8 +24,7 @@ const STATUS_STYLES = {
 const statusFor = (e) => {
   if (e.revoked_at) return "revoked";
   if (e.rejected_at) return "rejected";
-  if (e.confirmed_at) return "noted";
-  if (new Date(e.date_to) < new Date()) return "expired";
+  if (e.confirmed_at) return "approved";
   return "pending";
 };
 
@@ -116,7 +114,7 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
     if (noted) {
       cols.push({
         field: "confirmed_at",
-        headerName: "Noted Since",
+        headerName: "Approved Since",
         width: 180,
         renderCell: (params) => (
           <div className="text-[0.8em] leading-tight py-2">
@@ -179,13 +177,13 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
               View
             </ActionBtn>
 
-            {(row.status === "pending" || row.status === "expired") && usr.role === "sub_admin" && (
+            {row.status === "pending" && usr.role === "sub_admin" && (
               <>
                 <ActionBtn
                   className="bg-green-600 text-white hover:bg-green-700"
                   onClick={() => events(row.id, "confirm")}
                 >
-                  Note
+                  Approve
                 </ActionBtn>
                 <ActionBtn
                   className="bg-red-600 text-white hover:bg-red-700"

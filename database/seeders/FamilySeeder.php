@@ -20,7 +20,7 @@ class FamilySeeder extends Seeder
     {
         $this->command->info('Seeding family data...');
 
-        $studentPool = User::where('role', 'student')->inRandomOrder()->pluck('id')->all();
+        $studentPool = User::whereRole('student')->inRandomOrder()->pluck('id')->all();
 
         if (count($studentPool) < 2) {
             $this->command?->warn('FamilySeeder skipped: needs at least 2 students (run StudentSeeder first).');
@@ -61,7 +61,7 @@ class FamilySeeder extends Seeder
             $parentRoles = (random_int(0, 4) === 0) ? ['guardian'] : ['mother', 'father'];
 
             foreach ($parentRoles as $role) {
-                $parentUser = User::factory()->create(['role' => 'parent']);
+                $parentUser = User::factory()->role('parent')->create();
 
                 Profile::factory()->for($parentUser, 'user')->create([
                     'sex' => match ($role) {

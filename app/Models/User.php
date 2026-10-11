@@ -43,13 +43,132 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     protected $hidden = [
         'password',
+        'currentUserRole',
     ];
 
-    protected $appends = ['encrypted_id'];
+    protected $appends = ['encrypted_id', 'role'];
+
+    protected $with = ['currentUserRole.role'];
 
     public function getEncryptedIdAttribute(): string
     {
         return encrypt_id($this->id);
+    }
+
+    // ---- Roles -----------------------------------------------------------
+    // A user's role lives in user_roles (one row per assignment, oldest is
+    // the registered one with is_original_role). The current role is the
+    // newest row; `$user->role` returns its name so existing role checks
+    // keep working unchanged.
+
+    protected ?string $pendingRole = null;
+
+    // Done in save() rather than a `saved` model event so it still runs
+    // when model events are muted (e.g. DatabaseSeeder's WithoutModelEvents).
+    public function save(array $options = [])
+    {
+        $saved = parent::save($options);
+
+        if ($saved && $this->pendingRole !== null) {
+            $role = $this->pendingRole;
+            $this->pendingRole = null;
+            $this->assignRole($role);
+        }
+
+        return $saved;
+    }
+
+    public function userRoles(): HasMany
+    {
+        return $this->hasMany(UserRole::class, 'user_id')->orderBy('id');
+    }
+
+    public function currentUserRole(): HasOne
+    {
+        return $this->hasOne(UserRole::class, 'user_id')->latestOfMany('id');
+    }
+
+    public function getRoleAttribute(): ?string
+    {
+        return $this->currentUserRole?->role?->name;
+    }
+
+    // Lets User::create(['role' => ...]) / $user->role = ... keep working:
+    // the role row is written once the user itself has been saved.
+    public function setRoleAttribute(?string $role): void
+    {
+        if ($this->exists) {
+            $this->assignRole($role);
+        } else {
+            $this->pendingRole = $role;
+        }
+    }
+
+    /**
+     * Makes $role the user's current role by adding a user_roles row. The
+     * first row a user ever gets is marked as their original role. A no-op
+     * when the user already has that role.
+     */
+    public function assignRole(string $role): UserRole
+    {
+        $current = $this->currentUserRole()->first();
+        if ($current && $current->role_id === Role::idFor($role)) {
+            return $current;
+        }
+
+        $userRole = UserRole::create([
+            'user_id' => $this->id,
+            'role_id' => Role::idFor($role),
+            'is_original_role' => ! $current && ! $this->userRoles()->exists(),
+        ]);
+
+        $this->setRelation('currentUserRole', $userRole->load('role'));
+
+        return $userRole;
+    }
+
+    /**
+     * Filters by current role — replaces the old where('role', ...) /
+     * whereIn('role', [...]) on the dropped users.role column.
+     */
+    public function scopeWhereRole($query, string|array $roles, string $boolean = 'and', bool $not = false)
+    {
+        $roles = (array) $roles;
+        $sub = fn ($s) => $s->select('ur.user_id')
+            ->from('user_roles as ur')
+            ->join('roles as r', 'r.id', '=', 'ur.role_id')
+            ->whereRaw('ur.id = (select max(ur2.id) from user_roles as ur2 where ur2.user_id = ur.user_id)')
+            ->whereIn('r.name', $roles);
+
+        $column = $query->qualifyColumn('id');
+
+        return $not
+            ? $query->whereNotIn($column, $sub, $boolean)
+            : $query->whereIn($column, $sub, $boolean);
+    }
+
+    /**
+     * Students whose most recent enrollment is "enrolled" — i.e. not
+     * dropped since. (Not tied to the active semester: enrollment records
+     * are only added on import, so they may lag the school-year calendar.)
+     */
+    public function scopeCurrentlyEnrolled($query)
+    {
+        return $query->whereIn($query->qualifyColumn('id'), fn ($s) => $s
+            ->select('e.student_id')
+            ->from('enrollment as e')
+            ->whereRaw('e.id = (select max(e2.id) from enrollment as e2 where e2.student_id = e.student_id)')
+            ->where('e.status', 'enrolled'));
+    }
+
+    public function scopeOrWhereRole($query, string|array $roles)
+    {
+        return $this->scopeWhereRole($query, $roles, 'or');
+    }
+
+    public function scopeWhereRoleNot($query, string|array $roles)
+    {
+        return $this->scopeWhereRole($query, $roles, 'and', true);
     }
 
     /**
@@ -202,7 +321,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function findAccount(string $username)
     {
-        $role = $this->select('role')->where('username', $username)->first()?->role;
+        $role = $this->where('username', $username)->first()?->role;
 
         return $this->with($this->relationsForRole($role))
             ->where('username', $username)
@@ -220,7 +339,8 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->with(['profile', 'program', 'enrollments.program', 'enrollments.schoolYear', 'teachingStaff.program', 'parent'])
             ->where('id', '!=', auth()->id())
-            ->whereRaw('DATE(created_at) = DATE(NOW())')
+            // This week (Mon–Sun), same week the prefect's "New Students" uses.
+            ->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
             ->latest()
             ->get();
     }
@@ -241,7 +361,7 @@ class User extends Authenticatable implements MustVerifyEmail
         $program = request()->query('program');
 
         if ($role && $role !== 'all') {
-            $query->where('role', $role);
+            $query->whereRole($role);
 
             if ($role === 'student') {
                 $query->select('users.*');
@@ -274,7 +394,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function getAllStudent()
     {
-        return $this->where('role', 'student')
+        return $this->whereRole('student')
             ->latest('created_at')
             ->get();
     }

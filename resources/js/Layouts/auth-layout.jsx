@@ -44,7 +44,7 @@ const AuthLayout = ({ children, program = '' }) => {
                         user={user}
                         addPicRoute={(path.includes('register')) ? '../' : ''}
                     />
-                    <div className="w-[95%] min-w-0 overflow-x-hidden" style={{margin: '0 auto'}}>
+                    <div className="w-full md:w-[95%] px-3 md:px-0 pb-24 md:pb-0 min-w-0 overflow-x-hidden [&_.grid>*]:min-w-0" style={{margin: '0 auto'}}>
                         {children}
                     </div>
                 </div>

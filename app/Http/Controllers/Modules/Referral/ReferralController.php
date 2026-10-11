@@ -40,7 +40,7 @@ class ReferralController extends Controller
         $props = [
             'user' => $user,
             'students' => User::with(['profile', 'program'])
-                ->where('role', 'student')
+                ->whereRole('student')
                 ->where('id', '!=', auth()->user()->id)
                 ->get(),
             'referral' => self::getAllReferral(),
@@ -91,7 +91,7 @@ class ReferralController extends Controller
 
             // 🧍 If the user is not a sub_admin (prefect)
             if (auth()->user()->role != 'sub_admin') {
-                $prefect = User::where('role', 'sub_admin')
+                $prefect = User::whereRole('sub_admin')
                     ->where('activate', true)
                     ->firstOrFail();
 
@@ -128,7 +128,7 @@ class ReferralController extends Controller
 
             // 👮 If user is a sub_admin (prefect)
             $prefect = User::with('profile')
-                ->where('role', 'sub_admin')
+                ->whereRole('sub_admin')
                 ->firstOrFail();
             $prefectName = trim("{$prefect->profile?->first_name} {$prefect->profile?->middle_name} {$prefect->profile?->last_name}");
 
@@ -272,7 +272,7 @@ class ReferralController extends Controller
             ->where('referral_id', $id)
             ->get();
 
-        $prefect = User::with('profile')->where('role', 'sub_admin')->first();
+        $prefect = User::with('profile')->whereRole('sub_admin')->first();
         $prefectName = "{$prefect->profile?->first_name} {$prefect->profile?->middle_name} {$prefect->profile?->last_name}";
 
         self::generateReferralDocuments($referralRecord, $referredStudents, $prefectName);
@@ -515,7 +515,7 @@ class ReferralController extends Controller
             ->where('referral_id', $id)
             ->get();
 
-        $prefect = User::with('profile')->where('role', 'sub_admin')->first();
+        $prefect = User::with('profile')->whereRole('sub_admin')->first();
         $prefectName = "{$prefect->profile?->first_name} {$prefect->profile?->middle_name} {$prefect->profile?->last_name}";
 
         $files = self::generateReferralDocuments($referral, $referredStudents, $prefectName);

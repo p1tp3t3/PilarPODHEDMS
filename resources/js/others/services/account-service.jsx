@@ -1,6 +1,14 @@
 import { APIRequest } from "../classes/api-req";
 
 export const AccountService = {
+    changeRole(userId, payload, success, error) {
+        const api = new APIRequest(`/super-admin/user-accounts/${userId}/role`, "post", payload, () => {}, success, error);
+        api.sendPostData();
+    },
+    getRoleHistory(encryptedUserId, setter, error) {
+        const api = new APIRequest(`/super-admin/user-accounts/${encryptedUserId}/roles`, "get", {}, setter, () => {}, error);
+        api.fetchData();
+    },
     deleteAccount(data, success, error) {
         const api = new APIRequest("/super-admin/user-accounts/del", "post", data, null, success, error);
         api.setHeaders({ "Content-Type": "application/json" });

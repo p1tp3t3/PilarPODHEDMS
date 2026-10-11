@@ -195,7 +195,7 @@ class ReportController extends Controller
             'violation_list' => $violation,
             'incident_list' => $incidentList,
             'programs' => Program::all(['id', 'name']),
-            'students' => User::with(['profile', 'program'])->where('role', 'student')->get(),
+            'students' => User::with(['profile', 'program'])->whereRole('student')->get(),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
             'school_years_full' => SchoolYear::orderByDesc('year')->get(['id', 'year']),
             'violation_program' => $data,
@@ -279,7 +279,7 @@ class ReportController extends Controller
 
         $hasRange = $from && $to;
 
-        $countByRole = fn ($role) => User::where('role', $role)
+        $countByRole = fn ($role) => User::whereRole($role)
             ->when($hasRange, fn ($q) => $q->whereBetween('created_at', [$from, $to]))
             ->count();
 
@@ -298,7 +298,7 @@ class ReportController extends Controller
         } else {
             $studentCount = $countByRole('student');
 
-            $studentsPerProgram = User::where('role', 'student')
+            $studentsPerProgram = User::whereRole('student')
                 ->when($hasRange, fn ($q) => $q->whereBetween('created_at', [$from, $to]))
                 ->with('program')
                 ->get()

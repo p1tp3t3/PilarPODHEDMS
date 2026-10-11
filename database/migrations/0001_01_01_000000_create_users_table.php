@@ -16,14 +16,6 @@ return new class extends Migration
             $table->string('id_number', 20)
                   ->nullable()
                   ->unique();
-            $table->enum('role', [
-                'super_admin',
-                'sub_admin',
-                'student',
-                'teaching_staff',
-                'non_teaching_staff',
-                'parent',
-            ]);
             $table->string('username')->nullable();
             $table->string('email')->nullable()->unique();
             $table->timestamp('email_verified_at')->nullable();

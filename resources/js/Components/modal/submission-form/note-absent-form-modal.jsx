@@ -16,8 +16,8 @@ const NoteAbsentFormModal = (props) => {
     const handleSubmit = (e) => {
         e.preventDefault()
         showWarningModal(
-            'Are You Sure You Want To Note This Absent Form?',
-            'Note Absent Form',
+            'Are You Sure You Want To Approve This Absent Form?',
+            'Approve Absent Form',
             'Cancel',
             () => {
                 props.reload(true, 'text-wait', 'Noting Absent Form Is Processing')
@@ -28,7 +28,7 @@ const NoteAbsentFormModal = (props) => {
     const success = () => {
         props.reload(true, '')
         showOutputModal(
-            'Absent Form Is Noted Successfully',
+            'Absent Form Is Approved Successfully',
             's',
             () => {
                 props.closeModal(false)
@@ -56,7 +56,7 @@ const NoteAbsentFormModal = (props) => {
             w='w-[35rem]'>
             <div className="grid gap-3">
                 <div className="text-[1.2em]">
-                    <h1><b>Note Student Absent Form</b></h1>
+                    <h1><b>Approve Student Absent Form</b></h1>
                 </div>
                 <form onSubmit={handleSubmit} className="grid gap-3">
                     <div>
@@ -68,7 +68,7 @@ const NoteAbsentFormModal = (props) => {
                         />
                     </div>
                     <div className="flex justify-end">
-                        <FormButton label='Note' type="submit" />
+                        <FormButton label='Approve' type="submit" />
                     </div>
                 </form>
             </div>

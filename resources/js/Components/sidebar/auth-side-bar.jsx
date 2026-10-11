@@ -7,6 +7,7 @@ import { Link, usePage } from "@inertiajs/react"
 import { IconButton } from "@mui/material"
 import bg from "@/images/bg-pilar.jpg"
 import { ArrowLeft } from "lucide-react"
+import { closeSidebarDrawer } from "./sidebar-drawer"
 
 const AuthSideBar = ({ usr }) => {
   // Reliably eager-loaded regardless of which page's controller built
@@ -45,7 +46,8 @@ const AuthSideBar = ({ usr }) => {
       className={`
         flex-shrink-0 flex-grow-0
         w-[19rem] transition-all h-screen bg-gray-950 sticky top-0
-        max-[768px]:fixed max-[768px]:top-0 max-[768px]:left-0 max-[768px]:w-0 max-[768px]:z-[100]
+        max-[767px]:fixed max-[767px]:top-0 max-[767px]:left-0 max-[767px]:w-0 max-[767px]:z-[100]
+        max-[767px]:max-w-[85vw] max-[767px]:h-[100dvh] max-[767px]:shadow-2xl
       `}
     >
       <div className="w-full grid gap-5 overflow-hidden">
@@ -65,18 +67,13 @@ const AuthSideBar = ({ usr }) => {
 
             {/* text */}
             <div className="w-full z-10">
-              <h1 className="text-[1em] font-bold">PilarPODHED</h1>
+              <h1 className="text-[1em] font-bold">PilarPODHEDMS</h1>
               <h1 className="text-[0.7em]">Pilar College of Zamboanga City, Inc.</h1>
             </div>
 
             {/* arrow button — visible only on phone-sized screens, not tablet/desktop */}
             <IconButton
-              onClick={() => {
-                const aside = document.querySelector("aside"),
-                      bg = document.querySelector("#sidebar-overlay")
-                aside.classList.toggle("max-[768px]:w-0")
-                bg.classList.toggle('hidden')
-              }} // define this function to close/collapse sidebar
+              onClick={closeSidebarDrawer}
               sx={{
                 position: "absolute",
                 right: "0.75rem",
@@ -86,7 +83,7 @@ const AuthSideBar = ({ usr }) => {
                 color: "#fff",
                 transition: "color 0.2s",
                 "&:hover": { color: "#d1d5db" },
-                "@media (min-width:640px)": { display: "none" },
+                "@media (min-width:768px)": { display: "none" },
               }}
             >
               <ArrowLeft size="1.2em" />
@@ -97,7 +94,7 @@ const AuthSideBar = ({ usr }) => {
 
           {/* User Section */}
           <div className="text-white px-5 transition-all border-gray-400/50 border-b hover:bg-white/5 cursor-pointer">
-            <Link href={`/profile/${usr.username}`}>
+            <Link href={`/profile/${usr.username}`} onClick={closeSidebarDrawer}>
               <div className="w-full flex items-center gap-3 py-2">
                 <ProfilePic
                   src={getProfilePic(identity.profile?.profile_picture, identity.profile?.sex)}
@@ -116,7 +113,7 @@ const AuthSideBar = ({ usr }) => {
         <div>
           <div className="grid gap-2 overflow-hidden overflow-y-auto">
             <h1 className="px-10 text-gray-400 text-[0.9em]">Menu</h1>
-            <SidebarNav list={getSidebarPages({
+            <SidebarNav onNavigate={closeSidebarDrawer} list={getSidebarPages({
               ...usr,
               teaching_staff: identity.teaching_staff,
               non_teaching_staff: identity.non_teaching_staff,
@@ -129,10 +126,7 @@ const AuthSideBar = ({ usr }) => {
     <div
       id="sidebar-overlay"
       className="hidden fixed inset-0 bg-black/60 z-[90]"
-      onClick={(e) => {
-        document.querySelector("aside").classList.toggle("max-[768px]:w-0")
-        e.target.classList.toggle("hidden")
-      }}
+      onClick={closeSidebarDrawer}
     ></div>
     </>
   )

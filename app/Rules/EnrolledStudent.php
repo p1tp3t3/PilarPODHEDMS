@@ -19,7 +19,7 @@ class EnrolledStudent implements ValidationRule
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         $exists = User::where('id', $value)
-            ->where('role', 'student')
+            ->whereRole('student')
             ->where('activate', true)
             ->whereHas('enrollment')
             ->exists();

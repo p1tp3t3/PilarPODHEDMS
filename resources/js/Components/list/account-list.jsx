@@ -21,6 +21,7 @@ import ActionBtn from "../button/action-btn";
 import { DataGrid } from "@/Components/other/data-grid";
 import { Box } from "@mui/material";
 import { X, Check } from "lucide-react";
+import LiveActiveSince from "@/Components/other/live-active-since";
 
 const AccountList = (props) => {
   const { isUserOnline } = useContext(AuthContext);
@@ -130,6 +131,13 @@ const AccountList = (props) => {
           <DataGrid
             rows={accountList ?? []}
             getRowId={(row) => row.id}
+            mobileSummary={(row) => ({
+              name: [row.profile?.first_name, row.profile?.middle_name, row.profile?.last_name].filter(Boolean).join(" "),
+              role: showUserType(row),
+              picture: row.profile?.profile_picture,
+              sex: row.profile?.sex,
+              hide: ["user", "role"],
+            })}
             disableRowSelectionOnClick
             localeText={{ noRowsLabel: "No Accounts Found" }}
             showToolbar
@@ -174,7 +182,6 @@ const AccountList = (props) => {
                         {row.profile?.first_name} {row.profile?.middle_name} {row.profile?.last_name}
                       </div>
                       <div className="text-[0.7em] break-all">{row.username}</div>
-                      <div className="text-[0.7em] text-gray-500">{showUserType(row)}</div>
                     </div>
                   </div>
                 ),
@@ -182,30 +189,33 @@ const AccountList = (props) => {
               {
                 field: "role",
                 headerName: "Role",
-                width: 110,
+                width: 100,
                 renderCell: ({ row }) => toTitleCase(row.role).replace("_", " "),
               },
               {
                 field: "created_at",
                 headerName: "Registered Since",
-                width: 165,
-                renderCell: ({ row }) =>
-                  `${readableDate(row.created_at)} (${readableTime(row.created_at)})`,
+                width: 130,
+                renderCell: ({ row }) => (
+                  <div className="flex flex-col leading-tight text-[0.85em]">
+                    <span>{readableDate(row.created_at)}</span>
+                    <span className="text-[0.85em] text-gray-500">{readableTime(row.created_at)}</span>
+                  </div>
+                ),
               },
               {
                 field: "last_seen",
                 headerName: "Active Since",
-                width: 260,
-                renderCell: ({ row }) =>
-                  row.last_seen
-                    ? `${readableActiveDuration(row.last_seen)} • ${readableDate(row.last_seen)} (${readableTime(row.last_seen)})`
-                    : "N/A",
+                width: 140,
+                renderCell: ({ row }) => (
+                  <LiveActiveSince userId={row.id} lastSeen={row.last_seen} />
+                ),
               },
               {
                 field: "actions",
                 type: 'actions',
                 headerName: "Action",
-                width: 220,
+                width: 205,
                 sortable: false,
                 headerAlign: 'left',
                 align: 'left',

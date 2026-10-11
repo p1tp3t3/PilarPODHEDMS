@@ -1,4 +1,5 @@
 import FormTextfield from "./input/form-input";
+import logo from "../images/pilar.png";
 import RichTextEditor from "./input/rich-text-editor";
 import { Link } from "@inertiajs/react";
 import FormButton from "./button/button";
@@ -48,9 +49,11 @@ const ParentRegistrationForm = (props) => {
   };
 
   return (
-    <div className="w-full md:w-[35rem] grid items-center px-4 sm:px-6 md:px-0 md:flex-shrink-0 bg-white">
+    <div className="frm relative w-full max-w-[34rem] flex flex-col items-center gap-3">
+      {/* Logo sits on the background, just above the card. */}
+      <img className="object-cover drop-shadow-lg" width={90} src={logo} alt="Pilar College logo" />
       <form
-        className="w-full flex flex-col gap-5"
+        className="w-full flex flex-col bg-white rounded-xl shadow-2xl overflow-hidden"
         onSubmit={props.submit}
         method="post"
       >

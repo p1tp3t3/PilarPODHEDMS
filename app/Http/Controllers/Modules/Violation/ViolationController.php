@@ -8,6 +8,8 @@ use App\Models\ActionLog;
 use App\Models\Complaint;
 use App\Models\ComplaintSubject;
 use App\Models\ComplaintSubjectViolation;
+use App\Models\Enrollment;
+use App\Models\TeachingStaff;
 use App\Models\User;
 use App\Models\Violation;
 use App\Models\ViolationPenalty;
@@ -33,11 +35,38 @@ class ViolationController extends Controller
     }
 
     /**
+     * Who may see one student's incidents/violations: never the super admin;
+     * teaching staff only as program head of the student's current program.
+     */
+    public static function canViewStudent($studentId): bool
+    {
+        $user = auth()->user();
+        if ($user->role === 'super_admin') {
+            return false;
+        }
+        if ($user->role === 'teaching_staff') {
+            if ($user->teachingStaff?->position !== 'program_head') {
+                return false;
+            }
+            $programId = Enrollment::where('student_id', $studentId)->latest('id')->value('program_id');
+
+            return $programId && TeachingStaff::programIdsFor($user->id)->contains($programId);
+        }
+
+        return true;
+    }
+
+    /**
      * The violation/penalty catalog for OffenseList's client-side fetch
      * fallback (used wherever it's rendered without a `list` prop already
      * supplied, e.g. the student dashboard's "List of Violations" tab) —
      * same query the prefect dashboard already passes down directly.
      */
+    public function getPenaltyList()
+    {
+        return response()->json(\App\Models\Penalty::latest('created_at')->get());
+    }
+
     public function getOffenseList()
     {
         return response()->json(
@@ -106,6 +135,7 @@ class ViolationController extends Controller
         if (self::isSuperAdmin()) {
             return redirect('/violation-management');
         }
+        abort_unless(self::canViewStudent($id), 403);
 
         $studentViolations = ComplaintSubjectViolation::with(['violation', 'complaint'])->whereHas('complaint', function ($d) {
             $d->latest('offense_issued_at');
@@ -132,19 +162,6 @@ class ViolationController extends Controller
             // round-tripping through a Laravel endpoint each time.
             'model_inputs' => self::getModelInputsForStudent($id),
             'violation_timelines' => self::getViolationTimelinesForStudent($id),
-        ]);
-    }
-
-    public function studentRiskIndex($id)
-    {
-        $id = decrypt_id($id) ?? abort(404);
-
-        if (self::isSuperAdmin()) {
-            return redirect('/violation-management');
-        }
-
-        return Inertia::render('other/student-risk-prediction', [
-            'student' => User::with('program')->where('id', $id)->first(),
         ]);
     }
 
@@ -306,7 +323,7 @@ class ViolationController extends Controller
     {
         $studentId = decrypt_id($studentId) ?? abort(404);
 
-        if (self::isSuperAdmin()) {
+        if (! self::canViewStudent($studentId)) {
             return response()->json(['message' => 'Not authorized to view student violation data.'], 403);
         }
 
@@ -340,7 +357,7 @@ class ViolationController extends Controller
     {
         $studentId = decrypt_id($studentId) ?? abort(404);
 
-        if (self::isSuperAdmin()) {
+        if (! self::canViewStudent($studentId)) {
             return response()->json(['message' => 'Not authorized to view student violation data.'], 403);
         }
 
@@ -426,7 +443,7 @@ class ViolationController extends Controller
 
     public function getStudentViolationOccurence($id)
     {
-        if (self::isSuperAdmin()) {
+        if (! self::canViewStudent($id)) {
             return response()->json(['message' => 'Not authorized to view student violation data.'], 403);
         }
 

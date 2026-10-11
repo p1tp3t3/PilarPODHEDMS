@@ -10,7 +10,7 @@ class AbsenceSeeder extends Seeder
 {
     public function run(int $count = 25): void
     {
-        $students = User::where('role', 'student')->pluck('id')->all();
+        $students = User::whereRole('student')->pluck('id')->all();
 
         if (count($students) < 1) {
             $this->command?->warn('AbsenceSeeder skipped: needs at least 1 student (run StudentSeeder first).');

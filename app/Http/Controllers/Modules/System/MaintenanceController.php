@@ -576,13 +576,13 @@ class MaintenanceController extends Controller
         $program = Program::with('programHead.user.profile')->findOrFail($id);
 
         $faculty = User::with(['profile', 'teachingStaff.program'])
-            ->where('role', 'teaching_staff')
+            ->whereRole('teaching_staff')
             ->whereHas('teachingStaff', fn ($q) => $q->where('program_id', $id)->where('position_id', '!=', Position::idFor('program_head')))
             ->latest('created_at')
             ->get();
 
         $students = User::with(['profile', 'program', 'enrollments'])
-            ->where('role', 'student')
+            ->whereRole('student')
             ->whereHas('enrollments', fn ($q) => $q->where('program_id', $id)->where('status', 'enrolled'))
             ->latest('created_at')
             ->get();

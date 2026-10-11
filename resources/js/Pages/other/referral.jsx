@@ -1,4 +1,5 @@
 import AuthLayout from "@/Layouts/auth-layout"
+import PageLayout from "@/Layouts/page-layout"
 import ReferralList from "@/Components/list/referral-list"
 import { useReload } from "@/context-provider/reload-provider"
 import { useState, useEffect } from "react"
@@ -104,35 +105,25 @@ const Referral = (props) => {
             students={props.students}
             reload={loadRegister}
         />
-        <div className="w-full py-10 min-w-0">
-            <div className="w-full grid gap-10 relative min-w-0">
-                <div className="flex w-full justify-between items-center">
-                    <h1 className="text-[1.3em]"><b>My Referrals</b></h1>
-                    {props.user.allow_referral
-                    ?
-                    <div>
-                        <Btn
-                            onclick={() => openReportReferral(true)}
-                        >
-                            Report Referral
-                        </Btn>
-                    </div>
-                    : ''}
-                </div>
-                <div className="overflow-x-auto">
-                    <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
-                </div>
-                <div className="w-full min-w-0">
-                    <ReferralList
-                        list={props.referral.data}
-                        style={true}
-                        viewReferral={setViewReferralId}
-                        type={props.user.role}
-                        events={handleEvent}
-                    />
-                </div>
+        <PageLayout
+            title="MY REFERRALS"
+            rightSideComponent={
+                props.user.allow_referral
+                    ? <Btn onclick={() => openReportReferral(true)}>Report Referral</Btn>
+                    : null
+            }
+        >
+            <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
+            <div className="w-full min-w-0">
+                <ReferralList
+                    list={props.referral.data}
+                    style={true}
+                    viewReferral={setViewReferralId}
+                    type={props.user.role}
+                    events={handleEvent}
+                />
             </div>
-        </div>
+        </PageLayout>
         </>
     )
 }

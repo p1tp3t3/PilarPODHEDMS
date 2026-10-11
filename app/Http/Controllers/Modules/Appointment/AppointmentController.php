@@ -40,7 +40,7 @@ class AppointmentController extends Controller
         if (auth()->user()->role == 'sub_admin') {
             $props = array_merge($props, [
                 'appointment_request_list' => null,
-                'student_parent_list' => User::with('profile')->whereIn('role', ['student', 'parent'])->get(),
+                'student_parent_list' => User::with('profile')->whereRole(['student', 'parent'])->get(),
             ]);
         } else {
             $props = array_merge($props, [
@@ -165,7 +165,7 @@ class AppointmentController extends Controller
             $parentMember = $studentFamilyId
                 ? FamilyMember::with('member.profile')
                     ->where('family_id', $studentFamilyId)
-                    ->whereHas('member', fn ($q) => $q->where('role', 'parent'))
+                    ->whereHas('member', fn ($q) => $q->whereRole('parent'))
                     ->first()
                 : null;
             if ($parentMember && ! is_null($parentMember->member->email)) {
@@ -367,7 +367,7 @@ class AppointmentController extends Controller
             );
 
             // ✅ Get user type
-            $type = User::where('id', $request->user_id)->value('role') ?? 'unknown';
+            $type = User::find($request->user_id)?->role ?? 'unknown';
 
             // ✅ Log the action
             $changes = [];
@@ -413,7 +413,7 @@ class AppointmentController extends Controller
         $appointment = Appointment::where('id', $request->appointment_id);
         $date = $appointment->first()->date_time_appoint;
 
-        $type = User::select('role')->where('id', $appointment->first()->user_id)->first()->role;
+        $type = User::find($appointment->first()->user_id)->role;
         ActionLog::log(
             auth()->user()->id,
             'appointment',
@@ -430,7 +430,7 @@ class AppointmentController extends Controller
         $appointment = Appointment::findOrFail($request->appointment_id);
         $appointment->update(['attendance_status' => $request->attendance_status]);
 
-        $type = User::select('role')->where('id', $appointment->user_id)->first()->role;
+        $type = User::find($appointment->user_id)->role;
         ActionLog::log(
             auth()->user()->id,
             'appointment',

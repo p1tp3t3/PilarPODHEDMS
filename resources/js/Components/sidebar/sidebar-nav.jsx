@@ -37,13 +37,13 @@ const textSx = { "& .MuiListItemText-primary": { color: "inherit", fontSize: "in
 // { type: 'link', id, href, icon, label, show? } or
 // { type: 'dropdown', id, icon, label, items: [...], show? } entries,
 // so every role's sidebar body is just data instead of repeated JSX + state.
-const SidebarNav = ({ list, height = "h-[26rem]" }) => {
+const SidebarNav = ({ list, height = "h-[26rem]", onNavigate }) => {
     const { url } = usePage()
     const [open, setOpen] = useState({})
     const toggle = (id) => setOpen((prev) => ({ ...prev, [id]: !prev[id] }))
 
     return (
-        <div className={`${height} overflow-auto overflow-x-hidden dropdown`}>
+        <div className={`${height} max-md:h-[calc(100dvh-10rem)] overflow-auto overflow-x-hidden dropdown`}>
             <List disablePadding sx={{ px: 2.5 }} className="nav-list">
                 {list.filter((item) => item.show ?? true).map((item) =>
                     item.type === "dropdown" ? (
@@ -53,9 +53,10 @@ const SidebarNav = ({ list, height = "h-[26rem]" }) => {
                             isOpen={!!open[item.id]}
                             toggle={() => toggle(item.id)}
                             url={url}
+                            onNavigate={onNavigate}
                         />
                     ) : (
-                        <NavLink key={item.id} item={item} url={url} />
+                        <NavLink key={item.id} item={item} url={url} onNavigate={onNavigate} />
                     )
                 )}
             </List>
@@ -66,10 +67,11 @@ const SidebarNav = ({ list, height = "h-[26rem]" }) => {
 // `id` is matched as a literal substring of the current URL — the same
 // convention `sidebar-pages.js` documents (ids are deliberately reused
 // across roles' entries since only one role's items ever render at once).
-const NavLink = ({ item, url }) => (
+const NavLink = ({ item, url, onNavigate }) => (
     <ListItemButton
         component={Link}
         href={item.href}
+        onClick={onNavigate}
         id={item.id}
         className="nav"
         disableGutters
@@ -83,7 +85,7 @@ const NavLink = ({ item, url }) => (
     </ListItemButton>
 )
 
-const DropdownItem = ({ item, isOpen, toggle, url }) => (
+const DropdownItem = ({ item, isOpen, toggle, url, onNavigate }) => (
     <>
         <ListItemButton onClick={toggle} disableGutters sx={itemSx}>
             <ListItemIcon sx={iconSx}>
@@ -102,6 +104,7 @@ const DropdownItem = ({ item, isOpen, toggle, url }) => (
                         key={sub.id}
                         component={Link}
                         href={sub.href}
+                        onClick={onNavigate}
                         id={sub.id}
                         className="nav"
                         disableGutters

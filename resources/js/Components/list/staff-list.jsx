@@ -107,6 +107,7 @@ const StaffList = ({ list, canManagePosition = false }) => {
                     <DataGrid
                         rows={rows}
                         columns={columns}
+                        mobileSummary={(row) => ({ name: row.name.trim(), role: row.subtitle, picture: row.profile_picture, sex: row.sex, hide: ["name", "position"] })}
                         hideFooter
                         disableRowSelectionOnClick
                         getRowHeight={() => "auto"}

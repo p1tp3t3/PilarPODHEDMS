@@ -2,14 +2,39 @@ import { getProfilePic } from "@/others/function"
 import ProfilePic from "../other/profile-pic"
 import { Link, router } from "@inertiajs/react"
 import { motion, AnimatePresence } from "framer-motion"
-import { User, Settings, Wrench, LogOut } from "lucide-react"
+import { User, Settings, LogOut, ChevronRight } from "lucide-react"
+
+const roleLabel = (identity) => {
+    switch (identity?.role) {
+        case "super_admin": return "IT Admin"
+        case "sub_admin": return "Prefect"
+        case "student": return "Student"
+        case "teaching_staff": return identity.teaching_staff?.position === "program_head" ? "Program Head" : "Faculty"
+        case "non_teaching_staff": return identity.non_teaching_staff?.position || "Staff"
+        case "parent": return "Parent"
+        default: return null
+    }
+}
+
+const MenuLink = ({ href, icon: Icon, children }) => (
+    <Link
+        href={href}
+        className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[0.85em] text-gray-700 hover:bg-gray-100"
+    >
+        <span className="w-8 h-8 rounded-full bg-gray-100 group-hover:bg-white grid place-items-center text-gray-600">
+            <Icon size={16} />
+        </span>
+        <span className="flex-1 font-medium">{children}</span>
+        <ChevronRight size={15} className="text-gray-400" />
+    </Link>
+)
 
 const AccountModal = (props) => {
-    const popup = (props.click) ? 'z-[1] opacity-1 visible' : 'z-[-1] opacity-0 invisible',
-          user = props.user,
+    const user = props.user,
           identity = props.identity ?? user
+    const fullName = `${identity.profile?.first_name ?? ''} ${identity.profile?.last_name ?? ''}`.trim() || user.username
+    const role = roleLabel(identity)
 
-    const listStyle = 'px-2 py-2 cursor-pointer text-black text-[0.8em] rounded-[5px] flex gap-2 items-center transition-[0.3s] hover:bg-gray-400/20'
     return (
         <AnimatePresence>
         {props.click &&
@@ -19,55 +44,39 @@ const AccountModal = (props) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="absolute right-0 rounded w-full sm:w-[17rem] border-[1px] shadow-md px-4 flex-shrink-0 flex-grow-0 bg-white justify-self-end mt-[2.8rem]"
+            className="absolute top-0 right-0 mt-[2.8rem] w-full sm:w-[18rem] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
         >
-            <div className="w-full py-3">
-                <div className="">
-                    <div className="flex gap-1 items-center justify-center py-4">
-                        <div className="grid place-items-center">
-                            <ProfilePic src={getProfilePic(identity.profile?.profile_picture, identity.profile?.sex)} size={5} />
-                            <div className="text-center">
-                                <p className="text-[1.1em]"><b>{`${identity.profile?.first_name ?? ''} ${identity.profile?.last_name ?? ''}`}</b></p>
-                                <p className="text-[0.8em]"><b>@{user.username}</b></p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="py-1"><div className="h-[1px] bg-gray-400 w-full"></div></div>
-                    <div>
-                        <ul className="p-0 list-none">
-                            <Link href={`/profile/${props.user.username}`}>
-                                <li className={listStyle}>
-                                    <div className="h-[1.8rem] w-[1.8rem] bg-gray-500 text-[1.2em] text-white rounded-[100%] grid place-items-center">
-                                        <User size={16} />
-                                    </div>
-                                    <div>See Profile</div>
-                                </li>
-                            </Link>
-                            <Link href={'/settings/' + user.username}>
-                                <li className={listStyle}>
-                                    <div className="h-[1.8rem] w-[1.8rem] bg-gray-500 text-[1.2em] text-white rounded-[100%] grid place-items-center">
-                                        <Settings size={16} />
-                                    </div>
-                                    <div>Account Settings</div>
-                                </li>
-                            </Link>
-                            <button 
-                                className="w-full" 
-                                onClick={() => {
-                                    localStorage.removeItem('is-unresolved-complaint-modal-clicked');
-                                    router.visit('/log-out');
-                                }}
-                            >
-                                <li className={listStyle}>
-                                    <div className="h-[1.8rem] w-[1.8rem] bg-gray-500 text-[1.2em] text-white rounded-[100%] grid place-items-center">
-                                        <LogOut size={16} />
-                                    </div>
-                                    <div>Log Out</div>
-                                </li>
-                            </button>
-                        </ul>
-                    </div>
+            <div className="flex items-center gap-3 px-4 py-4 bg-gradient-to-br from-blue-50 to-white border-b border-gray-100">
+                <ProfilePic src={getProfilePic(identity.profile?.profile_picture, identity.profile?.sex)} size={3.2} />
+                <div className="min-w-0">
+                    <p className="font-bold text-gray-900 truncate">{fullName}</p>
+                    {role && (
+                        <span className="inline-block mt-1 rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-[0.65em] font-semibold">
+                            {role}
+                        </span>
+                    )}
                 </div>
+            </div>
+
+            <div className="p-2">
+                <MenuLink href={`/profile/${user.username}`} icon={User}>See Profile</MenuLink>
+                <MenuLink href={'/settings/' + user.username} icon={Settings}>Account Settings</MenuLink>
+            </div>
+
+            <div className="border-t border-gray-100 p-2">
+                <button
+                    type="button"
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[0.85em] font-medium text-red-600 hover:bg-red-50"
+                    onClick={() => {
+                        localStorage.removeItem('is-unresolved-complaint-modal-clicked');
+                        router.visit('/log-out');
+                    }}
+                >
+                    <span className="w-8 h-8 rounded-full bg-red-50 grid place-items-center">
+                        <LogOut size={16} />
+                    </span>
+                    Log Out
+                </button>
             </div>
         </motion.div>
         }

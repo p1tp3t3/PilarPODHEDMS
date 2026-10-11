@@ -71,7 +71,7 @@ const FullCalendarView = ({ onEventClick, onSlotSelect, refreshKey, selectedDate
     return (
         <div className="w-full grid gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <IconButton size="small" onClick={goPrev} sx={btnSx}>
                         <ChevronLeft size="0.8em" />
                     </IconButton>
@@ -93,10 +93,10 @@ const FullCalendarView = ({ onEventClick, onSlotSelect, refreshKey, selectedDate
                         onChange={handlePickMonth}
                         sx={{ "& .MuiInputBase-input": { py: 0.9, fontSize: "0.85em", cursor: "pointer" } }}
                     />
-                    <h1 className="text-[1.3em] font-bold text-gray-900 ml-2">{title}</h1>
+                    <h1 className="text-[1.3em] font-bold text-gray-900 ml-2 max-md:ml-0 max-md:order-first max-md:w-full">{title}</h1>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-4 text-[0.8em] text-gray-600">
                         <div className="flex items-center gap-1.5">
                             <span className="w-2.5 h-2.5 rounded-full bg-[#16a34a]"></span>
@@ -132,7 +132,7 @@ const FullCalendarView = ({ onEventClick, onSlotSelect, refreshKey, selectedDate
                     slotMaxTime="19:00:00"
                     events={fetchEvents}
                     eventClick={(info) => onEventClick(info.event)}
-                    dateClick={(info) => onSlotSelect(info.date, info.jsEvent)}
+                    dateClick={(info) => onSlotSelect(info.date, info.jsEvent, info.dayEl)}
                     dayCellClassNames={dayCellClassNames}
                     dayMaxEvents={3}
                     eventTimeFormat={{ hour: "numeric", minute: "2-digit", meridiem: "short" }}

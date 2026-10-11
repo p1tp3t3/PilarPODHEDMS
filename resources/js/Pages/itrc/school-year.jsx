@@ -1,17 +1,14 @@
 import { useState } from "react"
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
-import Btn from "@/Components/button/normal-btn"
-import ActionBtn from "@/Components/button/action-btn"
-import SetSchoolYearModal from "@/Components/modal/submission-form/set-school-year-modal"
 import SetSemesterDatesModal from "@/Components/modal/submission-form/set-semester-dates-modal"
 import { useReload } from "@/context-provider/reload-provider"
-import { showWarningModal, readableDate, readableTime } from "@/others/function"
+import { readableDate, readableTime } from "@/others/function"
 import { SchoolYearService } from "@/others/services/school-year-service"
 import { DataGrid } from "@/Components/other/data-grid"
 import { Box } from "@mui/material"
-import { CalendarRange, Pencil } from "lucide-react"
-import { Head } from "@inertiajs/react"
+import { CalendarRange, CalendarClock, Pencil } from "lucide-react"
+import { Head, router } from "@inertiajs/react"
 
 function CustomNoRowsOverlay() {
   return (
@@ -37,47 +34,60 @@ function CustomNoRowsOverlay() {
   );
 }
 
-// A school year is "current" purely based on whether today falls inside
-// one of its semesters' date ranges — mirrors SchoolYear::isCurrent() on
-// the backend. No more manually-toggled activate flag to go stale.
-const isSchoolYearCurrent = (row) => {
-    const today = new Date().toISOString().slice(0, 10)
-    return (row.semesters ?? []).some((s) => {
-        const start = (s.date_start || "").slice(0, 10)
-        const end = (s.date_end || "").slice(0, 10)
-        return start && end && today >= start && today <= end
-    })
+// Computed on the backend (SchoolYearSemester::current()) so the gap
+// rules between semesters live in one place.
+const isSchoolYearCurrent = (row) => !!row.is_current
+
+// The next school year isn't stored until the current one ends — it's
+// shown here as a preview, then added automatically (scheduled job, or on
+// this page's next load) the day after the current school year's last day.
+const UpcomingSchoolYear = ({ upcoming }) => {
+    if (!upcoming) return null
+    const addsToday = upcoming.adds_on <= new Date().toISOString().slice(0, 10)
+    return (
+        <div className="w-full rounded-md border border-dashed border-blue-300 bg-blue-50/60 p-4 sm:p-5 grid gap-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex items-center gap-2">
+                    <CalendarClock size={18} className="text-blue-600" />
+                    <h2 className="font-bold text-[1em] text-blue-900">Upcoming School Year · SY {upcoming.year}</h2>
+                </div>
+                <span className="text-[0.7em] font-semibold uppercase tracking-wide rounded-full bg-white border border-blue-200 text-blue-700 px-2.5 py-1">
+                    Not added yet
+                </span>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-2">
+                {upcoming.semesters.map((s) => (
+                    <div key={s.semester} className="rounded-md bg-white border border-blue-100 px-3 py-2 text-[0.8em]">
+                        <span className="font-semibold text-gray-700">{s.semester === 1 ? "1st Sem" : "2nd Sem"}</span>
+                        <span className="text-gray-500"> · {readableDate(s.date_start)} - {readableDate(s.date_end)}</span>
+                    </div>
+                ))}
+            </div>
+            <p className="text-[0.8em] text-blue-900">
+                {addsToday
+                    ? "This school year will be added automatically today."
+                    : <>Added automatically on <b>{readableDate(upcoming.adds_on)}</b>{upcoming.after_year ? <>, after SY {upcoming.after_year} ends</> : null}. Its semester dates can be adjusted once it's added.</>}
+            </p>
+        </div>
+    )
 }
 
 const ITRCSchoolYear = (props) => {
-    const [addSchoolYear, openAddSchoolYear] = useState(false)
     const [editSemester, openEditSemester] = useState(false)
     const [semesterToEdit, setSemesterToEdit] = useState(null)
     const [siblingSemester, setSiblingSemester] = useState(null)
-    const [school_year_list, setSchoolYearList] = useState(props.school_years)
+    const [school_year_list, setSchoolYearListState] = useState(props.school_years)
+    // Editing/deleting the latest school year moves the upcoming one's dates.
+    const setSchoolYearList = (list) => {
+        setSchoolYearListState(list)
+        router.reload({ only: ["upcoming"] })
+    }
     const { loadRegister } = useReload()
 
     const openSemesterDates = (semesterRow, allSemesters) => {
         setSemesterToEdit(semesterRow)
         setSiblingSemester((allSemesters ?? []).find((s) => s.id !== semesterRow.id) ?? null)
         openEditSemester(true)
-    }
-
-    const deleteSchoolYear = (row) => {
-        showWarningModal(
-            `Are You Sure You Want To Delete School Year ${row.year}?`,
-            "Delete School Year",
-            "Cancel",
-            () => {
-                loadRegister(true, "text-wait", "Deleting School Year")
-                SchoolYearService.delete(
-                    row.id,
-                    setSchoolYearList,
-                    () => loadRegister(true, "success", `School Year ${row.year} Deleted Successfully`),
-                    (err) => loadRegister(true, "error", err?.response?.data?.message || "Failed to Delete School Year")
-                )
-            }
-        )
     }
 
     const columns = [
@@ -112,13 +122,12 @@ const ITRCSchoolYear = (props) => {
             width: 300,
             sortable: false,
             renderCell: ({ row }) => {
-                const today = new Date().toISOString().slice(0, 10)
                 return (
                     <div className="flex flex-col justify-center h-full gap-1 py-1">
                         {(row.semesters ?? []).map((s) => {
                             const start = (s.date_start || "").slice(0, 10)
                             const end = (s.date_end || "").slice(0, 10)
-                            const isCurrent = start && end && today >= start && today <= end
+                            const isCurrent = !!s.is_current
                             return (
                                 <div key={s.id} className="flex items-center gap-2">
                                     <span className={`text-[0.75em] font-semibold w-[3.5rem] ${isCurrent ? "text-blue-600" : "text-gray-500"}`}>
@@ -149,32 +158,11 @@ const ITRCSchoolYear = (props) => {
             sortable: false,
             renderCell: (params) => `${readableDate(params.row.created_at)} (${readableTime(params.row.created_at)})`,
         },
-        {
-            field: "actions",
-            type: "actions",
-            headerName: "Action",
-            width: 280,
-            align: "left",
-            headerAlign: "left",
-            renderCell: ({ row }) => (
-                <div className="flex gap-2 items-center h-full">
-                    <DeleteSchoolYearButton row={row} deleteSchoolYear={deleteSchoolYear} />
-                </div>
-            ),
-        },
     ]
 
     return (
         <>
             <Head title="School Year" />
-            <SetSchoolYearModal
-                close={addSchoolYear}
-                closeModal={openAddSchoolYear}
-                pd={["px-5", "py-7"]}
-                isEnableOuterClose={true}
-                reload={loadRegister}
-                setter={setSchoolYearList}
-            />
             <SetSemesterDatesModal
                 close={editSemester}
                 closeModal={openEditSemester}
@@ -183,10 +171,8 @@ const ITRCSchoolYear = (props) => {
                 reload={loadRegister}
                 setter={setSchoolYearList}
             />
-            <PageLayout
-                title="School Year Management"
-                rightSideComponent={<Btn onclick={() => openAddSchoolYear(true)}>Add School Year</Btn>}
-            >
+            <PageLayout title="School Year Management">
+                        <UpcomingSchoolYear upcoming={props.upcoming} />
                         <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
                             <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", px: 2.5, py: 1.5 }}>
                                 <DataGrid
@@ -207,32 +193,6 @@ const ITRCSchoolYear = (props) => {
                         </div>
             </PageLayout>
         </>
-    )
-}
-
-const DeleteSchoolYearButton = ({ row, deleteSchoolYear }) => {
-    const isCurrent = isSchoolYearCurrent(row)
-    const canDelete = !isCurrent && !row.enrollments_count
-
-    const title = isCurrent
-        ? "This is the current school year — it can't be deleted while one of its semesters is in progress"
-        : row.enrollments_count
-        ? "Students are still enrolled under this school year"
-        : "Delete school year"
-
-    return (
-        <ActionBtn
-            onClick={() => canDelete && deleteSchoolYear(row)}
-            disabled={!canDelete}
-            title={title}
-            className={
-                canDelete
-                    ? "bg-red-600 text-white hover:bg-red-700"
-                    : "bg-gray-400 text-gray-200 cursor-not-allowed"
-            }
-        >
-            Delete
-        </ActionBtn>
     )
 }
 

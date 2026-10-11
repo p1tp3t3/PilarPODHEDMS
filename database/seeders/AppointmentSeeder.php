@@ -10,7 +10,7 @@ class AppointmentSeeder extends Seeder
 {
     public function run(int $count = 20): void
     {
-        $users = User::whereIn('role', ['student', 'parent'])->pluck('id')->all();
+        $users = User::whereRole(['student', 'parent'])->pluck('id')->all();
 
         if (count($users) < 1) {
             $this->command?->warn('AppointmentSeeder skipped: needs at least 1 student (run StudentSeeder first).');

@@ -70,7 +70,7 @@ class NotifyUnresolvedCasesCommand extends Command
 
             $message = "{$label} has ended with unresolved cases still pending: {$breakdown}.";
 
-            foreach (User::where('role', 'sub_admin')->get() as $prefect) {
+            foreach (User::whereRole('sub_admin')->get() as $prefect) {
                 notify_single_user(
                     [
                         'sender_id' => null,

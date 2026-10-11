@@ -74,3 +74,59 @@
     border-radius: 0.5rem;
     overflow: hidden;
 }
+
+/* Phones: seven columns in ~350px, so headers, day numbers and event
+   chips shrink and chips truncate instead of spilling past their cell. */
+@media (max-width: 767px) {
+    .appointment-fullcalendar .fc {
+        font-size: 0.85rem;
+    }
+
+    .appointment-fullcalendar .fc-col-header-cell {
+        padding: 0.4rem 0;
+    }
+
+    .appointment-fullcalendar .fc-col-header-cell-cushion {
+        font-size: 0.68em;
+        padding: 0;
+    }
+
+    .appointment-fullcalendar .fc-daygrid-day-number {
+        font-size: 0.75em;
+        padding: 0.25rem;
+    }
+
+    .appointment-fullcalendar .fc-daygrid-day-frame {
+        min-height: 3.6rem;
+    }
+
+    .appointment-fullcalendar .fc-event {
+        padding: 0 2px;
+        font-size: 0.6em;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .appointment-fullcalendar .fc-daygrid-event-harness,
+    .appointment-fullcalendar .fc-daygrid-event {
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    /* Only the time fits in a phone-width cell — the name is in the day's
+       "View Appointments" list. */
+    .appointment-fullcalendar .fc-daygrid-event .fc-event-title {
+        display: none;
+    }
+
+    .appointment-fullcalendar .fc-event-time {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-right: 0;
+    }
+
+    .appointment-fullcalendar .fc-daygrid-more-link {
+        font-size: 0.6em;
+    }
+}

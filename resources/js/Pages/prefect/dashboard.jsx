@@ -7,7 +7,7 @@ import DropdownField from "@/Components/input/dropdown"
 import Calendar from "@/Components/schedule/calendar"
 import AbsentFormList from "@/Components/list/absent-form-list"
 import StudentList from "@/Components/list/student-list"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { getWebLink, showWarningModal, toTitleCase } from "@/others/function"
 import { DashboardService } from "@/others/services/dashboard-service"
 import BarGraph from "@/Components/card/bar-graph-statistic-card"
@@ -39,10 +39,19 @@ const PrefectDashBoard = (props) => {
   const domain = getWebLink(null, null, 5000)
   const [activeTab, setActiveTab] = useState("statistics")
   const [selectedTitle, setSelectedTitle] = useState("complainants")
-  const [selectedRange, setSelectedRange] = useState("yearly")
-  const [timeline, setTimeLine] = useState(
-    selectedRange == "yearly" ? currentYear : currentMonth
+  // Bar graph range: a school year (its 1st sem start month → 2nd sem end
+  // month), a calendar year, or one month (day by day).
+  const [selectedRange, setSelectedRange] = useState("school_year")
+  const [schoolYearId, setSchoolYearId] = useState(
+    props.current_school_year_id ?? props.bargraph_school_years?.[0]?.id ?? ""
   )
+  const [semester, setSemester] = useState("")
+  const [selectedYear, setSelectedYear] = useState(currentYear)
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth)
+  const period =
+    selectedRange === "school_year" ? schoolYearId
+    : selectedRange === "yearly" ? selectedYear
+    : selectedMonth
   const [choose, setChoose] = useState("student")
   const [choose2, setChoose2] = useState("overview")
   const [choose3, setChoose3] = useState("offense")
@@ -53,8 +62,7 @@ const PrefectDashBoard = (props) => {
     props.countLastMonthUnresolvedComplaint >= 10 &&
       localStorage.getItem("is-unresolved-complaint-modal-clicked")
   )
-  const [bargraphComplaint, setBargraphComplaint] = useState(props.bargraph)
-  console.log(props.label)
+  const [bargraphComplaint, setBargraphComplaint] = useState(props.bargraph ?? [])
 
   useEffect(() => {
     const count = props.countLastMonthUnresolvedComplaint,
@@ -96,35 +104,10 @@ const PrefectDashBoard = (props) => {
     },
   ]
 
-  const monthNames = [
-    "JAN",
-    "FEB",
-    "MAR",
-    "APR",
-    "MAY",
-    "JUN",
-    "JUL",
-    "AUG",
-    "SEPT",
-    "OCT",
-    "NOV",
-    "DEC",
-  ]
-
-  const getDaysArray = (arg) => {
-    const y = arg.includes("-") ? arg : currentMonth
-    const [yearStr, monthStr] = y.split("-")
-    const year = parseInt(yearStr, 10)
-    const monthIndex = parseInt(monthStr, 10) - 1
-    const days = new Date(year, monthIndex + 1, 0).getDate()
-    const monthName = monthNames[monthIndex]
-    return Array.from({ length: days }, (_, i) => `${monthName} ${i + 1}`)
-  }
-
   const optionTab1 = [
     { key: "student", label: "New Students" },
-    { key: "appointment", label: "Scheduled Appointments" },
-    { key: "notification", label: "Notification" },
+    { key: "appointment", label: "Appointments" },
+    { key: "notification", label: "Notifications" },
   ]
 
   const optionTab2 = [
@@ -134,47 +117,50 @@ const PrefectDashBoard = (props) => {
 
   const program = props.program
 
-  const barDataset = () => {
-    const l = []
-    for (let a = 0; a < program.length; a++) {
-      const color = program[a]["color_code"],
-        c = [color, color, color, color, color, color],
-        r = []
+  // Programs without a color_code would otherwise render as black bars.
+  const FALLBACK_COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777", "#65a30d", "#ea580c", "#4f46e5"]
 
-      bargraphComplaint.forEach((e, i) => r.push(e.count[a]))
-      l.push({
-        data: r,
-        label: program[a]["name"],
-        backgroundColor: c,
-        hoverBackgroundColor: c,
-      })
-    }
-    return l
-  }
+  const barDataset = () =>
+    program.map((p, a) => {
+      const color = p.color_code || FALLBACK_COLORS[a % FALLBACK_COLORS.length]
+      return {
+        data: bargraphComplaint.map((e) => e.count?.[a] ?? 0),
+        label: p.name,
+        backgroundColor: color,
+        hoverBackgroundColor: color,
+        borderRadius: 3,
+        // Seven programs share each month, so use the full slot width.
+        barPercentage: 0.95,
+        categoryPercentage: 0.9,
+        maxBarThickness: 22,
+      }
+    })
 
+  const barLabels = bargraphComplaint.map((e) => e.label)
+
+  // The first render already has the active school year's data from the
+  // page props, so only refetch once a filter actually changes.
+  const firstBarFetch = useRef(true)
   useEffect(() => {
-    const t =
-      selectedRange == "monthly"
-        ? currentMonth
-        : selectedRange == "yearly"
-        ? currentYear
-        : timeline
-
-    DashboardService.getBargraph([selectedTitle, selectedRange, timeline], setBargraphComplaint)
-  }, [selectedTitle, selectedRange, timeline])
+    if (firstBarFetch.current) {
+      firstBarFetch.current = false
+      return
+    }
+    if (!period) return
+    DashboardService.getBargraph(
+      [selectedTitle, selectedRange, period, selectedRange === "school_year" ? semester : ""],
+      setBargraphComplaint
+    )
+  }, [selectedTitle, selectedRange, period, semester])
 
   const yearDropdown = () => {
     const l = []
-    const date = new Date()
-    for (let a = date.getFullYear(); a >= 2024; a--) {
-      l.push({ value: `${a}`, label: `${a}` })
+    for (let a = new Date().getFullYear(); a >= 2024; a--) {
+      l.push({ val: `${a}`, label: `${a}` })
     }
     return l
   }
 
-  const handleBarGraphSelect = (e = selectedTitle) => {
-    setSelectedTitle(e)
-  }
 
   const handleSelect = (type) => {
     if (choose != type) {
@@ -195,10 +181,6 @@ const PrefectDashBoard = (props) => {
     }
   }
 
-  const handleTimeLineSelect = (e) => {
-    setTimeLine(e.target.value)
-    handleBarGraphSelect()
-  }
 
   const optionTab = [
     { key: "overview", label: "Overview" },
@@ -220,8 +202,6 @@ const PrefectDashBoard = (props) => {
         <Head title="Dashboard" />
         <div className="w-full py-10">
           <MaintenanceScheduleReminder />
-          <CurrentDateTime />
-          <CurrentSemesterBanner />
 
           <div>
             <TabSwitcher tabs={optionTab} value={choose2} onChange={handleSelect2} />
@@ -235,9 +215,14 @@ const PrefectDashBoard = (props) => {
               transition={{ duration: 0.4, ease: "easeOut" }}
             >
               <div className="flex flex-col gap-5 pt-6">
+                <div className="-mb-4 lg:-mb-6">
+                  <CurrentDateTime />
+                  <CurrentSemesterBanner />
+                </div>
+
                 {/* Statistic Cards */}
                 <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-                  <Link href="/prefect/student-list" className="h-full grid">
+                  <Link href="/prefect/user-list?tab=student&is-enrolled=1" className="h-full grid">
                     <QuantityCard
                       h="h-[6rem]"
                       num={props.student}
@@ -299,57 +284,74 @@ const PrefectDashBoard = (props) => {
                     <BarGraph
                       dataset={barDataset()}
                       withBorder={true}
-                      label={
-                        selectedRange == "yearly"
-                          ? monthNames
-                          : getDaysArray(timeline)
-                      }
+                      height="20rem"
+                      label={barLabels}
                       title={
-                        <DropdownField
-                          list={[
-                            {
-                              val: "complainants",
-                              label: "No. of Complainants Per Program",
-                            },
-                            {
-                              val: "violators",
-                              label: "No. of Offenders Per Program",
-                            },
-                          ]}
-                          titleCase={true}
-                          value={selectedTitle}
-                          onChange={(e) => handleBarGraphSelect(e.target.value)}
-                        />
-                      }
-                      side={
-                        <div className="flex flex-wrap gap-2 items-center text-sm">
+                        <div className="w-full sm:w-[17rem]">
                           <DropdownField
                             list={[
-                              { val: "yearly", label: "Yearly" },
-                              { val: "monthly", label: "Monthly" },
+                              { val: "complainants", label: "No. of Complainants Per Program" },
+                              { val: "violators", label: "No. of Offenders Per Program" },
                             ]}
-                            value={selectedRange}
-                            titleCase={true}
-                            className="text-sm"
-                            onChange={(e) => {
-                              setSelectedRange(e.target.value)
-                              handleBarGraphSelect()
-                            }}
+                            keepCase={true}
+                            val={selectedTitle}
+                            onChange={(e) => setSelectedTitle(e.target.value)}
                           />
-                          {selectedRange != "monthly" ? (
+                        </div>
+                      }
+                      side={
+                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                          <div className="w-full sm:w-[9.5rem]">
                             <DropdownField
-                              list={yearDropdown()}
-                              value={timeline}
-                              titleCase={true}
-                              onChange={handleTimeLineSelect}
+                              list={[
+                                { val: "school_year", label: "School Year" },
+                                { val: "yearly", label: "Yearly" },
+                                { val: "monthly", label: "Monthly" },
+                              ]}
+                              keepCase={true}
+                              val={selectedRange}
+                              onChange={(e) => setSelectedRange(e.target.value)}
                             />
-                          ) : (
-                            <input
-                              type="month"
-                              onChange={handleTimeLineSelect}
-                              value={timeline}
-                              className="border rounded px-2 py-1"
-                            />
+                          </div>
+                          <div className="w-full sm:w-[9.5rem]">
+                            {selectedRange === "school_year" && (
+                              <DropdownField
+                                list={(props.bargraph_school_years ?? []).map((y) => ({ val: y.id, label: `SY ${y.year}` }))}
+                                keepCase={true}
+                                val={schoolYearId}
+                                onChange={(e) => setSchoolYearId(e.target.value)}
+                              />
+                            )}
+                            {selectedRange === "yearly" && (
+                              <DropdownField
+                                list={yearDropdown()}
+                                keepCase={true}
+                                val={selectedYear}
+                                onChange={(e) => setSelectedYear(e.target.value)}
+                              />
+                            )}
+                            {selectedRange === "monthly" && (
+                              <input
+                                type="month"
+                                value={selectedMonth}
+                                onChange={(e) => e.target.value && setSelectedMonth(e.target.value)}
+                                className="w-full h-[2.5rem] rounded-lg border border-gray-300 bg-white px-3 text-[0.85em] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            )}
+                          </div>
+                          {selectedRange === "school_year" && (
+                            <div className="w-full sm:w-[9.5rem]">
+                              <DropdownField
+                                default={{ val: "", label: "All Semesters" }}
+                                list={[
+                                  { val: "1", label: "1st Semester" },
+                                  { val: "2", label: "2nd Semester" },
+                                ]}
+                                keepCase={true}
+                                val={semester}
+                                onChange={(e) => setSemester(e.target.value)}
+                              />
+                            </div>
                           )}
                         </div>
                       }
@@ -360,12 +362,12 @@ const PrefectDashBoard = (props) => {
                     <DoughnutChart
                       dataset={doughnutDataset}
                       label={["Pending", "Ongoing"]}
-                      title="Today's Complaints"
+                      title="This Week's Complaints"
                       side={
                         <div className="text-[0.8em]">
                           <Link
                             className="hover:underline"
-                            href={`/prefect/complaints?date=${now}`}
+                            href={`/prefect/complaints?status=all&date_from=${props.students_week_start}&date_to=${props.students_week_end}`}
                           >
                             See All
                           </Link>
@@ -377,17 +379,21 @@ const PrefectDashBoard = (props) => {
 
                 {/* Lists Section */}
                 <div className="flex flex-col lg:flex-row gap-3">
-                  <div className="w-full bg-white rounded-md shadow-md">
-                    <div className="px-5 py-3 w-full">
-                      <TabSwitcher tabs={optionTab1} value={choose} onChange={handleSelect} />
+                  {/* Fixed height so switching tabs doesn't resize the panel;
+                      each tab's list scrolls inside it. */}
+                  <div className="w-full min-w-0 bg-white rounded-md shadow-md flex flex-col h-[30rem] overflow-hidden">
+                    <div className="px-3 sm:px-5 pt-2 w-full shrink-0">
+                      <TabSwitcher tabs={optionTab1} value={choose} onChange={handleSelect} fullWidth />
                     </div>
-                    {choose == "student" && (
-                      <NewStudentList list={props.students} weekStart={props.students_week_start} weekEnd={props.students_week_end} />
-                    )}
-                    {choose == "appointment" && (
-                      <AppointmentTodayList list={props.appointment_today} />
-                    )}
-                    {choose == "notification" && <StudentNotificationList />}
+                    <div className="flex-1 min-h-0">
+                      {choose == "student" && (
+                        <NewStudentList list={props.students} weekStart={props.students_week_start} weekEnd={props.students_week_end} />
+                      )}
+                      {choose == "appointment" && (
+                        <AppointmentTodayList list={props.appointment_today} />
+                      )}
+                      {choose == "notification" && <StudentNotificationList />}
+                    </div>
                   </div>
                   <div className="w-full lg:w-[50%]">
                     <LatestActiveAccountList list={props.active} />

@@ -16,7 +16,7 @@ const DropdownField = (props) => {
     const defaultOption = props.default ? { value: props.default.val, label: props.default.label } : null
     const hasMatch = (defaultOption && defaultOption.value === value) || options.some(o => o.value === value)
 
-    const optionLabel = (e) => props.titleCase ? toTitleCase(e.label) : e.label?.toUpperCase()
+    const optionLabel = (e) => props.keepCase ? e.label : props.titleCase ? toTitleCase(e.label) : e.label?.toUpperCase()
 
     // When the current value matches neither the default nor any option (e.g.
     // val is null/unset before a URL filter is applied), fall back to showing

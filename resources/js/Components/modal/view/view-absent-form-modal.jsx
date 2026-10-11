@@ -20,8 +20,7 @@ import {
 
 const STATUS_STYLES = {
     pending: 'bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-200',
-    noted: 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-200',
-    expired: 'bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-300',
+    approved: 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-200',
     rejected: 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-200',
     revoked: 'bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-300',
 }
@@ -29,8 +28,7 @@ const STATUS_STYLES = {
 const statusFor = (data) => {
     if (data.revoked_at) return 'revoked'
     if (data.rejected_at) return 'rejected'
-    if (data.confirmed_at) return 'noted'
-    if (data.date_to && new Date(data.date_to) < new Date()) return 'expired'
+    if (data.confirmed_at) return 'approved'
     return 'pending'
 }
 
@@ -93,13 +91,11 @@ const Body = ({ data }) => {
                 <StatGrid>
                     <Stat icon={CalendarClock} label="Reported Since" value={`${readableDate(data.created_at)} (${readableTime(data.created_at)})`} sub={formatSchoolYearSemester(data.school_year_semester)} />
                     {data.confirmed_at &&
-                    <Stat icon={CheckCircle2} label="Noted Since" value={`${readableDate(data.confirmed_at)} (${readableTime(data.confirmed_at)})`} sub={formatSchoolYearSemester(data.confirmed_school_year_semester)} />}
+                    <Stat icon={CheckCircle2} label="Approved Since" value={`${readableDate(data.confirmed_at)} (${readableTime(data.confirmed_at)})`} sub={formatSchoolYearSemester(data.confirmed_school_year_semester)} />}
                     {data.rejected_at &&
                     <Stat icon={XCircle} label="Rejected Since" value={`${readableDate(data.rejected_at)} (${readableTime(data.rejected_at)})`} sub={formatSchoolYearSemester(data.rejected_school_year_semester)} />}
                     {data.revoked_at &&
                     <Stat icon={Undo2} label="Revoked Since" value={`${readableDate(data.revoked_at)} (${readableTime(data.revoked_at)})`} sub={formatSchoolYearSemester(data.revoked_school_year_semester)} />}
-                    {status === 'expired' &&
-                    <Stat icon={Ban} label="Expired Since" value={readableDate(data.date_to)} />}
                 </StatGrid>
 
                 {data.rejected_reason != null &&

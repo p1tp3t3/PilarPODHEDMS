@@ -9,7 +9,7 @@ import ParentList from "@/Components/list/parent-list"
 import ManagePositionsModal from "@/Components/modal/submission-form/manage-positions-modal"
 import { useState } from "react"
 import { router } from "@inertiajs/react"
-import { GraduationCap, UserRoundCog, Users, Settings } from "lucide-react"
+import { GraduationCap, UserRoundCog, Users, Settings, X } from "lucide-react"
 import { Head } from "@inertiajs/react"
 
 const userTabs = [
@@ -59,6 +59,7 @@ const PrefectUserList = (props) => {
     const studentProgram = params.get("program")
     const studentSchoolYear = params.get("school-year")
     const studentSemester = params.get("semester")
+    const onlyEnrolled = ["1", "true"].includes(params.get("is-enrolled") ?? "")
 
     const handleStudentFilter = (field, value) => {
         updateQuery({
@@ -93,6 +94,18 @@ const PrefectUserList = (props) => {
 
                 {tab === "student" &&
                 <>
+                    {onlyEnrolled && (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[0.8em] text-blue-900">
+                            <span>Showing currently enrolled students only (dropped students hidden)</span>
+                            <button
+                                type="button"
+                                onClick={() => updateQuery({ "is-enrolled": "" })}
+                                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium text-blue-700 hover:bg-blue-100"
+                            >
+                                <X size={13} /> Show all students
+                            </button>
+                        </div>
+                    )}
                     <div className="flex flex-col sm:flex-row flex-wrap gap-3">
                         <div className="w-full sm:w-[14rem] flex-shrink-0">
                             <DropdownField

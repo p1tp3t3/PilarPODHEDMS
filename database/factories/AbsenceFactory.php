@@ -19,7 +19,7 @@ class AbsenceFactory extends Factory
 
     public function definition(): array
     {
-        $student = User::where('role', 'student')->inRandomOrder()->first()
+        $student = User::whereRole('student')->inRandomOrder()->first()
             ?? User::inRandomOrder()->first();
 
         $createdAt = $this->faker->dateTimeBetween('-1 year', 'now');
@@ -67,7 +67,7 @@ class AbsenceFactory extends Factory
 
             if ($absence->confirmed_at) {
                 $student = User::with(['profile', 'program'])->find($absence->student_id);
-                $prefect = User::with('profile')->where('role', 'sub_admin')->first();
+                $prefect = User::with('profile')->whereRole('sub_admin')->first();
 
                 $data = [
                     'sender_name' => trim("{$student?->profile?->first_name} {$student?->profile?->middle_name} {$student?->profile?->last_name}"),

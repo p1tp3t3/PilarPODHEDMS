@@ -1,4 +1,3 @@
-import ActionBtn from "@/Components/button/action-btn"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import NotificationList from "@/Components/list/notification-list"
 import AuthLayout from "@/Layouts/auth-layout"
@@ -6,7 +5,7 @@ import PageLayout from "@/Layouts/page-layout"
 import { NotificationService } from "@/others/services/notification-service"
 import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-read"
 import { useState } from "react"
-import { X, Check, Trash2 } from "lucide-react"
+import { X, CheckCheck, ListChecks, Trash2 } from "lucide-react"
 import { Head } from "@inertiajs/react"
 
 const Notification = (props) => {
@@ -46,6 +45,15 @@ const Notification = (props) => {
             checkbox.checked = checked
         })
     }
+    const markAllAsRead = () => {
+        NotificationService.markAllAsRead(() => {
+            NotificationService.list(choose, props.auth.user.id, Math.max(notif_list?.length ?? 0, 10), (e) => {
+                setNotifList(e.notif)
+                setSize(e.size)
+            })
+        })
+    }
+
     const handlePaginate = () => {
         NotificationService.list(choose, props.auth.user.id, notif_list.length + 10, (e) => {
             setNotifList(e.notif)
@@ -57,46 +65,65 @@ const Notification = (props) => {
         <>
             <Head title="Notifications" />
             <PageLayout title="Notifications">
-                    <div>
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <TabSwitcher tabs={tab} value={choose} onChange={handleSelect} />
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <ActionBtn
-                                    className="bg-blue-700 hover:bg-blue-800"
-                                    onClick={() => enableSelect(!select)}
-                                >
-                                    {select ? <X size={14} /> : <Check size={14} />}
-                                </ActionBtn>
-                                {select &&
-                                <div className="flex items-center">
-                                    <div className="flex gap-10 items-center]">
-                                        <div className="flex gap-2 items-center text-[0.8em]">
-                                            <input type="checkbox" id="select-all" onClick={selectAllRow} />
-                                            <label htmlFor="select-all">Select All</label>
-                                        </div>
-                                        <ActionBtn className="bg-red-700 hover:bg-red-800"b onClick={deleteNotif}>
-                                            <Trash2 size={14} />
-                                        </ActionBtn>
-                                    </div>
-                                </div>}
-                            </div>
+                <div className="w-full rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 px-4 pt-3 border-b border-gray-100">
+                        <div className="w-full sm:w-72 [&_.MuiTabs-root]:border-b-0">
+                            <TabSwitcher tabs={tab} value={choose} onChange={handleSelect} fullWidth />
                         </div>
-                        <div className="bg-gray-100 flex justify-center">
-                            <div className="bg-white shadow rounded-lg w-full p-6">
-                                <NotificationList
-                                    list={notif_list}
-                                    overflow={false}
-                                    enableDel={true}
-                                    select={select}
-                                    handlePaginate={handlePaginate}
-                                    size={size}
-                                    deleteNotif={(i) => NotificationService.deleteOne(i, setNotifList)}
-                                />
-                            </div>
+                        <div className="flex flex-wrap items-center gap-2 pb-2">
+                            {select ? (
+                                <>
+                                    <label htmlFor="select-all" className="flex items-center gap-2 rounded-full border border-gray-300 px-3 py-1.5 text-[0.75em] font-medium text-gray-700 cursor-pointer">
+                                        <input type="checkbox" id="select-all" onClick={selectAllRow} />
+                                        Select all
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={deleteNotif}
+                                        className="flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1.5 text-[0.75em] font-medium text-white hover:bg-red-700"
+                                    >
+                                        <Trash2 size={14} /> Delete selected
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => enableSelect(false)}
+                                        className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.75em] font-medium text-gray-600 hover:bg-gray-100"
+                                    >
+                                        <X size={14} /> Cancel
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={markAllAsRead}
+                                        className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.75em] font-medium text-blue-600 hover:bg-blue-50"
+                                    >
+                                        <CheckCheck size={14} /> Mark all as read
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => enableSelect(true)}
+                                        className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1.5 text-[0.75em] font-medium text-gray-700 hover:bg-gray-50"
+                                    >
+                                        <ListChecks size={14} /> Select
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
+                    <div className="px-4 pb-4">
+                        <NotificationList
+                            list={notif_list}
+                            overflow={false}
+                            enableDel={true}
+                            select={select}
+                            handlePaginate={handlePaginate}
+                            size={size}
+                            deleteNotif={(i) => NotificationService.deleteOne(i, setNotifList)}
+                        />
+                    </div>
+                </div>
             </PageLayout>
         </>
     )

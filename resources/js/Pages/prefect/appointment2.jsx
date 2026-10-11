@@ -61,9 +61,18 @@ const PrefectAppointment2 = (props) => {
   // into the schedule form. Anchored by cursor coordinates rather than a
   // DOM element, since FullCalendar's day/slot cells aren't stable anchor
   // targets across its month/week views.
-  const handleDaySelect = (clickedDate, jsEvent) => {
+  // Anchored to the tapped day cell rather than the pointer: a touch's
+  // dateClick event has no clientX/clientY, which left the menu at 0,0.
+  const handleDaySelect = (clickedDate, jsEvent, dayEl) => {
     setDayMenuDate(clickedDate);
-    setDayMenuPos(jsEvent ? { top: jsEvent.clientY, left: jsEvent.clientX } : null);
+    const rect = dayEl?.getBoundingClientRect();
+    if (rect) {
+      setDayMenuPos({ top: rect.bottom, left: rect.left + rect.width / 2 });
+    } else if (jsEvent && Number.isFinite(jsEvent.clientX)) {
+      setDayMenuPos({ top: jsEvent.clientY, left: jsEvent.clientX });
+    } else {
+      setDayMenuPos(null);
+    }
   };
 
   const closeDayMenu = () => setDayMenuPos(null);
@@ -216,7 +225,7 @@ const PrefectAppointment2 = (props) => {
           <h1 className="text-[1.3em] sm:text-[1.5em] font-bold">APPOINTMENT</h1>
         </div>
 
-        <Paper elevation={2} sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: "0.5rem", width: "100%" }}>
+        <Paper elevation={2} sx={{ p: { xs: 1.25, sm: 2.5 }, borderRadius: "0.5rem", width: "100%", minWidth: 0, overflow: "hidden" }}>
           <FullCalendarView
             refreshKey={refreshKey}
             onEventClick={handleEventClick}

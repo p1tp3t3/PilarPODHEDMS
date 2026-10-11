@@ -4,13 +4,16 @@ import { getProfilePic, getYearLevel, readableDate, readableTime, showUserType }
 import ListSkeleton from "../reload/list-skeleton"
 import { AlertCircle } from "lucide-react"
 
-const NewUserList = ({ list = null, showTitle = true }) => {
+const NewUserList = ({ list = null, showTitle = true, weekStart = null, weekEnd = null }) => {
     return (
         <div className="w-full bg-white rounded-md shadow-md shadow-black/20">
             {showTitle &&
             <div>
-                <div className="px-5 py-2 w-full flex items-center gap-3 border-b-[1px] border-gray-300 text-[0.9em]">                       
-                    <div><b>New User{(list.length != 1) ? 's' : ''} this {new Date().toDateString()}</b></div>
+                <div className="px-5 py-2 w-full flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 border-b-[1px] border-gray-300 text-[0.9em]">
+                    <b>{list?.length ?? 0} New User{(list?.length != 1) ? 's' : ''} This Week</b>
+                    {weekStart && weekEnd && (
+                        <span className="text-[0.8em] text-gray-500">{readableDate(weekStart)} – {readableDate(weekEnd)}</span>
+                    )}
                 </div>
             </div>}
             <div className="px-5 py-3 h-[22rem] w-full overflow-y-auto overflow-hidden z-2">
@@ -25,7 +28,7 @@ const NewUserList = ({ list = null, showTitle = true }) => {
                             <div className="text-[4em]">
                                 <AlertCircle size="1em" />
                             </div>
-                            <div>No New Users Yet</div>
+                            <div>No New Users This Week</div>
                         </div>
                     </div>
                     :

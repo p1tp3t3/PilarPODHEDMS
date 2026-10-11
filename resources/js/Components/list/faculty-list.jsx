@@ -1,5 +1,6 @@
 import ProfilePic from "../other/profile-pic"
-import { checkActiveStatus, getProfilePic, readableActiveDuration, readableDate, readableTime } from "../../others/function"
+import LiveActiveSince from "@/Components/other/live-active-since";
+import { checkActiveStatus, getProfilePic, readableActiveDuration, readableDate, readableTime, showUserType } from "../../others/function"
 import { Link } from "@inertiajs/react"
 import PaginationButton from "../button/pagination-btn"
 import { useEffect, useMemo, useState, useContext } from "react"
@@ -29,6 +30,7 @@ const FacultyList = ({ list, style = true, type = 'prefect', paginate = true }) 
         profile_picture: e.profile?.profile_picture,
         sex: e.profile?.sex,
         program: e.teaching_staff?.program?.name ?? "",
+        role_label: showUserType({ role: "teaching_staff", ...e }),
         created_at: e.created_at,
         last_seen: e.last_seen,
     })), [l])
@@ -73,7 +75,7 @@ const FacultyList = ({ list, style = true, type = 'prefect', paginate = true }) 
             headerName: "Active Since",
             width: 160,
             renderCell: (params) => (
-                <span className="text-[0.8em]">{readableActiveDuration(params.value)}</span>
+                <LiveActiveSince userId={params.row.id} lastSeen={params.value} />
             ),
         },
         {
@@ -98,6 +100,7 @@ const FacultyList = ({ list, style = true, type = 'prefect', paginate = true }) 
                     <DataGrid
                         rows={rows}
                         columns={columns}
+                        mobileSummary={(row) => ({ name: row.name.trim(), role: row.role_label, picture: row.profile_picture, sex: row.sex, hide: ["name"] })}
                         hideFooter
                         disableRowSelectionOnClick
                         getRowHeight={() => "auto"}

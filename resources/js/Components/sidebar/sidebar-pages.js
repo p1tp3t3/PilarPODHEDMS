@@ -19,6 +19,7 @@ import {
     Calendar,
     BarChart3,
     UserRoundCog,
+    ShieldCheck,
 } from "lucide-react"
 
 // Single source of truth for every role's sidebar navigation. Each entry is
@@ -58,6 +59,7 @@ export const sidebarPages = [
         items: [
             { id: "system-settings", href: "/system-settings", icon: SlidersHorizontal, label: "System Settings" },
             { id: "school-year", href: "/super-admin/school-year", icon: Calendar, label: "School Year" },
+            { id: "super-admin/roles", href: "/super-admin/roles", icon: ShieldCheck, label: "Roles" },
             { id: "maintenance", href: "/maintenance", icon: Wrench, label: "Maintenance" },
         ],
     },
@@ -105,7 +107,7 @@ export const sidebarPages = [
     },
     {
         type: "link", id: "referral", href: "/referral", icon: Share2, label: "Referral",
-        roles: ["teaching_staff"], show: (usr) => usr.teaching_staff?.position === "program_head",
+        roles: ["teaching_staff"],
     },
 
     // ---- non_teaching_staff: guard/guidance positions ----

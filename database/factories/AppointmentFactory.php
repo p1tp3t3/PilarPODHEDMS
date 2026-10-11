@@ -13,7 +13,7 @@ class AppointmentFactory extends Factory
 {
     public function definition(): array
     {
-        $user = User::whereIn('role', ['student', 'parent'])->inRandomOrder()->first()
+        $user = User::whereRole(['student', 'parent'])->inRandomOrder()->first()
             ?? User::inRandomOrder()->first();
 
         $createdAt = $this->faker->dateTimeBetween('-6 months', 'now');

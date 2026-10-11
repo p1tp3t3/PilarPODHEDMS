@@ -46,7 +46,7 @@ class ComplaintController extends Controller
             'program' => Program::latest('id')
                 ->get(['id', 'name']),
             'students' => User::with(['profile', 'program'])
-                ->where('role', 'student')
+                ->whereRole('student')
                 ->where('id', '!=', auth()->user()->id)
                 ->get(),
             'program_name' => is_program_head(),
@@ -79,7 +79,7 @@ class ComplaintController extends Controller
         DB::beginTransaction(); // start transaction
         try {
             $isPrefect = self::isPrefect();
-            $prefect = User::where('role', 'sub_admin')
+            $prefect = User::whereRole('sub_admin')
                 ->where('activate', true);
             $lastIndex = null;
 
@@ -631,6 +631,8 @@ class ComplaintController extends Controller
             'status' => $status,
             'search' => $search,
             'date' => $date,
+            'date_from' => $_GET['date_from'] ?? null,
+            'date_to' => $_GET['date_to'] ?? null,
             'role' => $role,
             'school-year' => $_GET['school-year'] ?? null,
             'semester' => $_GET['semester'] ?? null,
@@ -639,6 +641,12 @@ class ComplaintController extends Controller
         if (request()->has('date')) {
             $data->whereDate('created_at', $_GET['date']);
         }
+        if (request()->filled('date_from')) {
+            $data->whereDate('created_at', '>=', $_GET['date_from']);
+        }
+        if (request()->filled('date_to')) {
+            $data->whereDate('created_at', '<=', $_GET['date_to']);
+        }
         if ($search) {
             $data->whereHas('user', function ($q) use ($search) {
                 $q->where('id_number', 'like', "%$search%");
@@ -646,7 +654,7 @@ class ComplaintController extends Controller
         }
         if ($role != 'all' && ! is_null($role)) {
             $data->whereHas('user', function ($q) use ($role) {
-                $q->where('role', $role);
+                $q->whereRole($role);
             });
         }
         SchoolYearSemester::applyFilter($data, 'created_at', $_GET['school-year'] ?? null, $_GET['semester'] ?? null);

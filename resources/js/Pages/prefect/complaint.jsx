@@ -279,7 +279,7 @@ const PrefectComplaint = (props) => {
             <div className="grid gap-3">
               <div className="flex flex-wrap gap-3 items-center">
                 {/* Dropdowns */}
-                <div className="flex md:flex-nowrap gap-3 w-full md:w-auto justify-start md:justify-end">
+                <div className="flex flex-col sm:flex-row md:flex-nowrap gap-3 w-full md:w-auto justify-start md:justify-end">
                   <div className="w-full sm:w-auto">
                     <DropdownField
                       default={{ val: "all", label: "All Complainants" }}

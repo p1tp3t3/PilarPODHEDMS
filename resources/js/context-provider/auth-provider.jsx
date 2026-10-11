@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect } from "react"
+import { createContext, useState, useEffect, useMemo } from "react"
 
 
 const AuthContext = createContext()
@@ -7,7 +7,10 @@ export function AuthProvider ({ children , usr }) {
     const  [toast, openToast] = useState(false),
            [toastLabel, setToastLabel] = useState(''),
            [toastIcon, setToastIcon] = useState(''),
-           [onlineUserIds, setOnlineUserIds] = useState(new Set())
+           [onlineMembers, setOnlineMembers] = useState(new Map()),
+           // When someone leaves the presence channel, so lists can show
+           // "Active Xm ago" from that moment instead of a stale page-load value.
+           [leftAt, setLeftAt] = useState(new Map())
 
     const showToast = (label, icon) => {
         openToast(true)
@@ -21,14 +24,15 @@ export function AuthProvider ({ children , usr }) {
 
         const channel = window.Echo.join('online-users')
             .here((users) => {
-                setOnlineUserIds(new Set(users.map((u) => u.id)))
+                setOnlineMembers(new Map(users.map((u) => [u.id, { ...u, online_since: Date.now() }])))
             })
             .joining((user) => {
-                setOnlineUserIds((prev) => new Set(prev).add(user.id))
+                setOnlineMembers((prev) => new Map(prev).set(user.id, { ...user, online_since: Date.now() }))
             })
             .leaving((user) => {
-                setOnlineUserIds((prev) => {
-                    const next = new Set(prev)
+                setLeftAt((prev) => new Map(prev).set(user.id, new Date().toISOString()))
+                setOnlineMembers((prev) => {
+                    const next = new Map(prev)
                     next.delete(user.id)
                     return next
                 })
@@ -37,10 +41,13 @@ export function AuthProvider ({ children , usr }) {
         return () => window.Echo.leave('online-users')
     }, [usr?.id])
 
-    const isUserOnline = (userId) => onlineUserIds.has(userId)
+    const onlineUserIds = useMemo(() => new Set(onlineMembers.keys()), [onlineMembers])
+    const onlineUsers = useMemo(() => [...onlineMembers.values()], [onlineMembers])
+    const isUserOnline = (userId) => onlineMembers.has(userId)
+    const lastSeenOf = (userId, fallback) => leftAt.get(userId) ?? fallback
 
     return (
-        <AuthContext.Provider value={{ usr , toast, toastLabel, toastIcon, showToast, openToast, onlineUserIds, isUserOnline }}>
+        <AuthContext.Provider value={{ usr , toast, toastLabel, toastIcon, showToast, openToast, onlineUserIds, onlineUsers, isUserOnline, lastSeenOf }}>
             {children}
         </AuthContext.Provider>
     )

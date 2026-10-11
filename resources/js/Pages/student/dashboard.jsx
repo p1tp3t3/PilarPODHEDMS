@@ -8,7 +8,6 @@ import AppointmentScheduleList from "@/Components/list/upcoming-sched-list";
 import TabSwitcher from "@/Components/other/tab-switcher";
 import OffenseList from "@/Components/list/offense-list";
 import { Head, Link } from "@inertiajs/react";
-import IncidentRiskCard from "@/Components/card/incident-risk-card";
 import { useState } from "react";
 import PenaltyList from "@/Components/list/penalty-list";
 import { motion } from "framer-motion";
@@ -37,8 +36,6 @@ const StudentDashboard = (props) => {
         transition={{ duration: 0.4, ease: "easeOut" }}
       >
         <MaintenanceScheduleReminder />
-        <CurrentDateTime />
-        <CurrentSemesterBanner />
 
         {/* === Tab Buttons === */}
         <div className="mb-6">
@@ -48,6 +45,11 @@ const StudentDashboard = (props) => {
         {/* === OVERVIEW TAB === */}
         {choose === "overview" && (
           <div className="w-full flex flex-col gap-6">
+            <div className="-mb-4 lg:-mb-6">
+              <CurrentDateTime />
+              <CurrentSemesterBanner />
+            </div>
+
             {/* === Complaint / Gate Pass / Absent Form Summary === */}
             <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-5">
               <Link href="/complaint">
@@ -89,19 +91,11 @@ const StudentDashboard = (props) => {
             </div>
 
             {/* === Incident Risk & Appointments === */}
-            <div className="flex flex-col lg:flex-row gap-5 justify-between">
-              <div className="w-full lg:w-1/2">
-                <IncidentRiskCard user_id={props.auth.user.encrypted_id} />
-              </div>
-
-              <div className="w-full lg:w-1/2">
-                <div className="h-full">
-                  <AppointmentScheduleList
-                    list={props.upcoming_appointment[0].appointment}
-                    showAction={false}
-                  />
-                </div>
-              </div>
+            <div className="w-full">
+              <AppointmentScheduleList
+                list={props.upcoming_appointment[0].appointment}
+                showAction={false}
+              />
             </div>
           </div>
         )}

@@ -15,8 +15,10 @@ class SchoolYearSemester extends Model
     protected function casts(): array
     {
         return [
-            'date_start' => 'date',
-            'date_end' => 'date',
+            // Serialized as plain Y-m-d: the default ISO/UTC form turns
+            // Manila midnight into the previous day once the frontend slices it.
+            'date_start' => 'date:Y-m-d',
+            'date_end' => 'date:Y-m-d',
             'notified_at' => 'datetime',
         ];
     }
@@ -44,15 +46,42 @@ class SchoolYearSemester extends Model
     public static function flushCache(): void
     {
         self::$allCached = null;
+        self::$currentCached = null;
     }
 
     /**
-     * The semester whose date range covers today — purely date-driven, no
-     * manual "activate" flag to drift out of sync with the actual calendar.
+     * The active semester, purely date-driven:
+     * - a semester whose range covers today is active;
+     * - in the gap after a 1st semester ends, that 1st semester stays active
+     *   until its 2nd semester starts (the school year stays active);
+     * - once a 2nd semester ends, its school year is done and the next
+     *   school year's 1st semester becomes active ahead of its start date.
      */
+    protected static ?self $currentCached = null;
+
     public static function current(): ?self
     {
-        return self::forDate(now());
+        if (self::$currentCached) {
+            return self::$currentCached;
+        }
+
+        $today = now()->toDateString();
+
+        if ($inProgress = self::forDate($today)) {
+            return self::$currentCached = $inProgress;
+        }
+
+        $semesters = self::allCached()
+            ->filter(fn (self $s) => $s->date_start && $s->date_end)
+            ->sortBy(fn (self $s) => $s->date_start->toDateString())
+            ->values();
+
+        $lastStarted = $semesters->last(fn (self $s) => $s->date_start->toDateString() <= $today);
+        if ($lastStarted && (int) $lastStarted->semester === 1) {
+            return self::$currentCached = $lastStarted;
+        }
+
+        return self::$currentCached = $semesters->first(fn (self $s) => $s->date_start->toDateString() > $today);
     }
 
     public static function currentId(): ?int

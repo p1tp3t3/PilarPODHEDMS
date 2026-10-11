@@ -22,8 +22,8 @@ class ReferralFactory extends Factory
 {
     public function definition(): array
     {
-        $teachingStaff = User::where('role', 'teaching_staff')->inRandomOrder()->first();
-        $subAdmin = User::where('role', 'sub_admin')->inRandomOrder()->first();
+        $teachingStaff = User::whereRole('teaching_staff')->inRandomOrder()->first();
+        $subAdmin = User::whereRole('sub_admin')->inRandomOrder()->first();
 
         // Most referrals are filed by teaching staff — the normal case,
         // going through the prefect's pending -> approve/reject workflow.

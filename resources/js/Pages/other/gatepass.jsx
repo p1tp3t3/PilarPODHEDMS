@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import AuthLayout from "@/Layouts/auth-layout";
+import PageLayout from "@/Layouts/page-layout";
 import RequestGatePassModal from "@/Components/modal/submission-form/request-gatepass-modal";
 import EditGatePassModal from "@/Components/modal/submission-form/edit-gatepass-modal";
 import ViewGatePassModal from "@/Components/modal/view/view-gatepass-modal";
@@ -10,7 +11,7 @@ import { Head, Link, router } from "@inertiajs/react";
 import Btn from "@/Components/button/normal-btn";
 import ActionBtn from "@/Components/button/action-btn";
 import TabSwitcher from "@/Components/other/tab-switcher";
-import { Clock, CheckCircle2, XCircle, Ban, FolderOpen, Undo2 } from "lucide-react";
+import { List, Clock, CheckCircle2, XCircle, Ban, FolderOpen, Undo2 } from "lucide-react";
 
 const STATUS_META = {
   pending: { label: "Pending", className: "bg-yellow-100 text-yellow-700" },
@@ -52,6 +53,7 @@ const permissionLabel = (gp) => {
 };
 
 const optionTab = [
+  { key: "all", label: "All", icon: List },
   { key: "pending", label: "Pending", icon: Clock },
   { key: "approved", label: "Approved", icon: CheckCircle2 },
   { key: "expired", label: "Expired", icon: XCircle },
@@ -63,7 +65,7 @@ const GatePass = (props) => {
   const [requestGatePass, openRequestGatePass] = useState(false);
   const [editGatePass, openEditGatePass] = useState(false);
   const [editData, setEditData] = useState(null);
-  const [tab, setTab] = useState("pending");
+  const [tab, setTab] = useState("all");
   const [viewId, setViewId] = useState("");
   const [viewOpen, setViewOpen] = useState(false);
   const [viewApproved, setViewApproved] = useState(false);
@@ -72,7 +74,9 @@ const GatePass = (props) => {
 
   const allGatePasses = props.user_gatepass.gatepass ?? [];
   const latestGatepass = allGatePasses[0];
-  const shownGatepasses = allGatePasses.filter((gp) => gatePassStatusKey(gp) === tab);
+  const shownGatepasses = tab === "all"
+    ? allGatePasses
+    : allGatePasses.filter((gp) => gatePassStatusKey(gp) === tab);
 
   // Lets the "My Records This Semester" dashboard modal deep-link straight
   // to a specific gate pass — jumps to whichever status tab it actually
@@ -139,38 +143,21 @@ const GatePass = (props) => {
         data={editData}
         reload={loadRegister}
       />
-      <div className="w-full py-10">
-        <div className="w-full grid gap-10 relative">
-          {/* Header Section */}
-          <div className="flex flex-col sm:flex-row justify-between gap-4">
-            <h1 className="text-[1.4em] font-bold">Gate Pass</h1>
-
-            <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
-              {canRequestNewGatePass(latestGatepass) && props.user.allow_gatepass && (
-                <Btn onclick={() => openRequestGatePass(true)}>
-                  Request Gate Pass
-                </Btn>
-              )}
-              {props.user.user_type === "staff" &&
-                props.user.staff.work_type === "guard" && (
-                  <Link href="/gatepass-validation" className="text-blue-700">
-                    <u>Open Gate Pass Verification</u>
-                  </Link>
-                )}
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="w-full grid gap-3">
-            <div className="w-full bg-white rounded-t-md shadow-black/20 shadow-sm border-b border-gray-200 px-4 sm:px-6">
-              <TabSwitcher tabs={optionTab} value={tab} onChange={setTab} />
-            </div>
+      <PageLayout
+        title="GATE PASS"
+        rightSideComponent={
+          canRequestNewGatePass(latestGatepass) && props.user.allow_gatepass ? (
+            <Btn onclick={() => openRequestGatePass(true)}>Request Gate Pass</Btn>
+          ) : null
+        }
+      >
+          <TabSwitcher tabs={optionTab} value={tab} onChange={setTab} />
 
             <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3">
               {shownGatepasses.length === 0 ? (
                 <div className="py-10 text-center text-gray-500">
                   <FolderOpen size="2.5em" className="mx-auto mb-2 opacity-60" />
-                  <p>No {STATUS_META[tab].label.toLowerCase()} gate passes found.</p>
+                  <p>{tab === "all" ? "No gate passes found." : `No ${STATUS_META[tab].label.toLowerCase()} gate passes found.`}</p>
                 </div>
               ) : (
                 <div className="grid gap-3">
@@ -223,9 +210,7 @@ const GatePass = (props) => {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      </div>
+      </PageLayout>
     </>
   );
 };
