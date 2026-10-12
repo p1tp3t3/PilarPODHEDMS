@@ -61,6 +61,9 @@ const Body = (props) => {
   // status are hidden entirely for these roles (see
   // Validator.validateUpdateProfileForm for the matching required-field set).
   const isStaffRole = ['teaching_staff', 'non_teaching_staff'].includes(props.data.user_type);
+  // The IT admin's profile only has a picture, contact number and address.
+  const isSuperAdminProfile = props.data.user_type === 'super_admin';
+  const hidePersonal = isStaffRole || isSuperAdminProfile;
 
   // Validator/canEdit() speak a separate "itrc"/"prefect" alias vocabulary
   // for the two admin roles (see others/function.jsx canEdit()) rather than
@@ -243,7 +246,7 @@ const Body = (props) => {
               />
             </div>}*/}
 
-            {!isStaffRole && (
+            {!hidePersonal && (
               <FormTextfield
                 label="Date Of Birth"
                 name="date_of_birth"
@@ -257,6 +260,7 @@ const Body = (props) => {
               />
             )}
 
+            {!isSuperAdminProfile && (
             <RadioButton
               label={<b>Sex{isStaffRole && <span className="text-[#d12323]"> *</span>}</b>}
               name="sex"
@@ -269,7 +273,8 @@ const Body = (props) => {
                 { value: "f", label: "Female" },
               ]}
             />
-            {!isStaffRole && (
+            )}
+            {!hidePersonal && (
               <RadioButton
                 label={<b>Civil Status</b>}
                 name="civil_status"
@@ -285,7 +290,7 @@ const Body = (props) => {
             )}
 
             {/* Religion + Citizenship */}
-            {!isStaffRole && (
+            {!hidePersonal && (
               <div className="flex flex-col sm:flex-row gap-4">
                 <FormTextfield
                   label="Religion"
@@ -310,7 +315,7 @@ const Body = (props) => {
               </div>
             )}
 
-            {!isStaffRole && (
+            {!hidePersonal && (
               <FormTextfield
                 label="Place of Birth"
                 name="place_of_birth"

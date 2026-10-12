@@ -202,7 +202,7 @@ const About = (props) => {
                 </ProfileSectionWrapper>
                 <ProfileSectionWrapper title="Contact Information" icon={Home}>
                     <div className="">
-                        {!['super_admin', 'sub_admin'].includes(props.data.user_type) &&
+                        {props.data.user_type !== 'sub_admin' &&
                         <div className="grid gap-3">
                             <AddressDisplay
                                 title="Current Address"
@@ -217,7 +217,7 @@ const About = (props) => {
                             title="Email"
                             desc={props.data.email || 'N/A'}
                         />
-                        {!['super_admin', 'sub_admin'].includes(props.data.user_type) &&
+                        {props.data.user_type !== 'sub_admin' &&
                         <Label
                             title="Phone Number"
                             desc={props.data.phone_number || 'N/A'}

@@ -2,7 +2,7 @@ import { getProfilePic } from "@/others/function"
 import ProfilePic from "../other/profile-pic"
 import { Link, router } from "@inertiajs/react"
 import { motion, AnimatePresence } from "framer-motion"
-import { User, Settings, LogOut, ChevronRight } from "lucide-react"
+import { User, Settings, LogOut, ChevronRight, History } from "lucide-react"
 
 const roleLabel = (identity) => {
     switch (identity?.role) {
@@ -61,6 +61,7 @@ const AccountModal = (props) => {
             <div className="p-2">
                 <MenuLink href={`/profile/${user.username}`} icon={User}>See Profile</MenuLink>
                 <MenuLink href={'/settings/' + user.username} icon={Settings}>Account Settings</MenuLink>
+                <MenuLink href="/my-activity" icon={History}>My Activity</MenuLink>
             </div>
 
             <div className="border-t border-gray-100 p-2">

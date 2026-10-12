@@ -375,7 +375,8 @@ const Profile = (props) => {
     // — only the sub_admin (prefect) who actually handles it, or the
     // person who filed it, can view it.
     const canViewOwnComplaints = props.user.role === 'sub_admin' || props.user.id === props.otherUserProfile.id;
-    const showComplaintsFiledTab = canViewOwnComplaints;
+    // The IT admin doesn't file complaints, so their profile has no such tab.
+    const showComplaintsFiledTab = canViewOwnComplaints && props.otherUserProfile.role !== 'super_admin';
     // Referrals, absent forms and gate passes follow the same rule.
     const showReferralsFiledTab = props.otherUserProfile.role === 'teaching_staff' && canViewOwnComplaints;
     const showAbsentFormsFiledTab = props.otherUserProfile.role === 'student' && canViewOwnComplaints;
@@ -542,6 +543,8 @@ const Profile = (props) => {
                                 <div className="min-w-0">
                                     <TabSwitcher tabs={tabOptions} value={tab} onChange={setTab} />
                                 </div>
+                                {/* School year / semester filters don't apply to the IT admin's profile. */}
+                                {props.otherUserProfile.role !== 'super_admin' && (
                                 <div className="flex flex-wrap gap-3 shrink-0">
                                     <div className="w-full sm:w-48">
                                         <DropdownField
@@ -562,6 +565,7 @@ const Profile = (props) => {
                                         />
                                     </div>
                                 </div>
+                                )}
                             </div>
                         )}
                     </div>

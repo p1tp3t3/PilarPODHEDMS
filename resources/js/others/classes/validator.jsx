@@ -279,23 +279,15 @@ export class Validator {
     const canEditProgram = (userType === 'prefect' || userType === 'itrc');
 
     // ===============================================================
-    // ⭐ ITRC CAN ONLY EDIT THEIR OWN PROFILE PICTURE
+    // IT ADMIN PROFILE: only picture, contact number and address are
+    // editable, so only the contact number's format is checked.
     // ===============================================================
-    const isITRC = (userType === 'itrc');
-    const editingOwnAccount = (this.field.user_id === this.user_id); // logged-in user's ID
-
-    if (isITRC && editingOwnAccount) {
-        let errorMessage = {};
-
-        // Profile picture is the ONLY required field
-        if (!field.profile_picture) {
-            errorMessage.profile_picture = 'Profile Picture is required';
-        } else {
-            errorMessage.profile_picture = '';
-        }
-
-        // ⛔ Return immediately — no other validation should run
-        return errorMessage;
+    if (this.role === 'super_admin') {
+        const phone = field.phone_number?.toString().trim();
+        return {
+            contact_number: phone && phone.length !== 11 ? 'Contact Number must be 11 digits' : '',
+            contact_numberAsterisk: '',
+        };
     }
 
 

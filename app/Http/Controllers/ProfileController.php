@@ -103,7 +103,8 @@ class ProfileController extends Controller
         // actually handles them or by the person themselves.
         $canViewOwnComplaints = auth()->user()->role === 'sub_admin' || auth()->id() === $account->id;
 
-        if ($canViewOwnComplaints) {
+        // The IT admin doesn't file complaints, so their profile has no such tab.
+        if ($canViewOwnComplaints && $account->role !== 'super_admin') {
             $props['complaints_filed'] = (new ComplaintController)->getComplainantComplaint($account->id);
         }
 

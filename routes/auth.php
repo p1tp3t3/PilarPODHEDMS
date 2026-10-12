@@ -284,6 +284,8 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/dashboard', [DashboardController::class, 'index'])
           ->name('auth.dashboard');
      Route::get('/dashboard/active-users', [DashboardController::class, 'getActiveUsers']);
+     // Each user's own action log ("My Activity").
+     Route::get('/my-activity', [\App\Http\Controllers\ActivityLogController::class, 'index']);
      Route::post('/api/bargraph', [DashboardController::class, 'getBargraph']);
      Route::get('/dashboard/my-current-semester-records', [DashboardController::class, 'myCurrentSemesterRecords']);
      Route::get('/dashboard/all-current-semester-records', [DashboardController::class, 'allCurrentSemesterRecords']);
