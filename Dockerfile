@@ -47,7 +47,7 @@ WORKDIR /var/www/html
 # Install PHP dependencies before copying the rest of the app so this layer
 # is only rebuilt when composer.json/composer.lock actually change.
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction --ignore-platform-reqs
 
 COPY . .
 COPY --from=frontend /app/public/build public/build

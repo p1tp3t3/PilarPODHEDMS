@@ -7,7 +7,7 @@ import { router } from "@inertiajs/react"
 import SearchUserBar from "@/Components/input/search-user-bar"
 import DropdownField from "../../input/dropdown"
 import { ComplaintService } from "@/others/services/complaint-service"
-import { showOutputModal, showWarningModal, getProfilePic, toTitleCase } from "@/others/function"
+import { showOutputModal, showWarningModal, getProfilePic, toTitleCase, isSamePerson } from "@/others/function"
 import PicVidUpload from "@/Components/input/pic-vid-upload"
 import ProfilePic from "@/Components/other/profile-pic"
 import { X } from "lucide-react"
@@ -70,10 +70,9 @@ const EditComplaintModal = (props) => {
 
     const handleSearch = (e) => setSearch(e.target.value)
 
-    const getSelectedStudent = (i) => {
-        const select = props.student_list.find((e) => e.id == i)
+    const getSelectedStudent = (i, select) => {
         setSelectedStudents((prev) => {
-            if (prev.some((student) => student.id === select.id)) return prev
+            if (prev.some((student) => isSamePerson(student, select))) return prev
             return [...prev, select]
         })
         setSearch('')

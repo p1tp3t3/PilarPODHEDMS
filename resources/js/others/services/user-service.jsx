@@ -34,7 +34,7 @@ const writeSearchCache = (key, data) => {
 
 export const UserService = {
     search(apiLink, search, setter) {
-        const cacheKey = `${apiLink}?search=${search}`;
+        const cacheKey = `${apiLink}${apiLink.includes("?") ? "&" : "?"}search=${search}`;
         const cached = readSearchCache(cacheKey);
 
         if (cached != null) {
@@ -42,7 +42,7 @@ export const UserService = {
             return;
         }
 
-        const api = new APIRequest(`${apiLink}?search=${search}`, "get");
+        const api = new APIRequest(cacheKey, "get");
         api.setSetter((data) => {
             writeSearchCache(cacheKey, data);
             setter(data);

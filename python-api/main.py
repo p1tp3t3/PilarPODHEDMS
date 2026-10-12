@@ -1,5 +1,6 @@
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template, Response
 from flask_cors import CORS
+import pandas as pd
 from model_training.config_model import model_eivp, model_cca
 
 app = Flask(__name__)
@@ -79,10 +80,52 @@ def append_logistic_test_data():
 
 @app.route('/python/model/train', methods=['POST'])
 def train_model():
-    model_eivp.train_model(True)
+    evaluation = model_eivp.train_model(True)
     return jsonify({
         'status': 'success',
-        'message': 'Model trained successfully'
+        'message': 'Model trained successfully',
+        'eval': evaluation,
+        'model': model_eivp.status(),
+    })
+
+# --- Maintenance page: status + management of both models ---
+@app.route('/python/model/status', methods=['GET'])
+def models_status():
+    return jsonify({
+        'eivp': model_eivp.status(),
+        'cca': model_cca.status(),
+    })
+
+@app.route('/python/model/eivp/dataset', methods=['GET'])
+def download_eivp_dataset():
+    with open(model_eivp.csv_path(), encoding='utf-8') as f:
+        csv_text = f.read()
+    return Response(csv_text, mimetype='text/csv',
+                    headers={'Content-Disposition': 'attachment; filename=student_violations.csv'})
+
+@app.route('/python/model/eivp/dataset', methods=['POST'])
+def upload_eivp_dataset():
+    file = request.files.get('file')
+    if file is None:
+        return jsonify({'status': 'error', 'message': 'No CSV file uploaded'}), 400
+    try:
+        new_df = pd.read_csv(file)
+        evaluation = model_eivp.replace_dataset(new_df)
+    except (ValueError, pd.errors.ParserError) as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 422
+    return jsonify({
+        'status': 'success',
+        'message': 'Dataset replaced and model retrained',
+        'eval': evaluation,
+        'model': model_eivp.status(),
+    })
+
+@app.route('/python/model/cca/rebuild', methods=['POST'])
+def rebuild_cca():
+    return jsonify({
+        'status': 'success',
+        'message': 'Violation embeddings rebuilt',
+        'model': model_cca.rebuild(),
     })
 
 @app.route('/python/model/predict', methods=['POST'])

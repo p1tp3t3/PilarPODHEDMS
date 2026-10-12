@@ -20,6 +20,7 @@ import {
     BarChart3,
     UserRoundCog,
     ShieldCheck,
+    BrainCircuit,
 } from "lucide-react"
 
 // Single source of truth for every role's sidebar navigation. Each entry is
@@ -61,6 +62,7 @@ export const sidebarPages = [
             { id: "school-year", href: "/super-admin/school-year", icon: Calendar, label: "School Year" },
             { id: "super-admin/roles", href: "/super-admin/roles", icon: ShieldCheck, label: "Roles" },
             { id: "maintenance", href: "/maintenance", icon: Wrench, label: "Maintenance" },
+            { id: "model-training", href: "/super-admin/model-training", icon: BrainCircuit, label: "Model Training" },
         ],
     },
 

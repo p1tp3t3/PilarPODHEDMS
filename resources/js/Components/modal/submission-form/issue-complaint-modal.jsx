@@ -9,7 +9,7 @@ import SelectedUser from "../../other/selected-user"
 import DropdownField from "../../input/dropdown"
 import CheckBoxButton from "@/Components/input/checkbox"
 import { ComplaintService } from "@/others/services/complaint-service"
-import { clearField, showOutputModal, getProfilePic, showWarningModal, toTitleCase, showUserType } from "@/others/function"
+import { clearField, showOutputModal, getProfilePic, showWarningModal, toTitleCase, showUserType, isSamePerson } from "@/others/function"
 import PicVidUpload from "@/Components/input/pic-vid-upload"
 import ProfilePic from "@/Components/other/profile-pic"
 import { X } from "lucide-react"
@@ -121,10 +121,10 @@ const IssueComplaintModal = (props) => {
             console.log('form validation failed')
         }
     }
-    const getSelectedStudent = (i) => {
-        const select = props.student_list.find((e) => e.id == i);
+    const getSelectedStudent = (i, select) => {
+        if (!select) return;
         setSearchedStudent2((prev) => {
-            const alreadyExists = prev.some((student) => student.id === select.id);
+            const alreadyExists = prev.some((student) => isSamePerson(student, select));
             if (alreadyExists) return prev;
             return [...prev, select];
         });

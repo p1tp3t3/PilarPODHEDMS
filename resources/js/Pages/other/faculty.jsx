@@ -36,8 +36,6 @@ const Faculty = (props) => {
                             lim={5}
                             def='Faculy Member Not Found'
                             withLink={true}
-                            link={`/${props.auth.user.user_type}/faculty-list`}
-                            param={true}
                             apiLink="/api/all-users/faculty"
                         />
                     </div>

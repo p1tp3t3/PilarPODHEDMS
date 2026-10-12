@@ -3,10 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pilar College POD Management System Violation Predictor API</title>
+    <title>PODMS ML API</title>
+    <meta name="description" content="Machine learning service of the Pilar College Prefect of Discipline Management System.">
+    <style>
+        :root {
+            --bg: #f3f5f9;
+            --card: #ffffff;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --line: #e5e7eb;
+            --brand: #1d4ed8;
+            --brand-soft: #e8efff;
+            --ok: #16a34a;
+            --ok-soft: #dcfce7;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0f172a;
+                --card: #111c33;
+                --text: #e5e7eb;
+                --muted: #94a3b8;
+                --line: #1f2b45;
+                --brand: #7aa2ff;
+                --brand-soft: #1b2a4d;
+                --ok: #4ade80;
+                --ok-soft: #12321f;
+            }
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font: 15px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+        }
+        .wrap { max-width: 880px; margin: 0 auto; padding: 40px 16px 48px; }
+
+        header { display: flex; align-items: center; gap: 14px; }
+        .mark {
+            width: 48px; height: 48px; border-radius: 12px; flex-shrink: 0;
+            background: var(--brand); color: #fff; display: grid; place-items: center;
+        }
+        h1 { font-size: 22px; margin: 0; line-height: 1.2; }
+        .sub { color: var(--muted); margin: 2px 0 0; font-size: 14px; }
+
+        .status {
+            display: inline-flex; align-items: center; gap: 8px; margin: 20px 0 22px;
+            padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600;
+            background: var(--ok-soft); color: var(--ok);
+        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+        .intro { margin: 0 0 8px; }
+        h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 30px 0 12px; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+        .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; min-width: 0; }
+        .card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .icon {
+            width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+            background: var(--brand-soft); color: var(--brand); display: grid; place-items: center;
+        }
+        .card h3 { margin: 0; font-size: 16px; line-height: 1.3; }
+        .algo { color: var(--muted); font-size: 13px; margin: 2px 0 0; }
+        .card p { margin: 0 0 12px; font-size: 14px; }
+        .card ul { margin: 0; padding-left: 18px; font-size: 14px; color: var(--muted); }
+        .card li { margin: 4px 0; }
+
+        footer { margin-top: 40px; font-size: 12px; color: var(--muted); text-align: center; }
+        @media (max-width: 560px) { h1 { font-size: 19px; } }
+    </style>
 </head>
 <body>
-    <h1>Welcome</h1>
-    <p>This is the official machine learning api for the prefect of discipline management system</p>
+<div class="wrap">
+    <header>
+        <div class="mark" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/>
+                <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/>
+                <path d="M12 5v13"/>
+            </svg>
+        </div>
+        <div>
+            <h1>Prefect of Discipline ML API</h1>
+            <p class="sub">Pilar College of Zamboanga City, Inc. &middot; Higher Education Department</p>
+        </div>
+    </header>
+
+    <div class="status"><span class="dot"></span><span>Service is running</span></div>
+
+    <p class="intro">
+        This is the machine learning service of the Prefect of Discipline Management System. It helps the
+        Prefect of Discipline act early on student behavior and review complaints faster, using the two models below.
+    </p>
+
+    <h2>Models</h2>
+    <div class="grid">
+        <section class="card">
+            <div class="card-head">
+                <div class="icon" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                </div>
+                <div>
+                    <h3>Early Intervention Violation Predictor</h3>
+                    <p class="algo">Logistic Regression</p>
+                </div>
+            </div>
+            <p>Estimates how likely a student is to commit the same violation again, so the Prefect of Discipline can step in before it happens.</p>
+            <ul>
+                <li>Looks at how often the student committed the violation before and how recently.</li>
+                <li>Explains which factors raised the risk.</li>
+                <li>Suggests an intervention to follow up with the student.</li>
+            </ul>
+        </section>
+
+        <section class="card">
+            <div class="card-head">
+                <div class="icon" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><circle cx="11.5" cy="14.5" r="2.5"/><path d="m13.3 16.3 1.7 1.7"/></svg>
+                </div>
+                <div>
+                    <h3>Complaint Context Analyzer</h3>
+                    <p class="algo">Word2Vec + cosine similarity</p>
+                </div>
+            </div>
+            <p>Reads the description of a complaint and suggests which of the school's violations it most likely refers to.</p>
+            <ul>
+                <li>Understands the meaning of words, not just exact matches.</li>
+                <li>Ranks the closest violations from strongest to weakest match.</li>
+                <li>Helps the Prefect of Discipline classify complaints consistently.</li>
+            </ul>
+        </section>
+    </div>
+
+    <footer>&copy; <span id="year"></span> Pilar College of Zamboanga City, Inc. &middot; PODMS Machine Learning API</footer>
+</div>
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
 </body>
 </html>

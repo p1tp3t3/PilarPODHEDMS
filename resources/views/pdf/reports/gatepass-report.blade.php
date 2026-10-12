@@ -20,6 +20,19 @@
     table.records th { background-color: #003366; color: white; padding: 6px; text-align: left; font-size: 12px; }
     table.records td { border: 1px solid #ddd; padding: 6px; font-size: 11px; }
     table.records tr:nth-child(even) { background-color: #f8f9fb; }
+      /* ---- Page fit (DomPDF) ----
+       Margins live on @page so every page gets them, not just the first
+       and last; content then fits inside the printable width and wraps
+       instead of running off the edge. */
+    @page { margin: 18mm 14mm 20mm 14mm; }
+    body { margin: 0 !important; padding: 0 !important; height: auto !important; }
+    html { height: auto !important; margin: 18mm 14mm 20mm 14mm !important; }
+    .page { max-width: none !important; width: auto !important; margin: 0 !important; padding: 0 !important; }
+    table { width: 100% !important; max-width: 100%; }
+    th, td { word-wrap: break-word; overflow-wrap: break-word; }
+    th, td { font-size: 11px !important; padding: 5px 6px !important; line-height: 1.3 !important; }
+    tr { page-break-inside: avoid; }
+    img { max-width: 100%; }
   </style>
 </head>
 <body>

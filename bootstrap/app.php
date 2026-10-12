@@ -27,6 +27,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\CheckMaintenanceMode::class,
             \App\Http\Middleware\PreventWritesDuringMaintenance::class,
             \App\Http\Middleware\ForceAccountSetup::class,
+            \App\Http\Middleware\DecryptEncryptedIds::class,
         ]);
         
         $middleware->alias([

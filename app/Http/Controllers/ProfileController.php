@@ -40,7 +40,7 @@ class ProfileController extends Controller
     // username (treated as sensitive) in search API responses.
     public function redirectById($id)
     {
-        $username = User::where('id', $id)->value('username');
+        $username = User::where('id', decrypt_id($id) ?? abort(404))->value('username');
 
         if (! $username) {
             abort(404, 'User not found.');

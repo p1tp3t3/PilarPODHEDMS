@@ -450,7 +450,7 @@ const Chat = ({ contacts: initialContacts, groups: initialGroups = [] }) => {
                                 return (
                                 <button
                                     key={c.id}
-                                    onClick={() => openContact(c.id, c.encrypted_id, c)}
+                                    onClick={() => openContact(c.id, c.encrypted_id ?? c.id, c)}
                                     className={`w-full text-left px-4 py-3 flex items-center gap-3 border-b border-gray-100 hover:bg-gray-50 ${activeId === c.id ? 'bg-blue-50' : ''}`}
                                 >
                                     <ProfilePic

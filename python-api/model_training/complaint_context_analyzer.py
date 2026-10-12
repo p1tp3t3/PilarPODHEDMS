@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from datetime import datetime, timezone
 from gensim.models import KeyedVectors
 from sklearn.metrics.pairwise import cosine_similarity
 import re
@@ -39,6 +40,7 @@ class ComplaintContextAnalyzer:
 
         # Storage for vectorized violations
         self.violation_vectors = {}
+        self.embedded_at = None
 
         # Load & process
         self._load_google_word2vec()
@@ -133,6 +135,7 @@ class ComplaintContextAnalyzer:
             if vectors:
                 self.violation_vectors[text] = np.mean(vectors, axis=0)
 
+        self.embedded_at = datetime.now(timezone.utc).isoformat()
         print(f"✅ Embedded {len(self.violation_vectors)} violations.")
 
 
@@ -215,3 +218,26 @@ class ComplaintContextAnalyzer:
         # Recompute vectors
         #self._load_google_word2vec()
         self._compute_violation_vectors()
+
+
+    # ---------------------------------------------------------
+    # Maintenance page support
+    # ---------------------------------------------------------
+    def rebuild(self):
+        """Re-reads the violation list and recomputes every embedding."""
+        self.df = pd.read_csv(self.file_name).fillna("")
+        self._compute_violation_vectors()
+        return self.status()
+
+    def status(self):
+        names = list(self.df["violation_text"])
+        not_embedded = [n for n in names if n not in self.violation_vectors]
+        return {
+            "name": "Complaint Context Analyzer",
+            "algorithm": "Word2Vec (Google News, 300d) + cosine similarity",
+            "violations": len(names),
+            "embedded": len(self.violation_vectors),
+            "not_embedded": not_embedded,
+            "with_keywords": int((self.df["keywords"].astype(str).str.strip() != "").sum()) if "keywords" in self.df.columns else 0,
+            "embedded_at": self.embedded_at,
+        }

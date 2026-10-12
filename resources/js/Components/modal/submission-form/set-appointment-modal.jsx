@@ -96,8 +96,8 @@ const AppointmentModal = (props) => {
             }
         )
     }
-    const getSearchedStudentParent = (s) => {
-        const f = props.student_parent_list.filter((e, i) => e.id == s)
+    const getSearchedStudentParent = (s, user) => {
+        const f = [user]
         setSearchedStudentParent(f)
         setSearch('')
         setAppointment((prev) => ({

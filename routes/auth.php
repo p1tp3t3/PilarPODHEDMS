@@ -21,7 +21,7 @@ use App\Http\Controllers\Modules\Report\ReportController;
 use App\Http\Controllers\Modules\System\SystemSettingsController;
 use App\Http\Controllers\Modules\System\SchoolYearController;
 use App\Http\Controllers\Resource\FileController;
-use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\Modules\System\RoleController;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
@@ -45,6 +45,14 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
 
      Route::get('/maintenance/logs', [MaintenanceController::class, 'getLogs']);
      Route::post('/maintenance/logs/clear', [MaintenanceController::class, 'clearLogs']);
+     // Model Training page: status/training of the two Python ML models.
+     Route::get('/super-admin/model-training', [\App\Http\Controllers\Modules\System\ModelTrainingController::class, 'index']);
+     Route::get('/maintenance/models/status', [\App\Http\Controllers\Modules\System\ModelTrainingController::class, 'status']);
+     Route::post('/maintenance/models/predictor/train', [\App\Http\Controllers\Modules\System\ModelTrainingController::class, 'trainPredictor']);
+     Route::get('/maintenance/models/predictor/dataset', [\App\Http\Controllers\Modules\System\ModelTrainingController::class, 'downloadPredictorDataset']);
+     Route::post('/maintenance/models/predictor/dataset', [\App\Http\Controllers\Modules\System\ModelTrainingController::class, 'uploadPredictorDataset']);
+     Route::post('/maintenance/models/analyzer/rebuild', [\App\Http\Controllers\Modules\System\ModelTrainingController::class, 'rebuildAnalyzer']);
+     Route::post('/maintenance/models/analyzer/test', [\App\Http\Controllers\Modules\System\ModelTrainingController::class, 'testAnalyzer']);
      Route::get('/maintenance/logs/download', [MaintenanceController::class, 'downloadLog']);
 
      Route::get('/maintenance/backups', [BackupController::class, 'index']);
@@ -74,10 +82,10 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
 
      Route::post('/super-admin/user-accounts/del', [AccountController::class, 'destroy']);
      Route::post('/super-admin/user-accounts/{id}/role', [AccountController::class, 'changeRole']);
-     Route::get('/super-admin/roles', [\App\Http\Controllers\Modules\System\RoleController::class, 'index']);
-     Route::post('/super-admin/roles', [\App\Http\Controllers\Modules\System\RoleController::class, 'store']);
-     Route::post('/super-admin/roles/{id}/toggle', [\App\Http\Controllers\Modules\System\RoleController::class, 'toggle']);
-     Route::post('/super-admin/roles/{id}/delete', [\App\Http\Controllers\Modules\System\RoleController::class, 'destroy']);
+     Route::get('/super-admin/roles', [RoleController::class, 'index']);
+     Route::post('/super-admin/roles', [RoleController::class, 'store']);
+     Route::post('/super-admin/roles/{id}/toggle', [RoleController::class, 'toggle']);
+     Route::post('/super-admin/roles/{id}/delete', [RoleController::class, 'destroy']);
      Route::get('/super-admin/user-accounts/{id}/roles', [AccountController::class, 'roleHistory']);
 
      Route::get('/super-admin/student-list', [AccountController::class, 'studentListIndex']);
@@ -338,8 +346,6 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/notifications', [NotificationController::class, 'index']);
      Route::post('/notifications/delete/{type}', [NotificationController::class, 'destroy']);
      Route::post('/notification/read', [NotificationController::class, 'markAsRead']);
-
-     Route::get('/transaction/limit', [TransactionController::class, 'getLimit']);
 
      Route::get('/student-violation/{id}', [ViolationController::class, 'studentViolationIndex']);
      Route::get('/incident/list/{id}', [ViolationController::class, 'getStudentIncident']);

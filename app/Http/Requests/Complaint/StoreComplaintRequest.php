@@ -12,6 +12,18 @@ class StoreComplaintRequest extends FormRequest
         return true;
     }
 
+    /**
+     * Search ids arrive encrypted (decrypted by DecryptEncryptedIds), and
+     * the same student picked through two searches carries two different
+     * tokens, so drop any repeat once they're plain ids.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (is_array($this->input('student_subjects'))) {
+            $this->merge(['student_subjects' => array_values(array_unique($this->input('student_subjects')))]);
+        }
+    }
+
     public function rules(): array
     {
         return [

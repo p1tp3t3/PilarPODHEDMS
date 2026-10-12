@@ -3,9 +3,16 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, roc_auc_score, classification_report
+from sklearn.model_selection import train_test_split, StratifiedKFold, cross_validate
+from sklearn.metrics import (
+    accuracy_score, roc_auc_score, classification_report,
+    precision_score, recall_score, f1_score, confusion_matrix, roc_curve,
+)
 import joblib
+import json
+import os
+import shutil
+from datetime import datetime, timezone
 import numpy as np
 import re
 import torch
@@ -51,7 +58,11 @@ class EarlyInterventionViolationPredictor:
         self.file = file
         self.df = pd.read_csv(f"./dataset/{self.file}.csv")
         self.model_name = f'./model_training/notebook/early-intervention-violation-predictor-model'
+        # Last training run's metrics, kept next to the model so they
+        # survive a restart (the maintenance page reads them).
+        self.meta_path = f'./model_training/notebook/early-intervention-violation-predictor-meta.json'
         self.model = None
+        self.last_eval = None
 
         # Loads (and downloads, on first run) the recommendation model right
         # away instead of on the first /python/model/predict request, so
@@ -164,10 +175,27 @@ class EarlyInterventionViolationPredictor:
             pred = eval_model.predict(Xte)
             proba = eval_model.predict_proba(Xte)[:, 1]
 
+            # ROC curve thinned to ~60 points so the payload stays small.
+            fpr, tpr, _ = roc_curve(yte, proba)
+            step = max(1, len(fpr) // 60)
+            keep = list(range(0, len(fpr), step))
+            if keep[-1] != len(fpr) - 1:
+                keep.append(len(fpr) - 1)
+
             self.last_eval = {
                 "accuracy": float(accuracy_score(yte, pred)),
                 "roc_auc": float(roc_auc_score(yte, proba)),
+                "precision": float(precision_score(yte, pred, zero_division=0)),
+                "recall": float(recall_score(yte, pred, zero_division=0)),
+                "f1": float(f1_score(yte, pred, zero_division=0)),
                 "test_size": int(len(yte)),
+                # [[true negative, false positive], [false negative, true positive]]
+                "confusion_matrix": confusion_matrix(yte, pred, labels=[0, 1]).tolist(),
+                "roc_curve": {
+                    "fpr": [round(float(fpr[i]), 4) for i in keep],
+                    "tpr": [round(float(tpr[i]), 4) for i in keep],
+                },
+                "cv": self._cross_validate(build_pipeline, X, y),
             }
             print(
                 f"[eval] held-out accuracy={self.last_eval['accuracy']:.4f} "
@@ -187,6 +215,8 @@ class EarlyInterventionViolationPredictor:
         print('model trained successfully')
         if save:
             self.save_model()
+            self._save_meta()
+        return self.last_eval
 
     def predict(self, data):
         model = joblib.load(self.model_name)
@@ -382,4 +412,95 @@ class EarlyInterventionViolationPredictor:
         
     def save_model(self):
         joblib.dump(self.model, self.model_name)
+
+    @staticmethod
+    def _cross_validate(build_pipeline, X, y, k=5):
+        """Stratified k-fold scores (per fold + mean/std) for the
+        maintenance page's cross-validation chart. None when a class has
+        too few rows to split k ways."""
+        k = min(k, int(y.value_counts().min()))
+        if k < 2:
+            return None
+        metrics = ["accuracy", "roc_auc", "precision", "recall", "f1"]
+        res = cross_validate(
+            build_pipeline(), X, y,
+            cv=StratifiedKFold(n_splits=k, shuffle=True, random_state=42),
+            scoring=metrics,
+        )
+        folds = [
+            {"fold": i + 1, **{m: float(res[f"test_{m}"][i]) for m in metrics}}
+            for i in range(k)
+        ]
+        return {
+            "k": k,
+            "folds": folds,
+            "mean": {m: float(np.mean(res[f"test_{m}"])) for m in metrics},
+            "std": {m: float(np.std(res[f"test_{m}"])) for m in metrics},
+        }
+
+    # ------------------------------------------------------------------
+    # Maintenance page support
+    # ------------------------------------------------------------------
+    REQUIRED_COLUMNS = [
+        "violation_type",
+        "past_repeat_same_violation_count",
+        "recent_same_violation_count",
+        "months_since_last_same_violation",
+        "will_repeat_the_same_violation",
+    ]
+
+    def csv_path(self):
+        return f"./dataset/{self.file}.csv"
+
+    def _save_meta(self):
+        meta = {
+            "trained_at": datetime.now(timezone.utc).isoformat(),
+            "rows": int(len(self.df)),
+            "eval": self.last_eval,
+        }
+        with open(self.meta_path, "w", encoding="utf-8") as f:
+            json.dump(meta, f)
+
+    def status(self):
+        df = pd.read_csv(self.csv_path())
+        target = df["will_repeat_the_same_violation"].astype(int)
+        meta = {}
+        if os.path.exists(self.meta_path):
+            with open(self.meta_path, encoding="utf-8") as f:
+                meta = json.load(f)
+        trained_at = meta.get("trained_at")
+        if not trained_at and os.path.exists(self.model_name):
+            trained_at = datetime.fromtimestamp(os.path.getmtime(self.model_name), timezone.utc).isoformat()
+        return {
+            "name": "Early Intervention Violation Predictor",
+            "algorithm": "Logistic Regression",
+            "dataset_rows": int(len(df)),
+            "will_repeat": int((target == 1).sum()),
+            "will_not_repeat": int((target == 0).sum()),
+            "violation_types": int(df["violation_type"].nunique()),
+            "model_exists": os.path.exists(self.model_name),
+            "trained_at": trained_at,
+            "trained_rows": meta.get("rows"),
+            "eval": meta.get("eval"),
+        }
+
+    def replace_dataset(self, new_df):
+        """Validates an uploaded dataset, keeps a .bak of the current one,
+        swaps it in and retrains. Raises ValueError with a readable message."""
+        missing = [c for c in self.REQUIRED_COLUMNS if c not in new_df.columns]
+        if missing:
+            raise ValueError("Missing column(s): " + ", ".join(missing))
+        new_df = new_df[self.REQUIRED_COLUMNS].dropna()
+        if len(new_df) < 20:
+            raise ValueError("The dataset needs at least 20 complete rows.")
+        labels = set(new_df["will_repeat_the_same_violation"].astype(int).unique())
+        if not labels <= {0, 1} or len(labels) < 2:
+            raise ValueError("will_repeat_the_same_violation must contain both 0 and 1 values.")
+        for c in self.REQUIRED_COLUMNS[1:]:
+            new_df[c] = pd.to_numeric(new_df[c], errors="raise").astype(int)
+
+        shutil.copyfile(self.csv_path(), self.csv_path() + ".bak")
+        new_df.to_csv(self.csv_path(), index=False)
+        self.df = pd.read_csv(self.csv_path())
+        return self.train_model(True)
         print('model has been updated')

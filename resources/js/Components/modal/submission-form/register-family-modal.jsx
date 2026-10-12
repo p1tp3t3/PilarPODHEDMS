@@ -5,7 +5,7 @@ import FormTextfield from "@/Components/input/form-input"
 import ProfilePic from "@/Components/other/profile-pic"
 import FormButton from "@/Components/button/button"
 import { FamilyService } from "@/others/services/family-service"
-import { getProfilePic, includeObjAtt, showOutputModal, showWarningModal, toTitleCase, showUserType } from "@/others/function"
+import { getProfilePic, includeObjAtt, showOutputModal, showWarningModal, toTitleCase, showUserType, isSamePerson } from "@/others/function"
 import { Validator } from "@/others/classes/validator"
 import CheckBoxButton from "@/Components/input/checkbox"
 import TabSwitcher from "@/Components/other/tab-switcher"
@@ -147,10 +147,9 @@ const RegisterFamilyModal = (props) => {
         })
     }
 
-    const getSelectedStudent = (i) => {
-        const select = props.student_list.find((e) => e.id == i)
+    const getSelectedStudent = (i, select) => {
         setSearchedStudent((prev) => {
-            const alreadyExists = prev.some((student) => student.id === select.id)
+            const alreadyExists = prev.some((student) => isSamePerson(student, select))
             if (alreadyExists) return prev
             return [...prev, select]
         })

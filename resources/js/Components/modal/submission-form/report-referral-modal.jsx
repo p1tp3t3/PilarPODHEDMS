@@ -5,7 +5,7 @@ import RichTextEditor from "@/Components/input/rich-text-editor"
 import FormButton from "@/Components/button/button"
 import { useState, useEffect } from "react"
 import { router } from "@inertiajs/react"
-import { getProfilePic, showWarningModal, showOutputModal, toTitleCase } from "@/others/function"
+import { getProfilePic, showWarningModal, showOutputModal, toTitleCase, isSamePerson } from "@/others/function"
 import { ReferralService } from "@/others/services/referral-service"
 import { X } from "lucide-react"
 
@@ -28,10 +28,9 @@ const ReportReferralModal = (props) => {
 
     const handleSearch = (e) => setSearch(e.target.value)
 
-    const getSelectedStudent = (i) => {
-        const select = props.students.find((e) => e.id == i)
+    const getSelectedStudent = (i, select) => {
         setSelectedStudents((prev) => {
-            if (prev.some((student) => student.id === select.id)) return prev
+            if (prev.some((student) => isSamePerson(student, select))) return prev
             return [...prev, select]
         })
         setSearch("")

@@ -96,8 +96,8 @@ const GenerateReportModal = (props) => {
             ReportArchiveService.createReportFilter(data, onSuccess, onError)
         }
     }
-    const getSearchedComplainant = (s) => {
-        const f = props.students.filter((e, i) => e.id == s)
+    const getSearchedComplainant = (s, user) => {
+        const f = [user]
         setSearchedComplainant(f)
         setSearchComplainant('')
         setData((prev) => ({

@@ -13,16 +13,17 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * leave the server for a plain user search. Role-specific fields
  * (program/enrollments, parent, teaching_staff) are only present for the
  * role they actually apply to, instead of always showing up null.
+ *
+ * The id always goes out encrypted and id_number is never included; forms
+ * post the token back and DecryptEncryptedIds turns it into the plain id.
  */
 class UserSearchResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
         $latestEnrollment = $this->enrollments?->last();
-
         return array_filter([
-            'id' => $this->id,
-            'id_number' => $this->id_number,
+            'id' => encrypt_id($this->id),
             'role' => $this->role,
             'last_seen' => $this->last_seen,
             'profile' => $this->whenLoaded('profile', fn () => [

@@ -39,11 +39,7 @@ class FileController extends Controller
             abort(404);
         }
 
-        $mimeType = mime_content_type($path);
-
-        return response()->file($path, [
-            'Content-Type' => $mimeType,
-        ]);
+        return response()->file($path);
     }
 
     public function getUserAssets($username, $type)

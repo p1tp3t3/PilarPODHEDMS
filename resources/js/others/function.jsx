@@ -443,6 +443,12 @@ export const inputValidation = (type, input, length = 8) => {
     }
     return true;
 }
+// User searches return encrypted ids that differ on every search, so two
+// results are the same person when their name and role line match.
+export const isSamePerson = (a, b) => {
+    const key = (u) => [u?.profile?.first_name, u?.profile?.middle_name, u?.profile?.last_name, showUserType(u ?? {})].join("|")
+    return key(a) === key(b)
+}
 export const includeObjAtt = (arr, att) => {
     const filtered = arr.map(obj =>
         Object.fromEntries(

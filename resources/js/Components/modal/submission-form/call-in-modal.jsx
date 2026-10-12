@@ -52,8 +52,8 @@ const CallInModal = (props) => {
             AppointmentService.callIn(data, success, error)
         }
     }
-    const getSearchedStudent = (s) => {
-        const f = props.student_list.filter((e, i) => e.id == s)
+    const getSearchedStudent = (s, user) => {
+        const f = [user]
         setSearchedStudent(f)
         setData((prev) => ({
             ...prev,
