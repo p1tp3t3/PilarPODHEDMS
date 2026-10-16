@@ -511,6 +511,19 @@ const Profile = (props) => {
                                         <p className="text-[1.1em] sm:text-[1.3em] text-gray-700">
                                             #{user.id_number}
                                         </p>
+                                        {/* Earlier ID numbers, e.g. the student ID of someone who is now staff. */}
+                                        {props.previous_id_numbers?.length > 0 && (
+                                            <p className="text-[0.8em] text-gray-500 -mt-1 md:-mt-2">
+                                                Previously:{" "}
+                                                {props.previous_id_numbers.map((h, i) => (
+                                                    <span key={i}>
+                                                        {i > 0 && ", "}
+                                                        <span className="font-semibold uppercase">#{h.id_number}</span>
+                                                        {h.role && ` (${h.role.label ?? h.role.name})`}
+                                                    </span>
+                                                ))}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
 

@@ -69,7 +69,10 @@ class AccountController extends Controller
      */
     public function changeRole(Request $request, $id)
     {
-        $request->validate(['role' => 'required|exists:roles,name,is_active,1']);
+        $request->validate([
+            'role' => 'required|exists:roles,name,is_active,1',
+            'id_number' => 'nullable|string|max:50',
+        ]);
         $to = $request->role;
 
         $nonTeachingPositions = Position::whereNotIn('name', self::TEACHING_POSITIONS)->pluck('name')->all();
@@ -101,6 +104,29 @@ class AccountController extends Controller
         if ($from === $to) {
             return response()->json(['message' => 'The user already has this role.'], 422);
         }
+        // IT Admin / Prefect accounts come from the school's staff: only
+        // teaching or non-teaching staff (or an existing admin moving
+        // between the two admin roles) can be given either admin role.
+        $adminRoles = ['super_admin', 'sub_admin'];
+        if (in_array($to, $adminRoles, true) && ! in_array($from, ['teaching_staff', 'non_teaching_staff', ...$adminRoles], true)) {
+            return response()->json(['message' => 'Only teaching or non-teaching staff can be assigned as IT Admin or Prefect.'], 422);
+        }
+
+        // A role change can come with a new ID number (e.g. a student who
+        // becomes staff gets a staff ID); the old one is kept as history,
+        // never overwritten. Moving between a student and a staff role
+        // always needs one.
+        $newId = trim((string) $request->input('id_number', ''));
+        $idChanges = $newId !== '' && strcasecmp($newId, (string) $user->id_number) !== 0;
+        $staffRoles = ['teaching_staff', 'non_teaching_staff'];
+        $studentStaffSwitch = ($from === 'student' && in_array($to, $staffRoles, true))
+            || (in_array($from, $staffRoles, true) && $to === 'student');
+        if ($studentStaffSwitch && ! $idChanges) {
+            return response()->json(['message' => 'Enter the new ID number for this account. The current one will be kept in its ID history.'], 422);
+        }
+        if ($idChanges && \App\Models\UserIdNumber::takenByOther($newId, $user->id)) {
+            return response()->json(['message' => "The ID number {$newId} is already used by another account."], 422);
+        }
         if ($from === 'super_admin' && User::whereRole('super_admin')->count() <= 1) {
             return response()->json(['message' => 'This is the only IT Admin account — assign another IT Admin first.'], 422);
         }
@@ -123,7 +149,14 @@ class AccountController extends Controller
             }
         }
 
-        DB::transaction(function () use ($user, $from, $to, $request, $currentSemester) {
+        $oldId = $user->id_number;
+
+        DB::transaction(function () use ($user, $from, $to, $request, $currentSemester, $newId, $idChanges, $oldId) {
+            \App\Models\UserIdNumber::ensureCurrent($user, $from);
+            if ($idChanges) {
+                \App\Models\UserIdNumber::change($user, $newId, $to);
+            }
+
             $user->assignRole($to);
             $this->saveRoleData($user, $to, $request, $currentSemester);
 
@@ -148,7 +181,10 @@ class AccountController extends Controller
                 auth()->id(),
                 'account update',
                 'Changed the role of '.trim(($user->profile?->first_name ?? '').' '.($user->profile?->last_name ?? $user->username)),
-                ['role' => ['from' => $from, 'to' => $to]]
+                array_filter([
+                    'role' => ['from' => $from, 'to' => $to],
+                    'id_number' => $idChanges ? ['from' => $oldId, 'to' => $newId] : null,
+                ])
             );
         });
 
@@ -156,6 +192,7 @@ class AccountController extends Controller
             'message' => 'Role updated successfully.',
             'role' => $user->role,
             'history' => $user->userRoles()->with('role')->get(),
+            'id_numbers' => $user->idNumbers()->get(),
         ]);
     }
 
@@ -226,9 +263,11 @@ class AccountController extends Controller
 
         $teaching = TeachingStaff::with('positionRef')->where('user_id', $id)->first();
         $nonTeaching = NonTeachingStaff::with('positionRef')->where('user_id', $id)->first();
+        \App\Models\UserIdNumber::ensureCurrent($user);
 
         return response()->json([
             'history' => $user->userRoles()->with('role')->get(),
+            'id_numbers' => $user->idNumbers()->get(),
             'existing' => [
                 'student' => Enrollment::where('student_id', $id)->latest('id')->first(['program_id', 'year_level']),
                 'teaching_staff' => $teaching ? ['program_id' => $teaching->program_id, 'position' => $teaching->position] : null,

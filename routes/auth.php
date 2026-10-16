@@ -46,6 +46,7 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      Route::get('/maintenance/logs', [MaintenanceController::class, 'getLogs']);
      Route::post('/maintenance/logs/clear', [MaintenanceController::class, 'clearLogs']);
      // Model Training page: status/training of the two Python ML models.
+     Route::post('/api/user-graph', [\App\Http\Controllers\Auth\DashboardController::class, 'getUserGraphRoute']);
      Route::get('/super-admin/model-training', [\App\Http\Controllers\Modules\System\ModelTrainingController::class, 'index']);
      Route::get('/maintenance/models/status', [\App\Http\Controllers\Modules\System\ModelTrainingController::class, 'status']);
      Route::post('/maintenance/models/predictor/train', [\App\Http\Controllers\Modules\System\ModelTrainingController::class, 'trainPredictor']);

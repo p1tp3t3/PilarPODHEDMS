@@ -31,11 +31,20 @@ const fieldLabels = {
     parent_role: "Parent role",
 }
 
+const ADMIN_ROLES = ["super_admin", "sub_admin"]
+const STAFF_ROLES = ["teaching_staff", "non_teaching_staff"]
+
+// Moving between a student and a staff role always comes with a new ID
+// number (the old one stays in the ID history) — mirrors the server.
+const needsNewId = (from, to) =>
+    (from === "student" && STAFF_ROLES.includes(to)) || (STAFF_ROLES.includes(from) && to === "student")
+
 const ChangeRoleModal = ({ close, closeModal, user, roles = [], programs = [], onChanged, reload }) => {
     const [role, setRole] = useState("")
     const [details, setDetails] = useState(emptyDetails)
     const [info, setInfo] = useState(null)
     const [errors, setErrors] = useState({})
+    const [idNumber, setIdNumber] = useState("")
 
     useEffect(() => {
         if (!close || !user) return
@@ -43,12 +52,16 @@ const ChangeRoleModal = ({ close, closeModal, user, roles = [], programs = [], o
         setDetails(emptyDetails)
         setErrors({})
         setInfo(null)
+        setIdNumber(user.id_number ?? "")
         AccountService.getRoleHistory(user.encrypted_id, setInfo, () => setInfo({ history: [], existing: {}, positions: {} }))
     }, [close, user?.id])
 
     if (!user) return null
 
     const labelOf = (name) => roles.find((r) => r.name === name)?.label ?? name
+    // IT Admin / Prefect can only go to teaching or non-teaching staff (or
+    // an existing admin switching between the two) — mirrors the server.
+    const canBeAdmin = ["teaching_staff", "non_teaching_staff", ...ADMIN_ROLES].includes(user?.role)
     const name = `${user.profile?.first_name ?? ""} ${user.profile?.last_name ?? ""}`.trim() || user.username
 
     // Prefill from whatever this user already has on record for the role.
@@ -69,6 +82,10 @@ const ChangeRoleModal = ({ close, closeModal, user, roles = [], programs = [], o
         e.preventDefault()
         const errs = {}
         if (!role) errs.role = "Please select the new role."
+        const idChanged = idNumber.trim() !== "" && idNumber.trim().toLowerCase() !== (user.id_number ?? "").toLowerCase()
+        if (role && needsNewId(user.role, role) && !idChanged) {
+            errs.id_number = "Enter the new ID number for this role. The current one is kept in the ID history."
+        }
         for (const f of requiredFields[role] ?? []) {
             if (!details[f]) errs[f] = `${fieldLabels[f]} is required.`
         }
@@ -77,9 +94,10 @@ const ChangeRoleModal = ({ close, closeModal, user, roles = [], programs = [], o
 
         const payload = { role, ...Object.fromEntries((requiredFields[role] ?? []).map((f) => [f, details[f]])) }
         if (role === "parent") payload.work_occupation = details.work_occupation
+        if (idChanged) payload.id_number = idNumber.trim()
 
         showWarningModal(
-            `Change ${name}'s role from ${labelOf(user.role)} to ${labelOf(role)}? Their menus, access and permissions will switch to the new role.`,
+            `Change ${name}'s role from ${labelOf(user.role)} to ${labelOf(role)}?${idChanged ? ` Their ID number changes from ${user.id_number} to ${idNumber.trim()} (the old one is kept in the ID history).` : ""} Their menus, access and permissions will switch to the new role.`,
             "Change Role",
             "Cancel",
             () => {
@@ -109,6 +127,7 @@ const ChangeRoleModal = ({ close, closeModal, user, roles = [], programs = [], o
     const programList = programs.map((p) => ({ val: p.id, label: p.name }))
     const positions = info?.positions ?? {}
     const history = info?.history
+    const idHistory = info?.id_numbers
 
     return (
         <UpModal close={close} closeModal={closeModal} isEnableOuterClose={true} pd={["px-6", "py-6"]} bgColor="bg-white" w="w-[32rem]">
@@ -123,13 +142,34 @@ const ChangeRoleModal = ({ close, closeModal, user, roles = [], programs = [], o
                 <div className="grid gap-1">
                     <DropdownField
                         default={{ val: "", label: "Select New Role" }}
-                        list={roles.filter((r) => r.name !== user.role && r.is_active).map((r) => ({ val: r.name, label: r.label }))}
+                        list={roles.filter((r) => r.name !== user.role && r.is_active && (canBeAdmin || !ADMIN_ROLES.includes(r.name))).map((r) => ({ val: r.name, label: r.label }))}
                         onChange={(e) => pickRole(e.target.value)}
                         name="role"
                         val={role}
                         keepCase={true}
                     />
                     {errorText("role")}
+                    {!canBeAdmin && (
+                        <p className="text-[0.75em] text-gray-500">IT Admin and Prefect can only be assigned to teaching or non-teaching staff.</p>
+                    )}
+                </div>
+
+                <div className="grid gap-1">
+                    <FormTextfield
+                        label={role && needsNewId(user.role, role) ? "New ID Number" : "ID Number"}
+                        name="id_number"
+                        val={idNumber}
+                        change={(e) => {
+                            setIdNumber(e.target.value)
+                            setErrors((prev) => ({ ...prev, id_number: null }))
+                        }}
+                    />
+                    {errorText("id_number")}
+                    <p className="text-[0.75em] text-gray-500">
+                        {role && needsNewId(user.role, role)
+                            ? `A new ${labelOf(role)} ID is required. ${user.id_number} will be kept in the ID history.`
+                            : "Leave as is to keep the current ID. A changed ID is saved to the history, not overwritten."}
+                    </p>
                 </div>
 
                 {requiredFields[role] && (
@@ -228,6 +268,26 @@ const ChangeRoleModal = ({ close, closeModal, user, roles = [], programs = [], o
                         </ul>
                     )}
                 </div>
+
+                {idHistory?.length > 0 && (
+                <div className="grid gap-2">
+                    <h2 className="text-[0.85em] font-semibold">ID Number History</h2>
+                    <ul className="grid gap-1.5">
+                        {[...idHistory].reverse().map((h) => (
+                            <li key={h.id} className="flex items-center justify-between gap-3 text-[0.8em] rounded-md bg-gray-50 border border-gray-200 px-3 py-2">
+                                <span className="font-medium min-w-0">
+                                    <span className="uppercase">{h.id_number}</span>
+                                    {h.role && <span className="ml-2 text-gray-500">{h.role.label ?? h.role.name}</span>}
+                                    {!h.ended_at && <span className="ml-2 text-[0.85em] text-green-700 font-semibold">Current</span>}
+                                </span>
+                                <span className="text-gray-500 shrink-0">
+                                    {readableDate(h.started_at)}{h.ended_at ? ` – ${readableDate(h.ended_at)}` : " – present"}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+                )}
 
                 <div className="flex justify-end">
                     <FormButton type="submit" label="Save Role" />

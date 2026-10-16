@@ -78,6 +78,12 @@ class User extends Authenticatable implements MustVerifyEmail
         return $saved;
     }
 
+    /** Every ID number this user has had; the current one has ended_at null. */
+    public function idNumbers(): HasMany
+    {
+        return $this->hasMany(UserIdNumber::class)->with('role:id,name,label')->orderBy('started_at')->orderBy('id');
+    }
+
     public function userRoles(): HasMany
     {
         return $this->hasMany(UserRole::class, 'user_id')->orderBy('id');
@@ -114,6 +120,11 @@ class User extends Authenticatable implements MustVerifyEmail
         $current = $this->currentUserRole()->first();
         if ($current && $current->role_id === Role::idFor($role)) {
             return $current;
+        }
+
+        // A brand-new account: its starting ID number goes on record.
+        if (! $current) {
+            UserIdNumber::ensureCurrent($this, $role);
         }
 
         $userRole = UserRole::create([

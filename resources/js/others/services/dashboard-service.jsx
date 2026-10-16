@@ -1,6 +1,10 @@
 import { APIRequest } from "../classes/api-req";
 
 export const DashboardService = {
+    getUserGraph(filter, setter) {
+        const api = new APIRequest("/api/user-graph", "post", { filter }, setter);
+        api.fetchData();
+    },
     getBargraph(filter, setter) {
         const api = new APIRequest("/api/bargraph", "post", { filter }, setter);
         api.fetchData();

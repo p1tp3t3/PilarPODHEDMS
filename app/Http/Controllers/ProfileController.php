@@ -65,6 +65,11 @@ class ProfileController extends Controller
             // used to gate seeing a student's enrollment history below.
             'user' => User::with('teachingStaff')->find(auth()->id()),
             'otherUserProfile' => $account,
+            // Earlier ID numbers (e.g. the student ID of someone now staff).
+            'previous_id_numbers' => \App\Models\UserIdNumber::where('user_id', $account->id)
+                ->with('role:id,name,label')
+                ->whereNotNull('ended_at')->orderByDesc('ended_at')
+                ->get(['id_number', 'role_id', 'started_at', 'ended_at']),
             'studentPrograms' => User::with('program')->where('id', auth()->user()->id)->first(),
             'school_years' => SchoolYear::orderByDesc('year')->get(['id', 'year']),
         ];

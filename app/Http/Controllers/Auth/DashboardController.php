@@ -153,36 +153,6 @@ class DashboardController extends Controller
 
         $complaint = Complaint::where('complainant_id', auth()->id())->count('case_number');
 
-        $currentRoles = DB::table('user_roles as ur')
-            ->join('roles as r', 'r.id', '=', 'ur.role_id')
-            ->whereRaw('ur.id = (select max(ur2.id) from user_roles as ur2 where ur2.user_id = ur.user_id)')
-            ->select('ur.user_id', 'r.name as role');
-
-        $roles = DB::query()->fromSub($currentRoles, 'cr')->distinct()->pluck('role')->values()->toArray();
-
-        $raw = DB::table('users as u')
-            ->joinSub($currentRoles, 'cr', 'cr.user_id', '=', 'u.id')
-            ->selectRaw('MONTH(u.created_at) as month, cr.role, COUNT(*) as count')
-            ->groupByRaw('MONTH(u.created_at), cr.role')
-            ->get();
-
-        $monthlyData = [];
-        for ($i = 1; $i <= 12; $i++) {
-            $monthlyData[$i] = [
-                'month' => Carbon::create()->month($i)->format('M'),
-                'count' => array_fill(0, count($roles), 0),
-            ];
-        }
-
-        foreach ($raw as $row) {
-            $month = (int) $row->month;
-            $roleIndex = array_search($row->role, $roles);
-
-            if ($roleIndex !== false) {
-                $monthlyData[$month]['count'][$roleIndex] = (int) $row->count;
-            }
-        }
-
         return [
             'new_users' => $account->newUsers(),
             'new_users_week_start' => now()->startOfWeek()->toDateString(),
@@ -196,8 +166,9 @@ class DashboardController extends Controller
             'total_roles' => \App\Models\Role::count(),
             'active_roles' => \App\Models\Role::active()->count(),
             'maintenance_mode' => Cache::get('maintenance_mode', false),
-            'bargraph' => array_values($monthlyData),
-            'role' => $roles,
+            'user_graph' => self::getUserGraph(),
+            'graph_school_years' => \App\Models\SchoolYear::orderByDesc('year')->get(['id', 'year']),
+            'current_school_year_id' => SchoolYearSemester::current()?->school_year_id,
             'active' => User::with('profile')
                 ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
                 ->whereNot('id', auth()->id())
@@ -448,31 +419,7 @@ class DashboardController extends Controller
 
         $programs = Program::orderBy('id')->pluck('id')->all();
 
-        if ($scope === 'monthly') {
-            $start = preg_match('/^\d{4}-\d{2}$/', (string) $period)
-                ? Carbon::createFromFormat('Y-m-d', "{$period}-01")->startOfDay()
-                : now()->startOfMonth();
-            $end = $start->copy()->endOfMonth();
-            $step = 'day';
-        } elseif ($scope === 'yearly') {
-            $year = ctype_digit((string) $period) ? (int) $period : now()->year;
-            $start = Carbon::create($year, 1, 1)->startOfDay();
-            $end = $start->copy()->endOfYear();
-            $step = 'month';
-        } else {
-            $schoolYear = $period
-                ? \App\Models\SchoolYear::with('semesters')->find($period)
-                : SchoolYearSemester::current()?->schoolYear?->load('semesters');
-            $schoolYear ??= \App\Models\SchoolYear::with('semesters')->orderByDesc('year')->first();
-
-            $semesters = $schoolYear?->semesters
-                ->when($semester, fn ($all) => $all->where('semester', $semester));
-            $first = $semesters?->min('date_start');
-            $last = $semesters?->max('date_end');
-            $start = $first ? Carbon::parse($first)->startOfMonth() : now()->startOfYear();
-            $end = $last ? Carbon::parse($last)->endOfMonth() : now()->endOfYear();
-            $step = 'month';
-        }
+        [$start, $end, $step] = self::graphRange($scope, $period, $semester);
 
         $latestEnrollment = DB::table('enrollment')
             ->selectRaw('student_id, MAX(id) AS id')
@@ -499,20 +446,11 @@ class DashboardController extends Controller
             ->groupBy('e.program_id', 'bucket')
             ->get();
 
-        // Every bucket in range, so empty days/months still show on the axis.
-        $buckets = [];
-        for ($cursor = $start->copy(); $cursor->lte($end); $step === 'day' ? $cursor->addDay() : $cursor->addMonthNoOverflow()) {
-            $key = $step === 'day' ? $cursor->format('Y-m-d') : $cursor->format('Y-m');
-            $buckets[$key] = [
-                'label' => match (true) {
-                    $step === 'day' => $cursor->format('M j'),
-                    $scope === 'school_year' => $cursor->format('M Y'),
-                    default => $cursor->format('M'),
-                },
-                'count' => array_fill(0, count($programs), 0),
-                'others' => 0,
-            ];
+        $buckets = self::graphBuckets($start, $end, $step, $scope, count($programs));
+        foreach ($buckets as &$bucket) {
+            $bucket['others'] = 0;
         }
+        unset($bucket);
 
         foreach ($rows as $row) {
             if (! isset($buckets[$row->bucket])) {
@@ -532,6 +470,124 @@ class DashboardController extends Controller
     public function getBargraph()
     {
         return response()->json(self::getPrefectBarGraph());
+    }
+
+    /**
+     * Date range of a dashboard graph filter, shared by the prefect's bar
+     * graph and the super admin's user graph —
+     *   school_year: its 1st semester start month to its 2nd semester end
+     *                month (period = school_year id, default the active one),
+     *                or one semester's months when $semester (1|2) is given,
+     *   yearly:      Jan–Dec of a calendar year (period = YYYY),
+     *   monthly:     each day of one month (period = YYYY-MM).
+     * Returns [start, end, step] where step is 'day' or 'month'.
+     */
+    private static function graphRange(string $scope, $period, ?int $semester): array
+    {
+        if ($scope === 'monthly') {
+            $start = preg_match('/^\d{4}-\d{2}$/', (string) $period)
+                ? Carbon::createFromFormat('Y-m-d', "{$period}-01")->startOfDay()
+                : now()->startOfMonth();
+
+            return [$start, $start->copy()->endOfMonth(), 'day'];
+        }
+
+        if ($scope === 'yearly') {
+            $year = ctype_digit((string) $period) ? (int) $period : now()->year;
+            $start = Carbon::create($year, 1, 1)->startOfDay();
+
+            return [$start, $start->copy()->endOfYear(), 'month'];
+        }
+
+        $schoolYear = $period
+            ? \App\Models\SchoolYear::with('semesters')->find($period)
+            : SchoolYearSemester::current()?->schoolYear?->load('semesters');
+        $schoolYear ??= \App\Models\SchoolYear::with('semesters')->orderByDesc('year')->first();
+
+        $semesters = $schoolYear?->semesters
+            ->when($semester, fn ($all) => $all->where('semester', $semester));
+        $first = $semesters?->min('date_start');
+        $last = $semesters?->max('date_end');
+
+        return [
+            $first ? Carbon::parse($first)->startOfMonth() : now()->startOfYear(),
+            $last ? Carbon::parse($last)->endOfMonth() : now()->endOfYear(),
+            'month',
+        ];
+    }
+
+    /**
+     * Every day/month in the range keyed Y-m-d / Y-m (so empty ones still
+     * show on the axis), each with its axis label and $series zeroed counts.
+     */
+    private static function graphBuckets(Carbon $start, Carbon $end, string $step, string $scope, int $series): array
+    {
+        $buckets = [];
+        for ($cursor = $start->copy(); $cursor->lte($end); $step === 'day' ? $cursor->addDay() : $cursor->addMonthNoOverflow()) {
+            $key = $step === 'day' ? $cursor->format('Y-m-d') : $cursor->format('Y-m');
+            $buckets[$key] = [
+                'label' => match (true) {
+                    $step === 'day' => $cursor->format('M j'),
+                    $scope === 'school_year' => $cursor->format('M Y'),
+                    default => $cursor->format('M'),
+                },
+                'count' => array_fill(0, $series, 0),
+            ];
+        }
+
+        return $buckets;
+    }
+
+    /**
+     * Super admin dashboard line graph: users registered per day/month,
+     * one line per role (the user's current role), over the same
+     * school year / yearly / monthly ranges as the prefect's bar graph.
+     * filter = [scope, period, semester].
+     */
+    public static function getUserGraph(): array
+    {
+        $filter = request('filter', []);
+        $scope = in_array($filter[0] ?? '', ['school_year', 'yearly', 'monthly'], true) ? $filter[0] : 'school_year';
+        $period = $filter[1] ?? null;
+        $semester = in_array((string) ($filter[2] ?? ''), ['1', '2'], true) ? (int) $filter[2] : null;
+
+        [$start, $end, $step] = self::graphRange($scope, $period, $semester);
+
+        $roles = \App\Models\Role::orderBy('id')->get(['name', 'label']);
+        $roleIndex = $roles->pluck('name')->flip();
+
+        $currentRoles = DB::table('user_roles as ur')
+            ->join('roles as r', 'r.id', '=', 'ur.role_id')
+            ->whereRaw('ur.id = (select max(ur2.id) from user_roles as ur2 where ur2.user_id = ur.user_id)')
+            ->select('ur.user_id', 'r.name as role');
+
+        $bucketExpr = $step === 'day'
+            ? "DATE_FORMAT(u.created_at, '%Y-%m-%d')"
+            : "DATE_FORMAT(u.created_at, '%Y-%m')";
+
+        $rows = DB::table('users as u')
+            ->joinSub($currentRoles, 'cr', 'cr.user_id', '=', 'u.id')
+            ->whereBetween('u.created_at', [$start, $end])
+            ->selectRaw("cr.role, {$bucketExpr} AS bucket, COUNT(*) AS count")
+            ->groupBy('cr.role', 'bucket')
+            ->get();
+
+        $buckets = self::graphBuckets($start, $end, $step, $scope, $roles->count());
+        foreach ($rows as $row) {
+            if (isset($buckets[$row->bucket], $roleIndex[$row->role])) {
+                $buckets[$row->bucket]['count'][$roleIndex[$row->role]] = (int) $row->count;
+            }
+        }
+
+        return [
+            'roles' => $roles->map(fn ($r) => ['name' => $r->name, 'label' => $r->label])->values(),
+            'buckets' => array_values($buckets),
+        ];
+    }
+
+    public function getUserGraphRoute()
+    {
+        return response()->json(self::getUserGraph());
     }
 
     /**

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Line } from "react-chartjs-2";
 import { Chart as ChartJS, CategoryScale, LinearScale, LineElement, Title, Tooltip, Legend, PointElement, Filler } from "chart.js";
 import { ChevronDown } from "lucide-react";
@@ -56,7 +56,12 @@ const LineGraph = (props) => {
 
   const allChecked = selected.length === props.dataset.length
 
-  const chartData = {
+  // Pages re-render often (live clocks, presence), handing in fresh but
+  // identical arrays each time. Keying the chart on the data's contents
+  // keeps Chart.js from restarting its draw animation on every render.
+  const dataKey = JSON.stringify([labels, props.dataset.map((d) => [d.label, d.data, d.borderColor, d.backgroundColor])])
+
+  const chartData = useMemo(() => ({
     labels: labels,
     datasets: props.dataset.map((d, i) => {
       const isChecked = selected.includes(i)
@@ -71,9 +76,9 @@ const LineGraph = (props) => {
         order: isHighlighted ? -1 : 0,
       }
     }),
-  }
+  }), [dataKey, selected, allChecked])
 
-  const chartOptions = {
+  const chartOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
     interaction: {
@@ -81,8 +86,12 @@ const LineGraph = (props) => {
       intersect: false,
     },
     plugins: {
+      // Off by default (the type picker doubles as the key); pages that
+      // want the series named on the chart pass showLegend.
       legend: {
-        display: false,
+        display: !!props.showLegend,
+        position: "top",
+        labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true },
       },
       tooltip: {
         filter: (item) => selected.includes(item.datasetIndex),
@@ -115,13 +124,13 @@ const LineGraph = (props) => {
         },
       },
     },
-  }
-    
+  }), [selected, props.showLegend, props.xTitle, props.yTitle])
+
   return (
-    <div className={`${props.w} h-full px-4 py-3 ${props.bg} ${props.withBorder ? 'border rounded-md shadow-md shadow-black/20 border-gray-300' : ''}`}>
-        <div className="text-[1.1em] flex justify-between items-center gap-2">
+    <div className={`${props.w} h-full flex flex-col px-4 py-3 ${props.bg} ${props.withBorder ? 'border rounded-md shadow-md shadow-black/20 border-gray-300' : ''}`}>
+        <div className="text-[1.1em] flex flex-wrap justify-between items-center gap-2">
             <h1><b>{props.title}</b></h1>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 max-sm:w-full">
                 {props.dataset.length > 1 && (
                     <div className="relative" ref={dropdownRef}>
                         <button
@@ -129,7 +138,7 @@ const LineGraph = (props) => {
                             onClick={() => setDropdownOpen((prev) => !prev)}
                             className="flex items-center gap-1 text-[0.8em] border border-gray-300 rounded-md px-2 py-1 bg-white hover:bg-gray-50"
                         >
-                            {allChecked ? "All Types" : `${selected.length} Selected`}
+                            {allChecked ? (props.allLabel ?? "All Types") : `${selected.length} Selected`}
                             <ChevronDown size="0.9em" />
                         </button>
 
@@ -145,7 +154,7 @@ const LineGraph = (props) => {
                                             )
                                         }
                                     />
-                                    <span>All Types</span>
+                                    <span>{props.allLabel ?? "All Types"}</span>
                                 </label>
                                 {props.dataset.map((d, i) => (
                                     <label
@@ -168,10 +177,14 @@ const LineGraph = (props) => {
                         )}
                     </div>
                 )}
-                <div>{props.side}</div>
+                <div className="max-sm:w-full">{props.side}</div>
             </div>
         </div>
-        <Line data={chartData} options={chartOptions} className="w-full h-full" />
+        {/* Chart takes only the space left under the header, so the axis
+            titles aren't pushed out of a fixed-height card. */}
+        <div className="flex-1 min-h-0 relative">
+            <Line data={chartData} options={chartOptions} className="w-full h-full" />
+        </div>
     </div>
   );
 }

@@ -5,18 +5,29 @@ import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule
 import CurrentDateTime from "@/Components/other/current-datetime";
 import SystemInfoPanel from "@/Components/other/system-info-panel";
 import "../style.css";
-import BarGraph from "@/Components/card/bar-graph-statistic-card";
+import LineGraph from "@/Components/card/line-graph-statistic";
+import DropdownField from "@/Components/input/dropdown";
+import { DashboardService } from "@/others/services/dashboard-service";
 import NewUserList from "@/Components/list/new-user-list";
 import "../../Responsive/dashboard-responsive.css";
-import PendingRequestList from "@/Components/list/pending-request-list";
-import { toTitleCase } from "@/others/function";
 import { Head, Link } from "@inertiajs/react";
 import LatestActiveAccountList from "@/Components/list/latest-active-user-list";
 import TabSwitcher from "@/Components/other/tab-switcher";
 import { Broadcast } from "@/others/classes/broadcast-cofiguration";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Users, GraduationCap, FileText, ShieldAlert, AlertTriangle, ShieldCheck } from "lucide-react";
+
+// One fixed color per role so a role keeps its color across filters.
+const ROLE_COLORS = {
+  super_admin: "#6366f1",
+  sub_admin: "#0ea5e9",
+  student: "#16a34a",
+  teaching_staff: "#f59e0b",
+  non_teaching_staff: "#db2777",
+  parent: "#8b5cf6",
+};
+const FALLBACK_COLORS = ["#14b8a6", "#ef4444", "#84cc16", "#64748b"];
 
 const ITRCDashboard = (props) => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -31,51 +42,49 @@ const ITRCDashboard = (props) => {
     ).configure('maintenance mode status (dashboard)');
   }, []);
 
-  const bar = props.bargraph;
-  const userColor = [
-    "#ff6384",
-    "#ffce56",
-    "#ff3e56",
-    "#4bc0c0",
-    "#9966ff",
-    "#ff9f40",
-    "#ff2384",
-  ];
-  const user = props.role;
+  // Users line graph: one line per role, over a school year (optionally
+  // one semester), a calendar year, or one month — same ranges as the
+  // prefect's bar graph.
+  const date = new Date();
+  const currentYear = `${date.getFullYear()}`;
+  const currentMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  const [range, setRange] = useState("school_year");
+  const [schoolYearId, setSchoolYearId] = useState(
+    props.current_school_year_id ?? props.graph_school_years?.[0]?.id ?? ""
+  );
+  const [semester, setSemester] = useState("");
+  const [year, setYear] = useState(currentYear);
+  const [month, setMonth] = useState(currentMonth);
+  const [userGraph, setUserGraph] = useState(props.user_graph ?? { roles: [], buckets: [] });
+  const period = range === "school_year" ? schoolYearId : range === "yearly" ? year : month;
+  const firstLoad = useRef(true);
 
-  const barDataset = () => {
-    const l = [];
-    for (let a = 0; a < user.length; a++) {
-      const c = Array(6).fill(userColor[a]);
-      const r = [];
-      bar.forEach((e) => r.push(e.count[a]));
-      l.push({
-        data: r,
-        label: toTitleCase(user[a]),
-        backgroundColor: c,
-        hoverBackgroundColor: c,
-      });
+  useEffect(() => {
+    // The page already arrives with the default (current school year) data.
+    if (firstLoad.current) {
+      firstLoad.current = false;
+      return;
     }
-    return l;
-  };
+    if (!period) return;
+    DashboardService.getUserGraph([range, period, range === "school_year" ? semester : ""], setUserGraph);
+  }, [range, period, semester]);
 
-  const month = [
-    "JAN",
-    "FEB",
-    "MAR",
-    "APR",
-    "MAY",
-    "JUN",
-    "JUL",
-    "AUG",
-    "SEPT",
-    "OCT",
-    "NOV",
-    "DEC",
-  ];
+  const userGraphDataset = (userGraph.roles ?? []).map((role, i) => {
+    const color = ROLE_COLORS[role.name] ?? FALLBACK_COLORS[i % FALLBACK_COLORS.length];
+    return {
+      label: role.label,
+      data: (userGraph.buckets ?? []).map((b) => b.count?.[i] ?? 0),
+      borderColor: color,
+      backgroundColor: color,
+      fill: false,
+      tension: 0.2,
+    };
+  });
 
-  const handleBarClick = (e) => {
-    console.log(e);
+  const yearOptions = () => {
+    const list = [];
+    for (let y = date.getFullYear(); y >= 2024; y--) list.push({ val: `${y}`, label: `${y}` });
+    return list;
   };
 
   return (
@@ -112,8 +121,10 @@ const ITRCDashboard = (props) => {
           />
 
           {activeTab === "overview" && (
-          <div className="w-full flex flex-col gap-6 lg:gap-8">
-          <div className="-mb-4 lg:-mb-6">
+          <div className="w-full flex flex-col gap-5">
+          {/* Date/time and current school year side by side; both banners
+              carry their own bottom margin elsewhere, cancelled here. */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 [&>*]:!mb-0 [&>*]:h-full">
             <CurrentDateTime />
             <CurrentSemesterBanner />
           </div>
@@ -121,13 +132,15 @@ const ITRCDashboard = (props) => {
           {/* === TOP SECTION === */}
           <div className="w-full grid gap-5">
             {/* Quantity Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4">
+            {/* Phones: 2 per row (last one full width). Mid screens: 3 then 2,
+                both rows full width. Very wide: all 5 in one row. */}
+            <div className="grid grid-cols-2 lg:grid-cols-6 2xl:grid-cols-5 gap-3 sm:gap-4 [&>*]:lg:col-span-2 [&>*:nth-child(n+4)]:lg:col-span-3 [&>*]:2xl:!col-span-1 [&>*:last-child]:max-lg:col-span-2">
               <Link href="/super-admin/user-accounts">
                 <QuantityCard
                   h="h-[6rem]"
                   num={props.account_total}
                   icon={Users}
-                  label="Total Registered Users"
+                  label="Registered Users"
                   color={{
                     bg: "bg-white hover:bg-black/5 transition-all",
                   }}
@@ -138,7 +151,7 @@ const ITRCDashboard = (props) => {
                   h="h-[6rem]"
                   num={props.program}
                   icon={GraduationCap}
-                  label="Total College Programs"
+                  label="Programs"
                   color={{
                     bg: "bg-white hover:bg-black/5 transition-all",
                   }}
@@ -149,7 +162,7 @@ const ITRCDashboard = (props) => {
                   h="h-[6rem]"
                   num={props.report}
                   icon={FileText}
-                  label="Total Action Logs"
+                  label="Action Logs"
                   color={{
                     bg: "bg-white hover:bg-black/5 transition-all",
                   }}
@@ -160,7 +173,7 @@ const ITRCDashboard = (props) => {
                   h="h-[6rem]"
                   num={props.total_violation}
                   icon={ShieldAlert}
-                  label="Total Violations"
+                  label="Violations"
                   color={{
                     bg: "bg-white hover:bg-black/5 transition-all",
                   }}
@@ -171,7 +184,7 @@ const ITRCDashboard = (props) => {
                   h="h-[6rem]"
                   num={props.total_roles}
                   icon={ShieldCheck}
-                  label={`Total Roles (${props.active_roles ?? 0} active)`}
+                  label={`Roles (${props.active_roles ?? 0} active)`}
                   color={{
                     bg: "bg-white hover:bg-black/5 transition-all",
                   }}
@@ -179,23 +192,71 @@ const ITRCDashboard = (props) => {
               </Link>
             </div>
 
-            {/* Bar Graph (Optional / Commented) */}
-            {/**
-            <div className="w-full flex flex-col lg:flex-row gap-5">
-              <div className="w-full">
-                <BarGraph
-                  dataset={barDataset()}
-                  withBorder={true}
-                  label={month}
-                  onBarClick={handleBarClick}
-                  title="Total Number of Users this Year"
-                />
-              </div>
-              <div className="w-full lg:w-[20rem] flex-shrink-0">
-                <PendingRequestList type="itrc" />
-              </div>
+            {/* Number of users per role */}
+            <div className="w-full h-[30rem] sm:h-[24rem]">
+              <LineGraph
+                dataset={userGraphDataset}
+                label={(userGraph.buckets ?? []).map((b) => b.label)}
+                withBorder={true}
+                bg="bg-white"
+                title="Number of Users"
+                showLegend={true}
+                allLabel="All Roles"
+                xTitle={range === "monthly" ? "Day" : "Month"}
+                yTitle="New users"
+                side={
+                  <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 w-full sm:w-auto">
+                    <div className="w-full sm:w-[9.5rem]">
+                      <DropdownField
+                        list={[
+                          { val: "school_year", label: "School Year" },
+                          { val: "yearly", label: "Yearly" },
+                          { val: "monthly", label: "Monthly" },
+                        ]}
+                        keepCase={true}
+                        val={range}
+                        onChange={(e) => setRange(e.target.value)}
+                      />
+                    </div>
+                    <div className="w-full sm:w-[9.5rem]">
+                      {range === "school_year" && (
+                        <DropdownField
+                          list={(props.graph_school_years ?? []).map((y) => ({ val: y.id, label: `SY ${y.year}` }))}
+                          keepCase={true}
+                          val={schoolYearId}
+                          onChange={(e) => setSchoolYearId(e.target.value)}
+                        />
+                      )}
+                      {range === "yearly" && (
+                        <DropdownField list={yearOptions()} keepCase={true} val={year} onChange={(e) => setYear(e.target.value)} />
+                      )}
+                      {range === "monthly" && (
+                        <input
+                          type="month"
+                          value={month}
+                          onChange={(e) => e.target.value && setMonth(e.target.value)}
+                          className="w-full h-[2.5rem] rounded-lg border border-gray-300 bg-white px-3 text-[0.85em] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      )}
+                    </div>
+                    {range === "school_year" && (
+                      <div className="w-full sm:w-[9.5rem] col-span-2">
+                        <DropdownField
+                          default={{ val: "", label: "All Semesters" }}
+                          list={[
+                            { val: "1", label: "1st Semester" },
+                            { val: "2", label: "2nd Semester" },
+                          ]}
+                          keepCase={true}
+                          val={semester}
+                          onChange={(e) => setSemester(e.target.value)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                }
+              />
             </div>
-             */}
           </div>
 
           {/* === BOTTOM SECTION === */}
