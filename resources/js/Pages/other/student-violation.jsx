@@ -10,6 +10,13 @@ import { useEffect, useMemo, useState } from "react";
 import { ShieldHalf, Clock, FolderOpen, GraduationCap, CalendarRange, AlertTriangle } from "lucide-react";
 import axios from "axios";
 import { Head } from "@inertiajs/react";
+import ActionBtn from "@/Components/button/action-btn";
+import ViewComplaintModal from "@/Components/modal/view/view-complaint-modal";
+import AppointmentModal from "@/Components/modal/submission-form/set-appointment-modal";
+import Btn from "@/Components/button/normal-btn";
+import { useReload } from "@/context-provider/reload-provider";
+import { DashboardService } from "@/others/services/dashboard-service";
+import BreadcrumbNav from "@/Components/other/breadcrumb-nav";
 
 // offense_issued_at is only set once a prefect actually issues the offense —
 // until then (or in seeded/demo data) it's null. Fall back to whichever
@@ -22,7 +29,36 @@ const bestComplaintDate = (complaint) =>
    MAIN COMPONENT
 ================================ */
 const StudentViolation = (props, { user = demoProps.user, student = demoProps.student, violations = demoProps.violations}) => {
-  const [option, setOption] = useState('recent_violations')
+  // ?tab=analysis&violation=<id> (e.g. from the prefect's Watch List) opens
+  // Behavioural Analysis with that violation already selected.
+  const [option, setOption] = useState(() =>
+    new URLSearchParams(window.location.search).get('tab') === 'analysis' ? 'analysis' : 'recent_violations'
+  )
+
+  // Prefect: book a consultation with this student as an intervention.
+  const viewer = props.auth?.user ?? props.user
+  const isPrefect = viewer?.role === 'sub_admin'
+  const [appointOpen, setAppointOpen] = useState(false)
+  const { loadRegister } = useReload()
+  // The button only appears when the model says this student is likely to
+  // repeat a violation; it stays hidden while that's checked, or if it can't be.
+  const [risk, setRisk] = useState(null)
+  useEffect(() => {
+    if (!isPrefect || !props.student?.encrypted_id) return
+    DashboardService.getStudentRisk(props.student.encrypted_id, setRisk, () => setRisk(null))
+  }, [props.student?.encrypted_id])
+  const canAppoint = isPrefect && risk?.likely === true
+
+  // Path back to where this page was opened from: the dashboard's Watch
+  // List, a violation's student list, or (default) Violation Management.
+  const studentName = [props.student?.profile?.first_name, props.student?.profile?.last_name].filter(Boolean).join(" ") || "Student"
+  const fromDashboard = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("from") === "dashboard"
+  const crumbs = fromDashboard || !['sub_admin', 'super_admin'].includes(viewer?.role)
+    ? [{ label: "Dashboard", href: "/dashboard" }]
+    : [
+        { label: "Violation Management", href: "/violation-management" },
+        ...(props.from_violation ? [{ label: props.from_violation.name, href: props.from_violation.href }] : []),
+      ]
 
   const optionList = [
     { key: 'recent_violations', label: 'Recent Violations' },
@@ -32,7 +68,34 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
   return (
         <>
         <Head title="Student Violation" />
-        <PageLayout title="STUDENT VIOLATION">
+        {isPrefect && (
+          <AppointmentModal
+            label="Set Appointment"
+            close={appointOpen}
+            closeModal={setAppointOpen}
+            pd={["px-5", "py-7"]}
+            isEnableOuterClose={true}
+            id={viewer.id}
+            user_type={viewer.role}
+            reload={loadRegister}
+            lockedUser={{ ...props.student, role: props.student.role ?? 'student' }}
+            defaultReason="<p>Consultation with the Prefect of Discipline regarding your recent violations, as an early intervention.</p>"
+          />
+        )}
+        <div className="pt-4">
+          <BreadcrumbNav items={[...crumbs, { label: studentName }]} />
+        </div>
+        <PageLayout
+          title="STUDENT VIOLATION"
+          rightSideComponent={canAppoint ? (
+            <div className="flex items-center gap-3">
+              <span className="text-[0.8em] font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-3 py-1">
+                Likely to repeat · {Math.round((risk.top_probability ?? 0) * 100)}%
+              </span>
+              <Btn onclick={() => setAppointOpen(true)}>Set Appointment</Btn>
+            </div>
+          ) : null}
+        >
                 <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm p-5">
                     <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
                         <ProfilePic
@@ -65,7 +128,7 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
                     <TabSwitcher tabs={optionList} value={option} onChange={setOption} />
                     <div className="mt-6">
                         {option === "recent_violations" ? (
-                            <RecentViolation violations={props.student_violations} />
+                            <RecentViolation violations={props.student_violations} user={props.auth?.user ?? props.user} />
                         ) : (
                             <BehaviourAnalysis
                                 studentId={props.student.id}
@@ -86,7 +149,11 @@ StudentViolation.layout = (page) => <AuthLayout user={page.props.user}>{page}</A
 /* ===============================
    RECENT VIOLATIONS TABLE
 ================================ */
-const RecentViolation = ({ violations }) => {
+const RecentViolation = ({ violations, user }) => {
+  // "View" opens the complaint behind a violation — why it was given.
+  const [complaintKey, setComplaintKey] = useState(null);
+  const [viewOpen, setViewOpen] = useState(false);
+
   const columns = [
     {
       field: "index",
@@ -126,6 +193,27 @@ const RecentViolation = ({ violations }) => {
         </span>
       ),
     },
+    {
+      field: "actions",
+      type: "actions",
+      headerName: "Action",
+      width: 110,
+      sortable: false,
+      filterable: false,
+      renderCell: ({ row }) => (
+        <ActionBtn
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+          disabled={!row.complaint_key}
+          title="View the complaint behind this violation"
+          onClick={() => {
+            setComplaintKey(row.complaint_key);
+            setViewOpen(true);
+          }}
+        >
+          View
+        </ActionBtn>
+      ),
+    },
   ];
 
   const rows = violations.map((v, i) => ({
@@ -133,10 +221,19 @@ const RecentViolation = ({ violations }) => {
     violation_name: v.violation?.violation_name,
     offense_status: v.violation?.offense_status,
     offense_issued_at: bestComplaintDate(v.complaint),
+    complaint_key: v.complaint_key,
   }));
 
   return (
     <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm p-5">
+      <ViewComplaintModal
+        close={viewOpen}
+        closeModal={setViewOpen}
+        pd={["px-6 sm:px-10", "py-7"]}
+        isEnableOuterClose={true}
+        complainant={complaintKey}
+        usr={user}
+      />
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
@@ -196,8 +293,11 @@ const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_
 
   useEffect(() => {
     if (!selected && violation_list.length) {
-      setSelected(violation_list[0].id)
-      setViolation(violation_list[0].violation_name)
+      // Preselect ?violation=<id> when it's one of this student's violations.
+      const wanted = new URLSearchParams(window.location.search).get('violation')
+      const pick = violation_list.find((v) => String(v.id) === wanted) ?? violation_list[0]
+      setSelected(pick.id)
+      setViolation(pick.violation_name)
     };
   }, [selected]);
 

@@ -18,7 +18,7 @@ const TeachingStaffDashboard = (props) => {
     <>
       <Head title="Dashboard" />
         <motion.div
-          className="w-full py-10"
+          className="w-full pt-2 sm:pt-3 pb-6 sm:pb-10"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
@@ -26,8 +26,11 @@ const TeachingStaffDashboard = (props) => {
           <MaintenanceScheduleReminder />
           <DashboardTabs>
           <div className="w-full flex flex-col gap-6">
-            <CurrentDateTime />
-            <CurrentSemesterBanner />
+            {/* Same as the super admin: date/time and school year side by side. */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 [&>*]:!mb-0 [&>*]:h-full">
+                <CurrentDateTime />
+                <CurrentSemesterBanner />
+            </div>
 
             {/* === STAT CARDS SECTION === */}
             <div className={`grid grid-cols-1 sm:grid-cols-2 ${isProgramHead ? 'lg:grid-cols-4' : ''} gap-4`}>

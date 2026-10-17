@@ -16,7 +16,7 @@ const DashboardTabs = ({ children }) => {
 
   return (
     <>
-      <div className="mb-6">
+      <div className="mb-4">
         <TabSwitcher tabs={TABS} value={choose} onChange={setChoose} />
       </div>
 

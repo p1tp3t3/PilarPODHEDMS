@@ -14,6 +14,7 @@ import BarGraph from "@/Components/card/bar-graph-statistic-card"
 import AppointmentTodayList from "@/Components/list/appointment-today-list"
 import NewStudentList from "@/Components/list/new-student-list"
 import StudentNotificationList from "@/Components/list/student-notification-list"
+import WatchList from "@/Components/list/watch-list"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import UnresolvedComplaintModal from "@/Components/modal/validation/unresolved-complaint-modal"
 import CurrentSemesterBanner from "@/Components/other/current-semester-banner"
@@ -108,6 +109,7 @@ const PrefectDashBoard = (props) => {
     { key: "student", label: "New Students" },
     { key: "appointment", label: "Appointments" },
     { key: "notification", label: "Notifications" },
+    { key: "watch", label: "Watch List" },
   ]
 
   const optionTab2 = [
@@ -200,7 +202,7 @@ const PrefectDashBoard = (props) => {
   return (
     <>
         <Head title="Dashboard" />
-        <div className="w-full py-10">
+        <div className="w-full pt-2 sm:pt-3 pb-6 sm:pb-10">
           <MaintenanceScheduleReminder />
 
           <div>
@@ -214,8 +216,8 @@ const PrefectDashBoard = (props) => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, ease: "easeOut" }}
             >
-              <div className="flex flex-col gap-5 pt-6">
-                <div className="-mb-4 lg:-mb-6">
+              <div className="flex flex-col gap-5 pt-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 [&>*]:!mb-0 [&>*]:h-full">
                   <CurrentDateTime />
                   <CurrentSemesterBanner />
                 </div>
@@ -393,6 +395,7 @@ const PrefectDashBoard = (props) => {
                         <AppointmentTodayList list={props.appointment_today} />
                       )}
                       {choose == "notification" && <StudentNotificationList />}
+                      {choose == "watch" && <WatchList />}
                     </div>
                   </div>
                   <div className="w-full lg:w-[50%]">

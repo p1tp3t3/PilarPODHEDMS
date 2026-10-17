@@ -14,11 +14,14 @@ const NonTeachingStaffDashboard = (props) => {
     return (
         <>
             <Head title="Dashboard" />
-            <div className="w-full py-10">
+            <div className="w-full pt-2 sm:pt-3 pb-6 sm:pb-10">
                 <MaintenanceScheduleReminder />
                 <DashboardTabs>
-                <CurrentDateTime />
-                <CurrentSemesterBanner />
+                {/* Same as the super admin: date/time and school year side by side. */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 [&>*]:!mb-0 [&>*]:h-full">
+                    <CurrentDateTime />
+                    <CurrentSemesterBanner />
+                </div>
 
                 <div className="w-full flex gap-5">
                     <div className="w-full flex gap-5 pt-6">

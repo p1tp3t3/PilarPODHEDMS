@@ -1,12 +1,12 @@
 import pandas as pd
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import FunctionTransformer, StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split, StratifiedKFold, cross_validate
+from sklearn.model_selection import train_test_split, StratifiedKFold, cross_validate, cross_val_predict
 from sklearn.metrics import (
     accuracy_score, roc_auc_score, classification_report,
     precision_score, recall_score, f1_score, confusion_matrix, roc_curve,
+    brier_score_loss,
 )
 import joblib
 import json
@@ -18,6 +18,37 @@ import re
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
+
+
+FIRST_OFFENSE_MONTHS = 120
+
+RAW_COLUMNS = [
+    "violation_type",
+    "past_repeat_same_violation_count",
+    "recent_same_violation_count",
+    "months_since_last_same_violation",
+]
+
+
+def engineer_features(X):
+    """What the model actually learns from — the first step of the saved
+    pipeline, so training, predict(), get_insights() and predict_batch()
+    always agree. violation_type is deliberately NOT used: the labels never
+    depend on it, and one-hot encoding 80 types only added noise (the same
+    history scored anywhere from 19% to 71% depending on the type).
+    months_since_last uses 120 as a first-offense marker, which a linear
+    model would read as "very long ago", so it becomes explicit flags."""
+    X = pd.DataFrame(X).copy()
+    past = pd.to_numeric(X["past_repeat_same_violation_count"], errors="coerce").fillna(0)
+    recent = pd.to_numeric(X["recent_same_violation_count"], errors="coerce").fillna(0)
+    months = pd.to_numeric(X["months_since_last_same_violation"], errors="coerce").fillna(FIRST_OFFENSE_MONTHS)
+    return pd.DataFrame({
+        "past_repeat_same_violation_count": past,
+        "recent_same_violation_count": recent,
+        "first_offense": (months >= FIRST_OFFENSE_MONTHS).astype(int),
+        "months_0_1": (months <= 1).astype(int),
+        "months_2_3": ((months >= 2) & (months <= 3)).astype(int),
+    })
 
 
 def make_json_safe(data):
@@ -139,27 +170,15 @@ class EarlyInterventionViolationPredictor:
     def train_model(self, save = False):
         df = self.df
         target = 'will_repeat_the_same_violation'
-        cat_cols = ["violation_type"]
-        num_cols = [
-            "past_repeat_same_violation_count",
-            "recent_same_violation_count",
-            "months_since_last_same_violation"
-        ]
 
-        X = df[cat_cols + num_cols].copy()
+        X = df[RAW_COLUMNS].copy()
         y = df[target].astype(int).copy()
 
         def build_pipeline():
-            preprocess = ColumnTransformer(
-                transformers=[
-                    ("num", StandardScaler(), num_cols),
-                    ("cat", OneHotEncoder(handle_unknown="ignore"), cat_cols),
-                ],
-                remainder="drop",
-            )
             return Pipeline(steps=[
-                ("preprocess", preprocess),
-                ("clf", LogisticRegression())
+                ("features", FunctionTransformer(engineer_features)),
+                ("scale", StandardScaler()),
+                ("clf", LogisticRegression(max_iter=1000)),
             ])
 
         # Held-out evaluation first — the model previously had no validation
@@ -196,6 +215,7 @@ class EarlyInterventionViolationPredictor:
                     "tpr": [round(float(tpr[i]), 4) for i in keep],
                 },
                 "cv": self._cross_validate(build_pipeline, X, y),
+                "calibration": self._calibration(build_pipeline, X, y),
             }
             print(
                 f"[eval] held-out accuracy={self.last_eval['accuracy']:.4f} "
@@ -227,6 +247,28 @@ class EarlyInterventionViolationPredictor:
         input = pd.DataFrame([data]).fillna(0)
 
         return make_json_safe(model.predict(input)[0])
+
+    def predict_batch(self, rows):
+        """Scores many rows at once (e.g. every enrolled student's
+        violations for the prefect's watch list): loads the model once and
+        returns [{key, prediction, probability}] — no insights or
+        recommendations, which are per-student and slow."""
+        if not rows:
+            return []
+        model = joblib.load(self.model_name)
+        frame = pd.DataFrame(rows)
+        for column in RAW_COLUMNS:
+            if column not in frame:
+                frame[column] = None
+        proba = model.predict_proba(frame[RAW_COLUMNS])[:, 1]
+        return [
+            {
+                "key": row.get("key"),
+                "prediction": int(p >= 0.5),
+                "probability": round(float(p), 4),
+            }
+            for row, p in zip(rows, proba)
+        ]
 
     def get_insights(self, data, pred):
         insights = []
@@ -412,6 +454,39 @@ class EarlyInterventionViolationPredictor:
         
     def save_model(self):
         joblib.dump(self.model, self.model_name)
+
+    @staticmethod
+    def _calibration(build_pipeline, X, y, k=5, bins=10):
+        """How well predicted probabilities match reality, from out-of-fold
+        predictions (each row scored by a model that never saw it): Brier
+        score plus a reliability table — per probability bin, the mean
+        predicted risk vs the share that actually repeated."""
+        k = min(k, int(y.value_counts().min()))
+        if k < 2:
+            return None
+        proba = cross_val_predict(
+            build_pipeline(), X, y,
+            cv=StratifiedKFold(n_splits=k, shuffle=True, random_state=42),
+            method="predict_proba",
+        )[:, 1]
+        edges = np.linspace(0, 1, bins + 1)
+        idx = np.clip(np.digitize(proba, edges[1:-1]), 0, bins - 1)
+        table = []
+        for b in range(bins):
+            mask = idx == b
+            if mask.any():
+                table.append({
+                    "bin": f"{edges[b]:.1f}-{edges[b + 1]:.1f}",
+                    "predicted": float(proba[mask].mean()),
+                    "observed": float(y[mask].mean()),
+                    "count": int(mask.sum()),
+                })
+        gaps = [abs(t["predicted"] - t["observed"]) for t in table if t["count"] >= 20]
+        return {
+            "brier": float(brier_score_loss(y, proba)),
+            "max_gap": float(max(gaps)) if gaps else None,
+            "bins": table,
+        }
 
     @staticmethod
     def _cross_validate(build_pipeline, X, y, k=5):

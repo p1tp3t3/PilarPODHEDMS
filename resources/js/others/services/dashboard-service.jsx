@@ -1,6 +1,14 @@
 import { APIRequest } from "../classes/api-req";
 
 export const DashboardService = {
+    getStudentRisk(encryptedId, setter, error) {
+        const api = new APIRequest(`/prefect/student-risk/${encryptedId}`, "get", {}, setter, () => {}, error);
+        api.fetchData();
+    },
+    getWatchList(refresh, setter, error) {
+        const api = new APIRequest(`/prefect/watch-list${refresh ? "?refresh=1" : ""}`, "get", {}, setter, () => {}, error);
+        api.fetchData();
+    },
     getUserGraph(filter, setter) {
         const api = new APIRequest("/api/user-graph", "post", { filter }, setter);
         api.fetchData();

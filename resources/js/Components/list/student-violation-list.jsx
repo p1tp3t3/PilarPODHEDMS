@@ -6,7 +6,9 @@ import { getProfilePic, getYearLevel, toTitleCase } from "@/others/function";
 import { router } from "@inertiajs/react";
 import ActionBtn from "@/Components/button/action-btn";
 
-const StudentViolationList = ({ list = [] }) => {
+// fromKey: the violation's encrypted id when listed under one violation, so
+// the student page's breadcrumb leads back to it.
+const StudentViolationList = ({ list = [], fromKey = null }) => {
   const rows = useMemo(
   () =>
     list.map((e, i) => {
@@ -92,7 +94,7 @@ const StudentViolationList = ({ list = [] }) => {
             <div className="flex gap-2 items-center h-full">
                 <ActionBtn
                     className="bg-blue-600 text-white hover:bg-blue-700"
-                    onClick={() => router.visit(`/student-violation/${obj.user?.encrypted_id}`)}
+                    onClick={() => router.visit(`/student-violation/${obj.user?.encrypted_id}${fromKey ? `?from=${encodeURIComponent(fromKey)}` : ""}`)}
                 >
                 View
                 </ActionBtn>

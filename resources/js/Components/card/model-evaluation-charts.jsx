@@ -99,6 +99,52 @@ const SummaryTable = ({ cv }) => (
     </div>
 )
 
+// Calibration: for each band of predicted risk, the average prediction vs
+// the share of students who actually repeated. Close bars = trustworthy %.
+const CalibrationTable = ({ calibration }) => (
+    <div className="grid gap-2">
+        <div className="flex flex-wrap gap-x-5 gap-y-1 text-[0.8em]">
+            <span><span className="text-gray-500">Brier score:</span> <b>{calibration.brier.toFixed(3)}</b> <span className="text-gray-400">(lower is better)</span></span>
+            {calibration.max_gap != null && (
+                <span><span className="text-gray-500">Largest gap:</span> <b>{pct(calibration.max_gap)}</b></span>
+            )}
+        </div>
+        <div className="overflow-x-auto">
+            <table className="w-full text-[0.8em] border-collapse">
+                <thead>
+                    <tr className="text-left text-gray-500 border-b border-gray-200">
+                        <th className="py-1.5 pr-3 font-medium">Predicted risk</th>
+                        <th className="py-1.5 px-2 font-medium">Avg. predicted</th>
+                        <th className="py-1.5 px-2 font-medium">Actually repeated</th>
+                        <th className="py-1.5 px-2 font-medium w-[40%]">Comparison</th>
+                        <th className="py-1.5 pl-2 font-medium text-right">Rows</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {calibration.bins.map((b) => (
+                        <tr key={b.bin} className="border-b border-gray-100">
+                            <td className="py-1.5 pr-3 whitespace-nowrap">{b.bin.split("-").map((v) => `${Math.round(v * 100)}%`).join(" – ")}</td>
+                            <td className="py-1.5 px-2">{pct(b.predicted)}</td>
+                            <td className="py-1.5 px-2">{pct(b.observed)}</td>
+                            <td className="py-1.5 px-2">
+                                <div className="grid gap-0.5">
+                                    <div className="h-1.5 rounded bg-blue-600" style={{ width: `${b.predicted * 100}%` }} />
+                                    <div className="h-1.5 rounded bg-green-600" style={{ width: `${b.observed * 100}%` }} />
+                                </div>
+                            </td>
+                            <td className="py-1.5 pl-2 text-right text-gray-500">{b.count}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+        <div className="flex gap-4 text-[0.72em] text-gray-500">
+            <span className="inline-flex items-center gap-1"><span className="w-3 h-1.5 rounded bg-blue-600" /> Predicted</span>
+            <span className="inline-flex items-center gap-1"><span className="w-3 h-1.5 rounded bg-green-600" /> Actually repeated</span>
+        </div>
+    </div>
+)
+
 const ConfusionMatrix = ({ matrix }) => {
     const [[tn, fp], [fn, tp]] = matrix
     const max = Math.max(tn, fp, fn, tp) || 1
@@ -243,6 +289,13 @@ const printReport = (root, evaluation, model) => {
     </div>
   </div>
 
+  ${evaluation.calibration ? `<div class="section">
+    <h3>Calibration (out-of-fold)</h3>
+    <div class="sub" style="text-align:left;margin-bottom:6px">Brier score ${evaluation.calibration.brier.toFixed(3)}${evaluation.calibration.max_gap != null ? ` &middot; largest gap ${pct(evaluation.calibration.max_gap)}` : ""}</div>
+    <table><tr><th>Predicted risk</th><th>Avg. predicted</th><th>Actually repeated</th><th>Rows</th></tr>
+    ${evaluation.calibration.bins.map((b) => `<tr><td>${b.bin.split("-").map((v) => `${Math.round(v * 100)}%`).join(" &ndash; ")}</td><td>${pct(b.predicted)}</td><td>${pct(b.observed)}</td><td>${b.count}</td></tr>`).join("")}</table>
+  </div>` : ""}
+
   <div class="foot">Printed ${esc(printed)}</div>
 </body></html>`
 
@@ -309,6 +362,14 @@ const ModelEvaluationCharts = ({ evaluation, model }) => {
                     </Panel>
                 )}
             </div>
+            {evaluation.calibration && (
+                <Panel
+                    title="Calibration"
+                    hint="Out-of-fold predictions grouped by predicted risk. When the two bars match, a predicted % can be read as a real chance."
+                >
+                    <CalibrationTable calibration={evaluation.calibration} />
+                </Panel>
+            )}
         </div>
     )
 }

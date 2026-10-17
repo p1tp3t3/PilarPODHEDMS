@@ -566,6 +566,7 @@ class MaintenanceController extends Controller
             'teachingStaff as teaching_staff_count',
         ])
             ->latest('created_at')
+            ->orderByDesc('id')
             ->get();
     }
 
@@ -980,6 +981,7 @@ class MaintenanceController extends Controller
                     );
             }])
             ->latest('created_at')
+            ->orderByDesc('id')
             ->get();
     }
 }

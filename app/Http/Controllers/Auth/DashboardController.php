@@ -467,6 +467,24 @@ class DashboardController extends Controller
         return array_values($buckets);
     }
 
+    /**
+     * Prefect dashboard Watch List: enrolled students the logistic model
+     * predicts will repeat a violation. Loaded when the tab opens, so the
+     * dashboard itself never waits on the ML service. ?refresh=1 recomputes.
+     */
+    public function getWatchList()
+    {
+        return response()->json(\App\Services\WatchListService::get(request()->boolean('refresh')));
+    }
+
+    /** One student's predicted risk — gates "Set Appointment" on their violations page. */
+    public function getStudentRisk($id)
+    {
+        $id = decrypt_id($id) ?? abort(404);
+
+        return response()->json(\App\Services\WatchListService::forStudent($id));
+    }
+
     public function getBargraph()
     {
         return response()->json(self::getPrefectBarGraph());

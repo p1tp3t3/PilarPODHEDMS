@@ -16,33 +16,50 @@ const AppointmentModal = (props) => {
     const MySwal = withReactContent(Swal)
     const isResched = (props.label.includes('Re-Schedule'))
     const isCancel = (props.label.includes('Cancel'))
-    
-
-    const [appoint, setAppointment] = useState({
-        user_id: props.id,
-        type: (isResched) ? 'reschedule' : 'schedule',
-        date_appoint: props.date,
-        time_start: '',
-        reason: ''
-    })
-
-    const [searchedStudentParent, setSearchedStudentParent] = useState(null)
+    // lockedUser: a person picked for you (e.g. a student opened from their
+    // violations) — shown selected, can't be removed or swapped, and since
+    // there's no calendar click to take the date from, the form asks for it.
+    const locked = props.lockedUser ?? null
 
     const today = new Date()
     const todayStr = today.getFullYear() + "-" +
                       String(today.getMonth() + 1).padStart(2, "0") + "-" +
                       String(today.getDate()).padStart(2, "0")
 
+    const [appoint, setAppointment] = useState({
+        user_id: locked?.id ?? props.id,
+        type: (isResched) ? 'reschedule' : 'schedule',
+        date_appoint: props.date ?? todayStr,
+        time_start: '',
+        reason: props.defaultReason ?? ''
+    })
 
-    
+    const [searchedStudentParent, setSearchedStudentParent] = useState(locked ? [locked] : null)
+
+
+
     useEffect(() => {
+        if (locked) {
+            // Fresh form for the fixed person every time it opens.
+            setSearchedStudentParent([locked])
+            setAppointment((prev) => ({
+                ...prev,
+                type: 'schedule',
+                user_id: locked.id,
+                date_appoint: props.date ?? todayStr,
+                time_start: '',
+                reason: props.defaultReason ?? '',
+            }))
+            return
+        }
         if(props.close) {
-            props.setReschedUser(null)
+            props.setReschedUser?.(null)
             setSearchedStudentParent(null)
         }
     }, [props.close])
 
     useEffect(() => {
+        if (locked) return
         setSearchedStudentParent(props.reschedUser)
         setAppointment((prev) => ({
             ...prev,
@@ -51,11 +68,12 @@ const AppointmentModal = (props) => {
         }))
     }, [props.close])
 
-    
+
     useEffect(() => {
+        if (!props.date) return
         const date = new Date(props.date);
-        const formattedDate = date.getFullYear() + "-" + 
-                              String(date.getMonth() + 1).padStart(2, "0") + "-" + 
+        const formattedDate = date.getFullYear() + "-" +
+                              String(date.getMonth() + 1).padStart(2, "0") + "-" +
                               String(date.getDate()).padStart(2, "0");
         setAppointment((prev) => ({
             ...prev,
@@ -66,7 +84,7 @@ const AppointmentModal = (props) => {
 
     const [search, setSearch] = useState(""),
           [isSearchFocus, focusSearch] = useState(false)
-    
+
     const handleChange = (e) => {
         change(e, setAppointment)
     }
@@ -142,20 +160,27 @@ const AppointmentModal = (props) => {
         )
     }
     return (
-        <UpModal 
-            close={props.close} 
+        <UpModal
+            close={props.close}
             closeModal={props.closeModal}
             isEnableOuterClose={props.isEnableOuterClose}
             pd={props.pd}
             bgColor='bg-white'
-            w='w-[30rem]'> 
+            w='w-[30rem]'>
             <div className="w-full">
                 <form method="post" onSubmit={handleSubmit}>
                     <div className="grid gap-3">
                         <div className="text-[1.2em] pb-5">
                             <h1><b>{props.label}</b></h1>
                         </div>
-                        {(props.user_type == 'sub_admin' && !isResched) &&
+                        {locked &&
+                        <AppointedUser
+                            name={[locked.profile?.first_name, locked.profile?.last_name]}
+                            src={getProfilePic(locked.profile?.profile_picture, locked.profile?.sex)}
+                            user_type={locked.role}
+                            unselect={null}
+                        />}
+                        {(props.user_type == 'sub_admin' && !isResched && !locked) &&
                         <div className="grid gap-2">
                             <div className="w-full relative z-10">
                                 <SearchUserBar
@@ -194,7 +219,7 @@ const AppointmentModal = (props) => {
                             {((!isCancel)
                             ?
                             <>
-                            {(isResched) &&
+                            {(isResched || locked) &&
                             <div className="w-full">
                                 <FormTextfield
                                     label={`Date to ${isResched ? 'Re-Schedule' : 'Appoint'}`}
@@ -246,8 +271,8 @@ const AppointedUser = (props) => {
         <div className="grid relative">
             {props.unselect &&
             <div className="absolute">
-                <button 
-                    type="button" 
+                <button
+                    type="button"
                     className="bg-gray-300 relative top-[-0.3rem] z-[5] w-[1.2rem] h-[1.2rem] rounded-full text-[0.8em]"
                     onClick={(props.unselect != null) ? () => props.unselect() : ()=>{}}
                 >
@@ -256,10 +281,10 @@ const AppointedUser = (props) => {
             </div>}
             <div className="flex gap-2">
                 <div>
-                    <ProfilePic 
-                        activeBorderColor='border-white border-[3px]'  
-                        src={props.src} 
-                        size={2.5} 
+                    <ProfilePic
+                        activeBorderColor='border-white border-[3px]'
+                        src={props.src}
+                        size={2.5}
                     />
                 </div>
                 <div className="text-[0.8em]">

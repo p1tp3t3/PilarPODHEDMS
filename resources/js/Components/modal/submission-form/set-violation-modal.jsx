@@ -336,8 +336,10 @@ const SetViolationModal = (props) => {
                                                     sx={{ '& .MuiOutlinedInput-root, &.MuiOutlinedInput-root': { borderRadius: '8px', fontSize: '0.85em' } }}
                                                 >
                                                     <MenuItem value="">(Optional) Select Penalty</MenuItem>
+                                                    {/* String ids, matching the saved penalties loaded for editing —
+                                                        MUI's Select compares strictly, so 2 !== "2" showed blank. */}
                                                     {props.penalty.map(opt => (
-                                                        <MenuItem key={opt.id} value={opt.id}>
+                                                        <MenuItem key={opt.id} value={String(opt.id)}>
                                                             {opt.ref_number != null ? `${opt.ref_number} — ${toTitleCase(opt.description)}` : toTitleCase(opt.description)}
                                                         </MenuItem>
                                                     ))}

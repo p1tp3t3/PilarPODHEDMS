@@ -1,12 +1,13 @@
 import AuthLayout from "@/Layouts/auth-layout"
 import StudentViolationList from "@/Components/list/student-violation-list"
 import TabSwitcher from "@/Components/other/tab-switcher"
-import { Head, Link } from "@inertiajs/react"
+import { Head } from "@inertiajs/react"
 import { Chip, Paper } from "@mui/material"
 import { useState } from "react"
 import { ordinal } from "@/others/function"
+import BreadcrumbNav from "@/Components/other/breadcrumb-nav"
 
-const ViolationStudents = ({ user, violation, students, occurrence_breakdown = [] }) => {
+const ViolationStudents = ({ user, violation, violation_key, students, occurrence_breakdown = [] }) => {
     const isSuperAdmin = user?.role === 'super_admin';
     const [tab, setTab] = useState("occurrences")
 
@@ -17,6 +18,12 @@ const ViolationStudents = ({ user, violation, students, occurrence_breakdown = [
         <>
             <Head title={`Violation — ${violation.violation_name}`} />
             <div className="w-full py-4 grid gap-5">
+                <BreadcrumbNav
+                    items={[
+                        { label: "Violation Management", href: "/violation-management" },
+                        { label: violation.violation_name },
+                    ]}
+                />
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                         <h1 className="text-[1.3em] sm:text-[1.5em] font-bold">{violation.violation_name}</h1>
@@ -48,9 +55,6 @@ const ViolationStudents = ({ user, violation, students, occurrence_breakdown = [
                             </div>
                         )}
                     </div>
-                    <Link href="/violation-management" className="text-[0.85em] text-gray-600 hover:text-gray-900">
-                        <i className="fa-solid fa-arrow-left"></i> Back to Violation Management
-                    </Link>
                 </div>
 
                 <TabSwitcher
@@ -108,7 +112,7 @@ const ViolationStudents = ({ user, violation, students, occurrence_breakdown = [
                     </Paper>
                 )}
 
-                {tab === "students" && !isSuperAdmin && <StudentViolationList list={students} />}
+                {tab === "students" && !isSuperAdmin && <StudentViolationList list={students} fromKey={violation_key} />}
             </div>
         </>
     )

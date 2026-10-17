@@ -186,6 +186,8 @@ Route::middleware(['role:student', 'activate', 'user-activity'])->group(function
 |--------------------------------------------------------------------------
 */
 Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(function() {
+     Route::get('/prefect/student-risk/{id}', [\App\Http\Controllers\Auth\DashboardController::class, 'getStudentRisk']);
+     Route::get('/prefect/watch-list', [\App\Http\Controllers\Auth\DashboardController::class, 'getWatchList']);
     Route::get('/prefect/student-list', [AccountController::class, 'studentListIndex']);
     Route::get('/prefect/staff-list', [AccountController::class, 'staffListIndex']);
     Route::get('/prefect/parent-list', [AccountController::class, 'parentListIndex']);

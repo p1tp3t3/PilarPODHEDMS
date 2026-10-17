@@ -1,10 +1,11 @@
 import AuthLayout from "@/Layouts/auth-layout"
-import { Head, Link, router } from "@inertiajs/react"
+import { Head, router } from "@inertiajs/react"
 import { getProgramLogo, getProfilePic } from "@/others/function"
 import StudentList from "@/Components/list/student-list"
 import FacultyList from "@/Components/list/faculty-list"
 import ProfilePic from "@/Components/other/profile-pic"
 import TabSwitcher from "@/Components/other/tab-switcher"
+import BreadcrumbNav from "@/Components/other/breadcrumb-nav"
 
 const tabs = [
     { key: "faculty", label: "Faculty" },
@@ -19,7 +20,13 @@ const ProgramUsers = ({ program, faculty, students }) => {
     return (
         <>
         <Head title={`${program.name} Users`} />
-        <div className="w-full py-10 grid gap-8">
+        <div className="w-full py-4 grid gap-6">
+            <BreadcrumbNav
+                items={[
+                    { label: "College Programs", href: "/super-admin/program" },
+                    { label: program.name },
+                ]}
+            />
 
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -33,12 +40,6 @@ const ProgramUsers = ({ program, faculty, students }) => {
                         <p className="text-gray-500 text-[0.9em]">{program.description}</p>
                     </div>
                 </div>
-                <Link
-                    href="/super-admin/program"
-                    className="text-[0.85em] text-gray-600 hover:text-gray-900"
-                >
-                    <i className="fa-solid fa-arrow-left"></i> Back to Programs
-                </Link>
             </div>
 
             <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-4">

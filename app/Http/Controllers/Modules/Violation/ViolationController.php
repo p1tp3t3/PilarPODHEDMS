@@ -121,6 +121,7 @@ class ViolationController extends Controller
 
         return Inertia::render('itrc/maintenance/violation-students', [
             'violation' => $violation,
+            'violation_key' => encrypt_id($violation->id),
             // Super admin manages the violation/penalty catalog, not student
             // disciplinary records — withhold the actual student roster.
             'students' => auth()->user()->role === 'super_admin' ? [] : $students,
@@ -153,7 +154,9 @@ class ViolationController extends Controller
 
         return Inertia::render('other/student-violation', [
             'student' => User::with(['profile', 'program', 'enrollments.schoolYear'])->where('id', $id)->first(),
-            'student_violations' => $studentViolations->get(),
+            'student_violations' => $studentViolations->get()->each(function ($sv) {
+                $sv->complaint_key = $sv->complaint_id ? encrypt_id($sv->complaint_id) : null;
+            }),
             'violations' => $violationNames,
             // Precomputed for every violation this student has, keyed by
             // violation_id, so the Behavioural Analysis tab already has
@@ -162,7 +165,22 @@ class ViolationController extends Controller
             // round-tripping through a Laravel endpoint each time.
             'model_inputs' => self::getModelInputsForStudent($id),
             'violation_timelines' => self::getViolationTimelinesForStudent($id),
+            // Breadcrumb: "?from=<violation>" when opened from a violation's
+            // student list (the middleware has already decrypted it).
+            'from_violation' => self::breadcrumbViolation(request()->query('from')),
         ]);
+    }
+
+    private static function breadcrumbViolation($from)
+    {
+        if (! is_numeric($from) || ! ($violation = Violation::find($from))) {
+            return null;
+        }
+
+        return [
+            'name' => $violation->violation_name,
+            'href' => '/violation-management/' . encrypt_id($violation->id) . '/students',
+        ];
     }
 
     public function store(Request $request)
@@ -544,6 +562,10 @@ class ViolationController extends Controller
             'model_input' => 'required|array',
         ]);
 
+        // The prediction also writes AI recommendations with a language
+        // model, which takes ~40s on a CPU — past PHP's default 30s limit.
+        set_time_limit(150);
+
         try {
             // The free-tier Space can cold-start, and this endpoint runs
             // actual model inference — the old direct-from-browser fetch()
@@ -551,7 +573,7 @@ class ViolationController extends Controller
             // than fail a request that would've succeeded a few seconds later.
             $response = Http::withoutVerifying()
                 ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
-                ->timeout(45)
+                ->timeout(120)
                 ->post(config('services.python_api.url').'/python/model/predict', $request->model_input);
 
             if (! $response->successful()) {
@@ -576,6 +598,22 @@ class ViolationController extends Controller
      */
     private static function getModelInputsForStudent($studentId)
     {
+        return self::modelInputsQuery([$studentId])->get()->keyBy('violation_id');
+    }
+
+    /**
+     * The model-input rows for many students at once — one row per
+     * (student, violation) pair with a resolved occurrence. Shared by the
+     * single-student page above and the prefect's watch list, so both feed
+     * the model exactly the same features.
+     */
+    public static function modelInputsForStudents($studentIds)
+    {
+        return self::modelInputsQuery($studentIds)->get();
+    }
+
+    private static function modelInputsQuery($studentIds)
+    {
         $recentDays = 90;
 
         return DB::table('complaint as c')
@@ -586,9 +624,10 @@ class ViolationController extends Controller
             })
             ->join('violation as o', 'o.id', '=', 'cso.violation_id')
             ->where('c.complaint_status', 'resolved')
-            ->where('cs.student_id', $studentId)
-            ->groupBy('cso.violation_id', 'o.violation_name')
+            ->whereIn('cs.student_id', collect($studentIds)->all())
+            ->groupBy('cs.student_id', 'cso.violation_id', 'o.violation_name')
             ->selectRaw('
+                cs.student_id,
                 cso.violation_id,
                 o.violation_name AS violation_type,
 
@@ -615,9 +654,7 @@ class ViolationController extends Controller
                 CASE WHEN COUNT(*) = 1 THEN 120 ELSE
                     TIMESTAMPDIFF(MONTH, MAX(COALESCE(c.offense_issued_at, c.resolved_at, c.confirmed_at, c.created_at)), CURDATE())
                 END AS months_since_last_same_violation
-            ', [$recentDays])
-            ->get()
-            ->keyBy('violation_id');
+            ', [$recentDays]);
     }
 
     /**

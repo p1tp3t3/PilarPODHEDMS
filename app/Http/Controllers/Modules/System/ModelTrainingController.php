@@ -75,6 +75,7 @@ class ModelTrainingController extends Controller
         }
 
         if ($response->successful()) {
+            \App\Services\WatchListService::forget();
             ActionLog::log(auth()->id(), 'system', 'Retrained the Early Intervention Violation Predictor', [
                 'eval' => $response->json('eval'),
             ]);
@@ -96,6 +97,7 @@ class ModelTrainingController extends Controller
         }
 
         if ($response->successful()) {
+            \App\Services\WatchListService::forget();
             ActionLog::log(auth()->id(), 'system', 'Replaced the Early Intervention Violation Predictor dataset and retrained it', [
                 'rows' => $response->json('model.dataset_rows'),
                 'eval' => $response->json('eval'),

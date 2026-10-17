@@ -88,6 +88,16 @@ def train_model():
         'model': model_eivp.status(),
     })
 
+# Many rows at once, probability only (no insights/recommendations) — the
+# prefect dashboard's watch list scores every enrolled student this way.
+@app.route('/python/model/predict/batch', methods=['POST'])
+def predict_batch():
+    data = request.get_json(silent=True) or {}
+    rows = data.get('rows')
+    if not isinstance(rows, list):
+        return jsonify({'status': 'error', 'message': 'Expected {"rows": [...]}'}), 400
+    return jsonify({'results': model_eivp.predict_batch(rows)})
+
 # --- Maintenance page: status + management of both models ---
 @app.route('/python/model/status', methods=['GET'])
 def models_status():
