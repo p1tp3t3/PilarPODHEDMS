@@ -49,6 +49,12 @@ $app = Application::configure(basePath: dirname(__DIR__))
                  ->timezone('Asia/Manila')
                  ->dailyAt('08:00');
 
+        // Hourly so same-day appointments still get reminded; each
+        // appointment is only ever reminded once.
+        $schedule->command('app:notify-appointment-sched-command')
+                 ->timezone('Asia/Manila')
+                 ->hourly();
+
         $schedule->command('app:create-next-school-year-command')
                  ->timezone('Asia/Manila')
                  ->dailyAt('00:01');
@@ -62,10 +68,6 @@ $app = Application::configure(basePath: dirname(__DIR__))
                  ->dailyAt('08:00');
 
         $schedule->command('app:train-logistic-model-command')
-                 ->timezone('Asia/Manila')
-                 ->dailyAt('08:00');
-
-        $schedule->command('app:notify-student-violation-prediction-command')
                  ->timezone('Asia/Manila')
                  ->dailyAt('08:00');
     })

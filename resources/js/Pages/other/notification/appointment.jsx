@@ -23,7 +23,10 @@ const AppointmentNotification = (props) => {
   const content = parseNotifContent(data.content);
 
   const isAppointment = data.notif_type === "appointment";
-  const isPending = content.accept === null;
+  // Scheduled reminders (app:notify-appointment-sched-command) are
+  // informational only: no Accept/Decline and no status badge.
+  const isReminder = content.type === "reminder";
+  const isPending = !isReminder && content.accept === null;
 
   // Student who receives the notification
   const receiver =
@@ -37,7 +40,9 @@ const AppointmentNotification = (props) => {
   // FIXED TITLE LOGIC FOR BOTH SCHED & RESCHED
   // ----------------------------------------
   const getMessageTitle = () => {
-    const studentName = `${data.sender.profile?.first_name ?? ""} ${data.sender.profile?.middle_name ?? ""} ${data.sender.profile?.last_name ?? ""}`.replace(/\s+/g, " ").trim();
+    if (isReminder) return content.receiver_notif_message;
+
+    const studentName = `${data.sender?.profile?.first_name ?? ""} ${data.sender?.profile?.middle_name ?? ""} ${data.sender?.profile?.last_name ?? ""}`.replace(/\s+/g, " ").trim();
     const responded = content.accept !== null;
     const isAccepted = content.accept === true;
     const typeText =
@@ -229,11 +234,11 @@ const AppointmentNotification = (props) => {
 
         <NotifDetailCard
           icon={CalendarClock}
-          tone={isPending ? "default" : content.accept ? "success" : "danger"}
+          tone={isPending || isReminder ? "default" : content.accept ? "success" : "danger"}
           title={getMessageTitle()}
           timestamp={`${readableDate(data.created_at)} • ${readableTime(data.created_at)}`}
           statusBadge={
-            !isPending
+            !isPending && !isReminder
               ? {
                   label: content.accept ? "Accepted" : "Declined",
                   tone: content.accept ? "success" : "danger",

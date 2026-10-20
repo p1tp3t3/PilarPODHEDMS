@@ -259,6 +259,8 @@ class AppointmentController extends Controller
                     }if ($type === 'resched') {
                         Appointment::where('id', $request->appointment_id)->update([
                             'date_time_appoint' => $dateTimeAppoint,
+                            // New date, so the scheduled reminder goes out again.
+                            'reminder_notified_at' => null,
                         ]);
                         $data['id'] = $request->appointment_id;
                         $notifMessage = self::notifMessage($data);
