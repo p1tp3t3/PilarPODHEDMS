@@ -1,6 +1,6 @@
 import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
-import { formatAllowTo, getProfilePic, getYearLevel, readableDate, readableTime } from "@/others/function"
+import { formatAllowTo, getProfilePic, getYearLevel, readableDate, readableTime, studentProgram, studentYearLevel } from "@/others/function"
 import ProfilePic from "../other/profile-pic"
 
 const GatePassReportList = ({ list = [] }) => {
@@ -39,8 +39,8 @@ const GatePassReportList = ({ list = [] }) => {
                 if (!student) return "-"
 
                 const latestEnrollment = student.enrollments?.[student.enrollments.length - 1]
-                const programName = student.program?.name
-                const yearLevel = latestEnrollment?.year_level ? getYearLevel(latestEnrollment.year_level) : null
+                const programName = studentProgram(student)
+                const yearLevel = studentYearLevel(student)
 
                 return (
                     <div className="flex items-center gap-3 h-full">
@@ -135,6 +135,14 @@ const GatePassReportList = ({ list = [] }) => {
                     },
                 }}
                 localeText={{ noRowsLabel: "No Gate Pass Reports Found" }}
+                // Phones: student + when the pass expires; tap for the rest.
+                mobileSummary={(row) => ({
+                    name: [row.student?.profile?.first_name, row.student?.profile?.middle_name, row.student?.profile?.last_name].filter(Boolean).join(" "),
+                    role: row.date_expiration ? `Expires ${readableDate(row.date_expiration)}` : row.student_id,
+                    picture: row.student?.profile?.profile_picture,
+                    sex: row.student?.profile?.sex,
+                    hide: ["student_col"],
+                })}
                 showToolbar
             />
         </Box>

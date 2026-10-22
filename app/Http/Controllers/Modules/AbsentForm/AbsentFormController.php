@@ -155,6 +155,8 @@ class AbsentFormController extends Controller
             $absenceId = Absence::insertGetId([
                 'form_number' => $formNumber,
                 'student_id' => $request->student_id,
+                // Which prefect issued it for the student.
+                'prefect_id' => auth()->id(),
                 'reason' => json_encode($request->reason),
                 'date_from' => $request->date_from,
                 'date_to' => $request->date_to,
@@ -494,7 +496,7 @@ class AbsentFormController extends Controller
     {
         $id = decrypt_id($id) ?? abort(404);
 
-        return new AbsenceResource(Absence::with(['user.profile', 'user.program', 'user.enrollments', 'revisions'])
+        return new AbsenceResource(Absence::with(['user.profile', 'user.program', 'user.enrollments', 'revisions', 'prefect.profile'])
             ->where('id', $id)
             ->first());
     }

@@ -135,7 +135,7 @@ const IssueViolationModal2 = (props) => {
       if (noneSelected && offenses.length > 1) {
         hasError = true;
         errors[`none_${studentIndex}`] =
-          "'No Offense Committed' cannot be selected together with other offenses.";
+          "'No Violation Committed' cannot be selected together with other violations.";
       }
 
       // (3) Check duplicate offenses (exact same)
@@ -147,7 +147,7 @@ const IssueViolationModal2 = (props) => {
       if (duplicates.length > 0) {
         hasError = true;
         errors[`duplicate_${studentIndex}`] =
-          "Duplicate violations detected. Each offense must be unique.";
+          "Duplicate violations detected. Each violation must be unique.";
       }
 
       // (4) Validate each offense
@@ -155,14 +155,14 @@ const IssueViolationModal2 = (props) => {
         if (!off.violation) {
           hasError = true;
           errors[`offense_${studentIndex}_${offenseIndex}`] =
-            "Please select an offense.";
+            "Please select a violation.";
         }
 
         // (5) Validate others → must have description
         if (off.violation === "others" && !off.other_offense_description.trim()) {
           hasError = true;
           errors[`other_${studentIndex}_${offenseIndex}`] =
-            "Other offense description is required.";
+            "Other violation description is required.";
         }
       });
     });
@@ -269,16 +269,16 @@ const IssueViolationModal2 = (props) => {
                   )}
 
                   {/* OFFENSES */}
-                  <h3 className="font-semibold mb-2 text-sm">Offenses</h3>
+                  <h3 className="font-semibold mb-2 text-sm">Violations</h3>
 
                   {sub.offenses.map((off, j) => (
                     <div key={j} className="border border-gray-200 p-3 mb-3">
                       <DropdownField.Search
-                        default={{ val: "", label: "Select Offense" }}
+                        default={{ val: "", label: "Select Violation" }}
                         name="violation"
                         val={off.violation}
                         list={[
-                          { val: "none", label: "No Offense Committed" },
+                          { val: "none", label: "No Violation Committed" },
                           ...props.violation_list,
                         ]}
                         onChange={(e) => handleOffenseChange(i, j, e)}
@@ -294,7 +294,7 @@ const IssueViolationModal2 = (props) => {
                       {off.violation === "others" && (
                         <>
                           <FormTextfield
-                            label="Other Offense Description"
+                            label="Other Violation Description"
                             name="other_offense_description"
                             val={off.other_offense_description}
                             change={(e) => handleOffenseChange(i, j, e)}
@@ -325,7 +325,7 @@ const IssueViolationModal2 = (props) => {
                           onClick={() => removeOffense(i, j)}
                           className="text-red-500 text-xs mt-2"
                         >
-                          Remove Offense
+                          Remove Violation
                         </button>
                       )}
                     </div>
@@ -337,7 +337,7 @@ const IssueViolationModal2 = (props) => {
                     onClick={() => addOffense(i)}
                     className="text-blue-500 text-xs underline"
                   >
-                    + Add another offense
+                    + Add another violation
                   </button>
                 </div>
               );

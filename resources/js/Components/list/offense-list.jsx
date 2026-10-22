@@ -4,6 +4,8 @@ import SearchBar from "@/Components/input/search-bar";
 import DropdownField from "@/Components/input/dropdown";
 import { ViolationService } from "@/others/services/violation-service";
 import { toTitleCase, ordinal } from "@/others/function";
+import { useIsMobile } from "@/others/use-is-mobile";
+import { ShieldAlert, ChevronDown } from "lucide-react";
 import {
     List,
     ListItem,
@@ -29,6 +31,11 @@ const OffenseList = ({ list = null }) => {
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
+
+    // Phones: each violation collapses to one row; tapping drops it down.
+    const isMobile = useIsMobile();
+    const [openId, setOpenId] = useState(null);
+    useEffect(() => setOpenId(null), [currentPage, search, status]);
 
     useEffect(() => {
         // Prefect dashboard passes the list down from the controller;
@@ -118,7 +125,19 @@ const OffenseList = ({ list = null }) => {
             {/* LIST VIEW */}
             {filteredList.length > 0 && (
                 <List sx={{ width: "100%", bgcolor: "background.paper" }} disablePadding>
-                    {currentList.map((offense, index) => (
+                    {isMobile && currentList.map((offense, index) => {
+                        const key = offense.id ?? index;
+                        return (
+                            <OffenseMobileItem
+                                key={key}
+                                i={indexOfFirst + index}
+                                data={offense}
+                                open={openId === key}
+                                toggle={() => setOpenId(openId === key ? null : key)}
+                            />
+                        );
+                    })}
+                    {!isMobile && currentList.map((offense, index) => (
                         <OffenseListItem
                             key={offense.id ?? index}
                             i={indexOfFirst + index}
@@ -143,6 +162,74 @@ const OffenseList = ({ list = null }) => {
             )}
 
         </div>
+    );
+};
+
+// Penalties per offense level (1st–6th) as "ref — description" labels.
+const penaltiesFor = (data, occ) =>
+    data.penalties
+        ?.filter((p) => p.occurrence == occ)
+        .map((p) => {
+            const desc = p.penalty?.description ?? p.penalty_description;
+            const ref = p.penalty?.ref_number;
+            return ref != null ? `${ref} — ${desc}` : desc;
+        })
+        ?? [];
+
+// Phone row: icon + name + "Major/Minor offense · N offense level(s)";
+// tapping drops down the keywords and the penalty for each offense level.
+const OffenseMobileItem = ({ i, data, open, toggle }) => {
+    const isMajor = !!data.offense_status;
+    const levels = new Set((data.penalties ?? []).map((p) => p.occurrence)).size;
+
+    return (
+        <li className="list-none mb-3 last:mb-0 rounded-xl border border-gray-200 bg-white shadow-sm text-[0.85em] overflow-hidden">
+            <button
+                type="button"
+                onClick={toggle}
+                aria-expanded={open}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-left active:bg-gray-50"
+            >
+                <div className={`shrink-0 h-9 w-9 grid place-items-center rounded-full ${isMajor ? "bg-red-100 text-red-600" : "bg-yellow-100 text-yellow-700"}`}>
+                    <ShieldAlert size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-gray-900">{i + 1}. {toTitleCase(data.violation_name)}</div>
+                    <div className="text-[0.85em] text-gray-500 truncate">
+                        {isMajor ? "Major" : "Minor"} offense · {levels} offense level(s)
+                    </div>
+                </div>
+                <ChevronDown size={18} className={`shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
+            </button>
+            {open && (
+                <div className="px-4 pb-4 pt-3 border-t border-gray-100 grid gap-3">
+                    {data.keywords?.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                            {data.keywords.map((kw, j) => (
+                                <Chip key={j} label={kw} size="small" variant="outlined" />
+                            ))}
+                        </div>
+                    )}
+                    {[1, 2, 3, 4, 5, 6].map((occ) => {
+                        const list = penaltiesFor(data, occ);
+                        return (
+                            <div key={occ}>
+                                <div className="font-semibold text-gray-800">{ordinal(occ)} Offense:</div>
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                    {list.length > 0 ? (
+                                        list.map((desc, j) => (
+                                            <Chip key={j} label={desc} size="small" variant="outlined" sx={{ height: "auto", "& .MuiChip-label": { whiteSpace: "normal", py: 0.5 } }} />
+                                        ))
+                                    ) : (
+                                        <span className="italic text-gray-500">No Penalty</span>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </li>
     );
 };
 
@@ -184,15 +271,7 @@ const OffenseListItem = ({ i, data, isLast }) => {
                             }}
                         >
                             {[1, 2, 3, 4, 5, 6].map((occ) => {
-                                const penaltiesForOcc =
-                                    data.penalties
-                                        ?.filter((p) => p.occurrence == occ)
-                                        .map((p) => {
-                                            const desc = p.penalty?.description ?? p.penalty_description;
-                                            const ref = p.penalty?.ref_number;
-                                            return ref != null ? `${ref} — ${desc}` : desc;
-                                        })
-                                        ?? [];
+                                const penaltiesForOcc = penaltiesFor(data, occ);
 
                                 return (
                                     <Box key={occ}>

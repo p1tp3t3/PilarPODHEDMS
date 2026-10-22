@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Events\NotifyUser;
 use App\Mail\CallInMail;
-use App\Mail\ProgramHeadCallInMail;
 use App\Models\ActionLog;
 use App\Models\Notifications;
 use App\Models\User;
@@ -22,12 +21,16 @@ class NotificationController extends Controller
 {
     public function index()
     {
-        $notif = new Notifications;
-
-        $notif = (isset($_GET['id'])) ? $notif->with(['sender.profile', 'receiver.profile'])->where('id', $_GET['id'])->first() : null;
+        // ?id= is the notification's encrypted id — read through request()
+        // so DecryptEncryptedIds has turned it back into the plain id (raw
+        // $_GET skipped that). Only the receiver may open a notification.
+        $requestedId = request()->query('id');
+        $notif = $requestedId !== null
+            ? Notifications::with(['sender.profile', 'receiver.profile'])->where('id', $requestedId)->first()
+            : null;
         $receiverId = $notif != null ? $notif->receiver_id : 0;
 
-        if ((isset($_GET['id']) && $notif == null)) {
+        if ($requestedId !== null && ($notif == null || (int) $receiverId !== (int) auth()->id())) {
             abort(404);
         } else {
             if (empty($notif->read_since) && $receiverId == auth()->id()) {
@@ -94,15 +97,6 @@ class NotificationController extends Controller
                 ->with(['profile', 'program'])
                 ->firstOrFail();
 
-            /** Get Program Head if enabled **/
-            $programHead = null;
-            if ($request->boolean('notify_program_head') && $student->program) {
-                $head = $student->program->programHead;
-                $programHead = $head
-                    ? User::where('id', $head->user_id)->with('profile')->first()
-                    : null;
-            }
-
             /** EMAIL DATA */
             $emailNotifData = [
                 'prefect' => "{$prefect->profile?->first_name} {$prefect->profile?->last_name}",
@@ -124,44 +118,6 @@ class NotificationController extends Controller
 
             /** Email Sending - rollback on failure */
             Mail::to($student->email)->send(new CallInMail($emailNotifData));
-
-            /** Notify Program Head (if enabled) */
-            if ($programHead && $request->boolean('notify_program_head')) {
-                $programHeadNotifId = Notifications::insertGetId([
-                    'sender_id' => auth()->id(),
-                    'receiver_id' => $programHead->id,
-                    'notif_type' => 'call_in',
-                    'content' => 'c',
-                ]);
-
-                // Falls back to the original boilerplate when the prefect
-                // leaves the program-head message blank, so this stays
-                // optional rather than a new required field.
-                $programHeadMessage = trim((string) $request->program_head_message) !== ''
-                    ? $request->program_head_message
-                    : "This is to formally inform your office about your student {$student->profile?->first_name} {$student->profile?->middle_name} {$student->profile?->last_name} who is being called in by the office of the prefect. Please inform your student to visit to the office due to confidential reasons.";
-
-                Notifications::where('id', $programHeadNotifId)->update([
-                    'content' => json_encode([
-                        'id' => $programHeadNotifId,
-                        'is_program_head' => true,
-                        'sender_notif_message' => 'You notify the program head about the called in a student.',
-                        'receiver_notif_message' => $programHeadMessage,
-                    ]),
-                ]);
-
-                $dataProg = [
-                    'program_head_name' => $programHead->profile?->first_name.' '.$programHead->profile?->last_name,
-                    'date_reported' => Carbon::parse(now())->format('Y-d-m'),
-                    'student_name' => $student->profile?->first_name.' '.$student->profile?->last_name,
-                    'program' => $student->program->name ?? null,
-                    'message' => trim((string) $request->program_head_message) !== '' ? $request->program_head_message : null,
-                ];
-                Mail::to($programHead->email)
-                    ->send(new ProgramHeadCallInMail($dataProg));
-
-                broadcast(new NotifyUser($programHead->id));
-            }
 
             /** Broadcast event */
             broadcast(new NotifyUser($data['receiver_id']));
@@ -215,28 +171,23 @@ class NotificationController extends Controller
         $userId = auth()->id();
         $read = ['read_since' => DB::raw('CURRENT_TIMESTAMP')];
 
-        $notif = Notifications::where('receiver_id', $userId);
+        // A fresh query each time: reusing one builder kept stacking
+        // where('id', ...) clauses, so only the first selected one was marked.
+        $mine = fn () => Notifications::where('receiver_id', $userId)->whereNull('read_since');
 
         switch ($request->type) {
             case 'select-one':
-                if (empty($notif->where('id', $request->id)->first()->read_since)) {
-                    $notif->where('id', $request->id)
-                        ->update($read);
-                }
+                $mine()->where('id', $request->id)->update($read);
                 break;
             case 'select-multiple':
-                foreach ($request->notif_id_list as $id) {
-                    $notif->where('id', $id)
-                        ->update($read);
-                }
+                $mine()->whereIn('id', (array) $request->notif_id_list)->update($read);
                 break;
             case 'select-all':
-                $notif->where('read_since', null)
-                    ->update($read);
+                $mine()->update($read);
                 break;
         }
 
-        return self::getNotif($userId, 4);
+        return self::getNotif(encrypt_id($userId), 4);
     }
 
     public function destroy(Request $request, $type)
@@ -261,38 +212,47 @@ class NotificationController extends Controller
         return response()->json($request->all());
     }
 
+    /**
+     * The user id in these notification URLs is the user's encrypted id; it
+     * must be the signed-in user's own (it used to be a plain id that was
+     * trusted, so anyone could read anyone's notifications).
+     */
+    private function ownUserIdOrAbort($encryptedId): int
+    {
+        $userId = decrypt_id($encryptedId) ?? abort(404);
+        abort_unless($userId === (int) auth()->id(), 403);
+
+        return $userId;
+    }
+
+    /** The latest notifications for the header badge/dropdown. */
     public function getNotif($receiver, $l)
     {
-        $notif = Notifications::where('receiver_id', $receiver)
-            ->latest('created_at')
-            ->limit($l)
-            ->get();
-        $unreadCount = $notif->whereNull('read_since')->count();
+        $userId = $this->ownUserIdOrAbort($receiver);
+        $limit = min(max((int) $l, 1), 200);
 
         return response()->json([
-            'unread_count' => $unreadCount,
-            'notif' => $notif,
-            'size' => Notifications::where('receiver_id', $receiver)->count(),
+            'unread_count' => Notifications::where('receiver_id', $userId)->whereNull('read_since')->count(),
+            'notif' => Notifications::where('receiver_id', $userId)->latest('created_at')->limit($limit)->get(),
+            'size' => Notifications::where('receiver_id', $userId)->count(),
         ]);
     }
 
+    /**
+     * 'all' or 'unread' notifications, newest first, for the notifications
+     * page and dropdown. `size` is the total in that list (for "load more").
+     */
     public function getNotifType($type, $id, $lim = 4)
     {
-        $notif = new Notifications;
-        $unreadCount = $notif->where('receiver_id', $id)->whereNull('read_since')->count();
-        switch ($type) {
-            case 'all':
-                $notif = $notif;
-                break;
-            case 'unread':
-                $notif = $notif->whereNull('read_since');
-                break;
-        }
+        $userId = $this->ownUserIdOrAbort($id);
+        $limit = min(max((int) $lim, 1), 200);
+        $list = fn () => Notifications::where('receiver_id', $userId)
+            ->when($type === 'unread', fn ($q) => $q->whereNull('read_since'));
 
         return [
-            'unread_count' => $unreadCount,
-            'notif' => $notif->where('receiver_id', $id)->latest('created_at')->limit($lim)->get(),
-            'size' => $notif->where('receiver_id', $id)->count(),
+            'unread_count' => Notifications::where('receiver_id', $userId)->whereNull('read_since')->count(),
+            'notif' => $list()->latest('created_at')->limit($limit)->get(),
+            'size' => $list()->count(),
         ];
     }
 

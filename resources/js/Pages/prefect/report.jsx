@@ -1,7 +1,8 @@
-import TabSwitcher from "@/Components/other/tab-switcher"
 import PageLayout from "@/Layouts/page-layout"
+import TabSwitcher from "@/Components/other/tab-switcher"
+import ReportStatistics from "./report/report-statistics"
 import AuthLayout from "@/Layouts/auth-layout"
-import { router } from "@inertiajs/react"
+import { router, Link } from "@inertiajs/react"
 import { useEffect, useRef, useState } from "react"
 import RadioButton from "@/Components/input/radio"
 import DropdownField from "@/Components/input/dropdown"
@@ -32,25 +33,27 @@ const semesterList = [
 ]
 
 const PrefectReport = (props) => {
-    const optionTab = [
-        { key: 'incident-report', label: 'Incident Report' },
-        { key: 'violation-report', label: 'Violation Report' },
-        { key: 'tardy-report', label: 'Tardy Report' },
-        { key: 'appointment-report', label: 'Appointment Report' },
-        { key: 'gatepass-report', label: 'Gate Pass Report' },
-        { key: 'analytics', label: 'Analytical Report' },
-        { key: 'saved-filters', label: 'Saved Filters' },
-        { key: 'generated-reports', label: 'Generated Reports' },
-    ]
+    // Each report is its own page (/prefect/report/{section}, see
+    // routes/auth.php); the URL section maps to the view shown below.
+    const SECTIONS = {
+        'incident': { key: 'incident-report', label: 'Incident Report' },
+        'violation': { key: 'violation-report', label: 'Violation Report' },
+        'tardy': { key: 'tardy-report', label: 'Tardy Report' },
+        'appointment': { key: 'appointment-report', label: 'Appointment Report' },
+        'gatepass': { key: 'gatepass-report', label: 'Gate Pass Report' },
+        'analytics': { key: 'analytics', label: 'Analytical Report' },
+        'saved-filters': { key: 'saved-filters', label: 'Saved Filters' },
+        'generated': { key: 'generated-reports', label: 'Generated Reports' },
+    }
+    const current = SECTIONS[props.section] ?? SECTIONS.incident
+    const choose = current.key
+    // Report-type pages have two tabs: the records table and its statistics.
+    const isReportType = Boolean(props.report_stats)
+    const [view, setView] = useState('records')
 
-    const [choose, setChoose] = useState('incident-report')
-
-    // Which report-type tab a saved filter belongs to comes from wherever
-    // "Create Filter" was clicked — not a choice inside the modal anymore.
-    // Tracked separately from `choose` since Analytical Report/Saved
-    // Filters/Generated Reports aren't report types themselves; the Saved
-    // Filters tab's own "+ New Filter" button falls back to whichever of
-    // the 5 type tabs was last actually viewed.
+    // Saved filters are only created from the Saved Filters page ("+ New
+    // Filter"), where the modal lets the report type be chosen; this maps a
+    // report page to its type for that modal's default.
     const TAB_TO_TYPE = {
         'incident-report': 'incident',
         'violation-report': 'violation',
@@ -58,7 +61,9 @@ const PrefectReport = (props) => {
         'appointment-report': 'appointment',
         'gatepass-report': 'gatepass',
     }
-    const [lastReportTab, setLastReportTab] = useState('incident-report')
+    // On its own page now, Saved Filters' "+ New Filter" defaults to the
+    // incident type (the modal lets the type be changed there).
+    const lastReportTab = 'incident-report'
 
     // One shared filter for every list tab above (not a separate copy per
     // tab) — reloads the page's report props from the server with the
@@ -116,8 +121,8 @@ const PrefectReport = (props) => {
     // "generate a file right away" modal. `editingFilter` is null for
     // "create a new one"; the Saved Filters tab's Edit action sets it
     // before opening the same modal, and it's cleared again the moment the
-    // modal closes so a later "Create Filter" click (from any of the type
-    // tabs above) never reopens stale edit state.
+    // modal closes so a later "+ New Filter" click never reopens stale
+    // edit state.
     const [reportFilters, setReportFilters] = useState([])
     const [editingFilter, setEditingFilter] = useState(null)
 
@@ -137,13 +142,6 @@ const PrefectReport = (props) => {
     useEffect(() => loadReportFilters(), [])
     useEffect(() => { if (!report) setEditingFilter(null) }, [report])
 
-    const handleSelect = (type) => {
-        if(choose != type) {
-            const url = window.location.pathname;
-            setChoose(type)
-            if (TAB_TO_TYPE[type]) setLastReportTab(type)
-        }
-    }
     const setId = (id, type) => {
         setDocId(id)
         if(type == 'c') {
@@ -191,7 +189,7 @@ const PrefectReport = (props) => {
 
     return (
         <>
-        <Head title="Report" />
+        <Head title={current.label} />
         <ViewAbsentFormModal
             close={absent}
             closeModal={openAbsentForm}
@@ -239,10 +237,9 @@ const PrefectReport = (props) => {
             defaultType={TAB_TO_TYPE[choose] ?? TAB_TO_TYPE[lastReportTab]}
             allowTypeChoice={choose === 'saved-filters'}
         />
-            <PageLayout title="REPORT">
+            <PageLayout title={current.label.toUpperCase()}>
                     <div className="grid gap-5 min-w-0">
-                        <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
-                        {choose !== 'analytics' && choose !== 'saved-filters' && choose !== 'generated-reports' &&
+                        {choose !== 'analytics' && choose !== 'saved-filters' && choose !== 'generated-reports' && view !== 'generate' &&
                         <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm p-4 sm:p-5 grid gap-4 min-w-0">
                             <RadioButton
                                 list={[
@@ -321,30 +318,55 @@ const PrefectReport = (props) => {
                                 </button>}
                             </div>
                         </div>}
-                        {choose == 'incident-report' &&
+                        {isReportType &&
+                        <TabSwitcher
+                            tabs={[
+                                { key: 'records', label: 'Records' },
+                                { key: 'statistics', label: 'Statistics' },
+                                { key: 'generate', label: 'Generate Report' },
+                            ]}
+                            value={view}
+                            onChange={setView}
+                        />}
+                        {isReportType && view === 'statistics' &&
+                        <ReportStatistics stats={props.report_stats} />}
+                        {/* Pick one of this report type's saved filters and generate
+                            the file (queued; it lands in Generated Reports). */}
+                        {isReportType && view === 'generate' &&
+                        <div className="grid gap-3 min-w-0">
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-[0.85em] text-gray-600">
+                                <span>Choose a saved {current.label.toLowerCase()} filter to generate.</span>
+                                <span className="flex gap-4">
+                                    <Link href="/prefect/report/saved-filters" className="text-blue-700 hover:underline">Manage saved filters</Link>
+                                    <Link href="/prefect/report/generated" className="text-blue-700 hover:underline">Generated reports</Link>
+                                </span>
+                            </div>
+                            <ReportFilterList
+                                list={reportFilters.filter((f) => f.report_type === TAB_TO_TYPE[choose])}
+                                showType={false}
+                                generateOnly
+                                emptyLabel={`No saved ${current.label.toLowerCase()} filters yet`}
+                            />
+                        </div>}
+                        {view === 'records' && choose == 'incident-report' &&
                         <IncidentReport
-                            openGenerateReport={openGenerateReport}
                             report={report_list}
                             events={actionEvent}
                         />}
-                        {choose == 'violation-report' &&
+                        {view === 'records' && choose == 'violation-report' &&
                         <ViolationReport
-                            openGenerateReport={openGenerateReport}
                             report={violation_report_list}
                         />}
-                        {choose == 'tardy-report' &&
+                        {view === 'records' && choose == 'tardy-report' &&
                         <TardyReport
-                            openGenerateReport={openGenerateReport}
                             report={tardy_report_list}
                         />}
-                        {choose == 'appointment-report' &&
+                        {view === 'records' && choose == 'appointment-report' &&
                         <AppointmentReport
-                            openGenerateReport={openGenerateReport}
                             report={appointment_report_list}
                         />}
-                        {choose == 'gatepass-report' &&
+                        {view === 'records' && choose == 'gatepass-report' &&
                         <GatePassReport
-                            openGenerateReport={openGenerateReport}
                             report={gatepass_report_list}
                         />}
                         {choose == 'analytics' &&

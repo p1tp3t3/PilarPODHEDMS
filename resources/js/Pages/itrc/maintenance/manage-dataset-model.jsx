@@ -165,7 +165,7 @@ const ManageDatasetModel = () => {
         <PageLayout
             title="Model Training"
             rightSideComponent={
-                <ActionBtn className="bg-gray-600 hover:bg-gray-700 text-white" onClick={loadStatus} disabled={loading}>
+                <ActionBtn className="bg-gray-600 hover:bg-gray-700 text-white" onClick={loadStatus} disabled={loading} label="Refresh" icon={<RefreshCw size={18} className={loading ? "animate-spin" : ""} />}>
                     <span className="inline-flex items-center gap-1.5"><RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Refresh</span>
                 </ActionBtn>
             }

@@ -10,11 +10,11 @@ import {
   toTitleCase 
 } from "@/others/function"
 import SelectedUser from "@/Components/other/selected-user"
-import CircleReload from "@/Components/reload/circle-reload"
 import { Link } from "@inertiajs/react"
 import QuantityCard from "@/Components/card/qntty-statistic-card"
 import GaugeChart from "@/Components/card/gauge-chart-statistic-card"
 import { TriangleAlert } from "lucide-react"
+import { ViewModalSkeleton } from "./view-modal-parts"
 
 const ViewStudentIncidentListModal = (props) => {
   const [data, setData] = useState(null)
@@ -48,9 +48,7 @@ const ViewStudentIncidentListModal = (props) => {
           <Body data={data} usr={props.user} />
         ) : (
           reload && (
-            <div className="flex justify-center py-6">
-              <CircleReload size={3} />
-            </div>
+            <ViewModalSkeleton variant="list" />
           )
         )}
       </div>

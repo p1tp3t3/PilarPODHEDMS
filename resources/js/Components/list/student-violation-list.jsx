@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Box } from "@mui/material";
 import { DataGrid, GridActionsCellItem, GridToolbarContainer, GridToolbarQuickFilter } from "@/Components/other/data-grid";
 import ProfilePic from "../other/profile-pic";
-import { getProfilePic, getYearLevel, toTitleCase } from "@/others/function";
+import { getProfilePic, getYearLevel, toTitleCase, studentProgram, showUserType } from "@/others/function";
 import { router } from "@inertiajs/react";
 import ActionBtn from "@/Components/button/action-btn";
 
@@ -15,7 +15,7 @@ const StudentViolationList = ({ list = [], fromKey = null }) => {
       const isStudent = e.user?.role === "student"
       const latestEnrollment = e.user?.enrollments?.[e.user.enrollments.length - 1]
       const programName = isStudent
-        ? e.user?.program?.name
+        ? studentProgram(e.user)
         : e.user?.teaching_staff?.program?.name
       return {
         id: i,
@@ -26,8 +26,7 @@ const StudentViolationList = ({ list = [], fromKey = null }) => {
         studentText: `${e.user?.profile?.first_name || ""} ${e.user?.profile?.middle_name || ""} ${
           e.user?.profile?.last_name || ""
         } ${toTitleCase(programName || "")}`.trim(), // ✅ for filter/sort
-        school_year: isStudent ? (latestEnrollment?.school_year?.year ?? 'N / A') : 'N / A',
-        year_level: isStudent && latestEnrollment?.year_level ? getYearLevel(latestEnrollment.year_level) : 'N/A',
+        repeat_violations: e.repeat_violations,
         violation_count: e.violation_count,
         major_count: e.major_count,
         minor_count: e.minor_count,
@@ -37,6 +36,8 @@ const StudentViolationList = ({ list = [], fromKey = null }) => {
   [list]
 );
 
+
+  const hasRepeats = list.some((e) => Array.isArray(e.repeat_violations))
 
   // Define columns
   const columns = [
@@ -70,7 +71,7 @@ const StudentViolationList = ({ list = [], fromKey = null }) => {
                 </h1>
                 <p className="text-[0.7em]">
                     {user.role === "student"
-                    ? user.program?.name
+                    ? showUserType(user)
                     : `${user.teaching_staff?.program?.name ?? ""} ${user.teaching_staff?.position === "program_head" ? "(Program Head)" : "(Faculty)"}`.trim()}
                 </p>
                 </div>
@@ -78,8 +79,28 @@ const StudentViolationList = ({ list = [], fromKey = null }) => {
             );
         },
     },
-    { field: "school_year", headerName: "School Year", width: 160 },
-    { field: "year_level", headerName: "Year Level", width: 120 },
+    // Violations committed more than once (only when the list has that
+    // data — the Student Violations page; a single violation's student list
+    // doesn't).
+    ...(hasRepeats ? [{
+      field: "repeat_violations",
+      headerName: "Repeated Violations",
+      width: 170,
+      type: "number",
+      align: "left",
+      headerAlign: "left",
+      // How many different violations the student committed more than
+      // once; hover lists which ones and how many times.
+      valueGetter: (value) => value?.length ?? 0,
+      renderCell: ({ row, value }) => (
+        <span
+          className={value ? "font-semibold text-red-700" : "text-gray-500"}
+          title={row.repeat_violations?.map((r) => `${toTitleCase(r.name)} ×${r.count}`).join(", ") || "No repeated violations"}
+        >
+          {value}
+        </span>
+      ),
+    }] : []),
     { field: "violation_count", headerName: "Total Violation Counts", width: 160 },
     {
       field: "actions",
@@ -120,6 +141,14 @@ const StudentViolationList = ({ list = [], fromKey = null }) => {
         pagination
         showToolbar
         localeText={{ noRowsLabel: "No Student Violations Found" }}
+        // Phones: picture + name + program; tap for counts and View.
+        mobileSummary={(row) => ({
+          name: [row.user?.profile?.first_name, row.user?.profile?.middle_name, row.user?.profile?.last_name].filter(Boolean).join(" "),
+          role: row.user?.role === "student" ? showUserType(row.user) : row.user?.teaching_staff?.program?.name,
+          picture: row.user?.profile?.profile_picture,
+          sex: row.user?.profile?.sex,
+          hide: ["studentText"],
+        })}
       />
     </Box>
   );

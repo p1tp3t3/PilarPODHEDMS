@@ -75,6 +75,16 @@ class ComplaintFactory extends Factory
     }
 
     /**
+     * Filed by a prefect on the complainant's behalf (records which prefect).
+     */
+    public function filedByPrefect(?int $prefectId = null): static
+    {
+        return $this->state(fn () => [
+            'prefect_id' => $prefectId ?? User::whereRole('sub_admin')->inRandomOrder()->value('id'),
+        ]);
+    }
+
+    /**
      * Force a fully-consistent resolved complaint — recomputes every date
      * field that depends on the status instead of just overwriting
      * `complaint_status` on top of whatever random status definition()

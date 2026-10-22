@@ -2,8 +2,7 @@ import UpModal from "../up-modal"
 import { useState, useEffect } from "react"
 import { readableDate, readableTime, toTitleCase, formatSchoolYearSemester } from "../../../others/function"
 import { ComplaintService } from "@/others/services/complaint-service"
-import CircleReload from "@/Components/reload/circle-reload"
-import { ModalHeader, Section, Stat, StatGrid, PersonList, safeParseArray } from "./view-modal-parts"
+import { ModalHeader, Section, Stat, StatGrid, PersonList, safeParseArray, ByPrefect, ViewModalSkeleton } from "./view-modal-parts"
 import {
     AlertCircle,
     CalendarClock,
@@ -54,9 +53,7 @@ const ViewComplaintModal = (props) => {
                 <Body data={data} usr={props.usr} />
                 :
                 reload &&
-                <div className="w-full flex justify-center py-16">
-                    <CircleReload size={3} />
-                </div>}
+                <ViewModalSkeleton variant="record" />}
             </div>
         </UpModal>
     )
@@ -182,6 +179,7 @@ const Body = ({ data, usr }) => {
                         {data.user != null
                         ? <PersonList data={data.user} />
                         : <div className="text-sm text-gray-700">{toTitleCase(data.complainant_name)}</div>}
+                        <ByPrefect prefect={data.prefect} />
                     </Section>
                     <Section icon={Users} title="Subject">
                         <PersonList

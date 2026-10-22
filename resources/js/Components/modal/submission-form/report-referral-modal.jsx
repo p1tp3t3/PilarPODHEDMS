@@ -5,7 +5,7 @@ import RichTextEditor from "@/Components/input/rich-text-editor"
 import FormButton from "@/Components/button/button"
 import { useState, useEffect } from "react"
 import { router } from "@inertiajs/react"
-import { getProfilePic, showWarningModal, showOutputModal, toTitleCase, isSamePerson } from "@/others/function"
+import { getProfilePic, showWarningModal, showOutputModal, toTitleCase, isSamePerson, showUserType } from "@/others/function"
 import { ReferralService } from "@/others/services/referral-service"
 import { X } from "lucide-react"
 
@@ -143,7 +143,7 @@ const ReportReferralModal = (props) => {
 
 const SelectedUser = (props) => {
     const isStudent = props.user.role == "student"
-        ? `${props.user.program?.name}`
+        ? showUserType(props.user)
         : toTitleCase(props.user.parent?.parent_role)
     return (
         <div className="flex-shrink-0 grid relative w-[5rem]">

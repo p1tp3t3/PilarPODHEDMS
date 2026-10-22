@@ -14,8 +14,12 @@ class GatePass extends Model
 
     protected $table = 'gate_pass';
 
+
+    // Always load who filed it on someone's behalf, so every list/table
+    // can show "Filed By (Prefect)" without each query having to ask.
+    protected $with = ['prefect.profile'];
     protected $fillable = [
-        'gatepass_number', 'user_id', 'reason', 'allow_to', 'confirmed_at', 'date_expiration',
+        'gatepass_number', 'user_id', 'prefect_id', 'reason', 'allow_to', 'confirmed_at', 'date_expiration',
         'rejected_reason', 'rejected_at', 'revoked_at', 'edited_at', 'archived_at',
     ];
 
@@ -29,5 +33,12 @@ class GatePass extends Model
     public function revisions(): HasMany
     {
         return $this->hasMany(GatePassRevision::class, 'gate_pass_id', 'id');
+    }
+
+    // The prefect who issued this gate pass directly (null when the student
+    // submitted it themselves).
+    public function prefect(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'prefect_id', 'id');
     }
 }

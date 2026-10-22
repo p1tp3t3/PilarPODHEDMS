@@ -10,6 +10,7 @@ import AppointmentScheduleList from "@/Components/list/upcoming-sched-list";
 import DashboardTabs from "@/Components/other/dashboard-tabs";
 import { Head, Link } from "@inertiajs/react";
 import { Users, FileText } from "lucide-react";
+import { PageTitle } from "@/context-provider/page-title-provider";
 
 const ParentDashboard = (props) => {
     const actDataset = [
@@ -26,7 +27,8 @@ const ParentDashboard = (props) => {
     return (
         <>
             <Head title="Dashboard" />
-            <div className="w-full pt-2 sm:pt-3 pb-6 sm:pb-10">
+            <PageTitle title="Dashboard" />
+            <div className="w-full pt-5 pb-6 sm:pb-10">
                 <MaintenanceScheduleReminder />
                 <DashboardTabs>
                 {/* Same as the super admin: date/time and school year side by side. */}

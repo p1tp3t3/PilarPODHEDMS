@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Line } from "react-chartjs-2";
 import { Chart as ChartJS, CategoryScale, LinearScale, LineElement, Title, Tooltip, Legend, PointElement, Filler } from "chart.js";
 import { ChevronDown } from "lucide-react";
+import { Checkbox } from "@mui/material";
 
 ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Title, Tooltip, Legend);
 
@@ -145,8 +146,9 @@ const LineGraph = (props) => {
                         {dropdownOpen && (
                             <div className="absolute right-0 mt-1 w-64 max-h-64 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg z-10 py-1">
                                 <label className="flex items-center gap-2 px-3 py-1.5 text-[0.8em] hover:bg-gray-50 cursor-pointer border-b border-gray-100 font-semibold">
-                                    <input
-                                        type="checkbox"
+                                    <Checkbox
+                                        size="small"
+                                        sx={{ p: 0.25 }}
                                         checked={allChecked}
                                         onChange={() =>
                                             setSelected(
@@ -161,8 +163,9 @@ const LineGraph = (props) => {
                                         key={i}
                                         className="flex items-center gap-2 px-3 py-1.5 text-[0.8em] hover:bg-gray-50 cursor-pointer"
                                     >
-                                        <input
-                                            type="checkbox"
+                                        <Checkbox
+                                            size="small"
+                                            sx={{ p: 0.25 }}
                                             checked={selected.includes(i)}
                                             onChange={() => toggleSelected(i)}
                                         />

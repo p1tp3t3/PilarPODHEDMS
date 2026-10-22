@@ -34,8 +34,9 @@ const summarizeFilters = (filters) => {
 // Every saved filter can be re-run (Generate), tweaked (Edit, reopens the
 // same form pre-filled), or removed (Delete) — replacing the old flow
 // where the filter form always produced a file immediately and was thrown
-// away right after.
-const ReportFilterList = ({ list = null, onEdit, onChange, showType = true }) => {
+// away right after. `generateOnly` (a report page's Generate Report tab)
+// shows just a labelled Generate button; editing stays on Saved Filters.
+const ReportFilterList = ({ list = null, onEdit, onChange, showType = true, generateOnly = false, emptyLabel = "No Saved Filters Yet" }) => {
     const rows = useMemo(() => {
         if (!list) return []
         return list.map((f) => ({
@@ -94,10 +95,14 @@ const ReportFilterList = ({ list = null, onEdit, onChange, showType = true }) =>
             field: "actions",
             type: "actions",
             headerName: "Actions",
-            width: 170,
+            width: generateOnly ? 140 : 170,
             sortable: false,
             filterable: false,
-            renderCell: (params) => (
+            renderCell: (params) => generateOnly ? (
+                <ActionBtn className="bg-green-600 hover:bg-green-700" onClick={() => handleGenerate(params.row)}>
+                    <span className="inline-flex items-center gap-1.5"><Play size={14} /> Generate</span>
+                </ActionBtn>
+            ) : (
                 <div className="flex items-center gap-2">
                     <ActionBtn className="bg-green-600 hover:bg-green-700" onClick={() => handleGenerate(params.row)} title="Generate">
                         <Play size={14} />
@@ -111,7 +116,7 @@ const ReportFilterList = ({ list = null, onEdit, onChange, showType = true }) =>
                 </div>
             ),
         },
-    ], [showType])
+    ], [showType, generateOnly])
 
     return (
         <div className="w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm grid gap-3">
@@ -123,7 +128,7 @@ const ReportFilterList = ({ list = null, onEdit, onChange, showType = true }) =>
                     disableRowSelectionOnClick
                     getRowHeight={() => "auto"}
                     showToolbar
-                    localeText={{ noRowsLabel: "No Saved Filters Yet" }}
+                    localeText={{ noRowsLabel: emptyLabel }}
                 />
             </Box>
         </div>

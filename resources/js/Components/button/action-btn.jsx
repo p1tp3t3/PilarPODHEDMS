@@ -1,4 +1,5 @@
 import { Button } from "@mui/material"
+import { useTitleActionIcon } from "@/context-provider/page-title-provider"
 
 // Tailwind's default palette for exactly the shades this app's ActionBtn
 // callers actually pass in via `className` (bg-*/hover:bg-*/text-* across
@@ -33,7 +34,11 @@ const ActionBtn = ({
     className,
     disabled = false,
     title,
+    icon,
+    label,
 }) => {
+    // In a page's title bar, phones show just `icon` in a round button.
+    const compact = useTitleActionIcon(icon, children, label)
     const bg = matchColor(className, 'bg') ?? '#3b82f6'
     const bgHover = matchColor(className, 'hover:bg') ?? bg
     const text = /(?:^|\s)text-white(?:\s|$)/.test(className || '') || !matchColor(className, 'text')
@@ -47,7 +52,8 @@ const ActionBtn = ({
             disableElevation
             onClick={onClick}
             disabled={disabled}
-            title={title}
+            title={title ?? compact?.name}
+            aria-label={compact?.name}
             className={className}
             sx={{
                 textTransform: 'none',
@@ -60,9 +66,10 @@ const ActionBtn = ({
                 color: text,
                 '&:hover': { bgcolor: bgHover },
                 '&.Mui-disabled': { bgcolor: bg, color: text, opacity: 0.6 },
+                ...compact?.sx,
             }}
         >
-            {children}
+            {compact ? compact.content : children}
         </Button>
     )
 }

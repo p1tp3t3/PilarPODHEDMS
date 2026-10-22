@@ -6,7 +6,11 @@ import ListSkeleton from "../reload/list-skeleton";
 import ActionBtn from "../button/action-btn";
 import { DataGrid, GridActionsCellItem, GridToolbarContainer } from "@/Components/other/data-grid";
 import { Box, Button } from "@mui/material";
-import { FolderOpen } from "lucide-react";
+import { FolderOpen, FileWarning } from "lucide-react";
+import { StatusAvatar, statusLabel } from "@/Components/other/mobile-card-list";
+import { useIsMobile } from "@/others/use-is-mobile";
+import { SelectCheckbox } from "@/Components/input/select-checkbox";
+import { filedByColumn } from "@/Components/list/filed-by-column";
 
 function CustomNoRowsOverlay() {
   return (
@@ -46,6 +50,14 @@ const ComplaintList = ({
   const statusQuery = new URLSearchParams(window.location.search).get("status");
 
   // Convert list.data to rows
+  const isMobile = useIsMobile();
+  // Pending complaints are selectable for bulk approve. Value is the
+  // encrypted id (decrypted server-side by DecryptEncryptedIds).
+  const canBulkSelect = (obj) => select2 && type === "prefect" && obj.complaint_status === "pending";
+  const bulkCheckbox = (obj) => (
+    <SelectCheckbox value={obj.encrypted_id ?? obj.id} label={`Select complaint ${obj.complaint_number}`} />
+  );
+
   const rows = list?.data?.map((e, i) => ({
     id: e.id,
     rowIndex: i,
@@ -118,6 +130,8 @@ const ComplaintList = ({
   });
 }
 
+
+    if (type === "prefect") cols.push(filedByColumn((r) => r.prefect));
 
     cols.push(
       {
@@ -247,15 +261,19 @@ const ComplaintList = ({
                 )}
 
                 {select && (
-                <input type="checkbox" value={obj.case_number} />
+                <SelectCheckbox name="selected-case" value={obj.case_number} label={`Select case ${obj.case_number}`} />
                 )}
+
+                {/* Bulk approve (prefect's Pending tab). On phones the
+                    checkbox sits on the collapsed row instead. */}
+                {canBulkSelect(obj) && !isMobile && bulkCheckbox(obj)}
             </div>
             );
         }
     });
 
     return cols;
-  }, [list, type, select, select2, user]);
+  }, [list, type, select, select2, user, isMobile]);
 
   return (
     <>
@@ -277,6 +295,20 @@ const ComplaintList = ({
             slots={{
                 noRowsOverlay: CustomNoRowsOverlay, // <- custom empty state
             }}
+            // Phones: one row per complaint (complainant for the prefect,
+            // else the reference no.); tap for the details and actions.
+            mobileSummary={(row) => ({ select: canBulkSelect(row) ? bulkCheckbox(row) : null, ...(type === "prefect" && row.user ? {
+              name: [row.user?.profile?.first_name, row.user?.profile?.middle_name, row.user?.profile?.last_name].filter(Boolean).join(" "),
+              role: `#${row.complaint_number} · ${statusLabel(row.complaint_status)}`,
+              picture: row.user.profile?.profile_picture,
+              sex: row.user.profile?.sex,
+              hide: ["complainantText", "complaint_number", "complaint_status"],
+            } : {
+              name: type === "prefect" ? (toTitleCase(row.complainant_name ?? "") || `#${row.complaint_number}`) : `Reference No. ${row.complaint_number}`,
+              role: type === "prefect" ? `#${row.complaint_number} · ${statusLabel(row.complaint_status)}` : statusLabel(row.complaint_status),
+              avatar: <StatusAvatar icon={FileWarning} status={row.complaint_status} />,
+              hide: ["complainantText", "complaint_number", "complaint_status"],
+            }) })}
           />
         </Box>
 

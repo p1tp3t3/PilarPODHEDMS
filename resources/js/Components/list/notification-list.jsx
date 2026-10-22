@@ -10,6 +10,7 @@ import ReferralNotif from "../card/notif/referral-notif"
 import { toTitleCase, parseNotifContent } from "@/others/function"
 import { motion } from "framer-motion"
 import { BellOff, Trash2 } from "lucide-react"
+import { SelectCheckbox } from "@/Components/input/select-checkbox"
 
 const NotificationList = ({
     list = null,
@@ -140,15 +141,19 @@ const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
                   onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
-                      deleteNotif(obj.id)
+                      deleteNotif(obj.encrypted_id)
                   }}
                 >
                  <Trash2 size={14} />
               </ActionBtn>
-    const checkBox = <input type="checkbox" name="selected-row" className="absolute top-1/2 -translate-y-1/2 right-2" onClick={(e) => e.stopPropagation()} value={obj.id} />
+    const checkBox = (
+        <span className="absolute top-1/2 -translate-y-1/2 right-1">
+            <SelectCheckbox value={obj.encrypted_id} label="Select notification" onClick={(e) => e.stopPropagation()} />
+        </span>
+    )
     switch(obj.notif_type) {
         case 'complaint':
-            return <NotificationWrapper link={`/notifications?id=${obj.id}&complaint_id=${content.id}`}>
+            return <NotificationWrapper link={`/notifications?id=${obj.encrypted_id}&complaint_id=${obj.record_key}`}>
                        <ComplaintNotif obj={obj} />
                        {(enableDel && !select)
                        ?
@@ -159,7 +164,7 @@ const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
                        : ''}
                    </NotificationWrapper>
         case 'referral':
-            return <NotificationWrapper link={`/notifications?id=${obj.id}&referral_id=${content.id}`}>
+            return <NotificationWrapper link={`/notifications?id=${obj.encrypted_id}&referral_id=${obj.record_key}`}>
                        <ReferralNotif obj={obj} />
                        {(enableDel && !select)
                        ?
@@ -170,7 +175,7 @@ const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
                        : ''}
                    </NotificationWrapper>
         case 'absent':
-            return <NotificationWrapper link={`/notifications?absent_id=${content.id}&id=${obj.id}`}>
+            return <NotificationWrapper link={`/notifications?absent_id=${obj.record_key}&id=${obj.encrypted_id}`}>
                        <AbsentFormNotif obj={obj} />
                        {(enableDel && !select)
                        ?
@@ -181,7 +186,7 @@ const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
                        : ''}
                    </NotificationWrapper>
         case 'appointment':
-            return <NotificationWrapper link={`/notifications?id=${obj.id}`}>
+            return <NotificationWrapper link={`/notifications?id=${obj.encrypted_id}`}>
                        <AppointmentNotif obj={obj} />
                        {(enableDel && !select)
                        ?
@@ -192,7 +197,7 @@ const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
                        : ''}
                    </NotificationWrapper>
         case 'gatepass':
-            return <NotificationWrapper link={`/notifications?gatepass_id=${content.id}&id=${obj.id}`}>
+            return <NotificationWrapper link={`/notifications?gatepass_id=${obj.record_key}&id=${obj.encrypted_id}`}>
                        <GatePassNotif obj={obj} />
                        {(enableDel && !select)
                        ?
@@ -203,7 +208,7 @@ const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
                        : ''}
                    </NotificationWrapper>
         case 'violation_access':
-            return <NotificationWrapper link={`/violation-management?tab=access-requests&id=${obj.id}`}>
+            return <NotificationWrapper link={`/violation-management/access?id=${obj.encrypted_id}`}>
                        <NormalNotif obj={obj} />
                        {(enableDel && !select)
                        ?
@@ -214,7 +219,7 @@ const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
                        : ''}
                    </NotificationWrapper>
         case 'call_in':
-            return <NotificationWrapper link={`/notifications?id=${obj.id}`}>
+            return <NotificationWrapper link={`/notifications?id=${obj.encrypted_id}`}>
                        <CallInNotif obj={obj} />
                        {(enableDel && !select)
                        ?
@@ -225,7 +230,7 @@ const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
                        : ''}
                    </NotificationWrapper>
         default:
-            return <NotificationWrapper link={`/notifications?id=${obj.id}`}>
+            return <NotificationWrapper link={`/notifications?id=${obj.encrypted_id}`}>
                        <NormalNotif obj={obj} />
                        {(enableDel && !select)
                        ?

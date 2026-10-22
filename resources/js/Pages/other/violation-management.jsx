@@ -4,7 +4,6 @@ import ManageViolation from "../itrc/maintenance/manage-violation";
 import SetViolationModal from "@/Components/modal/submission-form/set-violation-modal";
 import ManagePenalty from "../itrc/maintenance/manage-penalty";
 import SetPenaltyModal from "@/Components/modal/submission-form/set-penalty-modal";
-import TabSwitcher from "@/Components/other/tab-switcher";
 import StudentViolationList from "@/Components/list/student-violation-list";
 import ViolationAccessRequests from "../itrc/maintenance/violation-access-requests";
 import { useReload } from "@/context-provider/reload-provider";
@@ -19,13 +18,21 @@ const ViolationManagement = (props) => {
             ? { violation: { add: false, edit: false, delete: false }, penalty: { add: false, delete: false } }
             : { violation: { add: true, edit: true, delete: true }, penalty: { add: true, delete: true } }
     );
-    const [activeTab, setActiveTab] = useState(new URLSearchParams(window.location.search).get('tab') ?? 'violations'),
-          [penalty, openPenalty] = useState(false),
+    // Which page of the Violation Management group this is (its own URL —
+    // see routes/auth.php): violations, penalties, student-violations, access.
+    const section = props.section ?? 'violations';
+    const TITLES = {
+        violations: 'Violations',
+        penalties: 'Penalties',
+        'student-violations': 'Student Violations',
+        access: isSuperAdmin ? 'Edit Access' : 'Access Requests',
+    };
+    const [penalty, openPenalty] = useState(false),
           [violation, openViolation] = useState(false),
           [action, setAction] = useState("create"),
           [data, setData] = useState(null),
-          [violation_list, setViolationList] = useState(props.violation),
-          [penalty_list, setPenaltyList] = useState(props.penalty),
+          [violation_list, setViolationList] = useState(props.violation ?? []),
+          [penalty_list, setPenaltyList] = useState(props.penalty ?? []),
           [clickedOk, setClickOk] = useState(false);
 
     const { loadRegister, setReload, setOnClose } = useReload();
@@ -59,7 +66,7 @@ const ViolationManagement = (props) => {
 
     return (
         <>
-        <Head title="Violation Management" />
+        <Head title={TITLES[section]} />
         <SetViolationModal
             close={violation}
             closeModal={openViolation}
@@ -70,7 +77,8 @@ const ViolationManagement = (props) => {
             data={data}
             setClickOk={setClickOk}
             setter={setViolationList}
-            penalty={props.penalty}
+            penalty={props.penalty ?? []}
+            keywordOptions={(violation_list ?? []).flatMap((v) => Array.isArray(v.keywords) ? v.keywords : [])}
         />
         <SetPenaltyModal
             close={penalty}
@@ -83,21 +91,9 @@ const ViolationManagement = (props) => {
             setClickOk={setClickOk}
             setter={setPenaltyList}
         />
-        <PageLayout title="VIOLATION MANAGEMENT">
-            <TabSwitcher
-                tabs={[
-                    { key: "violations", label: "Manage Violations" },
-                    { key: "penalty", label: "Manage Penalties" },
-                    ...(isSuperAdmin ? [] : [{ key: "student-violations", label: "Student Violations" }]),
-                    { key: "access-requests", label: isSuperAdmin ? "Edit Access" : "Access Requests" },
-                ]}
-                value={activeTab}
-                onChange={setActiveTab}
-            />
-
-            {/* Content */}
-            <div className="py-6 sm:py-10 min-w-0">
-                {activeTab === "violations" && (
+        <PageLayout title={TITLES[section].toUpperCase()}>
+            <div className="min-w-0">
+                {section === "violations" && (
                     <ManageViolation
                         list={violation_list}
                         original_list={props.violation}
@@ -110,7 +106,7 @@ const ViolationManagement = (props) => {
                     />
                 )}
 
-                {activeTab === "penalty" && (
+                {section === "penalties" && (
                     <ManagePenalty
                         list={penalty_list}
                         original_list={props.penalty}
@@ -122,13 +118,13 @@ const ViolationManagement = (props) => {
                     />
                 )}
 
-                {activeTab === "student-violations" && !isSuperAdmin && (
+                {section === "student-violations" && !isSuperAdmin && (
                     <div className="grid gap-4">
                         <StudentViolationList list={props.student_violation_list} />
                     </div>
                 )}
 
-                {activeTab === "access-requests" && (
+                {section === "access" && (
                     <ViolationAccessRequests user={props.auth?.user} />
                 )}
             </div>

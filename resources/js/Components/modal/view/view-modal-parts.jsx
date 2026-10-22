@@ -105,3 +105,86 @@ export const safeParseArray = (value) => {
         return []
     }
 }
+
+// "Filed/Issued by the Prefect: <name>" under the person a record is for,
+// when a prefect entered it on their behalf (the record's `prefect`).
+export const ByPrefect = ({ prefect, label = "Filed by the Prefect" }) => {
+    if (!prefect) return null
+    const name = [prefect.profile?.first_name, prefect.profile?.last_name].filter(Boolean).join(" ") || prefect.username
+    return (
+        <p className="mt-3 pt-3 border-t border-gray-100 text-[0.8em] text-gray-500">
+            {label}: <span className="font-semibold text-gray-800">{name}</span>
+        </p>
+    )
+}
+
+// Placeholder shown while a view modal's data is loading from the server,
+// shaped like what's coming instead of a spinner:
+//   "record" — header, stat boxes, then sections (complaint, referral, ...)
+//   "list"   — a few stacked rows (incident / violation / appointment lists)
+//   "table"  — a header row plus table rows (file previews)
+//   "compact"— a short card (appointment details)
+const Bar = ({ className = "" }) => <div className={`bg-gray-200 rounded animate-pulse ${className}`} />
+
+export const ViewModalSkeleton = ({ variant = "record" }) => {
+    if (variant === "list") {
+        return (
+            <div className="grid gap-3 py-2" aria-busy="true" aria-label="Loading">
+                {[0, 1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center gap-3 border border-gray-100 rounded-lg px-4 py-3">
+                        <div className="h-9 w-9 rounded-full bg-gray-200 animate-pulse shrink-0" />
+                        <div className="flex-1 grid gap-2">
+                            <Bar className="h-3 w-1/2" />
+                            <Bar className="h-3 w-1/3" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )
+    }
+
+    if (variant === "table") {
+        return (
+            <div className="grid gap-2 py-2" aria-busy="true" aria-label="Loading">
+                <Bar className="h-8 w-full" />
+                {[0, 1, 2, 3, 4].map((i) => <Bar key={i} className="h-6 w-full opacity-70" />)}
+            </div>
+        )
+    }
+
+    if (variant === "compact") {
+        return (
+            <div className="grid gap-3" aria-busy="true" aria-label="Loading">
+                <Bar className="h-5 w-2/3" />
+                <Bar className="h-3 w-1/3" />
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                    <Bar className="h-12" />
+                    <Bar className="h-12" />
+                </div>
+            </div>
+        )
+    }
+
+    return (
+        <div aria-busy="true" aria-label="Loading">
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center gap-4">
+                <div className="h-11 w-11 rounded-full bg-gray-200 animate-pulse shrink-0" />
+                <div className="flex-1 grid gap-2">
+                    <Bar className="h-4 w-1/2" />
+                    <Bar className="h-3 w-1/4" />
+                </div>
+                <Bar className="h-6 w-20 rounded-full" />
+            </div>
+            <div className="px-6 py-5 grid gap-5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {[0, 1, 2].map((i) => <Bar key={i} className="h-14" />)}
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                    <Bar className="h-24" />
+                    <Bar className="h-24" />
+                </div>
+                <Bar className="h-20" />
+            </div>
+        </div>
+    )
+}

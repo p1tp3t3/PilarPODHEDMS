@@ -21,8 +21,12 @@ const UpModal = ({
     };
   }, [close]);
 
-  // Transition / positioning states
-  const center = cntr ? "grid place-items-center" : "";
+  // `cntr` centres the modal vertically — on the wrapper below (flex +
+  // min-h-full), not with grid place-items-center on the scroll container:
+  // that centred even a modal taller than the screen, pushing its top out
+  // of reach above the viewport. This way a short modal is centred and a
+  // tall one starts at the top and scrolls.
+  const align = cntr ? "items-center" : "items-start";
 
   const enableOuterClose = () => {
     if (isEnableOuterClose) closeModal(!close);
@@ -30,7 +34,7 @@ const UpModal = ({
 
   return (
     <motion.div
-      className={`fixed inset-0 z-[200] ${center} overflow-y-auto overflow-x-hidden`}
+      className="fixed inset-0 z-[200] overflow-y-auto overflow-x-hidden"
       style={{ pointerEvents: close ? 'auto' : 'none' }}
       initial={false}
       animate={{ opacity: close ? 1 : 0, backgroundColor: close ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0)' }}
@@ -41,7 +45,7 @@ const UpModal = ({
       {/* On phones the modal becomes a bottom sheet: full width, pinned to
           the bottom edge, scrolling inside itself. */}
       <div
-        className="w-full min-h-full px-4 py-5 sm:px-6 flex justify-center items-start max-md:p-0 max-md:items-end"
+        className={`w-full min-h-full px-4 py-5 sm:px-6 flex justify-center ${align} max-md:p-0 max-md:items-end`}
       >
         {/* Modal container */}
         <motion.div

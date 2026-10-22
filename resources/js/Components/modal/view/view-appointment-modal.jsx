@@ -4,6 +4,7 @@ import { readableDate, readableTime } from "@/others/function"
 import { useEffect, useState } from "react"
 import { Chip } from "@mui/material"
 import { CalendarDays } from "lucide-react"
+import { ViewModalSkeleton } from "./view-modal-parts"
 
 const ATTENDANCE_META = {
     present: { label: "Present", backgroundColor: "#dcfce7", color: "#15803d" },
@@ -28,7 +29,7 @@ const ViewAppointmentModal = ({ close, closeModal, id }) => {
     if (!data) {
         return (
             <UpModal close={close} closeModal={closeModal} isEnableOuterClose={true} cntr={true} pd={["px-6", "py-6"]} bgColor="bg-white" w="w-[26rem]">
-                <div className="h-24 animate-pulse bg-gray-100 rounded-md" />
+                <ViewModalSkeleton variant="compact" />
             </UpModal>
         )
     }

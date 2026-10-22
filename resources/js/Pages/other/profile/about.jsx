@@ -202,7 +202,8 @@ const About = (props) => {
                 </ProfileSectionWrapper>
                 <ProfileSectionWrapper title="Contact Information" icon={Home}>
                     <div className="">
-                        {props.data.user_type !== 'sub_admin' &&
+                        {/* Everyone's contact details show here, the prefect's
+                            included (same as the IT admin's). */}
                         <div className="grid gap-3">
                             <AddressDisplay
                                 title="Current Address"
@@ -212,16 +213,15 @@ const About = (props) => {
                                 title="Permanent Address"
                                 address={props.data.permanent_address}
                             />
-                        </div>}
+                        </div>
                         <Label
                             title="Email"
                             desc={props.data.email || 'N/A'}
                         />
-                        {props.data.user_type !== 'sub_admin' &&
                         <Label
                             title="Phone Number"
                             desc={props.data.phone_number || 'N/A'}
-                        />}
+                        />
                     </div>
                 </ProfileSectionWrapper>
                 {((props.data.user_type === 'student') || props.data.user_type === 'parent') && (

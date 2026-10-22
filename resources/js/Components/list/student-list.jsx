@@ -3,15 +3,7 @@ import LiveActiveSince from "@/Components/other/live-active-since";
 import { Box } from "@mui/material";
 import { DataGrid } from "@/Components/other/data-grid";
 import ProfilePic from "../other/profile-pic";
-import {
-  checkActiveStatus,
-  getProfilePic,
-  getYearLevel,
-  ordinal,
-  readableActiveDuration,
-  readableDate,
-  readableTime,
-} from "../../others/function";
+import { checkActiveStatus, getProfilePic, getYearLevel, ordinal, readableActiveDuration, readableDate, readableTime, studentProgram, studentYearLevel } from "../../others/function";
 import { Link } from "@inertiajs/react";
 import ActionBtn from "../button/action-btn";
 import AuthContext from "@/context-provider/auth-provider";
@@ -26,8 +18,8 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
     const latestEnrollment = user.enrollments?.[user.enrollments.length - 1];
 
     const fullName = `${user.profile?.first_name || ""} ${user.profile?.middle_name || ""} ${user.profile?.last_name || ""}`;
-    const programName = user.program?.name || "";
-    const program = [programName, latestEnrollment?.year_level ? getYearLevel(latestEnrollment.year_level) : null]
+    const programName = studentProgram(user) || "";
+    const program = [programName, studentYearLevel(user)]
       .filter(Boolean)
       .join(" • ");
     const schoolYear = latestEnrollment?.school_year?.year || "N / A";

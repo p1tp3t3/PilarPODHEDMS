@@ -1,8 +1,9 @@
 import UpModal from "../up-modal"
 import { useEffect, useState } from "react"
 import axios from "axios"
-import { Chip, CircularProgress } from "@mui/material"
+import { Chip } from "@mui/material"
 import { CalendarPlus, ChevronRight } from "lucide-react"
+import { ViewModalSkeleton } from "./view-modal-parts"
 
 const ATTENDANCE_META = {
     present: { label: "Present", backgroundColor: "#dcfce7", color: "#15803d" },
@@ -66,7 +67,7 @@ const ViewDayAppointmentsModal = ({ close, closeModal, date, onSelectEvent, onSc
                 </h1>
 
                 {loading ? (
-                    <div className="flex justify-center py-6"><CircularProgress size={22} /></div>
+                    <ViewModalSkeleton variant="list" />
                 ) : events.length === 0 ? (
                     <p className="text-[0.85em] text-gray-500 italic text-center py-4">No appointments scheduled for this day.</p>
                 ) : (

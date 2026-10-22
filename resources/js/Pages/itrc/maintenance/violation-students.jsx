@@ -6,6 +6,7 @@ import { Chip, Paper } from "@mui/material"
 import { useState } from "react"
 import { ordinal } from "@/others/function"
 import BreadcrumbNav from "@/Components/other/breadcrumb-nav"
+import { PageTitle } from "@/context-provider/page-title-provider"
 
 const ViolationStudents = ({ user, violation, violation_key, students, occurrence_breakdown = [] }) => {
     const isSuperAdmin = user?.role === 'super_admin';
@@ -17,10 +18,11 @@ const ViolationStudents = ({ user, violation, violation_key, students, occurrenc
     return (
         <>
             <Head title={`Violation — ${violation.violation_name}`} />
+            <PageTitle title="Violation Management" />
             <div className="w-full py-4 grid gap-5">
                 <BreadcrumbNav
                     items={[
-                        { label: "Violation Management", href: "/violation-management" },
+                        { label: "Violations", href: "/violation-management/violations" },
                         { label: violation.violation_name },
                     ]}
                 />

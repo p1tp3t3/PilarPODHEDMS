@@ -3,13 +3,21 @@ import { ReportArchiveService } from "@/others/services/report-archive-service"
 import { readableDate, readableTime, showWarningModal, toTitleCase } from "@/others/function"
 import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
-import { Chip } from "@mui/material"
-import ListSkeleton from "../reload/list-skeleton"
+import { Chip, IconButton, Tooltip } from "@mui/material"
 import { Trash2, Download, Eye, FolderOpen } from "lucide-react"
 
-// The "Generated Reports" tab — every file GenerateReportJob has produced
+const NoReportsOverlay = () => (
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 1, color: "#6b7280", fontSize: "0.9em" }}>
+        <FolderOpen size="2.2em" style={{ opacity: 0.6 }} />
+        <span>No reports generated yet.</span>
+    </Box>
+)
+
+// The "Generated Reports" page — every file GenerateReportJob has produced
 // for this prefect, with the filters that produced it (see
 // ReportController::summarizeReportFilters) instead of just file info.
+// One MUI DataGrid throughout: loading and "none yet" are its own
+// loading/no-rows states rather than separate markup.
 const GeneratedReportsList = () => {
     const [list, setList] = useState(null)
 
@@ -22,7 +30,7 @@ const GeneratedReportsList = () => {
 
     const handleDelete = (report) => {
         showWarningModal(
-            `Are You Sure You Want to Delete "${report.report_name}"?`,
+            `Are You Sure You Want to Delete "${report.report_name ?? toTitleCase(report.report_type) + " Report"}"?`,
             "Delete Report",
             "Cancel",
             () => {
@@ -31,12 +39,16 @@ const GeneratedReportsList = () => {
         )
     }
 
-    const rows = useMemo(() => {
-        if (!list) return []
-        return list.map((r) => ({ id: r.id, ...r }))
-    }, [list])
+    const rows = useMemo(() => (list ?? []).map((r) => ({ id: r.id, ...r })), [list])
 
     const columns = useMemo(() => [
+        {
+            field: "report_name",
+            headerName: "Report",
+            flex: 1,
+            minWidth: 180,
+            valueGetter: (value, row) => value || `${toTitleCase(row.report_type ?? "")} Report`,
+        },
         {
             field: "report_type",
             headerName: "Type",
@@ -44,9 +56,15 @@ const GeneratedReportsList = () => {
             renderCell: (params) => <Chip label={toTitleCase(params.value)} size="small" variant="outlined" />,
         },
         {
+            field: "file_type",
+            headerName: "File",
+            width: 90,
+            renderCell: (params) => <Chip label={(params.value ?? "pdf").toUpperCase()} size="small" color={params.value === "excel" || params.value === "xlsx" ? "success" : "error"} variant="outlined" />,
+        },
+        {
             field: "filters_summary",
             headerName: "Filters Used",
-            flex: 1,
+            flex: 1.3,
             minWidth: 220,
             renderCell: (params) => (
                 <span className="text-[0.85em] whitespace-normal leading-snug py-2 block">{params.value}</span>
@@ -66,36 +84,29 @@ const GeneratedReportsList = () => {
             field: "actions",
             type: "actions",
             headerName: "Actions",
-            width: 130,
+            width: 150,
+            sortable: false,
+            filterable: false,
             renderCell: (params) => {
                 const r = params.row
                 return (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 h-full">
                         {r.view_url &&
-                        <a
-                            href={r.view_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
-                            title="View"
-                        >
-                            <Eye size={16} />
-                        </a>}
-                        <a
-                            href={r.download_url}
-                            className="p-1.5 rounded hover:bg-blue-50 text-blue-600"
-                            title="Download"
-                        >
-                            <Download size={16} />
-                        </a>
-                        <button
-                            type="button"
-                            onClick={() => handleDelete(r)}
-                            className="p-1.5 rounded hover:bg-red-50 text-red-600"
-                            title="Delete"
-                        >
-                            <Trash2 size={16} />
-                        </button>
+                        <Tooltip title="View" arrow>
+                            <IconButton size="small" component="a" href={r.view_url} target="_blank" rel="noreferrer" aria-label="View" sx={{ color: "#374151" }}>
+                                <Eye size={18} />
+                            </IconButton>
+                        </Tooltip>}
+                        <Tooltip title="Download" arrow>
+                            <IconButton size="small" component="a" href={r.download_url} aria-label="Download" sx={{ color: "#2563eb" }}>
+                                <Download size={18} />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete" arrow>
+                            <IconButton size="small" onClick={() => handleDelete(r)} aria-label="Delete" sx={{ color: "#dc2626" }}>
+                                <Trash2 size={18} />
+                            </IconButton>
+                        </Tooltip>
                     </div>
                 )
             },
@@ -103,27 +114,31 @@ const GeneratedReportsList = () => {
     ], [])
 
     return (
-        <div className="w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm grid gap-3">
-            {list === null &&
-            <div className="py-10 flex justify-center"><ListSkeleton rows={4} /></div>}
-
-            {list !== null && list.length === 0 &&
-            <div className="py-10 text-center text-gray-500">
-                <FolderOpen size="2.5em" className="mb-2 mx-auto opacity-60" />
-                <p>No reports generated yet.</p>
-            </div>}
-
-            {list !== null && list.length > 0 &&
+        <div className="w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
             <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                 <DataGrid
                     rows={rows}
                     columns={columns}
-                    hideFooter
+                    loading={list === null}
+                    pagination
+                    pageSizeOptions={[10, 20, 50]}
+                    initialState={{ pagination: { paginationModel: { page: 0, pageSize: 10 } } }}
                     disableRowSelectionOnClick
+                    hideFooterSelectedRowCount
                     getRowHeight={() => "auto"}
                     showToolbar
+                    autoHeight
+                    localeText={{ noRowsLabel: "No reports generated yet." }}
+                    slots={{ noRowsOverlay: NoReportsOverlay }}
+                    sx={{ minHeight: 220 }}
+                    mobileSummary={(row) => ({
+                        name: row.report_name || `${toTitleCase(row.report_type ?? "")} Report`,
+                        role: `${(row.file_type ?? "pdf").toUpperCase()} · ${readableDate(row.created_at)}`,
+                        avatar: false,
+                        hide: ["report_name"],
+                    })}
                 />
-            </Box>}
+            </Box>
         </div>
     )
 }

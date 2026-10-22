@@ -18,6 +18,7 @@ import About from "@/Pages/other/profile/about";
 import { Validator } from "@/others/classes/validator";
 import { requestType } from "@/others/list/type-list";
 import CheckBoxButton from "@/Components/input/checkbox";
+import { LabeledCheckbox } from "@/Components/input/select-checkbox";
 
 const EditProfileModal = (props) => {
   return (
@@ -454,14 +455,8 @@ const AddressSection = (props) => {
       {/* Permanent Address */}
       <div className="py-2 grid gap-3">
         <p className="text-[0.85em] font-semibold">Permanent Address</p>
-        <div className="text-[0.8em] flex gap-2 items-center">
-          <input
-            type="checkbox"
-            id="auto-fill"
-            onClick={handleCheck}
-            className="cursor-pointer"
-          />
-          <label htmlFor="auto-fill">Same as Current Address</label>
+        <div className="text-[0.8em]">
+          <LabeledCheckbox label="Same as Current Address" id="auto-fill" onChange={handleCheck} />
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4">

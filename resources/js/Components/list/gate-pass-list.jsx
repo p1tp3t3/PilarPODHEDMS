@@ -3,6 +3,7 @@ import { getProfilePic, readableDate, readableTime, showUserType, formatSchoolYe
 import ProfilePic from "../other/profile-pic"
 import ActionBtn from "../button/action-btn"
 import Box from '@mui/material/Box'
+import { filedByColumn } from "@/Components/list/filed-by-column"
 
 const GatePassList = (props) => {
 
@@ -15,6 +16,7 @@ const GatePassList = (props) => {
             userType: showUserType(e),
             profile_picture: e.profile?.profile_picture,
             sex: e.profile?.sex,
+            prefect: e.gatepass?.[0]?.prefect,
             requested: e.gatepass?.[0]?.created_at,
             confirmed: e.gatepass?.[0]?.confirmed_at,
             expiration: e.gatepass?.[0]?.date_expiration,
@@ -51,6 +53,7 @@ const GatePassList = (props) => {
                 </div>
             )
         },
+        filedByColumn((r) => r.prefect),
         {
             field: 'requested',
             headerName: 'Requested Since',
@@ -137,6 +140,14 @@ const GatePassList = (props) => {
                 getRowHeight={() => 'auto'}
                 showToolbar
                 localeText={{ noRowsLabel: 'No Gate Pass Records Found' }}
+                // Phones: person + when the pass expires; tap for the rest.
+                mobileSummary={(row) => ({
+                    name: row.fullName.trim(),
+                    role: [row.userType, row.expiration ? `Expires ${readableDate(row.expiration)}` : null].filter(Boolean).join(" · "),
+                    picture: row.profile_picture,
+                    sex: row.sex,
+                    hide: ["user"],
+                })}
                 sx={{
                     border: 'none',
                     '& .MuiDataGrid-columnHeaders': {

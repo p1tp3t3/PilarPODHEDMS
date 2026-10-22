@@ -19,10 +19,15 @@ class Complaint extends Model
 
     public $timestamps = false;
 
+
+    // Always load who filed it on someone's behalf, so every list/table
+    // can show "Filed By (Prefect)" without each query having to ask.
+    protected $with = ['prefect.profile'];
     protected $fillable = [
         'complaint_number',
         'case_number',
         'complainant_id',
+        'prefect_id',
         'complainant_name',
         'incident_id',
         'complaint_description',
@@ -44,6 +49,13 @@ class Complaint extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'complainant_id', 'id');
+    }
+
+    // The prefect who filed this complaint on the complainant's behalf
+    // (null when the complainant filed it themselves).
+    public function prefect(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'prefect_id', 'id');
     }
 
     // resolved_at itself is never actually set when a complaint transitions

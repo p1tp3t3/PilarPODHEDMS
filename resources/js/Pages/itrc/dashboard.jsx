@@ -17,6 +17,7 @@ import { Broadcast } from "@/others/classes/broadcast-cofiguration";
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Users, GraduationCap, FileText, ShieldAlert, AlertTriangle, ShieldCheck } from "lucide-react";
+import { PageTitle } from "@/context-provider/page-title-provider";
 
 // One fixed color per role so a role keeps its color across filters.
 const ROLE_COLORS = {
@@ -90,8 +91,9 @@ const ITRCDashboard = (props) => {
   return (
     <>
       <Head title="Dashboard" />
+      <PageTitle title="Dashboard" />
       <motion.div
-        className="w-full pt-2 sm:pt-3 pb-6 sm:pb-10"
+        className="w-full pt-5 pb-6 sm:pb-10"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
@@ -157,7 +159,7 @@ const ITRCDashboard = (props) => {
                   }}
                 />
               </Link>
-              <Link href="/super-admin/report">
+              <Link href="/super-admin/report/statistics">
                 <QuantityCard
                   h="h-[6rem]"
                   num={props.report}
@@ -168,7 +170,7 @@ const ITRCDashboard = (props) => {
                   }}
                 />
               </Link>
-              <Link href="/violation-management">
+              <Link href="/violation-management/violations">
                 <QuantityCard
                   h="h-[6rem]"
                   num={props.total_violation}

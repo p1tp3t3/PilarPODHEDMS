@@ -9,6 +9,7 @@ use App\Models\ComplaintSubject;
 use App\Models\ComplaintSubjectViolation;
 use App\Models\User;
 use App\Models\Violation;
+use App\Models\ViolationPenalty;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Database\Factories\Concerns\GeneratesSampleFiles;
 use Illuminate\Database\Seeder;
@@ -101,11 +102,26 @@ class ComplaintSeeder extends Seeder
 
     private function seedRepeatOffenders(array $students): void
     {
-        $violationIds = Violation::inRandomOrder()->limit(3)->pluck('id')->all();
+        // A student can't commit a violation more times than its penalty
+        // ladder goes (e.g. one whose 1st offense is already dismissal can't
+        // have a 2nd). Every profile below is 6 occurrences, so pick from
+        // violations with a full 6-level ladder; failing that, the longest
+        // ladders, with occurrences capped at the ladder below.
+        $maxLevels = ViolationPenalty::query()
+            ->selectRaw('violation_id, MAX(occurrence) as max_level')
+            ->groupBy('violation_id')
+            ->pluck('max_level', 'violation_id');
 
-        if (empty($violationIds)) {
+        if ($maxLevels->isEmpty()) {
             return;
         }
+
+        $fullLadder = $maxLevels->filter(fn ($max) => $max >= 6)->keys();
+        $violationIds = ($fullLadder->isNotEmpty() ? $fullLadder : $maxLevels->sortDesc()->keys())
+            ->shuffle()
+            ->take(3)
+            ->values()
+            ->all();
 
         $repeatStudents = array_slice($students, 0, min(5, count($students)));
 
@@ -128,13 +144,14 @@ class ComplaintSeeder extends Seeder
         foreach ($repeatStudents as $i => $studentId) {
             $violationId = $violationIds[array_rand($violationIds)];
             $profile = $profiles[$i % count($profiles)];
+            $remaining = (int) $maxLevels[$violationId];
 
             // Oldest cluster first, so months_since_last/past_repeat
             // reflect a real timeline instead of same-day noise.
             foreach ($profile as [$monthsBack, $occurrenceCount]) {
                 $monthStart = now()->subMonths($monthsBack)->startOfMonth();
 
-                for ($n = 0; $n < $occurrenceCount; $n++) {
+                for ($n = 0; $n < $occurrenceCount && $remaining > 0; $n++, $remaining--) {
                     $complainantId = collect($students)->reject(fn ($id) => $id === $studentId)->random();
 
                     // Spread within the month (day 1-28, valid for every

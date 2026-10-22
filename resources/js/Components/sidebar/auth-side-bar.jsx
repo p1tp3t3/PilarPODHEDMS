@@ -42,19 +42,23 @@ const AuthSideBar = ({ usr }) => {
 
   return (
     <>
+    {/* Tablet/desktop: a narrow icon rail that reserves only 5rem in the
+        layout; hovering it widens the panel inside to the full menu,
+        floating over the page (so the content never shifts). Phones: the
+        full-width off-canvas drawer, as before. */}
     <aside
       className={`
-        flex-shrink-0 flex-grow-0
-        w-[19rem] transition-all h-screen bg-gray-950 sticky top-0
+        sidebar-rail flex-shrink-0 flex-grow-0
+        w-[19rem] md:w-[5rem] transition-all h-screen bg-gray-950 sticky top-0 z-[60]
         max-[767px]:fixed max-[767px]:top-0 max-[767px]:left-0 max-[767px]:w-0 max-[767px]:z-[100]
         max-[767px]:max-w-[85vw] max-[767px]:h-[100dvh] max-[767px]:shadow-2xl
       `}
     >
-      <div className="w-full grid gap-5 overflow-hidden">
+      <div className="w-full h-full grid grid-cols-[minmax(0,1fr)] content-start gap-5 overflow-hidden bg-gray-950 md:absolute md:inset-y-0 md:left-0 md:w-[5rem] md:hover:w-[19rem] md:transition-[width] md:duration-200 md:ease-out md:hover:shadow-2xl md:hover:shadow-black/40">
         {/* Header Section */}
         <div>
           <div
-            className="flex text-white items-center gap-3 px-5 py-2 bg-no-repeat bg-center bg-cover relative"
+            className="rail-header flex text-white items-center gap-3 px-5 py-2 min-h-[3.5rem] bg-no-repeat bg-center bg-cover relative"
             style={{ backgroundImage: `url(${bg})` }}
           >
             {/* dark overlay */}
@@ -66,7 +70,7 @@ const AuthSideBar = ({ usr }) => {
             </div>
 
             {/* text */}
-            <div className="w-full z-10">
+            <div className="rail-hide w-full z-10 whitespace-nowrap">
               <h1 className="text-[1em] font-bold">PilarPODHEDMS</h1>
               <h1 className="text-[0.7em]">Pilar College of Zamboanga City, Inc.</h1>
             </div>
@@ -89,30 +93,11 @@ const AuthSideBar = ({ usr }) => {
               <ArrowLeft size="1.2em" />
             </IconButton>
           </div>
-
-
-
-          {/* User Section */}
-          <div className="text-white px-5 transition-all border-gray-400/50 border-b hover:bg-white/5 cursor-pointer">
-            <Link href={`/profile/${usr.username}`} onClick={closeSidebarDrawer}>
-              <div className="w-full flex items-center gap-3 py-2">
-                <ProfilePic
-                  src={getProfilePic(identity.profile?.profile_picture, identity.profile?.sex)}
-                  size={2.5}
-                />
-                <div>
-                  <h1 className="text-[1.1em] font-bold">{identity.profile?.first_name}</h1>
-                  <h1 className="text-[0.8em]">{roleLabel()}</h1>
-                </div>
-              </div>
-            </Link>
-          </div>
         </div>
 
         {/* Menu Section */}
         <div>
-          <div className="grid gap-2 overflow-hidden overflow-y-auto">
-            <h1 className="px-10 text-gray-400 text-[0.9em]">Menu</h1>
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-2 overflow-hidden overflow-y-auto">
             <SidebarNav onNavigate={closeSidebarDrawer} list={getSidebarPages({
               ...usr,
               teaching_staff: identity.teaching_staff,

@@ -62,6 +62,17 @@ const ManagePenalty = ({ list, events, reload, setter, canAdd = true, canDelete 
                                             params.api.getRowIndexRelativeToVisibleRows(params.id) + 1,
                                     },
                                     {
+                                        // The handbook reference (e.g. 5.3), sortable numerically.
+                                        field: "ref_number",
+                                        headerName: "Ref No.",
+                                        width: 100,
+                                        type: "number",
+                                        align: "left",
+                                        headerAlign: "left",
+                                        valueGetter: (value) => (value === null || value === undefined || value === "" ? null : Number(value)),
+                                        renderCell: ({ row }) => row.ref_number ?? "—",
+                                    },
+                                    {
                                         field: "description",
                                         headerName: "Penalty Name",
                                         flex: 1,

@@ -134,7 +134,7 @@ class ViolationController extends Controller
         $id = decrypt_id($id) ?? abort(404);
 
         if (self::isSuperAdmin()) {
-            return redirect('/violation-management');
+            return redirect('/violation-management/violations');
         }
         abort_unless(self::canViewStudent($id), 403);
 
@@ -142,6 +142,11 @@ class ViolationController extends Controller
             $d->latest('offense_issued_at');
         })
             ->where('student_id', $id);
+        // Which offense each record was (1st, 2nd...) and the penalty it
+        // carries — the same numbering the student profile uses.
+        $occurrenceByRecord = collect(self::getStudentViolationOccurence($id))
+            ->flatMap(fn ($v) => collect($v['occurrence_list'])
+                ->mapWithKeys(fn ($o) => [$v['offense']['violation_id'].':'.$o['complaint_id'] => $o]));
         $violationNames = ComplaintSubjectViolation::join(
             'violation',
             'complaint_subject_violation.violation_id',
@@ -154,8 +159,11 @@ class ViolationController extends Controller
 
         return Inertia::render('other/student-violation', [
             'student' => User::with(['profile', 'program', 'enrollments.schoolYear'])->where('id', $id)->first(),
-            'student_violations' => $studentViolations->get()->each(function ($sv) {
+            'student_violations' => $studentViolations->get()->each(function ($sv) use ($occurrenceByRecord) {
                 $sv->complaint_key = $sv->complaint_id ? encrypt_id($sv->complaint_id) : null;
+                $o = $occurrenceByRecord->get($sv->violation_id.':'.$sv->complaint_id);
+                $sv->occurrence = $o['occurrence'] ?? null;
+                $sv->penalty = $o['penalty'] ?? null;
             }),
             'violations' => $violationNames,
             // Precomputed for every violation this student has, keyed by
@@ -515,6 +523,7 @@ class ViolationController extends Controller
                     'occurrence_used' => $penaltyRecord->occurrence,
                     'penalty_id' => $penaltyRecord->penalty_id,
                     'description' => $penaltyRecord->penalty->description ?? null,
+                    'ref_number' => $penaltyRecord->penalty->ref_number ?? null,
                 ] : null,
             ];
         }

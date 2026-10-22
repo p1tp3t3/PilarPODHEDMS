@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { DataGrid } from "@/Components/other/data-grid";
 import { Box } from "@mui/material";
 import UpModal from "../up-modal";
-import CircleReload from "@/Components/reload/circle-reload";
 import { AccountService } from "@/others/services/account-service";
+import { ViewModalSkeleton } from "./view-modal-parts";
 
 const COLUMN_ORDER = ["id", "name", "program", "year_level", "username", "password"];
 const COLUMN_LABELS = {
@@ -118,16 +118,12 @@ const AccountFilePreviewModal = ({ close, closeModal, fileName }) => {
                             />
                         </Box>
                     ) : (
-                        <div className="w-full flex justify-center py-10">
-                            <CircleReload size={2.5} />
-                        </div>
+                        <ViewModalSkeleton variant="table" />
                     )
                 )}
 
                 {!zipEntries && !csvRows && (
-                    <div className="w-full flex justify-center py-10">
-                        <CircleReload size={2.5} />
-                    </div>
+                    <ViewModalSkeleton variant="table" />
                 )}
             </div>
         </UpModal>

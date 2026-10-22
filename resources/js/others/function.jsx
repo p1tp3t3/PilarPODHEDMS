@@ -470,14 +470,23 @@ export const decryptData = (en) => {
     return bytes.toString(CryptoJS.enc.Utf8)
 }
 
+// A student's program name and year level label ("3rd Year"). Uses whatever
+// the page loaded (program / enrollments), falling back to the `academic`
+// attribute every student user now carries from the server.
+export const studentProgram = (user) => {
+    const latestEnrollment = user?.enrollments?.[user.enrollments.length - 1]
+    return user?.program?.name ?? latestEnrollment?.program?.name ?? user?.academic?.program ?? null
+}
+export const studentYearLevel = (user) => {
+    const latestEnrollment = user?.enrollments?.[user.enrollments.length - 1]
+    const level = latestEnrollment?.year_level ?? user?.academic?.year_level
+    return level ? getYearLevel(level) : null
+}
+
 export const showUserType = (user, showParentRole) => {
     switch(user.role) {
-        case 'student': {
-            const latestEnrollment = user.enrollments?.[user.enrollments.length - 1]
-            const programName = user.program?.name ?? latestEnrollment?.program?.name
-            const yearLevel = latestEnrollment?.year_level ? getYearLevel(latestEnrollment.year_level) : null
-            return [programName, yearLevel].filter(Boolean).join(" • ") || "Student"
-        }
+        case 'student':
+            return [studentProgram(user), studentYearLevel(user)].filter(Boolean).join(" • ") || "Student"
         case 'parent':
             return (showParentRole && user.parent?.parent_role) ? toTitleCase(user.parent.parent_role) : 'Parent'
         case 'teaching_staff':

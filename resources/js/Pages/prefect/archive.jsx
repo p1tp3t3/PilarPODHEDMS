@@ -12,8 +12,6 @@ import { useReload } from "@/context-provider/reload-provider"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
 import { router } from "@inertiajs/react"
 import NoteAbsentFormModal from "@/Components/modal/submission-form/note-absent-form-modal"
-import BulkArchiveModal from "@/Components/modal/submission-form/bulk-archive-modal"
-import Btn from "@/Components/button/normal-btn"
 import DropdownField from "@/Components/input/dropdown"
 import { Head } from "@inertiajs/react"
 
@@ -39,7 +37,6 @@ const PrefectArchive = (props) => {
 
     const { loadRegister } = useReload()
     const [noteAbsent, openNoteAbsent] = useState(false)
-    const [bulkArchive, openBulkArchive] = useState(false)
 
     // Preserves every other active filter (search, school year, etc.) when
     // only one of them changes — switching tabs used to silently drop the
@@ -169,20 +166,9 @@ const PrefectArchive = (props) => {
             setApprove={() => {}}
             events={() => {}}
         />
-        <BulkArchiveModal
-            close={bulkArchive}
-            closeModal={openBulkArchive}
-            pd={['px-10', 'py-7']}
-            isEnableOuterClose={true}
-            schoolYears={props.school_years}
-            reload={() => window.location.reload()}
-        />
-            <PageLayout
-                title="ARCHIVES"
-                rightSideComponent={<Btn onclick={() => openBulkArchive(true)}>Bulk Archive</Btn>}
-            >
+            <PageLayout title="ARCHIVES">
                     <div className="grid gap-3">
-                        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                        <div className="flex flex-col sm:flex-row gap-3 sm:items-center md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
                             <div className="w-full sm:w-[14rem] flex-shrink-0">
                                 <DropdownField
                                     default={{ val: '', label: 'All School Years' }}

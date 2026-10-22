@@ -368,10 +368,6 @@ const AnalyticalReport = (props) => {
             <p className="text-[0.75em] text-gray-500">
               {showUserType(violator.user)}
             </p>
-
-            <p className="text-[0.75em] text-gray-500">
-              {violator.user.program?.name}
-            </p>
           </div>
         </div>
 

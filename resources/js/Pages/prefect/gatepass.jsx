@@ -14,8 +14,9 @@ import ViewGatePassModal from "@/Components/modal/view/view-gatepass-modal"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
 import { router } from "@inertiajs/react"
 import { showOutputModal, showWarningModal } from "@/others/function"
-import { List, Clock, CheckCircle2, XCircle, Ban, Undo2 } from "lucide-react"
+import { List, Clock, CheckCircle2, XCircle, Ban, Undo2, DoorOpen } from "lucide-react"
 import { Head } from "@inertiajs/react"
+import { PageActions } from "@/context-provider/page-title-provider"
 
 const PrefectGatePass = (props) => {
     const url = new URLSearchParams(window.location.search)
@@ -218,16 +219,16 @@ const PrefectGatePass = (props) => {
                 warning={{ title: "Are You Sure You Want To Reject This Gate Pass Request?", btn: "Reject Gate Pass Request" }}
             />
 
-                <PageLayout
+                <PageLayout actionsWithFilters
                     title="GATE PASS"
                     rightSideComponent={
-                        <Btn onclick={() => openRequestGatePass(true)}>
+                        <Btn onclick={() => openRequestGatePass(true)} icon={<DoorOpen size={19} />}>
                             Issue Gate Pass
                         </Btn>
                     }
                 >
                         {/* Filters */}
-                        <div className="flex flex-wrap gap-3">
+                        <div className="flex flex-wrap gap-3 md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
                             <div className="w-full sm:w-56">
                                 <DropdownField
                                     default={{ val: "all", label: "All School Years" }}
@@ -247,6 +248,7 @@ const PrefectGatePass = (props) => {
                                     onChange={(e) => handleFilterChange("semester", e.target.value)}
                                 />
                             </div>
+                            <PageActions />
                         </div>
 
                         {/* Tabs */}

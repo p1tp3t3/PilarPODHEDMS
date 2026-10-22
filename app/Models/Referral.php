@@ -15,8 +15,13 @@ class Referral extends Model
 
     protected $table = 'referral';
 
+
+    // Always load who filed it on someone's behalf, so every list/table
+    // can show "Filed By (Prefect)" without each query having to ask.
+    protected $with = ['prefect.profile'];
     protected $fillable = [
         'teaching_staff_id',
+        'prefect_id',
         'referral_number',
         'reason_description',
         'referral_status',
@@ -56,5 +61,12 @@ class Referral extends Model
     public function revisions(): HasMany
     {
         return $this->hasMany(ReferralRevision::class, 'referral_id', 'id')->latest('created_at');
+    }
+
+    // The prefect who filed this referral on the referrer's behalf (null
+    // when the referrer filed it, or the prefect is the referrer).
+    public function prefect(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'prefect_id', 'id');
     }
 }

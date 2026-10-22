@@ -133,6 +133,9 @@ class ReferralController extends Controller
             $prefectName = trim("{$prefect->profile?->first_name} {$prefect->profile?->middle_name} {$prefect->profile?->last_name}");
 
             $lastIndex = Referral::insertGetId(array_merge($field, [
+                // The prefect filing for a referrer (teacher) is recorded;
+                // not when the prefect is the referrer themselves.
+                'prefect_id' => (int) $request->referrer_id !== (int) auth()->id() ? auth()->id() : null,
                 'confirmed_at' => DB::raw('NOW()'),
                 'archived_at' => archive_retention_date(),
             ]));

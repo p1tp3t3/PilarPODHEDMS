@@ -85,50 +85,6 @@ class ArchiveController extends Controller
         return response()->json(['message' => ucfirst($request->type).' archived successfully.']);
     }
 
-    /**
-     * Archive every not-yet-archived record (of one type, or all 5)
-     * created within a date range or a school year.
-     */
-    public function bulkArchive(Request $request)
-    {
-        $request->validate([
-            'type' => 'required|in:complaint,referral,absent form,gate pass,all',
-            'school_year' => 'nullable|string',
-            'date_from' => 'nullable|date',
-            'date_to' => 'nullable|date',
-        ]);
-
-        if ($request->filled('school_year')) {
-            $resolved = Report::resolveSchoolYearDates(['school_year' => $request->school_year]);
-            $dateFrom = $resolved['date_from'] ?? null;
-            $dateTo = $resolved['date_to'] ?? null;
-        } else {
-            $dateFrom = $request->date_from;
-            $dateTo = $request->date_to;
-        }
-
-        if (! $dateFrom || ! $dateTo) {
-            return response()->json(['message' => 'Please provide a valid date range or school year.'], 400);
-        }
-
-        $types = $request->type === 'all' ? array_keys(self::$archivable) : [$request->type];
-
-        $counts = [];
-        foreach ($types as $type) {
-            $model = self::$archivable[$type]['model'];
-            $counts[$type] = $model::whereBetween('created_at', [$dateFrom, $dateTo])
-                ->whereNull('archived_at')
-                ->update(['archived_at' => archive_retention_date()]);
-        }
-
-        return response()->json([
-            'message' => 'Bulk archive complete.',
-            'counts' => $counts,
-            'date_from' => $dateFrom,
-            'date_to' => $dateTo,
-        ]);
-    }
-
     public function destroy(DestroyDocumentRequest $request)
     {
         $model = self::$archivable[$request->type]['model'];

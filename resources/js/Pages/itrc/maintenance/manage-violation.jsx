@@ -4,6 +4,7 @@ import ActionBtn from "@/Components/button/action-btn";
 import { DataGrid } from "@/Components/other/data-grid";
 import { Box } from "@mui/material";
 import { router } from "@inertiajs/react";
+import { ShieldAlert } from "lucide-react";
 
 const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditRow = true, canDelete = true }) => {
     const deleteViolation = (e) => {
@@ -61,6 +62,19 @@ const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditR
                             initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
                             pageSizeOptions={[20, 50, 100, 200]}
                             getRowHeight={() => "auto"}
+                            // Phones: each violation collapses to its name and
+                            // Major/Minor; tap to drop down keywords, penalties
+                            // and actions.
+                            mobileSummary={(row) => ({
+                                name: toTitleCase(row.violation_name),
+                                role: `${row.offense_status ? "Major" : "Minor"} offense · ${new Set((row.penalties ?? []).map((p) => p.occurrence)).size} offense level(s)`,
+                                avatar: (
+                                    <div className={`h-9 w-9 grid place-items-center rounded-full ${row.offense_status ? "bg-red-100 text-red-600" : "bg-yellow-100 text-yellow-700"}`}>
+                                        <ShieldAlert size={18} />
+                                    </div>
+                                ),
+                                hide: ["violation_name", "offense_status"],
+                            })}
                             columns={[
                                 {
                                     field: "index",

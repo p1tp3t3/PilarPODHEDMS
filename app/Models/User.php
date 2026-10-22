@@ -46,7 +46,10 @@ class User extends Authenticatable implements MustVerifyEmail
         'currentUserRole',
     ];
 
-    protected $appends = ['encrypted_id', 'role'];
+    // `academic` = a student's program + year level, so every list or profile
+    // that shows a student can show "BSIT • 3rd Year" without each query
+    // having to eager-load enrollments.
+    protected $appends = ['encrypted_id', 'role', 'academic'];
 
     protected $with = ['currentUserRole.role'];
 
@@ -222,6 +225,72 @@ class User extends Authenticatable implements MustVerifyEmail
             ->latestOfMany('id');
     }
 
+    // Programs each teacher teaches in or heads, cached per request (the
+    // photo check below runs once per student in a list).
+    private static array $teacherProgramCache = [];
+
+    /**
+     * Whether this student's uploaded photo is hidden from $viewer (they see
+     * the default avatar instead), e.g. in a complaint's student search:
+     * - parents, non-teaching staff and other students: always hidden;
+     * - teaching staff: hidden unless the student is in one of their
+     *   programs (their own, or one they head);
+     * - the prefect, the IT admin, and the student themselves: visible.
+     */
+    public function photoHiddenFrom(?User $viewer): bool
+    {
+        if ($this->role !== 'student' || ! $viewer || $viewer->id === $this->id) {
+            return false;
+        }
+
+        if (in_array($viewer->role, ['parent', 'non_teaching_staff', 'student'], true)) {
+            return true;
+        }
+
+        if ($viewer->role === 'teaching_staff') {
+            $programs = self::$teacherProgramCache[$viewer->id] ??= TeachingStaff::programIdsFor($viewer->id)->all();
+            $this->loadMissing('latestEnrollment');
+
+            return ! in_array($this->latestEnrollment?->program_id, $programs, false);
+        }
+
+        return false;
+    }
+
+    // Blanks a student's uploaded photo (so the default avatar shows) when
+    // the viewer isn't allowed to see it. No-op otherwise.
+    public function hidePhotoFrom(?User $viewer): static
+    {
+        if ($this->relationLoaded('profile') && $this->profile && $this->photoHiddenFrom($viewer)) {
+            $this->profile->setAttribute('profile_picture', null);
+        }
+
+        return $this;
+    }
+
+    // The student's most recent enrollment, whatever its status (unlike
+    // enrollment()/program(), which only look at status = 'enrolled').
+    public function latestEnrollment(): HasOne
+    {
+        return $this->hasOne(Enrollment::class, 'student_id', 'id')->latestOfMany('id');
+    }
+
+    /** ['program' => 'BSIT', 'year_level' => 3] for students, null for everyone else. */
+    public function getAcademicAttribute(): ?array
+    {
+        if ($this->role !== 'student') {
+            return null;
+        }
+
+        $this->loadMissing('latestEnrollment.program');
+        $enrollment = $this->latestEnrollment;
+
+        return $enrollment ? [
+            'program' => $enrollment->program?->name,
+            'year_level' => $enrollment->year_level,
+        ] : null;
+    }
+
     public function program(): HasOneThrough
     {
         return $this->hasOneThrough(
@@ -333,6 +402,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function findAccount(string $username)
     {
         $role = $this->where('username', $username)->first()?->role;
+
+        // Unknown username (or no role yet): let the caller 404.
+        if ($role === null) {
+            return null;
+        }
 
         return $this->with($this->relationsForRole($role))
             ->where('username', $username)

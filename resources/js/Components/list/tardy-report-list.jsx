@@ -1,6 +1,6 @@
 import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
-import { getProfilePic, getYearLevel, readableDate, toTitleCase } from "@/others/function"
+import { getProfilePic, getYearLevel, readableDate, toTitleCase, studentProgram, studentYearLevel } from "@/others/function"
 import ProfilePic from "../other/profile-pic"
 
 const parseReason = (reason) => {
@@ -47,8 +47,8 @@ const TardyReportList = ({ list = [] }) => {
                 if (!student) return "-"
 
                 const latestEnrollment = student.enrollments?.[student.enrollments.length - 1]
-                const programName = student.program?.name
-                const yearLevel = latestEnrollment?.year_level ? getYearLevel(latestEnrollment.year_level) : null
+                const programName = studentProgram(student)
+                const yearLevel = studentYearLevel(student)
 
                 return (
                     <div className="flex items-center gap-3 h-full">

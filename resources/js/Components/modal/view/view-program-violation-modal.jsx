@@ -4,8 +4,8 @@ import { ReportArchiveService } from "@/others/services/report-archive-service"
 import { AlertCircle } from "lucide-react"
 import { getProfilePic, showUserType, readableDate, toTitleCase } from "@/others/function"
 import ProfilePic from "@/Components/other/profile-pic"
-import CircleReload from "@/Components/reload/circle-reload"
 import { Link } from "@inertiajs/react"
+import { ViewModalSkeleton } from "./view-modal-parts"
 
 const ViewProgramViolationModal = (props) => {
   const [data, setData] = useState(null)
@@ -116,9 +116,7 @@ const ViewProgramViolationModal = (props) => {
             </div>
           </>
         ) : (
-          <div className="flex justify-center py-6">
-            <CircleReload size={3} />
-          </div>
+          <ViewModalSkeleton variant="list" />
         )}
       </div>
     </UpModal>

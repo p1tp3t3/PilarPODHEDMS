@@ -6,6 +6,7 @@ import FacultyList from "@/Components/list/faculty-list"
 import ProfilePic from "@/Components/other/profile-pic"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import BreadcrumbNav from "@/Components/other/breadcrumb-nav"
+import { PageTitle } from "@/context-provider/page-title-provider"
 
 const tabs = [
     { key: "faculty", label: "Faculty" },
@@ -20,6 +21,7 @@ const ProgramUsers = ({ program, faculty, students }) => {
     return (
         <>
         <Head title={`${program.name} Users`} />
+        <PageTitle title="College Programs" />
         <div className="w-full py-4 grid gap-6">
             <BreadcrumbNav
                 items={[

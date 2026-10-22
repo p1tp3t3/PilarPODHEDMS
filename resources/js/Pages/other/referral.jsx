@@ -11,7 +11,7 @@ import ReportReferralModal from "@/Components/modal/submission-form/report-refer
 import { showWarningModal } from "@/others/function"
 import { ReferralService } from "@/others/services/referral-service"
 import TabSwitcher from "@/Components/other/tab-switcher"
-import { List, Clock, CheckCircle2, Ban, Undo2 } from "lucide-react"
+import { List, Clock, CheckCircle2, Ban, Undo2, Send } from "lucide-react"
 
 const optionTab = [
     { key: 'all', label: 'All Referrals', icon: List },
@@ -109,7 +109,7 @@ const Referral = (props) => {
             title="MY REFERRALS"
             rightSideComponent={
                 props.user.allow_referral
-                    ? <Btn onclick={() => openReportReferral(true)}>Report Referral</Btn>
+                    ? <Btn onclick={() => openReportReferral(true)} icon={<Send size={18} />}>Report Referral</Btn>
                     : null
             }
         >

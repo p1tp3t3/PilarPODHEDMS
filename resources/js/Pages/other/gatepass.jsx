@@ -11,7 +11,7 @@ import { Head, Link, router } from "@inertiajs/react";
 import Btn from "@/Components/button/normal-btn";
 import ActionBtn from "@/Components/button/action-btn";
 import TabSwitcher from "@/Components/other/tab-switcher";
-import { List, Clock, CheckCircle2, XCircle, Ban, FolderOpen, Undo2 } from "lucide-react";
+import { List, Clock, CheckCircle2, XCircle, Ban, FolderOpen, Undo2, DoorOpen } from "lucide-react";
 
 const STATUS_META = {
   pending: { label: "Pending", className: "bg-yellow-100 text-yellow-700" },
@@ -147,7 +147,7 @@ const GatePass = (props) => {
         title="GATE PASS"
         rightSideComponent={
           canRequestNewGatePass(latestGatepass) && props.user.allow_gatepass ? (
-            <Btn onclick={() => openRequestGatePass(true)}>Request Gate Pass</Btn>
+            <Btn onclick={() => openRequestGatePass(true)} icon={<DoorOpen size={19} />}>Request Gate Pass</Btn>
           ) : null
         }
       >

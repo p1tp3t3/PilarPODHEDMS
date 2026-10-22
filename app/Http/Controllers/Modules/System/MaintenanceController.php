@@ -65,26 +65,43 @@ class MaintenanceController extends Controller
      * "Student Violations" tab's data (folded in from the old standalone
      * /prefect/violation page, which duplicated this same section).
      */
-    public function violationManagementIndex()
+    /**
+     * One page of the Violation Management group: 'violations', 'penalties',
+     * 'student-violations' or 'access'. Each loads only what it shows.
+     */
+    public function violationManagementIndex(string $section = 'violations')
     {
-        $violations = Violation::query()
-            ->with(['penalties.penalty'])
-            ->latest('created_at')
-            ->get()
-            ->each(fn ($v) => $v->encrypted_id = encrypt_id($v->id));
+        $isSuperAdmin = auth()->user()->role === 'super_admin';
 
-        return Inertia::render('other/violation-management', [
-            'violation' => $violations,
-            'penalty' => Penalty::latest('created_at')->get(),
-            'program' => Program::all(['id', 'name', 'color_code']),
-            // Super admin manages the violation/penalty catalog but doesn't
-            // get to see which students actually have violations — that's
-            // student disciplinary data, not system configuration. Don't
-            // even compute/send it for that role.
-            'student_violation_list' => auth()->user()->role === 'super_admin'
-                ? []
-                : self::getStudentViolationList(),
-        ]);
+        // Super admin manages the violation/penalty catalog but doesn't get
+        // to see which students actually have violations — that's student
+        // disciplinary data, not system configuration.
+        if ($section === 'student-violations' && $isSuperAdmin) {
+            return redirect('/violation-management/violations');
+        }
+
+        $props = ['section' => $section];
+
+        // The violation form's penalty dropdowns need the penalties too.
+        if (in_array($section, ['violations', 'penalties'], true)) {
+            $props['penalty'] = Penalty::latest('created_at')->get();
+        }
+
+        if ($section === 'violations') {
+            $props['violation'] = Violation::query()
+                ->with(['penalties.penalty'])
+                ->latest('created_at')
+                ->orderByDesc('id')
+                ->get()
+                ->each(fn ($v) => $v->encrypted_id = encrypt_id($v->id));
+            $props['program'] = Program::all(['id', 'name', 'color_code']);
+        }
+
+        if ($section === 'student-violations') {
+            $props['student_violation_list'] = self::getStudentViolationList();
+        }
+
+        return Inertia::render('other/violation-management', $props);
     }
 
     private function getStudentViolationList()
@@ -116,10 +133,21 @@ class MaintenanceController extends Controller
                     ->filter(fn ($offense) => optional($offense->violation)->offense_status === 0)
                     ->count();
 
+                // Violations this student committed more than once, most
+                // repeated first: [['name' => ..., 'count' => 3], ...].
+                $repeats = $allOffenses
+                    ->filter(fn ($offense) => $offense->violation)
+                    ->groupBy('violation_id')
+                    ->filter(fn ($same) => $same->count() > 1)
+                    ->map(fn ($same) => ['name' => $same->first()->violation->violation_name, 'count' => $same->count()])
+                    ->sortByDesc('count')
+                    ->values();
+
                 return [
                     'student_id' => $group->first()->user->id,
                     'user' => $group->first()->user,
                     'violation_count' => $allOffenses->count(),
+                    'repeat_violations' => $repeats,
                     'major_count' => $majorCount,
                     'minor_count' => $minorCount,
                     'penalty_count' => $group->count(),

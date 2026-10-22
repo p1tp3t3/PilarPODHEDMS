@@ -2,8 +2,7 @@ import { ReferralService } from "@/others/services/referral-service"
 import UpModal from "../up-modal"
 import { useEffect, useState } from "react"
 import { readableDate, readableTime, toTitleCase, formatSchoolYearSemester } from "@/others/function"
-import CircleReload from "@/Components/reload/circle-reload"
-import { ModalHeader, Section, Stat, StatGrid, PersonList, safeParseArray } from "./view-modal-parts"
+import { ModalHeader, Section, Stat, StatGrid, PersonList, safeParseArray, ByPrefect, ViewModalSkeleton } from "./view-modal-parts"
 import {
     CalendarClock,
     CheckCircle2,
@@ -55,9 +54,7 @@ const ViewReferralModal = (props) => {
                 <Body data={data} />
                 :
                 reload &&
-                <div className="w-full flex justify-center py-16">
-                    <CircleReload size={3} />
-                </div>}
+                <ViewModalSkeleton variant="record" />}
             </div>
         </UpModal>
     )
@@ -104,6 +101,7 @@ const Body = ({ data }) => {
                 <div className="grid gap-4 sm:grid-cols-2">
                     <Section icon={UserCircle2} title="Referrer">
                         <PersonList data={data.user} emptyLabel="No referrer on record." />
+                        <ByPrefect prefect={data.prefect} />
                     </Section>
                     <Section icon={Users} title="Referred Student">
                         <PersonList

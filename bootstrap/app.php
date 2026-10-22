@@ -13,8 +13,14 @@ $app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
-        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
+    )
+    // /broadcasting/auth runs through the same middleware as any signed-in
+    // page: a session, a logged-in user and an active account. Each
+    // channel's own rule is in routes/channels.php.
+    ->withBroadcasting(
+        __DIR__.'/../routes/channels.php',
+        ['middleware' => ['web', 'auth', 'activate']],
     )
     ->withMiddleware(function (Middleware $middleware): void {
         

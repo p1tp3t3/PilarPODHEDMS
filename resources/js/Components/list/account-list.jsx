@@ -22,6 +22,7 @@ import { DataGrid } from "@/Components/other/data-grid";
 import { Box } from "@mui/material";
 import { X, Check } from "lucide-react";
 import LiveActiveSince from "@/Components/other/live-active-since";
+import { LabeledCheckbox, SelectCheckbox, setRowsChecked } from "@/Components/input/select-checkbox";
 
 const AccountList = (props) => {
   const { isUserOnline } = useContext(AuthContext);
@@ -82,11 +83,7 @@ const AccountList = (props) => {
   };
 
   const selectAllRow = (e) => {
-    const checked = e.target.checked;
-    const checkboxes = document.querySelectorAll('input[name="selected-row"]');
-    checkboxes.forEach((checkbox) => {
-      checkbox.checked = checked;
-    });
+    setRowsChecked(e.target.checked);
   };
 
   return (
@@ -103,10 +100,7 @@ const AccountList = (props) => {
 
           {select && (
             <div className="flex gap-5 items-center flex-wrap">
-              <div className="flex gap-2 items-center text-[0.8em]">
-                <input type="checkbox" id="select-all" onClick={selectAllRow} />
-                <label htmlFor="select-all">Select All</label>
-              </div>
+              <LabeledCheckbox label="Select All" id="select-all" onChange={selectAllRow} className="text-[0.8em]" />
               <Switch
                 checked={activate}
                 effect={["bg-red-600", "bg-green-600"]}
@@ -259,7 +253,7 @@ const ActionCell = ({ row, select, deleteUser }) => {
       </Link>
 
       {select ? (
-        <input type="checkbox" name="selected-row" value={row.id} />
+        <SelectCheckbox value={row.id} label={`Select ${row.username ?? "account"}`} />
       ) : (
         <Switch
           checked={activate}

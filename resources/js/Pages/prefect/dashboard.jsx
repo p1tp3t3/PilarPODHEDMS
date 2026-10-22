@@ -26,6 +26,7 @@ import OffenseList from "@/Components/list/offense-list"
 import PenaltyList from "@/Components/list/penalty-list"
 import { motion } from "framer-motion"
 import { GraduationCap, Hourglass, RefreshCw, FileText, Archive, ShieldAlert } from "lucide-react"
+import { PageTitle } from "@/context-provider/page-title-provider"
 
 const PrefectDashBoard = (props) => {
   const date = new Date()
@@ -202,7 +203,8 @@ const PrefectDashBoard = (props) => {
   return (
     <>
         <Head title="Dashboard" />
-        <div className="w-full pt-2 sm:pt-3 pb-6 sm:pb-10">
+        <PageTitle title="Dashboard" />
+        <div className="w-full pt-5 pb-6 sm:pb-10">
           <MaintenanceScheduleReminder />
 
           <div>
@@ -269,7 +271,7 @@ const PrefectDashBoard = (props) => {
                       color={{ bg: "bg-white hover:bg-black/5 transition-all" }}
                     />
                   </Link>
-                  <Link href="/violation-management" className="h-full grid">
+                  <Link href="/violation-management/violations" className="h-full grid">
                     <QuantityCard
                       h="h-[6rem]"
                       num={props.total_violation}

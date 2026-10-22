@@ -75,29 +75,38 @@ const NavLink = ({ item, url, onNavigate }) => (
         id={item.id}
         className="nav"
         disableGutters
+        title={item.label}
         selected={url.includes(item.id)}
         sx={itemSx}
     >
         <ListItemIcon sx={iconSx}>
             <item.icon size={16} />
         </ListItemIcon>
-        <ListItemText primary={item.label} sx={textSx} />
+        <ListItemText className="rail-hide" primary={item.label} sx={textSx} />
     </ListItemButton>
 )
 
 const DropdownItem = ({ item, isOpen, toggle, url, onNavigate }) => (
     <>
-        <ListItemButton onClick={toggle} disableGutters sx={itemSx}>
+        {/* Highlighted when one of its pages is open, so the narrow icon
+            rail still shows where you are. */}
+        <ListItemButton
+            onClick={toggle}
+            disableGutters
+            sx={itemSx}
+            title={item.label}
+            selected={item.items.some((sub) => url.includes(sub.id))}
+        >
             <ListItemIcon sx={iconSx}>
                 <item.icon size={16} />
             </ListItemIcon>
-            <ListItemText primary={item.label} sx={textSx} />
+            <ListItemText className="rail-hide" primary={item.label} sx={textSx} />
             <ChevronRight
                 size={14}
-                className={`transition-transform duration-300 ${isOpen ? "rotate-90" : ""}`}
+                className={`rail-hide transition-transform duration-300 ${isOpen ? "rotate-90" : ""}`}
             />
         </ListItemButton>
-        <Collapse in={isOpen} timeout={300} unmountOnExit>
+        <Collapse in={isOpen} timeout={300} unmountOnExit className="rail-hide">
             <List disablePadding className="dropdown-nav-list text-[0.8em]">
                 {item.items.filter((sub) => sub.show ?? true).map((sub) => (
                     <ListItemButton
@@ -114,7 +123,7 @@ const DropdownItem = ({ item, isOpen, toggle, url, onNavigate }) => (
                         <ListItemIcon sx={iconSx}>
                             <sub.icon size={16} />
                         </ListItemIcon>
-                        <ListItemText primary={sub.label} sx={textSx} />
+                        <ListItemText className="rail-hide" primary={sub.label} sx={textSx} />
                     </ListItemButton>
                 ))}
             </List>

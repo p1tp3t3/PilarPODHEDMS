@@ -22,6 +22,9 @@ class UserSearchResource extends JsonResource
     public function toArray(Request $request): array
     {
         $latestEnrollment = $this->enrollments?->last();
+        // A student's photo only goes to those allowed to see it (see
+        // User::photoHiddenFrom); everyone else gets the default avatar.
+        $hidePhoto = $this->resource->photoHiddenFrom($request->user());
         return array_filter([
             'id' => encrypt_id($this->id),
             'role' => $this->role,
@@ -30,7 +33,7 @@ class UserSearchResource extends JsonResource
                 'first_name' => $this->profile->first_name,
                 'middle_name' => $this->profile->middle_name,
                 'last_name' => $this->profile->last_name,
-                'profile_picture' => $this->profile->profile_picture,
+                'profile_picture' => $hidePhoto ? null : $this->profile->profile_picture,
                 'sex' => $this->profile->sex,
             ]),
             'program' => ($this->role === 'student' && $this->program)

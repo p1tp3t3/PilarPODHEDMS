@@ -7,6 +7,7 @@ import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-re
 import { useState } from "react"
 import { X, CheckCheck, ListChecks, Trash2 } from "lucide-react"
 import { Head } from "@inertiajs/react"
+import { LabeledCheckbox, setRowsChecked } from "@/Components/input/select-checkbox"
 
 const Notification = (props) => {
 
@@ -25,7 +26,7 @@ const Notification = (props) => {
         if(choose != type) {
             setNotifList(null)
             setChoose(type)
-            NotificationService.list(type, props.auth.user.id, 10, (e) => setNotifList(e.notif))
+            NotificationService.list(type, props.auth.user.encrypted_id, 10, (e) => setNotifList(e.notif))
         }
     }
     const deleteNotif = (e) => {
@@ -34,20 +35,14 @@ const Notification = (props) => {
 
         NotificationService.deleteSelected(ids, setNotifList)
 
-        checkboxes.forEach((checkbox) => {
-            checkbox.checked = false
-        })
+        setRowsChecked(false)
     }
     const selectAllRow = (e) => {
-        const checked = e.target.checked
-        const checkboxes = document.querySelectorAll('input[name="selected-row"]')
-        checkboxes.forEach((checkbox) => {
-            checkbox.checked = checked
-        })
+        setRowsChecked(e.target.checked)
     }
     const markAllAsRead = () => {
         NotificationService.markAllAsRead(() => {
-            NotificationService.list(choose, props.auth.user.id, Math.max(notif_list?.length ?? 0, 10), (e) => {
+            NotificationService.list(choose, props.auth.user.encrypted_id, Math.max(notif_list?.length ?? 0, 10), (e) => {
                 setNotifList(e.notif)
                 setSize(e.size)
             })
@@ -55,7 +50,7 @@ const Notification = (props) => {
     }
 
     const handlePaginate = () => {
-        NotificationService.list(choose, props.auth.user.id, notif_list.length + 10, (e) => {
+        NotificationService.list(choose, props.auth.user.encrypted_id, notif_list.length + 10, (e) => {
             setNotifList(e.notif)
             setSize(e.size)
         })
@@ -73,10 +68,9 @@ const Notification = (props) => {
                         <div className="flex flex-wrap items-center gap-2 pb-2">
                             {select ? (
                                 <>
-                                    <label htmlFor="select-all" className="flex items-center gap-2 rounded-full border border-gray-300 px-3 py-1.5 text-[0.75em] font-medium text-gray-700 cursor-pointer">
-                                        <input type="checkbox" id="select-all" onClick={selectAllRow} />
-                                        Select all
-                                    </label>
+                                    <span className="flex items-center rounded-full border border-gray-300 pl-1 pr-3 py-0.5 text-[0.75em] font-medium text-gray-700">
+                                        <LabeledCheckbox label="Select all" id="select-all" onChange={selectAllRow} />
+                                    </span>
                                     <button
                                         type="button"
                                         onClick={deleteNotif}

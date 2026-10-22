@@ -1,12 +1,20 @@
 import { Button } from "@mui/material"
+import { useTitleActionIcon } from "@/context-provider/page-title-provider"
 
-const Btn = ({ children, onclick, className }) => {
+// `icon` (optional): in a page's title bar, phones show just this icon in a
+// round button; the label stays as its tooltip/accessible name (`label`
+// overrides the text taken from children).
+const Btn = ({ children, onclick, className, icon, label }) => {
+    const compact = useTitleActionIcon(icon, children, label)
+
     return (
         <Button
             onClick={onclick}
             className={className}
             variant="contained"
             disableElevation
+            title={compact?.name}
+            aria-label={compact?.name}
             sx={{
                 px: 2,
                 py: 1,
@@ -15,9 +23,10 @@ const Btn = ({ children, onclick, className }) => {
                 textTransform: 'none',
                 bgcolor: '#1d4ed8',
                 '&:hover': { bgcolor: '#1e40af' },
+                ...compact?.sx,
             }}
         >
-            {children}
+            {compact ? compact.content : children}
         </Button>
     )
 }

@@ -15,8 +15,9 @@ import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
 import { showOutputModal, showWarningModal } from "@/others/function"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
-import { List, Clock, CheckCircle2, Ban, Undo2 } from "lucide-react"
+import { List, Clock, CheckCircle2, Ban, Undo2, Send } from "lucide-react"
 import { Head } from "@inertiajs/react"
+import { PageActions } from "@/context-provider/page-title-provider"
 
 const PrefectReferral = (props) => {
     const MySwal = withReactContent(Swal)
@@ -214,18 +215,18 @@ const PrefectReferral = (props) => {
                 warning={{ title: 'Are You Sure You Want To Reject This Referral?', btn: 'Reject Referral' }}
             />
 
-                <PageLayout
+                <PageLayout actionsWithFilters
                     title="REFERRAL"
                     rightSideComponent={
                         <div className="w-full sm:w-auto">
-                            <Btn onclick={() => openReportReferral(true)} className="">
+                            <Btn onclick={() => openReportReferral(true)} icon={<Send size={18} />}>
                                 Report Referral
                             </Btn>
                         </div>
                     }
                 >
                         {/* Filters */}
-                        <div className="flex flex-wrap gap-3">
+                        <div className="flex flex-wrap gap-3 md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
                             <div className="w-full sm:w-56">
                                 <DropdownField
                                     default={{ val: 'all', label: 'All School Years' }}
@@ -245,6 +246,7 @@ const PrefectReferral = (props) => {
                                     onChange={(e) => handleFilterChange('semester', e.target.value)}
                                 />
                             </div>
+                            <PageActions />
                         </div>
 
                         {/* Tabs */}

@@ -74,7 +74,7 @@ const AuthHeader = (props) => {
   }, []);
 
   useEffect(() => {
-    NotificationService.getInitial(usr.id, 4, (e) => {
+    NotificationService.getInitial(usr.encrypted_id, 4, (e) => {
         setNotifCount(e.unread_count);
         setNotifList(e.notif);
         setSize(e.size);

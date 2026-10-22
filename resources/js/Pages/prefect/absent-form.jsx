@@ -16,8 +16,9 @@ import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
 import { showWarningModal, showOutputModal } from "@/others/function"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
-import { List, Clock, CheckCircle2, Ban, Undo2 } from "lucide-react"
+import { List, Clock, CheckCircle2, Ban, Undo2, CalendarX } from "lucide-react"
 import { Head } from "@inertiajs/react"
+import { PageActions } from "@/context-provider/page-title-provider"
 
 const PrefectAbsentForm = (props) => {
     const MySwal = withReactContent(Swal)
@@ -124,16 +125,16 @@ const PrefectAbsentForm = (props) => {
                     issue={true}
                     onIssued={() => router.visit(`${window.location.pathname}?status=noted&school-year=${schoolYear}&semester=${semester}`)}
                 />
-                <PageLayout
+                <PageLayout actionsWithFilters
                     title="STUDENT ABSENT FORMS"
                     rightSideComponent={
-                        <Btn onclick={() => openIssueAbsent(true)}>
+                        <Btn onclick={() => openIssueAbsent(true)} icon={<CalendarX size={19} />}>
                             Issue Absent Form
                         </Btn>
                     }
                 >
                         {/* Filters */}
-                        <div className="flex flex-wrap gap-3">
+                        <div className="flex flex-wrap gap-3 md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
                             <div className="w-full sm:w-56">
                                 <DropdownField
                                     default={{ val: 'all', label: 'All School Years' }}
@@ -153,6 +154,7 @@ const PrefectAbsentForm = (props) => {
                                     onChange={(e) => handleFilterChange('semester', e.target.value)}
                                 />
                             </div>
+                            <PageActions />
                         </div>
 
                         {/* Tabs */}

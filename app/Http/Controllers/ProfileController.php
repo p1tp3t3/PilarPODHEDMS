@@ -115,7 +115,8 @@ class ProfileController extends Controller
 
         // Referrals, absent forms and gate passes follow the complaint rule:
         // the prefect or the person who filed them, never super_admin.
-        if ($canViewOwnComplaints && $account->role === 'teaching_staff') {
+        // Teaching staff and the prefect (sub_admin) can both refer students.
+        if ($canViewOwnComplaints && in_array($account->role, ['teaching_staff', 'sub_admin'], true)) {
             $props['referrals_filed'] = (new ReferralController)->getReferrerReferral($account->id);
         }
 

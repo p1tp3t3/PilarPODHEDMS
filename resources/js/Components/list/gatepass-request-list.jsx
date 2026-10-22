@@ -7,6 +7,8 @@ import { getProfilePic, readableDate, readableTime, showUserType, toTitleCase, f
 import ProfilePic from "../other/profile-pic"
 import ActionBtn from "../button/action-btn"
 import ListSkeleton from "../reload/list-skeleton"
+import { statusLabel } from "@/Components/other/mobile-card-list"
+import { filedByColumn } from "@/Components/list/filed-by-column"
 
 const STATUS_STYLES = {
     pending: "bg-yellow-100 text-yellow-700",
@@ -36,6 +38,7 @@ const GatePassRequestList = (props) => {
             user_id: e.user?.id_number,
             name: (e.user.profile?.first_name ?? '') + ' ' + (e.user.profile?.middle_name ?? '') + " " + (e.user.profile?.last_name ?? '') + ' ' + e.user.role,
             user: e.user,
+            prefect: e.prefect,
             created_at: e.created_at,
             confirmed_at: e.confirmed_at,
             rejected_at: e.rejected_at,
@@ -97,6 +100,7 @@ const GatePassRequestList = (props) => {
                     )
                 },
             },
+            ...(usr?.role === "sub_admin" ? [filedByColumn((r) => r.prefect)] : []),
             {
                 field: "created_at",
                 headerName: "Request Since",
@@ -207,6 +211,14 @@ const GatePassRequestList = (props) => {
                 getRowHeight={() => 'auto'}
                 localeText={{ noRowsLabel: "No Gate Pass Request Yet" }}
                 showToolbar
+                // Phones: requester + "#ref · status"; tap for the rest.
+                mobileSummary={(row) => ({
+                    name: [row.user?.profile?.first_name, row.user?.profile?.middle_name, row.user?.profile?.last_name].filter(Boolean).join(" "),
+                    role: `#${row.gatepass_number} · ${statusLabel(row.status)}`,
+                    picture: row.user?.profile?.profile_picture,
+                    sex: row.user?.profile?.sex,
+                    hide: ["name", "gatepass_number"],
+                })}
             />
         </Box>
     )

@@ -48,7 +48,8 @@ class ComplaintController extends Controller
             'students' => User::with(['profile', 'program'])
                 ->whereRole('student')
                 ->where('id', '!=', auth()->user()->id)
-                ->get(),
+                ->get()
+                ->each(fn (User $student) => $student->hidePhotoFrom(auth()->user())),
             'program_name' => is_program_head(),
             'complaint_list' => $complaints,
             // Column order matters here — the frontend's objConvert() reads
@@ -734,8 +735,8 @@ class ComplaintController extends Controller
     public function getComplainantComplaint($id)
     {
         return ['data' => ComplaintResource::collection(
-            Complaint::with(['user.profile'])
-                ->where('complainant_id', $id)
+            Complaint::with(['user.profile', 'prefect.profile'])
+                ->where(fn ($q) => $q->where('complainant_id', $id)->orWhere('prefect_id', $id))
                 ->latest('created_at')
                 ->get()
         )];
@@ -751,6 +752,9 @@ class ComplaintController extends Controller
             'user.program',
             'user.teachingStaff.program',
             'user.parent',
+
+            // PREFECT WHO FILED IT ON THE COMPLAINANT'S BEHALF (if any)
+            'prefect.profile',
 
             // SUBJECTS + USER + STUDENT + PROGRAM
             'subject.profile',
@@ -773,6 +777,11 @@ class ComplaintController extends Controller
         if (! $complaint) {
             abort(404, 'Complaint not found.');
         }
+
+        // Reported students' photos follow the same rule as the search
+        // (User::photoHiddenFrom): default avatar unless the viewer may see it.
+        $complaint->subject?->hidePhotoFrom(auth()->user());
+        $complaint->complaintSubject?->each(fn ($s) => $s->user?->hidePhotoFrom(auth()->user()));
 
         if (auth()->user()->role == 'sub_admin') {
             // Third-party model host (free-tier Hugging Face Space) — prone to
@@ -820,6 +829,10 @@ class ComplaintController extends Controller
         $fields = [
             'complaint_number' => self::generateComplaintNumber(),
             'complainant_id' => $complainantId,
+            // Only when a prefect files FOR someone else (a student, staff
+            // member or outside complainant) — not when the prefect is the
+            // complainant themselves.
+            'prefect_id' => $isPrefect && (int) $complainantId !== (int) auth()->id() ? auth()->id() : null,
             'incident_id' => $request->incident_id,
             'complaint_description' => $request->complaint_description,
             'complaint_status' => $isPrefect ? 'ongoing' : 'pending',

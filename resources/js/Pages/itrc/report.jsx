@@ -5,16 +5,13 @@ import DropdownField from "@/Components/input/dropdown"
 import RadioButton from "@/Components/input/radio"
 import BetweenTextfield from "@/Components/input/between-input"
 import Btn from "@/Components/button/normal-btn"
-import TabSwitcher from "@/Components/other/tab-switcher"
 import { Head, router } from "@inertiajs/react"
 import { useState } from "react"
 import GenerateActionLogReportMoodal from "@/Components/modal/submission-form/generate-action-log-report-modal"
 import AccountStatistics from "./report/account-statistics"
 
-const optionTab = [
-    { key: "statistics", label: "Statistics" },
-    { key: "action-log", label: "Action Log" },
-]
+// Each is its own page: /super-admin/report/{statistics|action-log}.
+const TITLES = { statistics: "Statistics", "action-log": "Action Log" }
 
 const semesterList = [
     { val: 1, label: "1st Semester" },
@@ -23,7 +20,7 @@ const semesterList = [
 
 const ITRCReport = (props) => {
     const params = new URLSearchParams(window.location.search)
-    const [tab, setTab] = useState(params.get('tab') || "statistics")
+    const tab = props.section ?? "statistics"
     const actionList = [
         { val: 'login', label: 'Login' },
         { val: 'logout', label: 'Logout' },
@@ -48,7 +45,7 @@ const ITRCReport = (props) => {
 
     const applyFilters = (next) => {
         setFilters(next)
-        const query = { tab: 'action-log', action_type: next.action_type, filter_by: next.filter_by }
+        const query = { action_type: next.action_type, filter_by: next.filter_by }
         if (next.filter_by === 'date') {
             if (next.date_from) query.date_from = next.date_from
             if (next.date_to) query.date_to = next.date_to
@@ -66,7 +63,7 @@ const ITRCReport = (props) => {
     const handleFilterChange = (field, value) => applyFilters({ ...filters, [field]: value })
     return (
         <>
-        <Head title="Report" />
+        <Head title={TITLES[tab]} />
         <GenerateActionLogReportMoodal
             close={report} 
             closeModal={openGenerateReport} 
@@ -75,8 +72,7 @@ const ITRCReport = (props) => {
             students={props.students}
             schoolYears={props.school_years ?? []}
         />
-        <PageLayout title="REPORT">
-            <TabSwitcher tabs={optionTab} value={tab} onChange={setTab} />
+        <PageLayout title={TITLES[tab].toUpperCase()}>
 
             {tab === "statistics" &&
             <AccountStatistics

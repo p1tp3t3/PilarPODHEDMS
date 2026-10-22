@@ -1,8 +1,8 @@
-import CircleReload from "@/Components/reload/circle-reload"
 import UpModal from "../up-modal"
 import { FamilyService } from "@/others/services/family-service"
 import { useState, useEffect, useMemo } from "react"
 import { toTitleCase } from "@/others/function"
+import { ViewModalSkeleton } from "./view-modal-parts"
 
 const ViewParentRequestModal = (props) => {
     const [data, setData] = useState(null),
@@ -52,9 +52,7 @@ const ViewParentRequestModal = (props) => {
                     <Body data={data} />
                 ) : (
                     reload && (
-                        <div className="w-full flex justify-center py-8">
-                            <CircleReload size={3} />
-                        </div>
+                        <ViewModalSkeleton variant="record" />
                     )
                 )}
             </div>

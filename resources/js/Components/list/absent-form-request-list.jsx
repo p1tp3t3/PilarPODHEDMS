@@ -13,6 +13,8 @@ import {
 } from "../../others/function";
 import AuthContext from "@/context-provider/auth-provider";
 import ListSkeleton from "../reload/list-skeleton";
+import { statusLabel } from "@/Components/other/mobile-card-list";
+import { filedByColumn } from "@/Components/list/filed-by-column";
 
 const STATUS_STYLES = {
   pending: "bg-yellow-100 text-yellow-700",
@@ -43,6 +45,7 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
       form_number: e.form_number,
       student_id: e.user.id_number,
       user: e.user,
+      prefect: e.prefect,
       created_at: e.created_at,
       confirmed_at: e.confirmed_at,
       rejected_at: e.rejected_at,
@@ -96,6 +99,7 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
           );
         },
       },
+      ...(usr?.role === "sub_admin" ? [filedByColumn((r) => r.prefect)] : []),
       {
         field: "created_at",
         headerName: "Submitted Since",
@@ -223,6 +227,14 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
         initialState={{ pagination: { paginationModel: { page: 0, pageSize: 10 } } }}
         localeText={{ noRowsLabel: "No Absent Forms Found" }}
         showToolbar
+        // Phones: student + "#ref · status"; tap for dates and actions.
+        mobileSummary={(row) => ({
+          name: [row.user?.profile?.first_name, row.user?.profile?.middle_name, row.user?.profile?.last_name].filter(Boolean).join(" "),
+          role: `#${row.form_number} · ${statusLabel(row.status)}`,
+          picture: row.user?.profile?.profile_picture,
+          sex: row.user?.profile?.sex,
+          hide: ["student", "form_number"],
+        })}
       />
     </Box>
   );

@@ -8,6 +8,7 @@ import AuthLayout from "@/Layouts/auth-layout";
 import PageLayout from "@/Layouts/page-layout";
 import Btn from "@/Components/button/normal-btn";
 import { Head } from "@inertiajs/react";
+import { Plus } from "lucide-react";
 
 const ITRCProgram = (props) => {
     const [program, openProgram] = useState(false),
@@ -56,7 +57,7 @@ const ITRCProgram = (props) => {
         <PageLayout
             title="College Programs"
             rightSideComponent={
-                <Btn onclick={() => openActionModal('program', 'add')}>
+                <Btn onclick={() => openActionModal('program', 'add')} icon={<Plus size={20} />}>
                     Add Program
                 </Btn>
             }

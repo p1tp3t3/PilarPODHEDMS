@@ -1,6 +1,7 @@
 import { APIRequest } from "../classes/api-req";
 
 export const NotificationService = {
+    // userId is the user's encrypted_id (the server only answers for your own).
     list(type, userId, count, setter) {
         const api = new APIRequest(`/api/notification/list/${type}/${userId}/${count}`, "get", {}, setter);
         api.fetchData();

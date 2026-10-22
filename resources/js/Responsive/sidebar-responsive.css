@@ -1,0 +1,46 @@
+/*
+ * Desktop/tablet sidebar rail (>= 768px): the sidebar is a narrow icon-only
+ * strip by default and widens to the full menu while hovered (see
+ * auth-side-bar.jsx). While it's narrow, everything but the logo and the
+ * menu icons is hidden, and the icons are centred in the strip.
+ * Phones keep the full-width off-canvas drawer, untouched by these rules.
+ *
+ * !important because MUI's own (sx-generated) styles are injected after
+ * this stylesheet and would otherwise win.
+ */
+@media (min-width: 768px) {
+    .sidebar-rail:not(:hover) .rail-hide {
+        display: none !important;
+    }
+
+    /* Labels stay on one line while the rail animates wider (instead of
+       wrapping and jumping as it grows). */
+    .sidebar-rail .MuiListItemText-primary {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Same row height whether or not the label is showing, so the icons
+       stay put when the rail expands. */
+    .sidebar-rail .nav-list .MuiListItemButton-root {
+        min-height: 2.875rem;
+    }
+
+    .sidebar-rail:not(:hover) .nav-list {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+    }
+
+    .sidebar-rail:not(:hover) .nav-list .MuiListItemButton-root {
+        justify-content: center !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    .sidebar-rail:not(:hover) .rail-header {
+        justify-content: center;
+        padding-left: 0;
+        padding-right: 0;
+    }
+}

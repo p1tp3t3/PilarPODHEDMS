@@ -1,9 +1,8 @@
 import UpModal from "../up-modal"
 import { useState, useEffect } from "react"
 import { readableDate, readableTime, formatSchoolYearSemester } from "../../../others/function"
-import CircleReload from "@/Components/reload/circle-reload"
 import { AbsentFormService } from "@/others/services/absent-form-service"
-import { ModalHeader, Section, Stat, StatGrid, PersonList, safeParseArray } from "./view-modal-parts"
+import { ModalHeader, Section, Stat, StatGrid, PersonList, safeParseArray, ByPrefect, ViewModalSkeleton } from "./view-modal-parts"
 import {
     CalendarClock,
     CheckCircle2,
@@ -64,9 +63,7 @@ const ViewAbsentFormModal = (props) => {
                 <Body data={data} />
                 :
                 reload &&
-                <div className="w-full flex justify-center py-16">
-                    <CircleReload size={3} />
-                </div>}
+                <ViewModalSkeleton variant="record" />}
             </div>
         </UpModal>
     )
@@ -115,6 +112,7 @@ const Body = ({ data }) => {
                 <div className="grid gap-4 sm:grid-cols-2">
                     <Section icon={UserCircle2} title="Student">
                         <PersonList data={data.user} emptyLabel="No student on record." />
+                        <ByPrefect prefect={data.prefect} label="Issued by the Prefect" />
                     </Section>
                     <Section icon={CalendarRange} title="Date of Absence">
                         <p className="text-sm text-gray-700">

@@ -13,6 +13,7 @@ import { AccountService } from "@/others/services/account-service"
 import { showOutputModal } from "@/others/function"
 import { Head } from "@inertiajs/react"
 import { useState, useRef } from "react"
+import { Download } from "lucide-react"
 
 const enrollmentCsvColumns = [
     { field: "student_id", headerName: "ID", width: 110 },
@@ -145,7 +146,7 @@ const Students = (props) => {
             rightSideComponent={
                 activeTab === "list" && props.auth.user.user_type == 'administrative' ? (
                     <a href={`/download/user/account/${fileName}`} download={fileName}>
-                        <Btn>
+                        <Btn icon={<Download size={19} />} label="Download Student Accounts">
                             <i className="fa-solid fa-download"></i> Download Student Accounts
                         </Btn>
                     </a>

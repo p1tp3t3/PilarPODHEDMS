@@ -8,6 +8,7 @@ import ManagePositionsModal from "@/Components/modal/submission-form/manage-posi
 import Btn from "@/Components/button/normal-btn"
 import { Settings } from "lucide-react"
 import { Head } from "@inertiajs/react"
+import { PageActions } from "@/context-provider/page-title-provider"
 
 // 'faculty'/'program_head' live in the same shared positions table but are
 // teaching_staff-only — never assigned to a non_teaching_staff account, so
@@ -69,16 +70,16 @@ const PrefectStaffList = (props) => {
                     setPositions={setPositions}
                 />
             )}
-            <PageLayout
+            <PageLayout actionsWithFilters
                 title="STAFF LIST"
                 rightSideComponent={canManagePosition &&
-                    <Btn onclick={() => openManagePositionsModal(true)}>
+                    <Btn onclick={() => openManagePositionsModal(true)} icon={<Settings size={19} />}>
                         <span className="flex items-center gap-2">
                             <Settings size={16} /> Manage Positions
                         </span>
                     </Btn>}
             >
-                    <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                    <div className="flex flex-col sm:flex-row gap-3 sm:items-center md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
                         <div className="w-full sm:w-[14rem] flex-shrink-0">
                             <DropdownField
                                 list={[
@@ -114,6 +115,7 @@ const PrefectStaffList = (props) => {
                                 />
                             </div>
                         )}
+                        <PageActions />
                     </div>
 
                     <StaffList

@@ -21,7 +21,7 @@ const MyActivity = (props) => {
             <PageLayout
                 title="MY ACTIVITY"
                 rightSideComponent={
-                    <div className="w-full sm:w-56">
+                    <div className="w-40 sm:w-56">
                         <DropdownField
                             default={{ val: "all", label: "All Actions" }}
                             list={types}

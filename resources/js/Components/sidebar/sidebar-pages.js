@@ -21,6 +21,12 @@ import {
     UserRoundCog,
     ShieldCheck,
     BrainCircuit,
+    Gavel,
+    KeyRound,
+    Clock,
+    Filter,
+    FileText,
+    ScrollText,
 } from "lucide-react"
 
 // Single source of truth for every role's sidebar navigation. Each entry is
@@ -53,8 +59,21 @@ export const sidebarPages = [
         ],
     },
     { type: "link", id: "program", href: "/super-admin/program", icon: GraduationCap, label: "College Programs", roles: ["super_admin"] },
-    { type: "link", id: "report", href: "/super-admin/report", icon: BarChart3, label: "Reports", roles: ["super_admin"] },
-    { type: "link", id: "violation-management", href: "/violation-management", icon: AlertTriangle, label: "Violation Management", roles: ["super_admin"] },
+    {
+        type: "dropdown", id: "super-admin/report", icon: BarChart3, label: "Reports", roles: ["super_admin"],
+        items: [
+            { id: "report/statistics", href: "/super-admin/report/statistics", icon: BarChart3, label: "Statistics" },
+            { id: "report/action-log", href: "/super-admin/report/action-log", icon: ScrollText, label: "Action Log" },
+        ],
+    },
+    {
+        type: "dropdown", id: "violation-management", icon: AlertTriangle, label: "Violation Management", roles: ["super_admin"],
+        items: [
+            { id: "violation-management/violations", href: "/violation-management/violations", icon: ShieldAlert, label: "Violations" },
+            { id: "violation-management/penalties", href: "/violation-management/penalties", icon: Gavel, label: "Penalties" },
+            { id: "violation-management/access", href: "/violation-management/access", icon: KeyRound, label: "Edit Access" },
+        ],
+    },
     {
         type: "dropdown", id: "system-administrator", icon: Settings, label: "System Administrator", roles: ["super_admin"],
         items: [
@@ -79,10 +98,30 @@ export const sidebarPages = [
             { id: "archives", href: "/prefect/archive", icon: Archive, label: "Archives" },
         ],
     },
-    { type: "link", id: "violation-management", href: "/violation-management", icon: AlertTriangle, label: "Violation Management", roles: ["sub_admin"] },
+    {
+        type: "dropdown", id: "violation-management", icon: AlertTriangle, label: "Violation Management", roles: ["sub_admin"],
+        items: [
+            { id: "violation-management/violations", href: "/violation-management/violations", icon: ShieldAlert, label: "Violations" },
+            { id: "violation-management/penalties", href: "/violation-management/penalties", icon: Gavel, label: "Penalties" },
+            { id: "violation-management/student-violations", href: "/violation-management/student-violations", icon: GraduationCap, label: "Student Violations" },
+            { id: "violation-management/access", href: "/violation-management/access", icon: KeyRound, label: "Access Requests" },
+        ],
+    },
     { type: "link", id: "appointment", href: "/prefect/appointment", icon: Calendar, label: "Appointment", roles: ["sub_admin"] },
     { type: "link", id: "gatepass", href: "/prefect/gatepass", icon: DoorOpen, label: "Gate-Pass", roles: ["sub_admin"] },
-    { type: "link", id: "report", href: "/prefect/report", icon: BarChart3, label: "Reports", roles: ["sub_admin"] },
+    {
+        type: "dropdown", id: "prefect/report", icon: BarChart3, label: "Reports", roles: ["sub_admin"],
+        items: [
+            { id: "report/incident", href: "/prefect/report/incident", icon: FileWarning, label: "Incident Report" },
+            { id: "report/violation", href: "/prefect/report/violation", icon: AlertTriangle, label: "Violation Report" },
+            { id: "report/tardy", href: "/prefect/report/tardy", icon: Clock, label: "Tardy Report" },
+            { id: "report/appointment", href: "/prefect/report/appointment", icon: Calendar, label: "Appointment Report" },
+            { id: "report/gatepass", href: "/prefect/report/gatepass", icon: DoorOpen, label: "Gate Pass Report" },
+            { id: "report/analytics", href: "/prefect/report/analytics", icon: LineChart, label: "Analytical Report" },
+            { id: "report/saved-filters", href: "/prefect/report/saved-filters", icon: Filter, label: "Saved Filters" },
+            { id: "report/generated", href: "/prefect/report/generated", icon: FileText, label: "Generated Reports" },
+        ],
+    },
 
     // ---- shared: complaint (student, teaching_staff, non_teaching_staff, parent) ----
     {

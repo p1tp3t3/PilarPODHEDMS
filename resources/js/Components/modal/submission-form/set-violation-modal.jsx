@@ -5,7 +5,7 @@ import { useState, useEffect } from "react"
 import FormButton from "@/Components/button/button"
 import { ViolationService } from "@/others/services/violation-service"
 import RadioButton from "@/Components/input/radio"
-import { Select, MenuItem } from "@mui/material"
+import { Select, MenuItem, Autocomplete, TextField, Chip } from "@mui/material"
 
 const SetViolationModal = (props) => {
     const action = props.action || "add"
@@ -142,10 +142,14 @@ const SetViolationModal = (props) => {
         validateKeywords(updated)
     }
 
-    const removeKeyword = (index) => {
-        const updated = data.keywords.filter((_, i) => i !== index)
-        setData(prev => ({ ...prev, keywords: updated }))
-        validateKeywords(updated)
+    // Every keyword already used on any violation, for the picker.
+    const keywordOptions = [...new Set((props.keywordOptions ?? []).map((k) => String(k).trim()).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b))
+
+    const setKeywordList = (list) => {
+        const unique = list.filter((k, i) => list.findIndex((x) => x.toLowerCase() === k.toLowerCase()) === i)
+        setData(prev => ({ ...prev, keywords: unique }))
+        validateKeywords(unique)
     }
 
     const handleKeywordKeyDown = (e) => {
@@ -234,7 +238,7 @@ const SetViolationModal = (props) => {
             isEnableOuterClose={props.isEnableOuterClose}
             pd={props.pd}
             bgColor="bg-white"
-            w="w-[40rem]"
+            w="w-[48rem]"
             cntr={true}
         >
             <div className="w-full">
@@ -259,44 +263,50 @@ const SetViolationModal = (props) => {
                                     Keywords {validationErr.keywordsAsterisk && <span className="text-red-600">*</span>}
                                 </label>
 
+                                {/* Pick from keywords already used on other violations... */}
+                                <Autocomplete
+                                    multiple
+                                    size="small"
+                                    options={keywordOptions}
+                                    value={data.keywords}
+                                    onChange={(e, value) => setKeywordList(value)}
+                                    filterSelectedOptions
+                                    disableCloseOnSelect
+                                    renderTags={(value, getTagProps) =>
+                                        value.map((kw, i) => {
+                                            const { key, ...tagProps } = getTagProps({ index: i })
+                                            return <Chip key={key} label={kw} size="small" {...tagProps} />
+                                        })
+                                    }
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            placeholder={data.keywords.length ? "" : "Select keywords"}
+                                            error={!!validationErr.keywords}
+                                        />
+                                    )}
+                                    noOptionsText="No other saved keywords — add a new one below"
+                                />
+
+                                {/* ...or add a brand-new one (optional). */}
                                 <div className="flex items-center gap-2">
                                     <input
                                         type="text"
                                         value={keywordInput}
                                         onChange={(e) => setKeywordInput(e.target.value)}
                                         onKeyDown={handleKeywordKeyDown}
-                                        placeholder="e.g. bully, then press Enter to add"
+                                        placeholder="New keyword (optional) — press Enter to add"
                                         className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-[0.9em] focus:outline-none focus:ring-2 focus:ring-blue-400"
                                     />
                                     <button
                                         type="button"
                                         onClick={addKeyword}
-                                        className="bg-blue-500 text-white px-3 py-2 rounded-md hover:bg-blue-600 text-[0.9em]"
+                                        disabled={!keywordInput.trim()}
+                                        className="bg-blue-500 text-white px-3 py-2 rounded-md hover:bg-blue-600 text-[0.9em] disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         Add
                                     </button>
                                 </div>
-
-                                {data.keywords.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 mt-1">
-                                        {data.keywords.map((kw, i) => (
-                                            <span
-                                                key={i}
-                                                className="flex items-center gap-1 px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded-full"
-                                            >
-                                                {kw}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeKeyword(i)}
-                                                    className="ml-1 text-gray-500 hover:text-red-600 font-bold leading-none"
-                                                    aria-label={`Remove ${kw}`}
-                                                >
-                                                    ×
-                                                </button>
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
 
                                 {validationErr.keywords && (
                                     <p className="text-red-600 text-sm">{validationErr.keywords}</p>
@@ -317,19 +327,29 @@ const SetViolationModal = (props) => {
                             />
 
                             {/* PENALTIES SECTION */}
-                            <div className="grid gap-4 mt-3">
-                                <h2 className="font-bold text-[1.1em]">Penalties per Occurrence</h2>
+                            <div className="grid gap-3 mt-1">
+                                <h2 className="font-bold text-[1.05em]">Penalties per Occurrence</h2>
 
+                                <div className="grid gap-3 md:grid-cols-2">
                                 {penalties.map((occ, occIndex) => (
-                                    <div key={occ.occurrence} className="border rounded p-3">
-                                        <h3 className="font-semibold mb-2">{ordinal(occ.occurrence)} Offense</h3>
+                                    <div key={occ.occurrence} className="border border-gray-200 rounded-md p-3">
+                                        <h3 className="font-semibold text-[0.9em] mb-2">{ordinal(occ.occurrence)} Offense</h3>
 
+                                        {/* Penalties added to this offense scroll inside the box
+                                            (about 3 rows tall) instead of growing it. */}
+                                        <div className="max-h-[8.5rem] overflow-y-auto overflow-x-hidden pr-1 pt-1">
                                         {occ.list.map((p, pIndex) => (
                                             <div key={pIndex} className="flex items-center gap-2 mb-2">
                                                 <Select
                                                     size="small"
                                                     fullWidth
                                                     value={p.penalty_id}
+                                                    displayEmpty
+                                                    renderValue={(v) => {
+                                                        if (!v) return <span className="text-gray-400">(Optional) Select Penalty</span>
+                                                        const opt = props.penalty.find((o) => String(o.id) === String(v))
+                                                        return opt ? (opt.ref_number != null ? `${opt.ref_number} — ${toTitleCase(opt.description)}` : toTitleCase(opt.description)) : v
+                                                    }}
                                                     onChange={(e) =>
                                                         handlePenaltyChange(occIndex, pIndex, e.target.value)
                                                     }
@@ -364,8 +384,10 @@ const SetViolationModal = (props) => {
                                                 )}
                                             </div>
                                         ))}
+                                        </div>
                                     </div>
                                 ))}
+                                </div>
 
                                 {validationErr.penalties && (
                                     <p className="text-red-600 text-sm">{validationErr.penalties}</p>

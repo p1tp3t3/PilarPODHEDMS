@@ -3,11 +3,11 @@ import PageLayout from "@/Layouts/page-layout";
 import ProfilePic from "@/Components/other/profile-pic";
 import BehaviourAnalysisSkeleton from "@/Components/reload/behaviour-analysis-skeleton";
 import AuthLayout from "@/Layouts/auth-layout";
-import { getProfilePic, getYearLevel, readableDate, readableTime } from "@/others/function";
+import { getProfilePic, getYearLevel, readableDate, readableTime, toTitleCase, ordinal } from "@/others/function";
 import { Box, Select, MenuItem } from "@mui/material";
 import { DataGrid } from "@/Components/other/data-grid";
 import { useEffect, useMemo, useState } from "react";
-import { ShieldHalf, Clock, FolderOpen, GraduationCap, CalendarRange, AlertTriangle } from "lucide-react";
+import { ShieldHalf, Clock, FolderOpen, GraduationCap, CalendarRange, AlertTriangle, CalendarPlus } from "lucide-react";
 import axios from "axios";
 import { Head } from "@inertiajs/react";
 import ActionBtn from "@/Components/button/action-btn";
@@ -56,8 +56,9 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
   const crumbs = fromDashboard || !['sub_admin', 'super_admin'].includes(viewer?.role)
     ? [{ label: "Dashboard", href: "/dashboard" }]
     : [
-        { label: "Violation Management", href: "/violation-management" },
-        ...(props.from_violation ? [{ label: props.from_violation.name, href: props.from_violation.href }] : []),
+        ...(props.from_violation
+          ? [{ label: "Violations", href: "/violation-management/violations" }, { label: props.from_violation.name, href: props.from_violation.href }]
+          : [{ label: "Student Violations", href: "/violation-management/student-violations" }]),
       ]
 
   const optionList = [
@@ -89,15 +90,22 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
           title="STUDENT VIOLATION"
           rightSideComponent={canAppoint ? (
             <div className="flex items-center gap-3">
-              <span className="text-[0.8em] font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-3 py-1">
-                Likely to repeat · {Math.round((risk.top_probability ?? 0) * 100)}%
+              <span
+                className="text-[0.8em] font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-3 py-1 whitespace-nowrap"
+                title={`Likely to repeat a violation (${Math.round((risk.top_probability ?? 0) * 100)}%)`}
+              >
+                <span className="hidden md:inline">Likely to repeat · </span>
+                <span className="md:hidden">Risk </span>
+                {Math.round((risk.top_probability ?? 0) * 100)}%
               </span>
-              <Btn onclick={() => setAppointOpen(true)}>Set Appointment</Btn>
+              <Btn onclick={() => setAppointOpen(true)} icon={<CalendarPlus size={19} />}>Set Appointment</Btn>
             </div>
           ) : null}
         >
                 <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm p-5">
-                    <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
+                    {/* Phones: photo, name and details centred in a column;
+                        wider screens: photo beside the details. */}
+                    <div className="flex flex-col items-center text-center sm:flex-row sm:items-center sm:text-left gap-5">
                         <ProfilePic
                             src={getProfilePic(props.student.profile?.profile_picture, props.student.profile?.sex)}
                             size={5}
@@ -106,7 +114,7 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
                             <div className="text-[1.15em] font-bold text-gray-800">
                                 {props.student.profile?.first_name} {props.student.profile?.middle_name} {props.student.profile?.last_name}
                             </div>
-                            <div className="mt-2 flex flex-wrap gap-2">
+                            <div className="mt-2 flex flex-wrap justify-center sm:justify-start gap-2">
                                 {props.student.program?.description && (
                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[0.8em] font-semibold bg-gray-100 text-gray-700 border border-gray-200">
                                         <GraduationCap size="1.1em" className="opacity-70" />
@@ -119,6 +127,9 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[0.8em] font-semibold bg-gray-100 text-gray-700 border border-gray-200">
                                     <CalendarRange size="1.1em" className="opacity-70" />
                                     School Year {props.student.enrollments?.[props.student.enrollments.length - 1]?.school_year?.year || "N/A"}
+                                    {props.student.enrollments?.[props.student.enrollments.length - 1]?.semester
+                                        ? ` • ${ordinal(props.student.enrollments[props.student.enrollments.length - 1].semester)} Semester`
+                                        : ""}
                                 </span>
                             </div>
                         </div>
@@ -154,6 +165,16 @@ const RecentViolation = ({ violations, user }) => {
   const [complaintKey, setComplaintKey] = useState(null);
   const [viewOpen, setViewOpen] = useState(false);
 
+  const openComplaint = (key) => {
+    setComplaintKey(key);
+    setViewOpen(true);
+  };
+
+  const penaltyLabel = (penalty) =>
+    penalty
+      ? `${penalty.ref_number != null ? `${penalty.ref_number} — ` : ""}${toTitleCase(penalty.description ?? "")}`
+      : null;
+
   const columns = [
     {
       field: "index",
@@ -167,62 +188,113 @@ const RecentViolation = ({ violations, user }) => {
       headerName: "Violation",
       flex: 1,
       minWidth: 220,
-    },
-    {
-      field: "offense_status",
-      headerName: "Offense Type",
-      width: 150,
-      renderCell: ({ value }) => (
-        <span
-          className={`px-2 py-0.5 rounded-full text-[0.8em] font-semibold ${
-            value === 1 ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
-          }`}
-        >
-          {value === 1 ? "Major" : "Minor"}
-        </span>
+      renderCell: ({ row }) => (
+        <div className="py-3 whitespace-normal leading-snug">
+          <div className="font-semibold text-gray-900">{row.violation_name}</div>
+          <span
+            className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[0.8em] font-semibold ${
+              row.offense_status === 1 ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+            }`}
+          >
+            {row.offense_status === 1 ? "Major" : "Minor"}
+          </span>
+        </div>
       ),
     },
     {
-      field: "offense_issued_at",
-      headerName: "Date Time Issued",
-      width: 220,
+      field: "occurrence_count",
+      headerName: "Occurrences",
+      width: 120,
       renderCell: ({ value }) => (
-        <span>
-          {readableDate(value)}
-          {value && <span className="text-gray-500"> &bull; {readableTime(value)}</span>}
-        </span>
+        <span className="font-semibold text-gray-800">{value} time{value === 1 ? "" : "s"}</span>
       ),
     },
     {
-      field: "actions",
-      type: "actions",
-      headerName: "Action",
-      width: 110,
+      field: "current_penalty",
+      headerName: "Current Penalty",
+      flex: 1,
+      minWidth: 220,
+      sortable: false,
+      renderCell: ({ row }) => (
+        <div className="py-3 whitespace-normal leading-snug">
+          {row.current_penalty ? (
+            <span className="text-gray-900 font-medium">{row.current_penalty}</span>
+          ) : (
+            <span className="italic text-gray-400">No penalty set</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      field: "occurrences",
+      headerName: "Each Occurrence",
+      flex: 1.6,
+      minWidth: 340,
       sortable: false,
       filterable: false,
+      // Every time it happened: which offense, its penalty, when, and a
+      // View for the complaint behind it.
       renderCell: ({ row }) => (
-        <ActionBtn
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-          disabled={!row.complaint_key}
-          title="View the complaint behind this violation"
-          onClick={() => {
-            setComplaintKey(row.complaint_key);
-            setViewOpen(true);
-          }}
-        >
-          View
-        </ActionBtn>
+        <ol className="py-3 grid gap-2 w-full">
+          {row.occurrences.map((o) => (
+            <li key={o.key} className="flex items-start justify-between gap-3">
+              <div className="min-w-0 whitespace-normal leading-snug">
+                <div className="text-gray-800">
+                  <span className="font-semibold">{o.occurrence ? `${ordinal(o.occurrence)} offense` : "Offense"}</span>
+                  {" — "}
+                  {o.penalty ?? <span className="italic text-gray-400">No penalty set</span>}
+                </div>
+                <div className="text-[0.85em] text-gray-500">
+                  {o.date ? `${readableDate(o.date)} • ${readableTime(o.date)}` : "No date"}
+                </div>
+              </div>
+              <ActionBtn
+                className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={!o.complaint_key}
+                title="View the complaint behind this offense"
+                onClick={() => openComplaint(o.complaint_key)}
+              >
+                View
+              </ActionBtn>
+            </li>
+          ))}
+        </ol>
       ),
     },
   ];
 
-  const rows = violations.map((v, i) => ({
-    id: i + 1,
-    violation_name: v.violation?.violation_name,
-    offense_status: v.violation?.offense_status,
-    offense_issued_at: bestComplaintDate(v.complaint),
-    complaint_key: v.complaint_key,
-  }));
+  // One row per violation; its offenses listed oldest (1st) first. The
+  // violations themselves are ordered by their most recent offense.
+  const rows = Object.values(
+    violations.reduce((acc, v) => {
+      const id = v.violation_id ?? v.violation?.id;
+      (acc[id] ??= { violation: v.violation, records: [] }).records.push(v);
+      return acc;
+    }, {})
+  )
+    .map(({ violation, records }) => {
+      const occurrences = records
+        .map((v, k) => ({
+          key: `${v.complaint_id}-${k}`,
+          occurrence: v.occurrence,
+          penalty: penaltyLabel(v.penalty),
+          date: bestComplaintDate(v.complaint),
+          complaint_key: v.complaint_key,
+        }))
+        .sort((a, b) => (a.occurrence ?? 0) - (b.occurrence ?? 0) || new Date(a.date ?? 0) - new Date(b.date ?? 0));
+      const latest = occurrences[occurrences.length - 1];
+      return {
+        violation_name: violation?.violation_name,
+        offense_status: violation?.offense_status,
+        occurrence_count: occurrences.length,
+        current_penalty: latest?.penalty ?? null,
+        last_date: occurrences.reduce((m, o) => Math.max(m, new Date(o.date ?? 0).getTime()), 0),
+        occurrences,
+      };
+    })
+    .sort((a, b) => b.last_date - a.last_date)
+    .map((r, i) => ({ id: i + 1, ...r }));
+  const offenseTotal = violations.length;
 
   return (
     <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm p-5">
@@ -242,13 +314,14 @@ const RecentViolation = ({ violations, user }) => {
           <div className="font-semibold text-gray-800">Recent Violations</div>
         </div>
         <div className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
-          {rows.length} record{rows.length === 1 ? "" : "s"}
+          {rows.length} violation{rows.length === 1 ? "" : "s"} · {offenseTotal} offense{offenseTotal === 1 ? "" : "s"}
         </div>
       </div>
       <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
         <DataGrid
           rows={rows}
           columns={columns}
+          getRowHeight={() => "auto"}
           pagination
           pageSizeOptions={[5, 10, 20]}
           initialState={{

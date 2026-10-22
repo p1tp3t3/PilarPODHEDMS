@@ -90,7 +90,7 @@ class ReportController extends Controller
         return $relation ? $query->whereHas($relation, $constrain) : $constrain($query);
     }
 
-    public function index()
+    public function index(string $section = 'incident')
     {
         $top5Students = ComplaintSubjectViolation::select(
             'student_id',
@@ -172,6 +172,10 @@ class ReportController extends Controller
         $resolved = Complaint::where('complaint_status', 'resolved')->count();
 
         return Inertia::render('prefect/report', [
+            'section' => $section,
+            // Statistics tab of the report page being viewed (same filter as
+            // its table).
+            'report_stats' => $this->reportStats($section),
             'incident' => $incident,
             'incident_line_graph' => $monthlyCounts,
             'incident_trend_series' => $incidentTrendByType['series'],
@@ -224,9 +228,158 @@ class ReportController extends Controller
         ]);
     }
 
-    public function itrcIndex()
+    /**
+     * Statistics for one report page's Statistics tab: a few totals
+     * ('cards') and grouped counts ('charts'), over exactly the records the
+     * page's table shows — same base query, same date/school-year filter.
+     * Null for pages that aren't a report type.
+     */
+    private function reportStats(string $section): ?array
+    {
+        switch ($section) {
+            case 'incident':
+                $rows = $this->applyReportFilter(
+                    ComplaintSubject::whereHas('complaint', fn ($q) => $q->where('complaint_status', 'resolved')),
+                    'created_at', 'complaint'
+                )->with('complaint:id,incident_id')->get(['complaint_id', 'student_id']);
+                $types = Violation::pluck('violation_name', 'id');
+
+                return [
+                    'cards' => [
+                        ['label' => 'Total Incidents', 'value' => $rows->count()],
+                        ['label' => 'Students Involved', 'value' => $rows->pluck('student_id')->unique()->count()],
+                        ['label' => 'Incident Types', 'value' => $rows->pluck('complaint.incident_id')->filter()->unique()->count()],
+                    ],
+                    'charts' => [
+                        ['title' => 'Incidents by Type', 'data' => $this->countBy($rows->map(fn ($r) => $types[$r->complaint?->incident_id] ?? 'Other'), 8)],
+                        ['title' => 'Incidents by Program', 'data' => $this->countByProgram($rows->pluck('student_id'))],
+                    ],
+                ];
+
+            case 'violation':
+                $rows = $this->applyReportFilter(
+                    ComplaintSubjectViolation::whereNotNull('violation_id')
+                        ->whereHas('complaint', fn ($q) => $q->where('complaint_status', 'resolved')),
+                    'offense_issued_at', 'complaint'
+                )->with('violation:id,violation_name,offense_status')->get(['complaint_id', 'violation_id', 'student_id']);
+
+                return [
+                    'cards' => [
+                        ['label' => 'Total Violations', 'value' => $rows->count()],
+                        ['label' => 'Major', 'value' => $rows->filter(fn ($r) => $r->violation?->offense_status)->count()],
+                        ['label' => 'Minor', 'value' => $rows->reject(fn ($r) => $r->violation?->offense_status)->count()],
+                        ['label' => 'Students Involved', 'value' => $rows->pluck('student_id')->unique()->count()],
+                    ],
+                    'charts' => [
+                        ['title' => 'Top Violations', 'data' => $this->countBy($rows->map(fn ($r) => $r->violation?->violation_name ?? 'Unknown'), 8)],
+                        ['title' => 'Violations by Program', 'data' => $this->countByProgram($rows->pluck('student_id'))],
+                    ],
+                ];
+
+            case 'tardy':
+                $rows = $this->applyReportFilter(
+                    Absence::whereNotNull('confirmed_at')->whereJsonContains('reason', 'Excused Tardiness'),
+                    'confirmed_at'
+                )->get(['id', 'student_id', 'confirmed_at']);
+
+                return [
+                    'cards' => [
+                        ['label' => 'Total Tardies', 'value' => $rows->count()],
+                        ['label' => 'Students', 'value' => $rows->pluck('student_id')->unique()->count()],
+                    ],
+                    'charts' => [
+                        ['title' => 'Tardies by Program', 'data' => $this->countByProgram($rows->pluck('student_id'))],
+                        ['title' => 'Tardies by Month', 'data' => $this->countByMonth($rows->pluck('confirmed_at'))],
+                    ],
+                ];
+
+            case 'appointment':
+                $rows = $this->applyReportFilter(
+                    Appointment::where('appointment_status', 'accepted'),
+                    'confirmed_at'
+                )->get(['id', 'user_id', 'attendance_status', 'confirmed_at']);
+
+                return [
+                    'cards' => [
+                        ['label' => 'Total Appointments', 'value' => $rows->count()],
+                        ['label' => 'Present', 'value' => $rows->where('attendance_status', 'present')->count()],
+                        ['label' => 'Absent', 'value' => $rows->where('attendance_status', 'absent')->count()],
+                        ['label' => 'Not Marked', 'value' => $rows->where('attendance_status', 'not_marked')->count()],
+                    ],
+                    'charts' => [
+                        ['title' => 'Appointments by Program', 'data' => $this->countByProgram($rows->pluck('user_id'))],
+                        ['title' => 'Appointments by Month', 'data' => $this->countByMonth($rows->pluck('confirmed_at'))],
+                    ],
+                ];
+
+            case 'gatepass':
+                $rows = $this->applyReportFilter(
+                    GatePass::whereNotNull('confirmed_at'),
+                    'confirmed_at'
+                )->get(['id', 'user_id', 'allow_to', 'date_expiration', 'prefect_id']);
+                $allowed = $rows->flatMap(fn ($r) => (array) (is_string($r->allow_to) ? json_decode($r->allow_to, true) : $r->allow_to))
+                    ->map(fn ($v) => $v === 'go-out' ? 'Go Out' : ($v === 'enter' ? 'Enter' : ucfirst((string) $v)));
+
+                return [
+                    'cards' => [
+                        ['label' => 'Total Issued', 'value' => $rows->count()],
+                        ['label' => 'Active', 'value' => $rows->filter(fn ($r) => $r->date_expiration && now()->lt($r->date_expiration))->count()],
+                        ['label' => 'Expired', 'value' => $rows->filter(fn ($r) => $r->date_expiration && now()->gte($r->date_expiration))->count()],
+                        ['label' => 'Issued by Prefect', 'value' => $rows->whereNotNull('prefect_id')->count()],
+                    ],
+                    'charts' => [
+                        ['title' => 'Gate Passes by Program', 'data' => $this->countByProgram($rows->pluck('user_id'))],
+                        ['title' => 'Allowed To', 'data' => $this->countBy($allowed)],
+                    ],
+                ];
+        }
+
+        return null;
+    }
+
+    // [['label' => ..., 'value' => n], ...], most frequent first.
+    private function countBy($values, ?int $limit = null): array
+    {
+        $counts = collect($values)->countBy()->sortDesc();
+
+        return ($limit ? $counts->take($limit) : $counts)
+            ->map(fn ($n, $label) => ['label' => (string) $label, 'value' => $n])
+            ->values()->all();
+    }
+
+    // Counts per program, by each person's latest enrollment (one entry per
+    // record, so a student with 3 records counts 3 times).
+    private function countByProgram($userIds): array
+    {
+        $ids = collect($userIds)->filter();
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $programOf = Enrollment::whereIn('id', Enrollment::whereIn('student_id', $ids->unique())->selectRaw('MAX(id)')->groupBy('student_id'))
+            ->with('program:id,name')
+            ->get(['id', 'student_id', 'program_id'])
+            ->mapWithKeys(fn ($e) => [$e->student_id => $e->program?->name ?? 'No Program']);
+
+        return $this->countBy($ids->map(fn ($id) => $programOf[$id] ?? 'Staff / Other'));
+    }
+
+    // Counts per calendar month, oldest first ("Jan 2026").
+    private function countByMonth($dates): array
+    {
+        return collect($dates)->filter()
+            ->map(fn ($d) => Carbon::parse($d)->startOfMonth())
+            ->sort()
+            ->map(fn ($d) => $d->format('M Y'))
+            ->countBy()
+            ->map(fn ($n, $label) => ['label' => $label, 'value' => $n])
+            ->values()->all();
+    }
+
+    public function itrcIndex(string $section = 'statistics')
     {
         return Inertia::render('itrc/report', [
+            'section' => $section,
             'students' => User::with(['profile', 'program', 'teachingStaff.program', 'parent'])->get(),
             'action_log_list' => self::getAllActionLogs(),
             'statistics' => self::buildAccountStatistics('date', null, null, null, null),

@@ -12,6 +12,7 @@ import { useState } from "react";
 import PenaltyList from "@/Components/list/penalty-list";
 import { motion } from "framer-motion";
 import { FileText, DoorOpen, CalendarX } from "lucide-react";
+import { PageTitle } from "@/context-provider/page-title-provider";
 
 const StudentDashboard = (props) => {
   const [choose, setChoose] = useState("overview");
@@ -29,8 +30,9 @@ const StudentDashboard = (props) => {
   return (
     <>
       <Head title="Dashboard" />
+      <PageTitle title="Dashboard" />
       <motion.div
-        className="w-full pt-2 sm:pt-3 pb-6 sm:pb-10"
+        className="w-full pt-5 pb-6 sm:pb-10"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}

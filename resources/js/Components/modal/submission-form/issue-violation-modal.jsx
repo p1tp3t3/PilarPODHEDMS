@@ -169,11 +169,11 @@ const IssueViolationModal = (props) => {
                     </div>
 
                     <DropdownField.Search
-                      default={{ val: "", label: "Select Offense" }}
+                      default={{ val: "", label: "Select Violation" }}
                       name="violation"
                       val={sub.violation}
                       list={[
-                        { val: "none", label: "No Offense Committed" },
+                        { val: "none", label: "No Violation Committed" },
                         ...props.violation_list,
                       ]}
                       onChange={(e) => handleChange(i, e)}
@@ -182,7 +182,7 @@ const IssueViolationModal = (props) => {
                     {sub.violation === "others" && (
                       <div className="grid gap-3">
                         <FormTextfield
-                          label="Other Offense Description"
+                          label="Other Violation Description"
                           name="other_offense_description"
                           val={sub.other_offense_description}
                           change={(e) => handleChange(i, e)}

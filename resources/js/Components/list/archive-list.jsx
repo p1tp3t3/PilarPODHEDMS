@@ -145,7 +145,7 @@ const ArchiveList = ({ list = [], viewDocument, deleteDocument, recoverDocument 
           return (
             <div className="flex flex-wrap gap-2 items-center py-1">
               {t && (
-                <ActionBtn className="bg-blue-600 hover:bg-blue-700" onClick={() => viewDocument(data.id, t)}>
+                <ActionBtn className="bg-blue-600 hover:bg-blue-700" onClick={() => viewDocument(data.encrypted_id, t)}>
                   View
                 </ActionBtn>
               )}

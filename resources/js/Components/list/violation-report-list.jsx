@@ -1,6 +1,6 @@
 import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
-import { getProfilePic, getYearLevel, readableDate, readableTime, toTitleCase } from "@/others/function"
+import { getProfilePic, getYearLevel, readableDate, readableTime, toTitleCase, studentProgram, studentYearLevel } from "@/others/function"
 import ProfilePic from "../other/profile-pic"
 
 const ViolationReportList = ({ list = [] }) => {
@@ -40,10 +40,10 @@ const ViolationReportList = ({ list = [] }) => {
                 const isStudent = student.role === "student"
                 const latestEnrollment = student.enrollments?.[student.enrollments.length - 1]
                 const programName = isStudent
-                    ? student.program?.name
+                    ? studentProgram(student)
                     : student.teaching_staff?.program?.name
                 const roleDetail = isStudent
-                    ? (latestEnrollment?.year_level ? getYearLevel(latestEnrollment.year_level) : null)
+                    ? studentYearLevel(student)
                     : (student.teaching_staff?.position === "program_head" ? "Program Head" : "Faculty")
 
                 return (

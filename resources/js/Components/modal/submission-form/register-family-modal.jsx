@@ -10,6 +10,7 @@ import { Validator } from "@/others/classes/validator"
 import CheckBoxButton from "@/Components/input/checkbox"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import { X } from "lucide-react"
+import { LabeledCheckbox } from "@/Components/input/select-checkbox"
 
 const RegisterFamilyModal = (props) => {
     const [activeTab, setActiveTab] = useState("register")
@@ -186,9 +187,8 @@ const RegisterFamilyModal = (props) => {
                         value={activeTab}
                         onChange={setActiveTab}
                     />
-                    <div className="flex items-center gap-2 text-[0.9em]">
-                        <input type="checkbox" name="" id="view-info" onChange={(e) => viewInfo(e.target.checked)} />
-                        <label htmlFor="view-info">View Info</label>
+                    <div className="text-[0.9em]">
+                        <LabeledCheckbox label="View Info" id="view-info" onChange={(e) => viewInfo(e.target.checked)} />
                     </div>
 
                     {(props.parent != null && info) && 
@@ -409,7 +409,7 @@ const InfoRow = ({ label, value }) => {
 const SelectedUser = (props) => {
     const isStudent =
         props.user.role == "student"
-            ? `${props.user.program?.name ?? ''} ${props.user.enrollments?.[props.user.enrollments.length - 1]?.year_level ?? ''}`.trim()
+            ? showUserType(props.user)
             : toTitleCase(props.user.parent?.parent_role ?? props.user.role)
 
     return (

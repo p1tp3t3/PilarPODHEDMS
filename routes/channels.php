@@ -1,69 +1,37 @@
 <?php
-    
+
+use App\Broadcasting\ChannelAuth;
 use Illuminate\Support\Facades\Broadcast;
 
-Broadcast::channel('complaint.{user_id}.send', function () {
-    return true;
-});
-Broadcast::channel('complaint.confirmation.{user_id}', function () {
-    return true;
-});
-Broadcast::channel('referral.{user_id}.send', function () {
-    return true;
-});
-Broadcast::channel('referral.confirmation.{user_id}', function () {
-    return true;
-});
-Broadcast::channel('absent-form.{user_id}.send', function() {
-    return true;
-});
-Broadcast::channel('absent-form.confirmation.{user_id}', function() {
-    return true;
-});
-Broadcast::channel('notify.{user_id}', function () {
-    return true;
-});
-Broadcast::channel('call_in.{student_id}', function($student_id) {
-    return true;
-});
-Broadcast::channel('notify.{type}', function($type) {
-    return true;
-});
-Broadcast::channel('appointment.{user_id}.request', function () {
-    return true;
-});
-Broadcast::channel('gatepass.{user_id}.send', function () {
-    return true;
-});
-Broadcast::channel('gatepass.confirmation.{user_id}', function () {
-    return true;
-});
-Broadcast::channel('job-status.progress.user.{user_id}', function () {
-    return true;
-});
-// Presence channel (Reverb) — the member info returned here is what every
-// client receives in here()/joining(), so admins can show who's online
-// live without an extra HTTP request.
-Broadcast::channel('online-users', function ($user) {
-    $user->loadMissing('profile');
+/*
+| Every private/presence channel is guarded. Subscribing goes through
+| /broadcasting/auth, which runs the web + auth + activate middleware
+| (bootstrap/app.php); the rule on each channel below then decides whether
+| that user may listen to it. See App\Broadcasting\ChannelAuth.
+|
+| The only public channel is "maintenance" (MaintenanceModeToggled): guests
+| on the login and maintenance pages need it to reload when maintenance
+| ends, and it carries nothing but { enabled }.
+*/
 
-    return [
-        'id' => $user->id,
-        'username' => $user->username,
-        'id_number' => $user->id_number,
-        'role' => $user->role,
-        'name' => trim(($user->profile?->first_name ?? '').' '.($user->profile?->last_name ?? '')) ?: $user->username,
-        'profile_picture' => $user->profile?->profile_picture,
-        'sex' => $user->profile?->sex,
-    ];
-});
-// Only the owner may listen on their own chat channel.
-Broadcast::channel('chat.{user_id}', function ($user, $user_id) {
-    return (int) $user->id === (int) $user_id;
-});
+// Per-user channels: only the user named in the channel.
+Broadcast::channel('notify.{user_id}', ChannelAuth::owner());
+Broadcast::channel('chat.{user_id}', ChannelAuth::owner());
+Broadcast::channel('job-status.progress.user.{user_id}', ChannelAuth::owner());
+Broadcast::channel('call_in.{user_id}', ChannelAuth::owner());
+Broadcast::channel('complaint.{user_id}.send', ChannelAuth::owner());
+Broadcast::channel('complaint.confirmation.{user_id}', ChannelAuth::owner());
+Broadcast::channel('referral.{user_id}.send', ChannelAuth::owner());
+Broadcast::channel('referral.confirmation.{user_id}', ChannelAuth::owner());
+Broadcast::channel('absent-form.{user_id}.send', ChannelAuth::owner());
+Broadcast::channel('absent-form.confirmation.{user_id}', ChannelAuth::owner());
+Broadcast::channel('appointment.{user_id}.request', ChannelAuth::owner());
+Broadcast::channel('appointment.{user_id}.confirmation', ChannelAuth::owner());
+Broadcast::channel('gatepass.{user_id}.send', ChannelAuth::owner());
+Broadcast::channel('gatepass.confirmation.{user_id}', ChannelAuth::owner());
 
-// A program's teacher group chat — only that program's teaching staff.
-Broadcast::channel('program-chat.{programId}', function ($user, $programId) {
-    return $user->role === 'teaching_staff'
-        && \App\Models\TeachingStaff::programIdsFor($user->id)->contains((int) $programId);
-});
+// Gate pass approvals feed for the verification page (guards and admins).
+Broadcast::channel('gate-pass-approvals', ChannelAuth::gatePassVerifiers());
+
+// Presence channel (Reverb) for the live online-users list.
+Broadcast::channel('online-users', ChannelAuth::presence());

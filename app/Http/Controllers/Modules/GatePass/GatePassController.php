@@ -160,6 +160,8 @@ class GatePassController extends Controller
             $gatepass = GatePass::create([
                 'gatepass_number' => $this->generateSequenceCode(GatePass::class, 'gatepass_number'),
                 'user_id' => $student->id,
+                // Which prefect issued it for the student.
+                'prefect_id' => auth()->id(),
                 'reason' => $request->reason,
                 'allow_to' => json_encode($request->allow_to),
                 'confirmed_at' => now(),
@@ -401,7 +403,7 @@ class GatePassController extends Controller
 
         $data = GatePass::with(['user' => function ($q) {
             $q->with(['profile', 'program']);
-        }])
+        }, 'prefect.profile'])
             ->where('id', $id)
             ->get();
 

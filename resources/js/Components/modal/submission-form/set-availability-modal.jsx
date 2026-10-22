@@ -5,6 +5,7 @@ import { requestType } from "@/others/list/type-list";
 import FormTextfield from "@/Components/input/form-input";
 import FormButton from "@/Components/button/button";
 import { useEffect, useState } from "react";
+import { LabeledCheckbox } from "@/Components/input/select-checkbox";
 
 
 const SetAvailabilityModal = (props) => {
@@ -52,9 +53,8 @@ const SetAvailabilityModal = (props) => {
                                 <h1><b>{props.label}</b></h1>
                             </div>                        
                             <div>
-                                <div className="flex items-center gap-2 text-[0.9em]">
-                                    <input type="checkbox" name={`available`} id={`available`} onClick={(e) => setAvailable(e.target.checked)} checked={available} />
-                                    <label htmlFor={`available`}>Currently Available</label>
+                                <div className="text-[0.9em]">
+                                    <LabeledCheckbox label="Currently Available" name="available" id="available" checked={available} onChange={(e) => setAvailable(e.target.checked)} />
                                 </div>
                             </div>
                             {available &&

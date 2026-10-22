@@ -26,7 +26,12 @@ const StaffList = ({ list, canManagePosition = false }) => {
         user_id: e.id_number,
         username: e.username,
         role: e.role,
-        subtitle: showUserType(e),
+        // The line under the name already says the position ("Guard",
+        // "Faculty (BSIT)"), so there's no separate Position column;
+        // non-teaching staff without one are flagged here instead.
+        subtitle: e.role === "non_teaching_staff" && !e.non_teaching_staff?.position
+            ? "Staff · No position assigned"
+            : showUserType(e),
         profile_picture: e.profile?.profile_picture,
         sex: e.profile?.sex,
         name: `${e.profile?.first_name ?? ""} ${e.profile?.last_name ?? ""}`,
@@ -62,16 +67,6 @@ const StaffList = ({ list, canManagePosition = false }) => {
                 </div>
             ),
         },
-        ...(canManagePosition ? [{
-            field: "position",
-            headerName: "Position",
-            width: 160,
-            renderCell: (params) => (
-                params.row.role === "non_teaching_staff"
-                    ? (params.value ?? <span className="text-gray-400 italic">Unassigned</span>)
-                    : (params.value ?? "—")
-            ),
-        }] : []),
         {
             field: "created_at",
             headerName: "Registered Since",
@@ -107,7 +102,7 @@ const StaffList = ({ list, canManagePosition = false }) => {
                     <DataGrid
                         rows={rows}
                         columns={columns}
-                        mobileSummary={(row) => ({ name: row.name.trim(), role: row.subtitle, picture: row.profile_picture, sex: row.sex, hide: ["name", "position"] })}
+                        mobileSummary={(row) => ({ name: row.name.trim(), role: row.subtitle, picture: row.profile_picture, sex: row.sex, hide: ["name"] })}
                         hideFooter
                         disableRowSelectionOnClick
                         getRowHeight={() => "auto"}

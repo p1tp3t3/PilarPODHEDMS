@@ -10,7 +10,30 @@ import { getProfilePic } from "@/others/function"
 //
 // User lists pass `mobileSummary(row) => { name, role, picture, sex, hide }`
 // instead: each row collapses to picture + full name + role, and tapping it
-// drops down the details (minus the `hide` fields) and actions.
+// drops down the details (minus the `hide` fields) and actions. `select`
+// (optional node, e.g. a checkbox) sits on the collapsed row itself. Non-user
+// lists pass `avatar` (an icon node) in place of the picture, or
+// `avatar: false` for none.
+
+// Collapsed-row avatar for records (complaints, referrals, forms...) rather
+// than people: the record's icon, tinted by its status.
+const STATUS_TONE = {
+    pending: "bg-amber-100 text-amber-700",
+    ongoing: "bg-blue-100 text-blue-700",
+    approved: "bg-green-100 text-green-700",
+    confirmed: "bg-green-100 text-green-700",
+    resolved: "bg-green-100 text-green-700",
+    rejected: "bg-red-100 text-red-700",
+    revoked: "bg-red-100 text-red-700",
+}
+export const StatusAvatar = ({ icon: Icon, status }) => (
+    <div className={`h-9 w-9 grid place-items-center rounded-full ${STATUS_TONE[String(status ?? "").toLowerCase()] ?? "bg-gray-100 text-gray-600"}`}>
+        <Icon size={18} />
+    </div>
+)
+
+// "Pending", "Approved"... for the collapsed row's second line.
+export const statusLabel = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1).toLowerCase() : "")
 
 const isIndexColumn = (c) => c.headerName === "#" || ["i", "index", "#"].includes(c.field)
 const isActionsColumn = (c) => c.type === "actions" || c.field === "actions"
@@ -139,20 +162,27 @@ const MobileCardList = ({
                             const hidden = sum.hide ?? []
                             return (
                                 <div key={id} className="rounded-xl border border-gray-200 bg-white shadow-sm text-[0.85em] overflow-hidden">
+                                    <div className="flex items-center">
+                                    {sum.select && (
+                                        <label className="shrink-0 pl-3 py-2.5 grid place-items-center">{sum.select}</label>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={() => setOpenId(open ? null : id)}
-                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-left active:bg-gray-50"
+                                        className="flex-1 min-w-0 flex items-center gap-3 px-3 py-2.5 text-left active:bg-gray-50"
                                     >
-                                        <div className="shrink-0">
-                                            <ProfilePic size={2.25} src={getProfilePic(sum.picture, sum.sex)} />
-                                        </div>
+                                        {sum.avatar !== false && (
+                                            <div className="shrink-0">
+                                                {sum.avatar ?? <ProfilePic size={2.25} src={getProfilePic(sum.picture, sum.sex)} />}
+                                            </div>
+                                        )}
                                         <div className="flex-1 min-w-0">
                                             <div className="font-semibold text-gray-900 truncate">{sum.name || "—"}</div>
                                             {sum.role && <div className="text-[0.85em] text-gray-500 truncate">{sum.role}</div>}
                                         </div>
                                         <ChevronDown size={18} className={`shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
                                     </button>
+                                    </div>
                                     {open && (
                                         <div className="px-4 pb-4 pt-3 border-t border-gray-100 grid gap-3">
                                             <dl className="grid gap-2">

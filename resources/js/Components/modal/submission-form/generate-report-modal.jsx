@@ -154,19 +154,20 @@ const GenerateReportModal = (props) => {
                                 />
                             </div>
                             {props.allowTypeChoice &&
-                            <div>
-                                <RadioButton
+                            <div className="grid gap-1">
+                                <label className="text-[0.85em] text-gray-700">Report Type</label>
+                                <DropdownField
                                     list={[
-                                        { val: 'incident', label: 'Incident' },
-                                        { val: 'violation', label: 'Violation' },
-                                        { val: 'tardy', label: 'Tardy' },
-                                        { val: 'appointment', label: 'Appointment' },
-                                        { val: 'gatepass', label: 'Gate Pass' },
+                                        { val: 'incident', label: 'Incident Report' },
+                                        { val: 'violation', label: 'Violation Report' },
+                                        { val: 'tardy', label: 'Tardy Report' },
+                                        { val: 'appointment', label: 'Appointment Report' },
+                                        { val: 'gatepass', label: 'Gate Pass Report' },
                                     ]}
-                                    id="type"
                                     name="type"
                                     val={data.type}
-                                    change={handleChange}
+                                    onChange={handleChange}
+                                    keepCase
                                 />
                             </div>}
                             <div className="grid gap-2">

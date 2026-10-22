@@ -2,11 +2,10 @@ import UpModal from "../up-modal"
 import { GatePassService } from "@/others/services/gatepass-service"
 import { useState, useEffect } from "react"
 import { change, disablePrevDate, readableDate, readableTime, toTitleCase, formatSchoolYearSemester } from "@/others/function"
-import CircleReload from "@/Components/reload/circle-reload"
 import FormTextfield from "@/Components/input/form-input"
 import FormButton from "@/Components/button/button"
 import CheckBoxButton from "@/Components/input/checkbox"
-import { ModalHeader, Section, Stat, StatGrid, PersonList } from "./view-modal-parts"
+import { ModalHeader, Section, Stat, StatGrid, PersonList, ByPrefect, ViewModalSkeleton } from "./view-modal-parts"
 import {
     CalendarClock,
     CheckCircle2,
@@ -115,9 +114,7 @@ const ViewGatePassModal = (props) => {
                 />
                 :
                 reload &&
-                <div className="w-full flex justify-center py-16">
-                    <CircleReload size={3} />
-                </div>}
+                <ViewModalSkeleton variant="record" />}
             </div>
         </UpModal>
     )
@@ -194,6 +191,7 @@ const Body = ({ data, handleSubmit, approved, setData2, data2, validationErr }) 
 
                 <Section icon={UserCircle2} title="User">
                     <PersonList data={info.user} emptyLabel="No user on record." />
+                    <ByPrefect prefect={info.prefect} label="Issued by the Prefect" />
                 </Section>
 
                 <Section icon={MessageSquareText} title="Reason for Requesting Gate Pass">

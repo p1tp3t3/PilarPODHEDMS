@@ -18,7 +18,7 @@ const NotificationModal = (props) => {
     ]
 
     const handlePaginate = () => {
-        NotificationService.list(choose, props.user.id, props.list.length + 2, (e) => {
+        NotificationService.list(choose, props.user.encrypted_id, props.list.length + 2, (e) => {
             props.setter[0](e.notif)
             props.setter[1](e.unread_count)
         })
@@ -29,7 +29,7 @@ const NotificationModal = (props) => {
         }
         props.setter[0](null)
         props.setter[1](0)
-        NotificationService.list(type == 'all' ? 'all' : 'unread', props.user.id, 4, (e) => {
+        NotificationService.list(type == 'all' ? 'all' : 'unread', props.user.encrypted_id, 4, (e) => {
             props.setter[0](e.notif)
             props.setter[1](e.unread_count)
             props.setter[2](e.size)

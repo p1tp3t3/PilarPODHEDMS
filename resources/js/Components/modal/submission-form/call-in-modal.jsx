@@ -7,7 +7,6 @@ import SearchUserBar from "@/Components/input/search-user-bar"
 import AuthContext from "@/context-provider/auth-provider"
 import SelectedUser from "../../other/selected-user"
 import { AppointmentService } from "@/others/services/appointment-service"
-import CheckBoxButton from "@/Components/input/checkbox"
 import { Phone, TriangleAlert } from "lucide-react"
 
 const CallInModal = (props) => {
@@ -21,8 +20,6 @@ const CallInModal = (props) => {
               'sender_id': props.user_id,
               'receiver_id': '',
               'call_in_reason': '',
-              'notify_program_head' : false,
-              'program_head_message': '',
           }),
           [validationErr, setValidationError] = useState({})
 
@@ -33,16 +30,6 @@ const CallInModal = (props) => {
     const handleChange = (e) => {
         change(e, setData)
     }
-    const handleCheck = (e) => {
-        const { name, checked } = e.target;
-        setData((prev) => ({
-            ...prev,
-            [name]: checked,
-            // Clear a half-written program head message if the checkbox
-            // gets unchecked, so it doesn't linger and get sent later.
-            ...(name === 'notify_program_head' && !checked ? { program_head_message: '' } : {}),
-        }));
-    };
 
     const handleSubmit = (e) => {
         e.preventDefault()
@@ -68,8 +55,6 @@ const CallInModal = (props) => {
             ...prev,
             receiver_id: '',
             call_in_reason: '',
-            notify_program_head: false,
-            program_head_message: '',
         }))
         setSearchedStudent(null)
         setSubmit(false)
@@ -133,25 +118,6 @@ const CallInModal = (props) => {
                                 minHeight="8rem"
                             />
                         </div>
-                        <div className="flex items-center space-x-2 text-[0.8em]">
-                            <CheckBoxButton.CheckBox
-                                label="Notify Program Head"
-                                name="notify_program_head"
-                                id="notify_program_head"
-                                change={handleCheck}
-                                checked={data.notify_program_head}
-                            />
-                        </div>
-                        {data.notify_program_head && (
-                            <div>
-                                <RichTextEditor
-                                    label="Message to Program Head"
-                                    val={data.program_head_message}
-                                    change={(html) => setData((prev) => ({ ...prev, program_head_message: html }))}
-                                    minHeight="8rem"
-                                />
-                            </div>
-                        )}
                     </div>
                     <div className="flex justify-end">
                         <FormButton label='Call In' type="submit" loading={submit} />

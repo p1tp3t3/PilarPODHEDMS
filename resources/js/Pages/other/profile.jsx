@@ -2,7 +2,7 @@ import ProfilePic from "@/Components/other/profile-pic";
 import React, { useEffect, useState, useContext } from "react";
 import { Link, useForm } from "@inertiajs/react";
 import DropdownField from "@/Components/input/dropdown";
-import { splitStr, showOutputModal, change, getProfilePic, checkActiveStatus, readableActiveDuration, showWarningModal, canViewEnrollmentHistory } from "@/others/function";
+import { splitStr, showOutputModal, change, getProfilePic, checkActiveStatus, readableActiveDuration, showWarningModal, canViewEnrollmentHistory, showUserType } from "@/others/function";
 import AuthContext from "@/context-provider/auth-provider";
 import EditProfileModal from "@/Components/modal/submission-form/edit-profile-modal";
 import { useReload } from "@/context-provider/reload-provider";
@@ -378,7 +378,8 @@ const Profile = (props) => {
     // The IT admin doesn't file complaints, so their profile has no such tab.
     const showComplaintsFiledTab = canViewOwnComplaints && props.otherUserProfile.role !== 'super_admin';
     // Referrals, absent forms and gate passes follow the same rule.
-    const showReferralsFiledTab = props.otherUserProfile.role === 'teaching_staff' && canViewOwnComplaints;
+    // Teaching staff and the prefect (sub_admin) can both refer students.
+    const showReferralsFiledTab = ['teaching_staff', 'sub_admin'].includes(props.otherUserProfile.role) && canViewOwnComplaints;
     const showAbsentFormsFiledTab = props.otherUserProfile.role === 'student' && canViewOwnComplaints;
     const showGatepassRequestedTab = props.otherUserProfile.role === 'student' && canViewOwnComplaints;
 
@@ -511,6 +512,12 @@ const Profile = (props) => {
                                         <p className="text-[1.1em] sm:text-[1.3em] text-gray-700">
                                             #{user.id_number}
                                         </p>
+                                        {/* Students: program and year level, e.g. "BSIT • 3rd Year". */}
+                                        {user.role === "student" && (
+                                            <p className="text-[0.95em] sm:text-[1.05em] text-gray-600 -mt-1 md:-mt-2">
+                                                {showUserType(user)}
+                                            </p>
+                                        )}
                                         {/* Earlier ID numbers, e.g. the student ID of someone who is now staff. */}
                                         {props.previous_id_numbers?.length > 0 && (
                                             <p className="text-[0.8em] text-gray-500 -mt-1 md:-mt-2">
@@ -556,8 +563,9 @@ const Profile = (props) => {
                                 <div className="min-w-0">
                                     <TabSwitcher tabs={tabOptions} value={tab} onChange={setTab} />
                                 </div>
-                                {/* School year / semester filters don't apply to the IT admin's profile. */}
-                                {props.otherUserProfile.role !== 'super_admin' && (
+                                {/* School year / semester filters don't apply to the IT admin's
+                                    profile, or to the About tab (personal info, not records). */}
+                                {props.otherUserProfile.role !== 'super_admin' && tab !== 'about' && (
                                 <div className="flex flex-wrap gap-3 shrink-0">
                                     <div className="w-full sm:w-48">
                                         <DropdownField

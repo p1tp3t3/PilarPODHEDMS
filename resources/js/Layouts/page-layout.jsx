@@ -1,21 +1,30 @@
-// Shared page shell: the "title + optional right-side action" header row,
-// wrapped in the same outer spacing/min-w-0 guard every page in this app
-// already hand-rolls (see prefect/report.jsx, prefect/gatepass.jsx before
-// this) — min-w-0 matters here specifically because these pages nest a
-// MUI DataGrid, whose fixed-width columns will force the whole page into
-// horizontal overflow unless every ancestor grid/flex item can shrink.
-const PageLayout = ({ title, rightSideComponent, children }) => {
+import { PageActionsContext, PageTitle } from "@/context-provider/page-title-provider"
+import { useIsMobile } from "@/others/use-is-mobile"
+
+// Shared page shell. The title goes up into AuthLayout's full-width title
+// bar. The right-side action goes in that bar only on phones (as an icon
+// button); on tablets/desktops it sits in the page instead — at the top
+// right by default, or, with `actionsWithFilters`, wherever the page puts
+// <PageActions /> (the end of its filter row). The content keeps the same
+// outer spacing/min-w-0 guard every page in this app already hand-rolls —
+// min-w-0 matters because these pages nest a MUI DataGrid, whose
+// fixed-width columns would otherwise force horizontal overflow.
+const PageLayout = ({ title, rightSideComponent, actionsWithFilters = false, children }) => {
+    const isMobile = useIsMobile()
+    const pagePlacesActions = actionsWithFilters && !isMobile
+
     return (
-        <div className="w-full py-4 min-w-0">
-            <div className="w-full grid gap-5 relative min-w-0">
-                <div className="flex flex-col sm:flex-row w-full justify-between items-stretch sm:items-center gap-3">
-                    <h1 className="text-[1.15em] sm:text-[1.5em] font-bold">{title}</h1>
-                    {rightSideComponent && (
-                        <div className="max-sm:[&_button]:w-full max-sm:[&>div]:w-full">{rightSideComponent}</div>
-                    )}
+        <div className="w-full py-5 min-w-0">
+            <PageTitle
+                title={title}
+                rightSideComponent={rightSideComponent}
+                actionsElsewhere={pagePlacesActions}
+            />
+            <PageActionsContext.Provider value={pagePlacesActions ? rightSideComponent : null}>
+                <div className="w-full grid gap-5 relative min-w-0">
+                    {children}
                 </div>
-                {children}
-            </div>
+            </PageActionsContext.Provider>
         </div>
     )
 }

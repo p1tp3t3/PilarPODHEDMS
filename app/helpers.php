@@ -77,7 +77,7 @@ if (!function_exists('get_user_df')) {
 }
 
 if (!function_exists('get_user_access_field')) {
-    function get_user_access_field($data = null, $type)
+    function get_user_access_field($data, $type)
     {
         switch ($type) {
             case 'student':

@@ -11,6 +11,7 @@ import { useState } from "react"
 import { router } from "@inertiajs/react"
 import { GraduationCap, UserRoundCog, Users, Settings, X } from "lucide-react"
 import { Head } from "@inertiajs/react"
+import { PageActions } from "@/context-provider/page-title-provider"
 
 const userTabs = [
     { key: "student", label: "Student List", icon: GraduationCap },
@@ -81,10 +82,10 @@ const PrefectUserList = (props) => {
                     setPositions={setPositions}
                 />
             )}
-            <PageLayout
+            <PageLayout actionsWithFilters
                 title="USER LIST"
                 rightSideComponent={canManagePosition && tab === "staff" &&
-                    <Btn onclick={() => openManagePositionsModal(true)}>
+                    <Btn onclick={() => openManagePositionsModal(true)} icon={<Settings size={19} />}>
                         <span className="flex items-center gap-2">
                             <Settings size={16} /> Manage Positions
                         </span>
@@ -142,7 +143,7 @@ const PrefectUserList = (props) => {
 
                 {tab === "staff" &&
                 <>
-                    <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                    <div className="flex flex-col sm:flex-row gap-3 sm:items-center md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
                         <div className="w-full sm:w-[14rem] flex-shrink-0">
                             <DropdownField
                                 list={[
@@ -178,6 +179,7 @@ const PrefectUserList = (props) => {
                                 />
                             </div>
                         )}
+                        <PageActions />
                     </div>
                     <StaffList
                         list={props.staff}

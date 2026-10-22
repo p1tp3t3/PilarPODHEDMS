@@ -13,6 +13,7 @@ import { Box } from "@mui/material"
 import { useReload } from "@/context-provider/reload-provider"
 import { RoleService } from "@/others/services/role-service"
 import { showOutputModal, showWarningModal } from "@/others/function"
+import { Plus } from "lucide-react"
 
 const errorMessage = (x, fallback) =>
     (x.response?.data?.errors && Object.values(x.response.data.errors)[0]?.[0]) ?? x.response?.data?.message ?? fallback
@@ -175,7 +176,7 @@ const Roles = (props) => {
             />
             <PageLayout
                 title="Role Management"
-                rightSideComponent={<Btn onclick={() => openForm(true)}>Add Role</Btn>}
+                rightSideComponent={<Btn onclick={() => openForm(true)} icon={<Plus size={20} />}>Add Role</Btn>}
             >
                 <p className="text-[0.8em] text-gray-600 -mt-2">
                     A role that any user has had can only be activated or deactivated. A role with no linked users can be deleted.

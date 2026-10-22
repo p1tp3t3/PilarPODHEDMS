@@ -7,6 +7,9 @@ import { getProfilePic, readableDate, readableTime, toTitleCase, formatSchoolYea
 import ProfilePic from "../other/profile-pic"
 import ListSkeleton from "../reload/list-skeleton"
 import ActionBtn from "../button/action-btn"
+import { StatusAvatar, statusLabel } from "@/Components/other/mobile-card-list"
+import { Send } from "lucide-react"
+import { filedByColumn } from "@/Components/list/filed-by-column"
 
 const STATUS_STYLES = {
     pending: "bg-yellow-100 text-yellow-700",
@@ -84,6 +87,8 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
                 },
             })
         }
+
+        if (type === "sub_admin") cols.push(filedByColumn((r) => r.raw?.prefect))
 
         cols.push({
             field: "status",
@@ -281,6 +286,20 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
                     getRowHeight={() => 'auto'}
                     localeText={{ noRowsLabel: "No Referrals Found" }}
                     showToolbar
+                    // Phones: one row per referral (the referrer for the
+                    // prefect, else the reference no.); tap for the rest.
+                    mobileSummary={(row) => type === "sub_admin" && row.referrer ? {
+                        name: [row.referrer?.profile?.first_name, row.referrer?.profile?.middle_name, row.referrer?.profile?.last_name].filter(Boolean).join(" "),
+                        role: `#${row.referral_number} · ${statusLabel(row.status)}`,
+                        picture: row.referrer.profile?.profile_picture,
+                        sex: row.referrer.profile?.sex,
+                        hide: ["referrerCol", "referral_number", "status"],
+                    } : {
+                        name: `Reference No. ${row.referral_number}`,
+                        role: statusLabel(row.status),
+                        avatar: <StatusAvatar icon={Send} status={row.status} />,
+                        hide: ["referral_number", "status"],
+                    }}
                 />
             </Box>
         </div>

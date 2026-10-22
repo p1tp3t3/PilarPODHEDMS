@@ -19,8 +19,10 @@ import { ReportArchiveService } from "@/others/services/report-archive-service"
 import ActionBtn from "@/Components/button/action-btn"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
 import IssueViolationModal2 from "@/Components/modal/submission-form/issue-violation-modal2"
-import { List, Clock, RotateCw, Ban, Undo2, X, Check } from "lucide-react"
+import { List, Clock, RotateCw, Ban, Undo2, X, Check, FilePlus } from "lucide-react"
 import { Head } from "@inertiajs/react"
+import { LabeledCheckbox, setRowsChecked } from "@/Components/input/select-checkbox"
+import { PageActions } from "@/context-provider/page-title-provider"
 
 const PrefectComplaint = (props) => {
   const url = new URLSearchParams(window.location.search)
@@ -205,11 +207,7 @@ const PrefectComplaint = (props) => {
     router.visit(`${link}?status=${choose}&role=${newRole}&school-year=${newSchoolYear}&semester=${newSemester}`)
   }
   const selectAllRow = (e) => {
-    const checked = e.target.checked;
-    const checkboxes = document.querySelectorAll('input[name="selected-row"]');
-    checkboxes.forEach((checkbox) => {
-      checkbox.checked = checked
-    })
+    setRowsChecked(e.target.checked)
   }
 
   return (
@@ -267,19 +265,19 @@ const PrefectComplaint = (props) => {
         incident_list={props.incident_list}
       />
 
-        <PageLayout
+        <PageLayout actionsWithFilters
           title="COMPLAINT"
           rightSideComponent={
-            <Btn onclick={() => openIssueComplaint(true)}>
+            <Btn onclick={() => openIssueComplaint(true)} icon={<FilePlus size={19} />}>
               Report Complaint
             </Btn>
           }
         >
             {/* Search and Filters */}
             <div className="grid gap-3">
-              <div className="flex flex-wrap gap-3 items-center">
+              <div className="flex flex-wrap gap-3 items-center md:max-xl:flex-row md:max-xl:flex-nowrap md:max-xl:items-center md:max-xl:[&>div:not(:last-child)]:flex-1 md:max-xl:[&>div:not(:last-child)]:min-w-0 md:max-xl:[&>div:not(:last-child)]:w-auto">
                 {/* Dropdowns */}
-                <div className="flex flex-col sm:flex-row md:flex-nowrap gap-3 w-full md:w-auto justify-start md:justify-end">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap xl:flex-nowrap gap-3 w-full xl:w-auto justify-start md:max-xl:flex-nowrap md:max-xl:[&>div]:flex-1 md:max-xl:[&>div]:min-w-0">
                   <div className="w-full sm:w-auto">
                     <DropdownField
                       default={{ val: "all", label: "All Complainants" }}
@@ -314,36 +312,38 @@ const PrefectComplaint = (props) => {
                     />
                   </div>
                 </div>
+                  <PageActions />
               </div>
 
               {/* Tabs */}
-              <div className="overflow-x-auto flex justify-between items-center">
-                <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
-                {/* Right side */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="min-w-0 overflow-x-auto">
+                  <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
+                </div>
+                {/* Bulk select (Pending tab only) */}
                 {url.get('status') == 'pending' &&
-                <div className="flex flex-wrap gap-3 items-center">
+                <div className="flex items-center gap-3 shrink-0 justify-end">
+                  {select2 && (
+                    <>
+                      <LabeledCheckbox label="Select All" id="select-all" onChange={selectAllRow} className="text-[0.85em]" />
+                      <ActionBtn
+                          className={"bg-green-600 text-white hover:bg-green-700"}
+                          onClick={() => handleAction('approve')}
+                      >
+                          Approve
+                      </ActionBtn>
+                    </>
+                  )}
                   <ActionBtn
                     className="bg-blue-700 hover:bg-blue-800"
                     onClick={() => enableSelect2(!select2)}
+                    title={select2 ? "Cancel selecting" : "Select complaints"}
                   >
-                    {select2 ? <X size={16} /> : <Check size={16} />}
+                    <span className="inline-flex items-center gap-1.5">
+                      {select2 ? <X size={16} /> : <Check size={16} />}
+                      {select2 ? "Cancel" : "Select"}
+                    </span>
                   </ActionBtn>
-                  {select2 && (
-                    <div className="flex gap-5 items-center flex-wrap">
-                      <div className="flex gap-2 items-center text-[0.8em]">
-                        <input type="checkbox" id="select-all" onClick={selectAllRow} />
-                        <label htmlFor="select-all">Select All</label>
-                      </div>
-                      <div className="flex gap-2 text-[0.9em]">
-                        <ActionBtn
-                            className={"bg-green-600 text-white hover:bg-green-700"}
-                            onClick={() => handleAction('approve')}
-                        >
-                            Approve
-                        </ActionBtn>
-                      </div>
-                    </div>
-                  )}
                 </div>}
               </div>
             </div>

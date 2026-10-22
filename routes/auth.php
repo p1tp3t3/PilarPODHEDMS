@@ -106,7 +106,10 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      Route::get('/super-admin/program', [MaintenanceController::class, 'programIndex']);
      Route::get('/super-admin/program/{id}/users', [MaintenanceController::class, 'programUsersIndex']);
      Route::post('/super-admin/user-accounts/file/del', [FileController::class, 'destroy']);
-     Route::get('/super-admin/report', [ReportController::class, 'itrcIndex']);
+     // Reports is a sidebar group of pages; the old single page redirects
+     // to the first one.
+     Route::get('/super-admin/report', fn () => redirect('/super-admin/report/statistics'));
+     Route::get('/super-admin/report/{section}', [ReportController::class, 'itrcIndex'])->whereIn('section', ['statistics', 'action-log']);
      Route::get('/super-admin/report/generate', [ReportController::class, 'actionLogStore']);
      Route::get('/super-admin/report/statistics-preview', [ReportController::class, 'accountStatisticsPreview']);
      Route::post('/super-admin/report/statistics/generate', [ReportController::class, 'generateAccountStatisticsReport']);
@@ -136,7 +139,15 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
 Route::middleware(['role:super_admin,sub_admin', 'activate', 'user-activity'])->group(function() {
      // Accessibility (allowed submissions) for students and teaching staff.
      Route::post('/super-admin/account/update', [AccountController::class, 'updateUserInformation']);
-     Route::get('/violation-management', [MaintenanceController::class, 'violationManagementIndex']);
+     // Violation Management is a sidebar group of pages (like Incident
+     // Management): violations, penalties, student violations (prefect
+     // only) and access requests. The old single page redirects to the
+     // first one, keeping any query string (e.g. a notification's ?id=).
+     Route::get('/violation-management', fn () => redirect('/violation-management/violations'.(request()->getQueryString() ? '?'.request()->getQueryString() : '')));
+     Route::get('/violation-management/violations', [MaintenanceController::class, 'violationManagementIndex'])->defaults('section', 'violations');
+     Route::get('/violation-management/penalties', [MaintenanceController::class, 'violationManagementIndex'])->defaults('section', 'penalties');
+     Route::get('/violation-management/student-violations', [MaintenanceController::class, 'violationManagementIndex'])->defaults('section', 'student-violations');
+     Route::get('/violation-management/access', [MaintenanceController::class, 'violationManagementIndex'])->defaults('section', 'access');
      Route::get('/violation-management/{id}/students', [ViolationController::class, 'violationStudentsIndex']);
 
      Route::middleware(['violation-edit-authorized:violation,add'])
@@ -223,7 +234,10 @@ Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(functi
 
     Route::get('/download/{type}/{id}', [ArchiveController::class, 'downloadDocument']);
 
-    Route::get('/prefect/report', [ReportController::class, 'index']);
+    // Reports is a sidebar group of pages (one per report type, plus the
+    // analytics, saved filters and generated reports pages).
+    Route::get('/prefect/report', fn () => redirect('/prefect/report/incident'));
+    Route::get('/prefect/report/{section}', [ReportController::class, 'index'])->whereIn('section', ['incident', 'violation', 'tardy', 'appointment', 'gatepass', 'analytics', 'saved-filters', 'generated']);
     Route::post('/prefect/analytic-report/generate', [ReportController::class, 'generateAnalyticReport']);
     Route::get('/prefect/analytics/preview', [ReportController::class, 'analyticsPreview']);
     Route::get('/prefect/analytics/program-detail', [ReportController::class, 'programViolationDetail']);
@@ -241,7 +255,6 @@ Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(functi
     Route::post('/prefect/archive/recover', [ArchiveController::class, 'recoverDocument']);
     Route::post('/prefect/archive/delete', [ArchiveController::class, 'destroy']);
     Route::post('/prefect/archive/transfer', [ArchiveController::class, 'transfer']);
-    Route::post('/prefect/archive/bulk', [ArchiveController::class, 'bulkArchive']);
 });
 
 /*
@@ -300,9 +313,6 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::post('/chat/message/{id}/edit', [ChatController::class, 'editMessage']);
      Route::get('/chat/message/{id}/history', [ChatController::class, 'getEditHistory']);
      Route::get('/chat/unread-count', [ChatController::class, 'unreadCount']);
-     Route::get('/chat/group/{programId}', [ChatController::class, 'getGroupThread']);
-     Route::post('/chat/group/{programId}/send', [ChatController::class, 'sendGroupMessage']);
-     Route::post('/chat/group/{programId}/read', [ChatController::class, 'markGroupRead']);
 
      Route::get('/appointment', [AppointmentController::class, 'index']);
      Route::post('/prefect/appointment/req/get/{reqId}', [AppointmentController::class, 'getReqList']);
@@ -347,6 +357,12 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/gatepass/approved-users', [GatePassController::class, 'getAllApprovedGatePass']);
 
      Route::get('/notification/{receiver}/{l}', [NotificationController::class, 'getNotif']);
+     // All / Unread lists for the notifications page and the header's
+     // notification dropdown. {id} is the user's encrypted id and must be
+     // the signed-in user's own.
+     Route::get('/api/notification/list/{type}/{id}/{lim}', [NotificationController::class, 'getNotifType'])
+         ->whereIn('type', ['all', 'unread'])
+         ->whereNumber('lim');
      Route::get('/api/notification/{type}', [NotificationController::class, 'getStudentNotification']);
      Route::get('/notifications', [NotificationController::class, 'index']);
      Route::post('/notifications/delete/{type}', [NotificationController::class, 'destroy']);

@@ -18,7 +18,7 @@ const StaffGatePassVerification = (props) => {
 
         // Real-time: refresh the moment the prefect approves any gate pass,
         // instead of the Guard needing to hit the refresh button themselves.
-        window.Echo.channel('gate-pass-approvals').listen('GatePassApproved', () => {
+        window.Echo.private('gate-pass-approvals').listen('GatePassApproved', () => {
             fetchApprovedUsers()
         })
 

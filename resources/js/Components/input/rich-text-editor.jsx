@@ -2,6 +2,7 @@ import { useEditor, useEditorState, EditorContent } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
 import { useEffect, useState } from "react"
+import { createPortal } from "react-dom"
 import "./rich-text-editor.css"
 import { Bold, Italic, Strikethrough, Heading, List, ListOrdered, Quote, RotateCcw, RotateCw, Maximize2, Minimize2 } from "lucide-react"
 
@@ -81,9 +82,13 @@ const RichTextEditor = ({ label, val = "", change, error, req = false, placehold
         </div>
     )
 
+    // Rendered straight into <body>: inside the page (or a modal) an animated
+    // ancestor's transform makes `fixed` relative to that box instead of the
+    // window, so the sidebar and header stayed on top of the "full screen"
+    // editor and clipped its toolbar. Above the sidebar, header and modals.
     if (expanded) {
-        return (
-            <div className="fixed inset-0 z-[300] bg-white p-4 flex flex-col gap-1">
+        return createPortal(
+            <div className="fixed inset-0 z-[1000] bg-white p-4 flex flex-col gap-1">
                 {label && (
                     <label className="text-[0.85em] font-medium text-gray-700">
                         {label} {req && <span className="text-[#d12323]">*</span>}
@@ -91,7 +96,8 @@ const RichTextEditor = ({ label, val = "", change, error, req = false, placehold
                 )}
                 {box}
                 {error && <div className="text-[#d12323] text-[13px] font-[600]">{error}</div>}
-            </div>
+            </div>,
+            document.body
         )
     }
 
