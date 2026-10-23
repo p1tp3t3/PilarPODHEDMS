@@ -13,7 +13,7 @@ import TabSwitcher from "@/Components/other/tab-switcher"
 import { Button, Paper } from "@mui/material"
 import { DataGrid } from '@/Components/other/data-grid';
 import QuickFilteringGrid from "@/Components/text-component"
-import { List, Ban, Clock, RotateCw, Undo2, FilePlus } from "lucide-react"
+import { List, Ban, Clock, RotateCw, Undo2, FilePlus, CheckCircle2 } from "lucide-react"
 import { ComplaintService } from "@/others/services/complaint-service"
 
 
@@ -45,6 +45,7 @@ const Complaint = (props) => {
       { key: "rejected", label: "Rejected", icon: Ban },
       { key: "pending", label: "Pending", icon: Clock },
       { key: "ongoing", label: "Ongoing", icon: RotateCw },
+      { key: "resolved", label: "Resolved", icon: CheckCircle2 },
       { key: "revoked", label: "Revoked", icon: Undo2 },
     ];
     const setId = (id) => {

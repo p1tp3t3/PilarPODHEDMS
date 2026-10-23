@@ -6,9 +6,11 @@ import SelectedUser from "@/Components/other/selected-user"
 import { change, showOutputModal, getProfilePic } from "@/others/function"
 import DropdownField from "@/Components/input/dropdown"
 import BetweenTextfield from "@/Components/input/between-input"
+import FieldError from "@/Components/input/field-error"
 import RadioButton from "@/Components/input/radio"
 import FormButton from "@/Components/button/button"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
+import { validateForm, hasErrors, required, requiredIf } from "@/others/validation"
 
 const semesterList = [
     { val: 1, label: '1st Semester' },
@@ -41,8 +43,23 @@ const GenerateActionLogReportMoodal = (props) => {
     const handleChange = (e) => {
         change(e, setData)
     }
+    const [errs, setErrs] = useState({})
+
     const handleSubmit = (e) => {
         e.preventDefault()
+        const found = validateForm(data, {
+            report_type: [required("Action type")],
+            school_year_id: [requiredIf((d) => d.filter_by === 'school_year', "School year")],
+        })
+        if (data.individual && !searchedComplainant) found.user = "Select a user, or untick Individual."
+
+        // Dates may both be left empty (all time), but not just one, and the
+        // range can't run backwards.
+        if (data.date_from && !data.date_to) { found.date_range = "Choose an end date too."; }
+        else if (!data.date_from && data.date_to) { found.date_range = "Choose a start date too."; }
+        else if (data.date_from && data.date_to && new Date(data.date_to) < new Date(data.date_from)) { found.date_range = "The end date can't be before the start date."; }
+        setErrs(found)
+        if (hasErrors(found)) return
         setReload(true)
         const f = data.file_type == 'excel' ? 'action-log-report.xlsx' : 'action-log-report.pdf'
         const payload = data.filter_by === 'date'
@@ -146,6 +163,7 @@ const GenerateActionLogReportMoodal = (props) => {
                                             unselect={setSearchedComplainant}
                                         />
                                     </div>}
+                                    <FieldError msg={errs.user} />
                                 </div>}
                             </div>
                             <div className="w-full">
@@ -157,6 +175,7 @@ const GenerateActionLogReportMoodal = (props) => {
                                     ]}
                                     onChange={handleChange}
                                     name="report_type"
+                                    error={errs.report_type}
                                     val={data.report_type}
                                     titleCase={true}
                                 />
@@ -188,6 +207,7 @@ const GenerateActionLogReportMoodal = (props) => {
                                     data={[data.date_from, data.date_to]}
                                     setData={setData}
                                 />}
+                                <FieldError msg={errs.date_range} />
                                 {data.filter_by === 'school_year' &&
                                 <div className="flex flex-col sm:flex-row gap-2">
                                     <DropdownField
@@ -195,6 +215,7 @@ const GenerateActionLogReportMoodal = (props) => {
                                         list={(props.schoolYears ?? []).map((y) => ({ val: y.id, label: y.year }))}
                                         onChange={handleChange}
                                         name="school_year_id"
+                                        error={errs.school_year_id}
                                         val={data.school_year_id}
                                         req={true}
                                     />

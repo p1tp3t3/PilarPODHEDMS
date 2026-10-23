@@ -32,8 +32,16 @@ class ReferralController extends Controller
 {
     use GeneratesSequenceCode;
 
+    // Students are never shown referrals (not even ones about them) and
+    // can't file or touch one.
+    private static function denyStudents(): void
+    {
+        abort_if(auth()->user()?->role === 'student', 403);
+    }
+
     public function index()
     {
+        self::denyStudents();
         $isPrefect = self::isPrefect() ? 'prefect' : 'other';
         $user = auth()->user();
         $user->allow_referral = $user->permissions?->allow_referral;
@@ -72,6 +80,7 @@ class ReferralController extends Controller
 
     public function store(StoreReferralRequest $request)
     {
+        self::denyStudents();
         DB::beginTransaction(); // ✅ Start transaction
         $output = null; // File path tracker for cleanup if fails
 
@@ -216,7 +225,14 @@ class ReferralController extends Controller
         // happen (a retention deadline, not an "is archived" flag — see
         // archive_retention_date()), so it's deliberately not used to gate
         // this list, only status/timestamp fields are.
-        if ($status === 'approve') {
+        // The prefect's approved referrals live in the archive only, not on
+        // the referral page (no Approved tab, and left out of "All").
+        $prefectView = auth()->user()->role === 'sub_admin';
+        if ($prefectView) {
+            $referrals->whereNull('confirmed_at');
+        }
+
+        if ($status === 'approve' && ! $prefectView) {
             $referrals->whereNotNull('confirmed_at')->latest('confirmed_at');
         } elseif ($status === 'rejected') {
             $referrals->whereNotNull('rejected_at')->latest('rejected_at');
@@ -297,6 +313,7 @@ class ReferralController extends Controller
      */
     public function revokeReferral($id)
     {
+        self::denyStudents();
         $referral = Referral::where('id', $id)->first();
 
         if (! $referral) {
@@ -338,6 +355,7 @@ class ReferralController extends Controller
      */
     public function updateReferral(UpdateReferralRequest $request, $id)
     {
+        self::denyStudents();
         $referral = Referral::where('id', $id)->first();
 
         if (! $referral) {
@@ -558,6 +576,7 @@ class ReferralController extends Controller
 
     public function get($id)
     {
+        self::denyStudents();
         $id = decrypt_id($id) ?? abort(404);
 
         return new ReferralResource(Referral::with([

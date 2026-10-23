@@ -295,7 +295,7 @@ class DashboardController extends Controller
             'gatepass' => $gatepass,
             'absent_form' => $absentForm,
             'upcoming_appointment' => $appointment->getUpcomingAppointmentList($id),
-
+            'previous_appointment' => $appointment->getPreviousAppointmentList($id),
         ];
     }
 
@@ -651,7 +651,7 @@ class DashboardController extends Controller
             )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
         }
 
-        if ($permissions?->allow_referral) {
+        if ($permissions?->allow_referral && $user->role !== 'student') {
             $records['referral'] = self::scopeToCurrentSemester(
                 Referral::with(['user.profile', 'referredStudent.profile'])->where('teaching_staff_id', $user->id)
             )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));

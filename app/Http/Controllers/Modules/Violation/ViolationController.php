@@ -35,25 +35,37 @@ class ViolationController extends Controller
     }
 
     /**
-     * Who may see one student's incidents/violations: never the super admin;
-     * teaching staff only as program head of the student's current program.
+     * Who may see one student's incidents/violations:
+     *  - the prefect (sub_admin): every student;
+     *  - teaching staff: only as program head of the student's current program;
+     *  - a student: only themselves;
+     *  - a parent: only their own children (same family);
+     *  - nobody else — not the super admin, not non-teaching staff.
      */
     public static function canViewStudent($studentId): bool
     {
         $user = auth()->user();
-        if ($user->role === 'super_admin') {
-            return false;
-        }
-        if ($user->role === 'teaching_staff') {
-            if ($user->teachingStaff?->position !== 'program_head') {
+
+        switch ($user->role) {
+            case 'sub_admin':
+                return true;
+            case 'teaching_staff':
+                if ($user->teachingStaff?->position !== 'program_head') {
+                    return false;
+                }
+                $programId = Enrollment::where('student_id', $studentId)->latest('id')->value('program_id');
+
+                return $programId && TeachingStaff::programIdsFor($user->id)->contains($programId);
+            case 'student':
+                return (int) $user->id === (int) $studentId;
+            case 'parent':
+                $familyIds = \App\Models\FamilyMember::where('member_id', $user->id)->pluck('family_id');
+
+                return $familyIds->isNotEmpty()
+                    && \App\Models\FamilyMember::whereIn('family_id', $familyIds)->where('member_id', $studentId)->exists();
+            default:
                 return false;
-            }
-            $programId = Enrollment::where('student_id', $studentId)->latest('id')->value('program_id');
-
-            return $programId && TeachingStaff::programIdsFor($user->id)->contains($programId);
         }
-
-        return true;
     }
 
     /**
@@ -428,7 +440,7 @@ class ViolationController extends Controller
                                 ->map(fn ($d) => [
                                     'case_number' => $d->complaint->case_number,
                                     'incident' => $d->complaint->violation?->violation_name,
-                                    'summary' => $d->incident_summary,
+                                    'summary' => can_see_incident_summary() ? $d->incident_summary : null,
                                     'created_at' => $d->complaint->created_at,
                                     'resolved_since' => $d->complaint->offense_issued_at,
                                     'status' => $d->complaint->complaint_status,

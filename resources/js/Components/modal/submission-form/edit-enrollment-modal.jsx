@@ -5,6 +5,7 @@ import FormButton from "@/Components/button/button"
 import { useState, useEffect } from "react"
 import { change } from "@/others/function"
 import { AccountService } from "@/others/services/account-service"
+import { validateForm, hasErrors, required } from "@/others/validation"
 
 const semesterList = [
     { val: 1, label: "1st Semester" },
@@ -37,10 +38,23 @@ const EditEnrollmentModal = ({ close, closeModal, data, program, schoolYears, re
         }
     }, [data])
 
-    const handleChange = (e) => change(e, setForm)
+    const [errs, setErrs] = useState({})
+    const handleChange = (e) => {
+        change(e, setForm)
+        setErrs((prev) => ({ ...prev, [e.target.name]: undefined, [`${e.target.name}Asterisk`]: false }))
+    }
 
     const handleSubmit = (e) => {
         e.preventDefault()
+        const found = validateForm(form, {
+            program_id: [required("Program")],
+            year_level: [required("Year level")],
+            semester: [required("Semester")],
+            school_year_id: [required("School year")],
+            enrolled_at: [required("Enrolled since")],
+        })
+        setErrs(found)
+        if (hasErrors(found)) return
         reload(true, "text-wait", "Updating Enrollment. Please Wait")
         AccountService.updateEnrollment(
             form,
@@ -76,6 +90,8 @@ const EditEnrollmentModal = ({ close, closeModal, data, program, schoolYears, re
                     val={form.program_id}
                     onChange={handleChange}
                     name="program_id"
+                    error={errs.program_id}
+                    errorAsterisk={errs.program_idAsterisk}
                 />
                 <div className="flex flex-col sm:flex-row gap-3">
                     <DropdownField
@@ -84,6 +100,8 @@ const EditEnrollmentModal = ({ close, closeModal, data, program, schoolYears, re
                         val={form.year_level}
                         onChange={handleChange}
                         name="year_level"
+                        error={errs.year_level}
+                        errorAsterisk={errs.year_levelAsterisk}
                     />
                     <DropdownField
                         default={{ val: "", label: "Select Semester" }}
@@ -91,6 +109,8 @@ const EditEnrollmentModal = ({ close, closeModal, data, program, schoolYears, re
                         val={form.semester}
                         onChange={handleChange}
                         name="semester"
+                        error={errs.semester}
+                        errorAsterisk={errs.semesterAsterisk}
                     />
                 </div>
                 <DropdownField
@@ -99,10 +119,14 @@ const EditEnrollmentModal = ({ close, closeModal, data, program, schoolYears, re
                     val={form.school_year_id}
                     onChange={handleChange}
                     name="school_year_id"
+                    error={errs.school_year_id}
+                    errorAsterisk={errs.school_year_idAsterisk}
                 />
                 <FormTextfield
                     label="Enrolled Since"
                     name="enrolled_at"
+                    error={errs.enrolled_at}
+                    errorAsterisk={errs.enrolled_atAsterisk}
                     id="enrolled_at"
                     type="date"
                     val={form.enrolled_at}

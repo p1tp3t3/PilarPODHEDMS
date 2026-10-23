@@ -7,6 +7,7 @@ import PicVidUpload from "@/Components/input/pic-vid-upload";
 import BetweenTextfield from "@/Components/input/between-input";
 import { useEffect, useState } from "react";
 import { AbsentFormService } from "@/others/services/absent-form-service";
+import { isBlank } from "@/others/validation";
 
 const REASONS = [
     { value: "Excused Absence", label: "Excused Absence" },
@@ -62,7 +63,7 @@ const EditAbsentFormModal = (props) => {
         if (data.date_from && data.date_to && new Date(data.date_to) < new Date(data.date_from)) {
             errors.date_to = "Date To must be later than or equal to Date From.";
         }
-        if (checkedReasons.length === 0 && otherReason.trim() === "") {
+        if (checkedReasons.length === 0 && isBlank(otherReason)) {
             errors.reason = "Please select or type a reason.";
         }
         setValidationError(errors);
@@ -75,7 +76,7 @@ const EditAbsentFormModal = (props) => {
 
         const f = new FormData();
         const reasons = [...checkedReasons];
-        if (otherReason.trim() !== "") reasons.push(otherReason.trim());
+        if (!isBlank(otherReason)) reasons.push(otherReason.trim());
         reasons.forEach((r, i) => f.append(`reason[${i}]`, r));
         f.append("date_from", data.date_from);
         f.append("date_to", data.date_to);

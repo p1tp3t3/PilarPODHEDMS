@@ -8,12 +8,14 @@ import { router } from "@inertiajs/react"
 import { getProfilePic, showWarningModal, showOutputModal, toTitleCase, isSamePerson } from "@/others/function"
 import { ReferralService } from "@/others/services/referral-service"
 import { X } from "lucide-react"
+import { validateForm, hasErrors, required, minLength } from "@/others/validation"
 
 const EditReferralModal = (props) => {
     const [search, setSearch] = useState("")
     const [selectedStudents, setSelectedStudents] = useState([])
     const [reason, setReason] = useState("")
     const [error, setError] = useState("")
+    const [reasonError, setReasonError] = useState("")
 
     useEffect(() => {
         if (props.close && props.data) {
@@ -45,6 +47,9 @@ const EditReferralModal = (props) => {
             setError("Please select at least one student to refer.")
             return
         }
+        const found = validateForm({ reason }, { reason: [required("Reason"), minLength(5, "Reason")] })
+        setReasonError(found.reason ?? "")
+        if (hasErrors(found)) return
         setError("")
 
         const f = new FormData()
@@ -144,8 +149,9 @@ const EditReferralModal = (props) => {
                     <RichTextEditor
                         label="Reason to Refer"
                         val={reason}
-                        change={setReason}
+                        change={(v) => { setReason(v); setReasonError("") }}
                         req={true}
+                        error={reasonError}
                         placeholder="Describe the reason for this referral in detail — this will appear on the referral document sent to Guidance."
                         minHeight="16rem"
                     />

@@ -6,6 +6,7 @@ import { showOutputModal, showWarningModal } from "../../../others/function"
 import { GatePassService } from "@/others/services/gatepass-service"
 import { useState } from "react"
 import RadioButton from "@/Components/input/radio"
+import { validateForm, required, minLength } from "@/others/validation"
 
 const RequestGatePassModal = (props) => {
 
@@ -27,7 +28,8 @@ const RequestGatePassModal = (props) => {
     }
     const handleSubmit = e => {
         e.preventDefault()
-        if(data.other_reason != '') {
+        const reasonError = validateForm({ reason: data.other_reason }, { reason: [required("Reason"), minLength(5, "Reason")] }).reason
+        if (!reasonError) {
             setErr('')
             showWarningModal(
                 'Are You Sure You Want To Request a Gate Pass?',
@@ -39,7 +41,7 @@ const RequestGatePassModal = (props) => {
                 }
             )
         }else {
-            setErr('Reason is Required.')
+            setErr(reasonError)
         }
     }
     const success = (e) => {

@@ -5,12 +5,13 @@ import { useForm } from "@inertiajs/react"
 import { change } from "../others/function"
 import { useRoute } from "../../../vendor/tightenco/ziggy/src/js"
 import { User, Lock } from "lucide-react"
+import { validateForm, hasErrors, required } from "@/others/validation"
 
 
 const GatePassLogInForm = (props) => {
     const route = useRoute()
 
-    const {data, setData, post, processing, errors } = useForm({
+    const {data, setData, post, processing, errors, setError, clearErrors } = useForm({
         route_to: 'gatepass-scanner',
         username: '',
         password: ''
@@ -18,6 +19,12 @@ const GatePassLogInForm = (props) => {
 
     const handleSubmit = (e) => {
         e.preventDefault()
+        const found = validateForm(data, { username: [required("Username")], password: [required("Password")] })
+        clearErrors()
+        if (hasErrors(found)) {
+            Object.entries(found).forEach(([k, v]) => { if (!k.endsWith("Asterisk")) setError(k, v) })
+            return
+        }
         props.loadRegister(true, 'logo')
         setTimeout(() => {
             post(route('log-in'), {

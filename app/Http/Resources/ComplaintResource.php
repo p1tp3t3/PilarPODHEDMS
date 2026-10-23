@@ -26,7 +26,7 @@ class ComplaintResource extends JsonResource
             'prefect_id' => $this->prefect_id,
             'incident_id' => $this->incident_id,
             'complaint_description' => $this->complaint_description,
-            'incident_summary' => $this->incident_summary,
+            'incident_summary' => can_see_incident_summary() ? $this->incident_summary : null,
             'complaint_evidences' => $this->complaint_evidences,
             'rejected_reason' => $this->rejected_reason,
             'rejected_at' => $this->rejected_at,

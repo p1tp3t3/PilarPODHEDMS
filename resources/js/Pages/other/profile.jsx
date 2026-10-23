@@ -1,3 +1,4 @@
+import { ADDRESS_DEFAULTS, PROFILE_DEFAULTS } from "@/others/profile-defaults";
 import ProfilePic from "@/Components/other/profile-pic";
 import React, { useEffect, useState, useContext } from "react";
 import { Link, useForm } from "@inertiajs/react";
@@ -187,19 +188,19 @@ const Profile = (props) => {
         date_of_birth: otherProfile.date_of_birth,
         profile_picture: otherProfile.profile_picture,
         civil_status: otherProfile.civil_status,
-        religion: otherProfile.religion,
+        religion: otherProfile.religion || PROFILE_DEFAULTS.religion,
         unique_att: uniqueAttByRole[props.otherUserProfile.role] ?? null,
         current_address: otherProfile.current_address,
         current_place: address(currentAddrss, "place"),
-        current_city: address(currentAddrss, "city"),
-        current_province: address(currentAddrss, "province"),
-        current_zipcode: address(currentAddrss, "zipcode"),
-        citizenship: otherProfile.citizenship,
+        current_city: address(currentAddrss, "city") || ADDRESS_DEFAULTS.city,
+        current_province: address(currentAddrss, "province") || ADDRESS_DEFAULTS.province,
+        current_zipcode: address(currentAddrss, "zipcode") || ADDRESS_DEFAULTS.zipcode,
+        citizenship: otherProfile.citizenship || PROFILE_DEFAULTS.citizenship,
         permanent_address: otherProfile.permanent_address,
         permanent_place: address(permanentAddrss, "place"),
-        permanent_city: address(permanentAddrss, "city"),
-        permanent_province: address(permanentAddrss, "province"),
-        permanent_zipcode: address(permanentAddrss, "zipcode"),
+        permanent_city: address(permanentAddrss, "city") || ADDRESS_DEFAULTS.city,
+        permanent_province: address(permanentAddrss, "province") || ADDRESS_DEFAULTS.province,
+        permanent_zipcode: address(permanentAddrss, "zipcode") || ADDRESS_DEFAULTS.zipcode,
         place_of_birth: otherProfile.place_of_birth,
         email: props.otherUserProfile.email,
         phone_number: otherProfile.contact_number,

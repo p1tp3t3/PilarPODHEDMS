@@ -7,6 +7,8 @@ import { change, checkUserExist, checkCurrentPassword, showOutputModal, showWarn
 import { AccountService } from "@/others/services/account-service";
 import { Validator } from "@/others/classes/validator";
 import { FormCache, accountSetupCacheKey } from "@/others/classes/form-cache";
+import { StepHeading } from "@/Layouts/setup-layout";
+import { KeyRound, ArrowLeft, Circle, CircleCheck } from "lucide-react";
 
 /**
  * Username/email and password are two independent submissions (separate
@@ -156,6 +158,36 @@ const AccountInfoForm = ({ authUser, targetAccount, isAdmin, reload }) => {
     );
 };
 
+// Live view of the rules Validator.validatePassword() enforces, so the user
+// sees what's missing while typing instead of one error at a time on submit.
+const PASSWORD_RULES = [
+    { label: "At least 8 characters", test: (p) => p.length >= 8 },
+    { label: "An uppercase letter", test: (p) => /[A-Z]/.test(p) },
+    { label: "A lowercase letter", test: (p) => /[a-z]/.test(p) },
+    { label: "A number", test: (p) => /[0-9]/.test(p) },
+    { label: "A special character (!@#$%^&*_-+=<>?)", test: (p) => /[!@#$%^&*_\-+=<>?]/.test(p) },
+];
+
+const PasswordChecklist = ({ password = "", confirmation = "" }) => {
+    const rules = [...PASSWORD_RULES, { label: "Both passwords match", test: (p) => p !== "" && p === confirmation }];
+    return (
+        <div className="-mt-2 rounded-lg bg-gray-50 border border-gray-100 px-4 py-3">
+            <ul className="grid sm:grid-cols-2 gap-x-4 gap-y-1.5">
+                {rules.map((r) => {
+                    const ok = r.test(password);
+                    return (
+                        <li key={r.label} className={`flex items-center gap-2 text-[0.82em] ${ok ? "text-green-700" : "text-gray-500"}`}>
+                            {ok ? <CircleCheck size={15} className="shrink-0" /> : <Circle size={15} className="shrink-0 text-gray-300" />}
+                            {r.label}
+                        </li>
+                    );
+                })}
+            </ul>
+            <p className="text-[0.78em] text-gray-500 mt-2.5">It also can't contain your name, username, ID number or email, or be a commonly used password.</p>
+        </div>
+    );
+};
+
 const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, reload, isForceSetup = false, onBackToProfile }) => {
     const PROFILE_CACHE_KEY = accountSetupCacheKey("account-setup-profile", targetAccount.id);
     const PASSWORD_CACHE_KEY = accountSetupCacheKey("account-setup-password", targetAccount.id);
@@ -292,6 +324,7 @@ const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, r
                 if (isForceSetup) {
                     FormCache.clear(PROFILE_CACHE_KEY);
                     FormCache.clear(PASSWORD_CACHE_KEY);
+                    FormCache.clear(accountSetupCacheKey("account-setup-profile-base", targetAccount.id));
                 }
 
                 showOutputModal(
@@ -339,8 +372,18 @@ const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, r
                 />
             )}
 
-            <div className="bg-white px-5 md:px-10 py-8 rounded-lg shadow-sm shadow-black/20">
-                <h2 className="text-lg font-semibold mb-5">Password</h2>
+            <div className={isForceSetup ? "bg-white px-5 sm:px-8 py-6 rounded-xl shadow-sm shadow-black/10" : "bg-white px-5 md:px-10 py-8 rounded-lg shadow-sm shadow-black/20"}>
+                {isForceSetup ? (
+                    <div className="mb-6">
+                        <StepHeading
+                            icon={KeyRound}
+                            title="Set a New Password"
+                            desc="Replace the default password your account was created with. You'll use this one to log in from now on."
+                        />
+                    </div>
+                ) : (
+                    <h2 className="text-lg font-semibold mb-5">Password</h2>
+                )}
                 <form onSubmit={handleSubmit} className="grid gap-6">
                     {showCurrentPassword && (
                         <FormTextfield
@@ -370,6 +413,7 @@ const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, r
                         errorAsterisk={error.passwordAsterisk}
                     />
 
+
                     <FormTextfield
                         label="Confirm New Password"
                         name="password_confirmation"
@@ -382,9 +426,24 @@ const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, r
                         errorAsterisk={error.password_confirmationAsterisk}
                     />
 
-                    <div className="grid justify-end">
-                        <FormButton type="submit" label={isForceSetup ? "Complete Account Setup" : "Change Password"} />
-                    </div>
+                    {isForceSetup && <PasswordChecklist password={data.password} confirmation={data.password_confirmation} />}
+
+                    {isForceSetup ? (
+                        <div className="flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => { onBackToProfile?.(); window.scrollTo({ top: 0 }) }}
+                                className="inline-flex items-center justify-center gap-1.5 text-[0.9em] font-semibold text-gray-600 hover:text-gray-900 px-3 py-2"
+                            >
+                                <ArrowLeft size={16} /> Back to Profile
+                            </button>
+                            <FormButton type="submit" label="Complete Account Setup" />
+                        </div>
+                    ) : (
+                        <div className="grid justify-end">
+                            <FormButton type="submit" label="Change Password" />
+                        </div>
+                    )}
                 </form>
             </div>
         </>

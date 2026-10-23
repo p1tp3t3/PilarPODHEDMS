@@ -32,8 +32,11 @@ class StudentSeeder extends Seeder
             $enrollment = ($i % 10 === 0) ? $enrollment->dropped() : $enrollment;
             $enrollment->create(['program_id' => random_int(1, 7)]);
 
-            EducationBackground::factory()->for($user, 'user')->create(['education_type' => 'senior_high_school']);
-            EducationBackground::factory()->for($user, 'user')->create(['education_type' => 'college']);
+            // Same three rows (and order) registration creates — the profile
+            // form reads them by position: senior high, college, transferee.
+            EducationBackground::factory()->for($user, 'user')->seniorHigh()->create();
+            EducationBackground::factory()->for($user, 'user')->currentCollege()->create();
+            EducationBackground::factory()->for($user, 'user')->transferee()->create();
         }
     }
 }

@@ -286,6 +286,11 @@ const ResetStep = ({ username }) => {
             setErrorNewPassword("")
             return
         }
+        if (data.new_password.length < 8) {
+            setErrorNewPassword("Password must be at least 8 characters.")
+            setErrorPassword("")
+            return
+        }
         if (data.new_password !== data.password_confirmation) {
             setErrorPassword("Passwords do not match. Please try again.")
             setErrorNewPassword("")

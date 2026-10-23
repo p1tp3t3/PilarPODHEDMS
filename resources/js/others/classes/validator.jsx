@@ -367,8 +367,10 @@ export class Validator {
             sh_year_graduated: 'Year Graduated is required',
             college_school_name: 'School Name is required',
             college_school_address: 'School Address is required',
-            college_year_graduated: 'Year Graduated is required',
         };
+        // College year graduated is optional (most students haven't graduated yet).
+        errorMessage.college_year_graduated = '';
+        errorMessage.college_year_graduatedAsterisk = '';
 
         // ✅ Program only editable/required when editor is PREFECT or ADMIN
         if (canEditProgram) {

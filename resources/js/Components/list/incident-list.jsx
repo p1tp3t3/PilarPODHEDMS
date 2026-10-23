@@ -107,7 +107,8 @@ const Row = ({ data, isIncident }) => {
                 )}
 
                 {/* PREFECT REMARKS */}
-                {!isIncident && (
+                {/* Only sent to the prefect. */}
+                {!isIncident && data.incident_summary && (
                     <div className="grid gap-2">
                         <p className="text-[0.8em] font-semibold text-gray-700">
                             Prefect&apos;s Remarks:

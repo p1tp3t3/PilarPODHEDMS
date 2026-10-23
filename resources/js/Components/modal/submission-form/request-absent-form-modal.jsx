@@ -9,6 +9,7 @@ import PicVidUpload from "@/Components/input/pic-vid-upload";
 import BetweenTextfield from "@/Components/input/between-input";
 import { useState } from "react";
 import { AbsentFormService } from "@/others/services/absent-form-service";
+import { isBlank } from "@/others/validation";
 
 const RequestAbsentFormModal = (props) => {
   return (
@@ -80,7 +81,7 @@ const Body = ({ id, reload, issue = false, onIssued }) => {
           const f = new FormData();
           const reasons = [...data.absent_form_reason];
 
-          if (data.other_reason.trim() !== "") {
+          if (!isBlank(data.other_reason)) {
             reasons.push(data.other_reason);
           }
 
@@ -169,7 +170,7 @@ const Body = ({ id, reload, issue = false, onIssued }) => {
     // --- REASON VALIDATION ---
     if (
       data.absent_form_reason.length === 0 &&
-      data.other_reason.trim() === ""
+      isBlank(data.other_reason)
     ) {
       errors.absent_form_reason = "Please select or type a reason.";
     }

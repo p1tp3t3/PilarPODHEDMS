@@ -7,6 +7,7 @@ import FormButton from "../../button/button";
 import ProfilePic from "@/Components/other/profile-pic";
 import { useEffect, useState } from "react";
 import { ViolationService } from "@/others/services/violation-service";
+import { isBlank } from "@/others/validation"
 import {
   showWarningModal,
   getProfilePic,
@@ -121,7 +122,7 @@ const IssueViolationModal2 = (props) => {
     let hasError = false;
 
     // (1) Summary required — one shared narrative for the whole complaint
-    if (!summary.trim()) {
+    if (isBlank(summary)) {
       hasError = true;
       errors.summary = "Summary of the incident is required.";
     }

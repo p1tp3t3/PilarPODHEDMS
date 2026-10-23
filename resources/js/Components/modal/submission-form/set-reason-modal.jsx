@@ -3,6 +3,7 @@ import RichTextEditor from "@/Components/input/rich-text-editor"
 import FormButton from "../../button/button"
 import { showWarningModal } from "../../../others/function"
 import { useState } from "react"
+import { validateForm, required, minLength } from "@/others/validation"
 
 const SetReasonModal = (props) => {
 
@@ -13,7 +14,8 @@ const SetReasonModal = (props) => {
     }
     const handleSubmit = e => {
         e.preventDefault()
-        if(props.data.reason != '') {
+        const reasonError = validateForm({ reason: props.data.reason }, { reason: [required("Reason"), minLength(5, "Reason")] }).reason
+        if (!reasonError) {
             setErr('')
             showWarningModal(
                 props.warning.title,
@@ -24,7 +26,7 @@ const SetReasonModal = (props) => {
                 }
             )
         }else {
-            setErr('Reason is Required.')
+            setErr(reasonError)
         }
     }
     return (

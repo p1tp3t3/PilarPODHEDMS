@@ -16,7 +16,7 @@ import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
 import { showWarningModal, showOutputModal } from "@/others/function"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
-import { List, Clock, CheckCircle2, Ban, Undo2, CalendarX } from "lucide-react"
+import { List, Clock, Ban, Undo2, CalendarX } from "lucide-react"
 import { Head } from "@inertiajs/react"
 import { PageActions } from "@/context-provider/page-title-provider"
 
@@ -41,7 +41,6 @@ const PrefectAbsentForm = (props) => {
     const option = [
         { key: 'all', label: 'All', icon: List },
         { key: 'req-current', label: 'Pending', icon: Clock },
-        { key: 'noted', label: 'Approved', icon: CheckCircle2 },
         { key: 'rejected', label: 'Rejected', icon: Ban },
         { key: 'revoked', label: 'Revoked', icon: Undo2 },
     ]
@@ -123,7 +122,7 @@ const PrefectAbsentForm = (props) => {
                     isEnableOuterClose={true}
                     reload={loadRegister}
                     issue={true}
-                    onIssued={() => router.visit(`${window.location.pathname}?status=noted&school-year=${schoolYear}&semester=${semester}`)}
+                    onIssued={() => router.visit(`${window.location.pathname}?status=all&school-year=${schoolYear}&semester=${semester}`)}
                 />
                 <PageLayout actionsWithFilters
                     title="STUDENT ABSENT FORMS"

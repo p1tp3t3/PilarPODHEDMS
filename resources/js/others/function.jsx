@@ -565,7 +565,9 @@ export const validateField = (type, field) => {
 export const checkUserExist = async (type, value, id = null) => {
   try {
     const response = await axios.get(`/api/register/validate/${type}/${value}/${id}`)
-    return response.data
+    // Only a real `true` means "already taken" — a redirect to the login
+    // page (no access) used to come back as HTML, which is truthy.
+    return response.data === true
   } catch (err) {
     console.error("Error checking user:", err)
     return false

@@ -7,7 +7,18 @@ import { useReload } from "@/context-provider/reload-provider";
 import { ProfileService } from "@/others/services/profile-service";
 import { FormCache, accountSetupCacheKey } from "@/others/classes/form-cache";
 import AuthLayout from "@/Layouts/auth-layout";
-import SetupLayout from "@/Layouts/setup-layout";
+import SetupLayout, { StepHeading } from "@/Layouts/setup-layout";
+import { ADDRESS_DEFAULTS, PROFILE_DEFAULTS } from "@/others/profile-defaults";
+import { UserRound } from "lucide-react";
+
+
+// Short, stable hash of a JSON-able value (djb2).
+const fingerprint = (value) => {
+    const str = JSON.stringify(value ?? null);
+    let h = 5381;
+    for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+    return String(h >>> 0);
+};
 
 const StudentEditProfileForm = (props) => {
     const PROFILE_CACHE_KEY = accountSetupCacheKey("account-setup-profile", props.otherUserProfile.id);
@@ -58,21 +69,21 @@ const StudentEditProfileForm = (props) => {
         date_of_birth: otherProfile.date_of_birth,
         profile_picture: otherProfile.profile_picture,
         civil_status: otherProfile.civil_status,
-        religion: otherProfile.religion,
-        citizenship: otherProfile.citizenship,
+        religion: otherProfile.religion || PROFILE_DEFAULTS.religion,
+        citizenship: otherProfile.citizenship || PROFILE_DEFAULTS.citizenship,
         unique_att: uniqueAttByRole[props.otherUserProfile.role] ?? null,
 
         current_address: otherProfile.current_address,
         current_place: address(currentAddrss, "place"),
-        current_city: address(currentAddrss, "city"),
-        current_province: address(currentAddrss, "province"),
-        current_zipcode: address(currentAddrss, "zipcode"),
+        current_city: address(currentAddrss, "city") || ADDRESS_DEFAULTS.city,
+        current_province: address(currentAddrss, "province") || ADDRESS_DEFAULTS.province,
+        current_zipcode: address(currentAddrss, "zipcode") || ADDRESS_DEFAULTS.zipcode,
 
         permanent_address: otherProfile.permanent_address,
         permanent_place: address(permanentAddrss, "place"),
-        permanent_city: address(permanentAddrss, "city"),
-        permanent_province: address(permanentAddrss, "province"),
-        permanent_zipcode: address(permanentAddrss, "zipcode"),
+        permanent_city: address(permanentAddrss, "city") || ADDRESS_DEFAULTS.city,
+        permanent_province: address(permanentAddrss, "province") || ADDRESS_DEFAULTS.province,
+        permanent_zipcode: address(permanentAddrss, "zipcode") || ADDRESS_DEFAULTS.zipcode,
 
         place_of_birth: otherProfile.place_of_birth,
 
@@ -88,7 +99,21 @@ const StudentEditProfileForm = (props) => {
     }
 
     const isForceSetup = !!props.force_account_setup;
-    const cachedDraft = isForceSetup ? FormCache.load(PROFILE_CACHE_KEY) : null;
+    // A draft only applies to the profile it was typed over. Each draft is
+    // stored with a fingerprint of the server data; if that data changed
+    // since (re-seeded database, an admin edit, a reused user id), the
+    // stale draft is dropped instead of overwriting the fresh values.
+    const DRAFT_BASE_KEY = accountSetupCacheKey("account-setup-profile-base", props.otherUserProfile.id);
+    const draftBase = fingerprint({ profile: otherProfile, education: props.education_background, username: props.otherUserProfile.username });
+    const [cachedDraft] = useState(() => {
+        if (!isForceSetup) return null;
+        const draft = FormCache.load(PROFILE_CACHE_KEY);
+        if (draft && FormCache.load(DRAFT_BASE_KEY)?.v !== draftBase) {
+            FormCache.clear(PROFILE_CACHE_KEY);
+            return null;
+        }
+        return draft;
+    });
 
     // A cached draft restores whatever the user had typed (address, contact
     // number, etc.) — but identity/role fields must always come from the
@@ -99,7 +124,7 @@ const StudentEditProfileForm = (props) => {
         cachedDraft
             ? {
                 ...profileData,
-                ...cachedDraft,
+                ...Object.fromEntries(Object.entries(cachedDraft).filter(([, v]) => v !== "" && v !== null && v !== undefined)),
                 user_id: profileData.user_id,
                 new_user_id: profileData.new_user_id,
                 user_type: profileData.user_type,
@@ -113,7 +138,10 @@ const StudentEditProfileForm = (props) => {
     // page until the password step is also filled in (AccountSetupController).
     useEffect(() => {
         if (!isForceSetup) return;
-        const t = setTimeout(() => FormCache.save(PROFILE_CACHE_KEY, data), 600);
+        const t = setTimeout(() => {
+            FormCache.save(DRAFT_BASE_KEY, { v: draftBase });
+            FormCache.save(PROFILE_CACHE_KEY, data);
+        }, 600);
         return () => clearTimeout(t);
     }, [isForceSetup, data]);
 
@@ -215,9 +243,9 @@ const StudentEditProfileForm = (props) => {
 
     return (
         <>
-            <Head title="Edit Profile" />
-            <div className="py-5">
-                <div className="bg-white py-5 px-10 shadow-md rounded-md">
+            <Head title={isForceSetup ? "Account Setup" : "Edit Profile"} />
+            <div className={isForceSetup ? "" : "py-5"}>
+                <div className={isForceSetup ? "bg-white py-6 px-5 sm:px-8 shadow-sm shadow-black/10 rounded-xl" : "bg-white py-5 px-10 shadow-md rounded-md"}>
                     <EditProfileModal.Body
                         user={props.auth.user}
                         data={data}
@@ -231,6 +259,13 @@ const StudentEditProfileForm = (props) => {
                         openAccessTokenModal={openAccessTokenModal}
                         program={props.program}
                         submitLabel={isForceSetup ? "Continue to Password Setup" : "Save Changes"}
+                        heading={isForceSetup ? (
+                            <StepHeading
+                                icon={UserRound}
+                                title="Complete Your Profile"
+                                desc="Check the details below and fill in anything missing. You can change these later from your profile."
+                            />
+                        ) : undefined}
                     />
                 </div>
             </div>

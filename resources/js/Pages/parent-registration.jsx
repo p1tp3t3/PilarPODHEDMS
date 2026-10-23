@@ -6,6 +6,7 @@ import { showOutputModal, toTitleCase } from "@/others/function";
 import background from '@/images/bg-pilar2.jpg'
 import { FamilyService } from "@/others/services/family-service";
 import { ReloadProvider, useReload } from "@/context-provider/reload-provider";
+import { validateForm, hasErrors, focusFirstError, required, requiredIf, email, phMobile, personName, maxLength, minLength } from "@/others/validation";
 
 const ParentRegistration = (props) => (
     <ReloadProvider>
@@ -30,18 +31,45 @@ const ParentRegistrationInner = (props) => {
     const { loadRegister } = useReload();
     const [validationErr, setValidationError] = useState({});
     const [submitting, setSubmitting] = useState(false);
-    const [existEmail, setExistEmail] = useState(false)
 
     const handleChange = (e) => {
         setData({ ...data, [e.target.name]: e.target.value });
+        // Clear a field's error as soon as it's edited.
+        if (validationErr[e.target.name]) setValidationError((prev) => ({ ...prev, [e.target.name]: undefined, [`${e.target.name}Asterisk`]: false }));
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        const errors = {};
+        const errors = validateForm(data, {
+            first_name: [required("First name"), personName(), maxLength(50, "First name")],
+            middle_name: [personName(), maxLength(50, "Middle name")],
+            last_name: [required("Last name"), personName(), maxLength(50, "Last name")],
+            parent_role: [required("Relationship")],
+            sex: [requiredIf((d) => d.parent_role === "guardian", "Sex")],
+            email: [required("Email"), email()],
+            contact_number: [required("Contact number"), phMobile()],
+            reason: [required("Reason"), minLength(10, "Reason")],
+        });
+
+        // A parent links to at least one child, unless they have a family code.
+        const children = data.children || [];
+        if (children.length === 0 && !data.family_code.trim()) {
+            errors.children = "Add at least one child, or enter your family code.";
+        }
+        children.forEach((child, i) => {
+            Object.assign(errors, Object.fromEntries(Object.entries(validateForm(child, {
+                student_id: [required("Student ID")],
+                first_name: [required("First name"), personName()],
+                middle_name: [personName()],
+                last_name: [required("Last name"), personName()],
+                sex: [required("Sex")],
+                program: [required("Program")],
+            })).map(([k, v]) => [`child_${i}_${k}`, v])));
+        });
 
         setValidationError(errors);
+        if (hasErrors(errors)) focusFirstError(errors);
 
         if (Object.keys(errors).length > 0) return;
         if (submitting) return; // avoid double submit
@@ -96,7 +124,6 @@ const ParentRegistrationInner = (props) => {
                     setData={setData}
                     onchange={handleChange}
                     validationErr={validationErr}
-                    setExistEmail={setExistEmail}
                 />
             </div>
         </>

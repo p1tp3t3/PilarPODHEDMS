@@ -8,6 +8,7 @@ import ProfilePic from "@/Components/other/profile-pic";
 import { useEffect, useState } from "react";
 import { ViolationService } from "@/others/services/violation-service";
 import { change, showWarningModal, getProfilePic, showUserType, showOutputModal } from "../../../others/function";
+import { isBlank } from "@/others/validation";
 
 const IssueViolationModal = (props) => {
   const [subjects, setSubjects] = useState([]);
@@ -79,7 +80,7 @@ const IssueViolationModal = (props) => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    const emptySummary = subjects.some((s) => !s.violation_summary);
+    const emptySummary = subjects.some((s) => isBlank(s.violation_summary));
     if (emptySummary) {
       setValidationError({
         remark: "Summary is required for all entries.",

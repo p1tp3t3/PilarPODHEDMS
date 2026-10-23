@@ -1,6 +1,6 @@
 import { getProfilePic, toTitleCase } from "../../../others/function"
 import SelectedUser from "../../other/selected-user"
-import { Link } from "@inertiajs/react"
+import { Link, usePage } from "@inertiajs/react"
 
 // Shared building blocks for the "view [record]" modals (complaint, referral,
 // absent form, gate pass, ...) — one consistent card/timeline/status-badge
@@ -11,6 +11,16 @@ export const StatusBadge = ({ status, styles }) => (
         {toTitleCase(status) || 'Pending'}
     </span>
 )
+
+// Whether the signed-in user is the one who filed/owns the record.
+export const useIsOwner = (ownerId) => {
+    const viewerId = usePage().props.auth?.user?.id
+    return ownerId != null && viewerId != null && String(ownerId) === String(viewerId)
+}
+
+// "Your Complaint" when the viewer filed it, otherwise "Sarai's Complaint".
+export const useOwnerTitle = (ownerId, name, noun, fallback = "Student") =>
+    useIsOwner(ownerId) ? `Your ${noun}` : `${name || fallback}'s ${noun}`
 
 export const ModalHeader = ({ title, reference, status, styles }) => (
     <div className="rounded-t-md bg-gray-50 border-b px-6 py-5">
@@ -60,18 +70,23 @@ export const StatGrid = ({ children }) => (
 // One or more "person" rows — a single user, a list of users (e.g. multiple
 // referred students), or a graceful empty state when neither is present
 // (a record left with no resolvable subject shouldn't crash the modal).
-export const PersonList = ({ data, data_list = null, emptyLabel = 'No one on record.' }) => {
+// `linkable` = false shows the person without a link to their profile.
+export const PersonList = ({ data, data_list = null, emptyLabel = 'No one on record.', linkable = true }) => {
+    const Wrap = ({ username, children }) => linkable
+        ? <Link href={`/profile/${username}`} className="block">{children}</Link>
+        : <div className="block">{children}</div>
+
     if (data_list != null && data_list.length !== 0) {
         return (
             <div className="grid gap-1">
                 {data_list.map((e, i) => (
-                    <Link key={e.user?.id ?? i} href={`/profile/${e.user.username}`} className="block">
+                    <Wrap key={e.user?.id ?? i} username={e.user.username}>
                         <SelectedUser
                             src={getProfilePic(e.user.profile?.profile_picture, e.user.profile?.sex)}
                             name={[e.user.profile?.first_name, e.user.profile?.last_name]}
                             user={e.user}
                         />
-                    </Link>
+                    </Wrap>
                 ))}
             </div>
         )
@@ -82,13 +97,13 @@ export const PersonList = ({ data, data_list = null, emptyLabel = 'No one on rec
     }
 
     return (
-        <Link href={`/profile/${data.username}`} className="block">
+        <Wrap username={data.username}>
             <SelectedUser
                 src={getProfilePic(data.profile?.profile_picture, data.profile?.sex)}
                 name={[data.profile?.first_name, data.profile?.last_name]}
                 user={data}
             />
-        </Link>
+        </Wrap>
     )
 }
 

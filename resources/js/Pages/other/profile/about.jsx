@@ -323,13 +323,21 @@ const UserGroupSection = ({ title, list }) => {
     )
 }
 
+const SCHOOL = {
+    name: "Pilar College of Zamboanga City Inc",
+    address: "R.T. Lim Boulevard, Cawa Cawa, Zamboanga City",
+}
+
 const EducationBackgroundSection = ({ type, list, student_data, program, usr, validationErr }) => {
     const [data, setData] = useState({
-        sh_school_name: list[0]?.school_name || '',
-        sh_school_address: list[0]?.school_address || '',
+        // Senior high defaults to this school too, but the student can change it.
+        sh_school_name: list[0]?.school_name || SCHOOL.name,
+        sh_school_address: list[0]?.school_address || SCHOOL.address,
         sh_year_graduated: list[0]?.year_graduated || '',
-        college_school_name: list[1]?.school_name || '',
-        college_school_address: list[1]?.school_address || '',
+        // Current college is always this school — fixed, not editable
+        // (the server stores the same values regardless of what's sent).
+        college_school_name: SCHOOL.name,
+        college_school_address: SCHOOL.address,
         college_year_graduated: list[1]?.year_graduated || '',
         college_program: student_data['unique_att']?.['program']?.['id'] || '',
         tr_college_school_name: list[2]?.school_name || '',
@@ -438,6 +446,7 @@ const EducationBackgroundFieldSection = ({ title, user, data, program, setData, 
                     id={`${type}_school_name`}
                     val={sh ? data.sh_school_name : data[`${type}_school_name`]}
                     change={(e) => change(e, setData)}
+                    readOnly={type === 'college'}
                     req={sh || (!transferee)}
                     error={validationErr?.[`${type}_school_name`]}
                     errorAsterisk={validationErr?.[`${type}_school_nameAsterisk`]}
@@ -448,13 +457,14 @@ const EducationBackgroundFieldSection = ({ title, user, data, program, setData, 
                     id={`${type}_school_address`}
                     val={sh ? data.sh_school_address : data[`${type}_school_address`]}
                     change={(e) => change(e, setData)}
+                    readOnly={type === 'college'}
                     req={sh || (!transferee)}
                     error={validationErr?.[`${type}_school_address`]}
                     errorAsterisk={validationErr?.[`${type}_school_addressAsterisk`]}
                 />
                 <div className={`grid grid-cols-1 ${(sh) ? 'md:grid-cols-1' : (transferee) ? 'md:grid-cols-1' : ((!transferee && (user.role == 'super_admin' || user.role == 'sub_admin')) ? 'md:grid-cols-2' : 'md:grid-cols-1')} gap-4`}>
                     <FormTextfield
-                        label={transferee ? 'Date Last Attended' : 'Year Graduated'}
+                        label={transferee ? 'Date Last Attended' : (type === 'college' ? 'Year Graduated (Optional)' : 'Year Graduated')}
                         name={transferee ? 'date_last_attended' : `${type}_year_graduated`}
                         id={transferee ? 'date_last_attended' : `${type}_year_graduated`}
                         val={transferee ? data.date_last_attended : (sh ? data.sh_year_graduated : data[`${type}_year_graduated`])}

@@ -177,3 +177,15 @@ if (!function_exists('decrypt_id')) {
         }
     }
 }
+
+if (!function_exists('can_see_incident_summary')) {
+    /**
+     * The incident summary (shown as "Prefect's Remark") is the prefect's
+     * own write-up — only the prefect (sub_admin) sees it. Everyone else
+     * (the student, parent, staff, even the super admin) gets it hidden.
+     */
+    function can_see_incident_summary(): bool
+    {
+        return auth()->user()?->role === 'sub_admin';
+    }
+}

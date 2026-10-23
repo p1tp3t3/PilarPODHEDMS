@@ -21,6 +21,7 @@ const ScheduleMaintenanceModal = ({ close, closeModal, onScheduled }) => {
 
         const errs = {}
         if (!startsAt) errs.starts_at = "Please pick a date and time."
+        else if (new Date(startsAt) <= new Date()) errs.starts_at = "Pick a time in the future."
         const plainMessage = message.replace(/<[^>]*>/g, "").trim()
         if (!plainMessage) errs.message = "A message is required."
         setErrors(errs)

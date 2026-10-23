@@ -473,11 +473,12 @@ class AbsentFormController extends Controller
     public function getAllAbsentForm()
     {
         $status = request()->has('status') ? request()->status : null;
-        $absence = Absence::with(['user.profile', 'user.program', 'user.enrollments']);
+        // Approved absent forms live in the archive only, not on the
+        // prefect's absent form page (no Approved tab, left out of "All").
+        $absence = Absence::with(['user.profile', 'user.program', 'user.enrollments'])
+            ->whereNull('confirmed_at');
         if ($status === 'all') {
             $absence->latest('created_at');
-        } elseif ($status === 'noted') {
-            $absence->whereNotNull('confirmed_at')->latest('confirmed_at');
         } elseif ($status === 'rejected') {
             $absence->whereNotNull('rejected_at')->latest('rejected_at');
         } elseif ($status === 'revoked') {

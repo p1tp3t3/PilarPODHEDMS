@@ -2,7 +2,7 @@ import { ReferralService } from "@/others/services/referral-service"
 import UpModal from "../up-modal"
 import { useEffect, useState } from "react"
 import { readableDate, readableTime, toTitleCase, formatSchoolYearSemester } from "@/others/function"
-import { ModalHeader, Section, Stat, StatGrid, PersonList, safeParseArray, ByPrefect, ViewModalSkeleton } from "./view-modal-parts"
+import { ModalHeader, Section, Stat, StatGrid, PersonList, safeParseArray, ByPrefect, useOwnerTitle, useIsOwner, ViewModalSkeleton } from "./view-modal-parts"
 import {
     CalendarClock,
     CheckCircle2,
@@ -62,11 +62,15 @@ const ViewReferralModal = (props) => {
 
 const Body = ({ data }) => {
     const referrerName = toTitleCase(data.user?.profile?.first_name)
+    const ownerId = data.user?.id ?? data.teaching_staff_id
+    const title = useOwnerTitle(ownerId, referrerName, "Referral", "Referrer")
+    const isOwner = useIsOwner(ownerId)
+    const showOwner = !isOwner || !!data.prefect
 
     return (
         <div>
             <ModalHeader
-                title={`${referrerName}'s Referral`}
+                title={title}
                 reference={data.referral_number}
                 status={data.referral_status}
                 styles={STATUS_STYLES}
@@ -92,17 +96,17 @@ const Body = ({ data }) => {
                 </Section>}
 
                 {data.referral_status === 'revoked' &&
-                <Section icon={Undo2} title="Revoked by Referrer" tone="border-gray-200">
+                <Section icon={Undo2} title={isOwner ? "Revoked by You" : "Revoked by Referrer"} tone="border-gray-200">
                     <p className="text-sm text-gray-600">
                         The referrer withdrew this referral. It is kept on record and remains visible here, but is no longer active.
                     </p>
                 </Section>}
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                    <Section icon={UserCircle2} title="Referrer">
-                        <PersonList data={data.user} emptyLabel="No referrer on record." />
+                <div className={`grid gap-4 ${showOwner ? 'sm:grid-cols-2' : ''}`}>
+                    {showOwner && <Section icon={UserCircle2} title={isOwner ? "Filed For You" : "Referrer"}>
+                        {!isOwner && <PersonList data={data.user} emptyLabel="No referrer on record." />}
                         <ByPrefect prefect={data.prefect} />
-                    </Section>
+                    </Section>}
                     <Section icon={Users} title="Referred Student">
                         <PersonList
                             data={data.referredStudent}

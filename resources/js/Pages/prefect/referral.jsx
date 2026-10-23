@@ -15,7 +15,7 @@ import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
 import { showOutputModal, showWarningModal } from "@/others/function"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
-import { List, Clock, CheckCircle2, Ban, Undo2, Send } from "lucide-react"
+import { List, Clock, Ban, Undo2, Send } from "lucide-react"
 import { Head } from "@inertiajs/react"
 import { PageActions } from "@/context-provider/page-title-provider"
 
@@ -40,7 +40,6 @@ const PrefectReferral = (props) => {
     const optionTab = [
         { key: 'all', label: 'All Referrals', icon: List },
         { key: 'req', label: 'Pending Referrals', icon: Clock },
-        { key: 'approve', label: 'Approved Referrals', icon: CheckCircle2 },
         { key: 'rejected', label: 'Rejected Referrals', icon: Ban },
         { key: 'revoked', label: 'Revoked Referrals', icon: Undo2 },
     ]

@@ -48,9 +48,10 @@ class ProfileUpdateRequest extends FormRequest
             'data.sh_school_address' => 'required|string',
             'data.sh_year_graduated' => 'required|string',
 
-            'data.college_school_name' => 'required|string',
-            'data.college_school_address' => 'required|string',
-            'data.college_year_graduated' => 'required|string',
+            // Fixed server-side (EducationBackground::CURRENT_SCHOOL_*).
+            'data.college_school_name' => 'nullable|string',
+            'data.college_school_address' => 'nullable|string',
+            'data.college_year_graduated' => 'nullable|string',
             'data.college_program' => 'required|string',
         ];
     }

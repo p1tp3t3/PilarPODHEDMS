@@ -26,8 +26,8 @@ const VerifyEmail = ({ email }) => {
     return (
         <>
             <Head title="Verify Your Email" />
-            <div className="bg-white px-5 md:px-10 py-10 rounded-lg shadow-sm shadow-black/20 grid gap-5 justify-items-center text-center">
-                <div className="w-16 h-16 rounded-full bg-blue-50 text-blue-700 grid place-items-center text-[1.8em]">
+            <div className="bg-white px-5 md:px-10 py-10 rounded-xl shadow-sm shadow-black/10 grid gap-5 justify-items-center text-center">
+                <div className="w-16 h-16 rounded-full bg-[#00379c]/10 text-[#00379c] ring-8 ring-[#00379c]/5 grid place-items-center text-[1.8em]">
                     <MailCheck size="1em" />
                 </div>
                 <div>

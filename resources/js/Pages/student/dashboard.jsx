@@ -56,7 +56,7 @@ const StudentDashboard = (props) => {
             <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-5">
               <Link href="/complaint">
                 <QuantityCard
-                  h="h-[9rem]"
+                  h="h-[6rem]"
                   num={props.complaint}
                   icon={FileText}
                   textColor="text-green-700"
@@ -68,7 +68,7 @@ const StudentDashboard = (props) => {
               </Link>
               <Link href="/gatepass">
                 <QuantityCard
-                  h="h-[9rem]"
+                  h="h-[6rem]"
                   num={props.gatepass}
                   icon={DoorOpen}
                   textColor="text-blue-700"
@@ -80,7 +80,7 @@ const StudentDashboard = (props) => {
               </Link>
               <Link href="/absent-form">
                 <QuantityCard
-                  h="h-[9rem]"
+                  h="h-[6rem]"
                   num={props.absent_form}
                   icon={CalendarX}
                   textColor="text-amber-700"
@@ -96,6 +96,7 @@ const StudentDashboard = (props) => {
             <div className="w-full">
               <AppointmentScheduleList
                 list={props.upcoming_appointment[0].appointment}
+                previous={props.previous_appointment ?? []}
                 showAction={false}
               />
             </div>

@@ -5,7 +5,7 @@ import { change, disablePrevDate, readableDate, readableTime, toTitleCase, forma
 import FormTextfield from "@/Components/input/form-input"
 import FormButton from "@/Components/button/button"
 import CheckBoxButton from "@/Components/input/checkbox"
-import { ModalHeader, Section, Stat, StatGrid, PersonList, ByPrefect, ViewModalSkeleton } from "./view-modal-parts"
+import { ModalHeader, Section, Stat, StatGrid, PersonList, ByPrefect, useOwnerTitle, useIsOwner, ViewModalSkeleton } from "./view-modal-parts"
 import {
     CalendarClock,
     CheckCircle2,
@@ -123,6 +123,9 @@ const ViewGatePassModal = (props) => {
 const Body = ({ data, handleSubmit, approved, setData2, data2, validationErr }) => {
     const info = data[0] == undefined ? data : data[0];
     const status = statusFor(info)
+    const ownerId = info.user?.id ?? info.user_id
+    const title = useOwnerTitle(ownerId, toTitleCase(info.user?.profile?.first_name), "Gate Pass")
+    const isOwner = useIsOwner(ownerId)
     const allowToList = Array.isArray(info.allow_to)
         ? info.allow_to
         : typeof info.allow_to === "string"
@@ -155,7 +158,7 @@ const Body = ({ data, handleSubmit, approved, setData2, data2, validationErr }) 
     return (
         <div>
             <ModalHeader
-                title={`${toTitleCase(info.user?.profile?.first_name) || 'Student'}'s Gate Pass`}
+                title={title}
                 reference={info.gatepass_number}
                 status={status}
                 styles={STATUS_STYLES}
@@ -183,16 +186,16 @@ const Body = ({ data, handleSubmit, approved, setData2, data2, validationErr }) 
                 </Section>}
 
                 {status === 'revoked' &&
-                <Section icon={Undo2} title="Revoked by Requester" tone="border-gray-200">
+                <Section icon={Undo2} title={isOwner ? "Revoked by You" : "Revoked by Requester"} tone="border-gray-200">
                     <p className="text-sm text-gray-600">
                         The requester withdrew this gate pass. It is kept on record and remains visible here, but is no longer active.
                     </p>
                 </Section>}
 
-                <Section icon={UserCircle2} title="User">
-                    <PersonList data={info.user} emptyLabel="No user on record." />
+                {(!isOwner || info.prefect) && <Section icon={UserCircle2} title={isOwner ? "Issued For You" : "User"}>
+                    {!isOwner && <PersonList data={info.user} emptyLabel="No user on record." />}
                     <ByPrefect prefect={info.prefect} label="Issued by the Prefect" />
-                </Section>
+                </Section>}
 
                 <Section icon={MessageSquareText} title="Reason for Requesting Gate Pass">
                     <div className="text-sm h-24 overflow-y-auto rounded-md bg-gray-50 p-3 text-gray-700 leading-relaxed">

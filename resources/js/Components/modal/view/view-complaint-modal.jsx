@@ -1,8 +1,9 @@
 import UpModal from "../up-modal"
 import { useState, useEffect } from "react"
+import { usePage } from "@inertiajs/react"
 import { readableDate, readableTime, toTitleCase, formatSchoolYearSemester } from "../../../others/function"
 import { ComplaintService } from "@/others/services/complaint-service"
-import { ModalHeader, Section, Stat, StatGrid, PersonList, safeParseArray, ByPrefect, ViewModalSkeleton } from "./view-modal-parts"
+import { ModalHeader, Section, Stat, StatGrid, PersonList, safeParseArray, ByPrefect, useOwnerTitle, useIsOwner, ViewModalSkeleton } from "./view-modal-parts"
 import {
     AlertCircle,
     CalendarClock,
@@ -83,14 +84,21 @@ const MATCH_LEVELS = [
 const matchLevelFor = (similarity) => MATCH_LEVELS.find(l => similarity >= l.min)
 
 const Body = ({ data, usr }) => {
+    const isPrefect = usePage().props.auth?.user?.role === 'sub_admin'
     const evidences = safeParseArray(data.complaint_evidences)
     const contextAnalysis = safeParseArray(data.context_analysis)
     const complainantName = toTitleCase(data.user != null ? data.user.profile?.first_name : data.complainant_name)
+    const ownerId = data.complainant_id ?? data.user?.id
+    const title = useOwnerTitle(ownerId, complainantName, "Complaint", "Complainant")
+    // The complainant viewing their own complaint doesn't need themselves
+    // repeated — only a "filed by the prefect" note, if there is one.
+    const isOwner = useIsOwner(ownerId)
+    const showOwner = !isOwner || !!data.prefect
 
     return (
         <div>
             <ModalHeader
-                title={`${complainantName}'s Complaint`}
+                title={title}
                 reference={data.complaint_number}
                 status={data.complaint_status}
                 styles={STATUS_STYLES}
@@ -168,24 +176,26 @@ const Body = ({ data, usr }) => {
                 </Section>}
 
                 {data.complaint_status === 'revoked' &&
-                <Section icon={Undo2} title="Revoked by Complainant" tone="border-gray-200">
+                <Section icon={Undo2} title={isOwner ? "Revoked by You" : "Revoked by Complainant"} tone="border-gray-200">
                     <p className="text-sm text-gray-600">
                         The complainant withdrew this complaint. It is kept on record and remains visible here, but is no longer active.
                     </p>
                 </Section>}
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                    <Section icon={UserCircle2} title="Complainant">
-                        {data.user != null
+                <div className={`grid gap-4 ${showOwner ? 'sm:grid-cols-2' : ''}`}>
+                    {showOwner && <Section icon={UserCircle2} title={isOwner ? "Filed For You" : "Complainant"}>
+                        {!isOwner && (data.user != null
                         ? <PersonList data={data.user} />
-                        : <div className="text-sm text-gray-700">{toTitleCase(data.complainant_name)}</div>}
+                        : <div className="text-sm text-gray-700">{toTitleCase(data.complainant_name)}</div>)}
                         <ByPrefect prefect={data.prefect} />
-                    </Section>
+                    </Section>}
                     <Section icon={Users} title="Subject">
                         <PersonList
                             data={data.subject}
                             data_list={data.complaintSubject != null ? data.complaintSubject : null}
-                            emptyLabel="No subject on record." />
+                            emptyLabel="No subject on record."
+                            // Student data privacy: only the prefect can open a subject's profile.
+                            linkable={isPrefect} />
                     </Section>
                 </div>
 
@@ -205,7 +215,7 @@ const Body = ({ data, usr }) => {
                     )}
                 </Section>
 
-                <Section icon={MessageSquareText} title="Reason by the Complainant">
+                <Section icon={MessageSquareText} title={isOwner ? "Your Reason" : "Reason by the Complainant"}>
                     <div
                         className="text-sm h-32 overflow-y-auto rounded-md bg-gray-50 p-3 text-gray-700 leading-relaxed [&_p]:mb-2 [&_p:last-child]:mb-0"
                         dangerouslySetInnerHTML={{ __html: data.complaint_description }}
@@ -269,7 +279,8 @@ const Body = ({ data, usr }) => {
                         </Section>
                 })()}
 
-                {data.complaint_status === "resolved" &&
+                {/* Subjects' violations: prefect only (student data privacy). */}
+                {isPrefect && data.complaint_status === "resolved" &&
                 data.complaintSubject?.map((sub, i) => {
                     const offenses = (data.complaintSubjectViolation || []).filter(
                         off => off.student_id === sub.student_id

@@ -505,6 +505,28 @@ class AppointmentController extends Controller
             ->get();
     }
 
+    /**
+     * The user's past appointments (most recent first), with an encrypted id
+     * so the dashboard can link to /appointment?view=… for the details.
+     * Cancelled appointments are deleted, so they never show here.
+     */
+    public function getPreviousAppointmentList($id, int $limit = 50)
+    {
+        return Appointment::where('user_id', $id)
+            ->where('date_time_appoint', '<', now())
+            ->orderByDesc('date_time_appoint')
+            ->limit($limit)
+            ->get(['id', 'appointment_number', 'date_time_appoint', 'appointment_status', 'attendance_status'])
+            ->map(fn ($a) => [
+                'encrypted_id' => encrypt_id($a->id),
+                'appointment_number' => $a->appointment_number,
+                'date_time_appoint' => $a->date_time_appoint,
+                'appointment_status' => $a->appointment_status,
+                'attendance_status' => $a->attendance_status,
+            ])
+            ->values();
+    }
+
     public function getAppointment(Request $request)
     {
         $mY = $request->month_year

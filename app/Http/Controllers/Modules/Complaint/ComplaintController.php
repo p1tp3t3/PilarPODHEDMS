@@ -693,16 +693,12 @@ class ComplaintController extends Controller
         $data = Complaint::where('complainant_id', auth()->user()->id);
         $status = isset($_GET['status']) ? $_GET['status'] : null;
 
-        // Rejected/revoked complaints get archived_at set the moment they
-        // reach that status (see cancelComplaint()/revokeComplaint()) — so
-        // these tabs filter by status alone, archived or not.
-        if (isset($_GET['status']) && in_array($_GET['status'], ['rejected', 'revoked'])) {
+        // A complainant always sees every complaint they filed. archived_at
+        // is set (as a retention date) the moment a complaint is resolved,
+        // rejected or revoked, so filtering it out hid all of those — the
+        // tabs filter by status alone, archived or not.
+        if (in_array($status, ['pending', 'ongoing', 'resolved', 'rejected', 'revoked'])) {
             $data = $data->where('complaint_status', $status);
-        } elseif (isset($_GET['status']) && in_array($_GET['status'], ['pending', 'ongoing', 'resolved'])) {
-            $data = $data->where('complaint_status', $status)
-                ->whereNull('archived_at');
-        } else {
-            $data = $data->whereNull('archived_at');
         }
 
         $data = $data->latest('created_at');
@@ -764,8 +760,6 @@ class ComplaintController extends Controller
             'complaintSubject.user.program',
             'complaintSubject.user.teachingStaff.program',
 
-            // SUBJECT OFFENSES + VIOLATION DETAILS
-            'complaintSubjectViolation.violation',
             'violation',
 
             // PREVIOUS VERSION (if this complaint was edited)
@@ -776,6 +770,12 @@ class ComplaintController extends Controller
 
         if (! $complaint) {
             abort(404, 'Complaint not found.');
+        }
+
+        // Student data privacy: the subjects' violations from a resolved
+        // complaint are only ever sent to the prefect.
+        if (auth()->user()->role === 'sub_admin') {
+            $complaint->load('complaintSubjectViolation.violation');
         }
 
         // Reported students' photos follow the same rule as the search

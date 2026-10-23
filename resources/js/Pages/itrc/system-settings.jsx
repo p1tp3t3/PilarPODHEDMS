@@ -9,6 +9,7 @@ import { change, showOutputModal } from "@/others/function";
 import TabSwitcher from "@/Components/other/tab-switcher";
 import { useReload } from "@/context-provider/reload-provider";
 import { Head } from "@inertiajs/react";
+import { validateForm, hasErrors, required, requiredIf, minLength, maxLength, email } from "@/others/validation";
 
 const SystemSettings = (props) => {
     const [activeTab, setActiveTab] = useState("login_portal");
@@ -64,6 +65,13 @@ const LoginPortalPasswordTab = ({ hasPassword, reload }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
+        const found = validateForm(data, {
+            password: [required("Password"), minLength(8, "Password")],
+            password_confirmation: [required("Password confirmation"), (v, d) => (v && v !== d.password ? "Passwords do not match." : null)],
+        });
+        setError(Object.fromEntries(Object.entries(found).filter(([k]) => !k.endsWith("Asterisk")).map(([k, v]) => [k, [v]])));
+        if (hasErrors(found)) return;
+
         reload(true, "text-wait", "Updating login portal password...");
 
         SystemService.updateLoginPortalPassword(
@@ -112,6 +120,7 @@ const LoginPortalPasswordTab = ({ hasPassword, reload }) => {
                         label="Confirm New Password"
                         name="password_confirmation"
                         type="password"
+                        error={error.password_confirmation?.[0]}
                         val={data.password_confirmation}
                         change={(e) => change(e, setData)}
                         enableShowPassword={true}
@@ -131,10 +140,18 @@ const MailConfigTab = ({ mailConfig, reload }) => {
         password: "",
     });
     const [testEmail, setTestEmail] = useState("");
+    const [testError, setTestError] = useState("");
     const [error, setError] = useState({});
 
     const handleSubmit = (e) => {
         e.preventDefault();
+
+        const found = validateForm(data, {
+            username: [requiredIf((d) => !!d.password, "SMTP username"), maxLength(255, "SMTP username")],
+            password: [maxLength(255, "SMTP password")],
+        });
+        setError(Object.fromEntries(Object.entries(found).filter(([k]) => !k.endsWith("Asterisk")).map(([k, v]) => [k, [v]])));
+        if (hasErrors(found)) return;
 
         reload(true, "text-wait", "Saving mail configuration...");
 
@@ -154,7 +171,9 @@ const MailConfigTab = ({ mailConfig, reload }) => {
 
     const handleSendTest = (e) => {
         e.preventDefault();
-        if (!testEmail) return;
+        const found = validateForm({ test_email: testEmail }, { test_email: [required("Email address"), email()] });
+        setTestError(found.test_email ?? "");
+        if (hasErrors(found)) return;
 
         reload(true, "text-wait", "Sending test email...");
 
@@ -213,7 +232,8 @@ const MailConfigTab = ({ mailConfig, reload }) => {
                             label="Send To"
                             name="test_email"
                             val={testEmail}
-                            change={(e) => setTestEmail(e.target.value)}
+                            change={(e) => { setTestEmail(e.target.value); setTestError(""); }}
+                            error={testError}
                         />
                     </div>
                     <FormButton type="submit" label="Send Test Email" />

@@ -19,6 +19,14 @@ class Complaint extends Model
 
     public $timestamps = false;
 
+    // incident_summary ("Prefect's Remark") is only serialized for the prefect.
+    public function getHidden()
+    {
+        $hidden = parent::getHidden();
+
+        return can_see_incident_summary() ? $hidden : [...$hidden, 'incident_summary'];
+    }
+
 
     // Always load who filed it on someone's behalf, so every list/table
     // can show "Filed By (Prefect)" without each query having to ask.

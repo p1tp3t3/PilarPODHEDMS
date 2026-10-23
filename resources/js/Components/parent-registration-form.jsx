@@ -5,7 +5,6 @@ import { Link } from "@inertiajs/react";
 import FormButton from "./button/button";
 import DropdownField from "./input/dropdown";
 import RadioButton from "./input/radio";
-import { checkUserExist } from "@/others/function";
 
 const ParentRegistrationForm = (props) => {
   const handleChildChange = (index, field, value) => {
@@ -56,6 +55,9 @@ const ParentRegistrationForm = (props) => {
         className="w-full flex flex-col bg-white rounded-xl shadow-2xl overflow-hidden"
         onSubmit={props.submit}
         method="post"
+        // The app's own validation (parent-registration.jsx) runs instead of
+        // the browser's, which blocked submit silently on e.g. a bad email.
+        noValidate
       >
         <div className="flex flex-col">
           <div>
@@ -102,7 +104,7 @@ const ParentRegistrationForm = (props) => {
               {/* Children Input List */}
               <div className="grid gap-3 z-10">
                 <div className="flex items-center justify-between">
-                  <h1 className="text-[0.95em] font-bold">Children Details</h1>
+                  <h1 className="text-[0.95em] font-bold">Children Details <span className="text-[#d12323]">*</span></h1>
                   <button
                     type="button"
                     onClick={addChildRow}
@@ -138,6 +140,8 @@ const ParentRegistrationForm = (props) => {
                             id={`student_id_${index}`}
                             val={child.student_id}
                             change={(e) => handleChildChange(index, 'student_id', e.target.value)}
+                            error={props.validationErr[`child_${index}_student_id`]}
+                            errorAsterisk={props.validationErr[`child_${index}_student_idAsterisk`]}
                           />
 
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -147,6 +151,8 @@ const ParentRegistrationForm = (props) => {
                               id={`child_first_name_${index}`}
                               val={child.first_name}
                               change={(e) => handleChildChange(index, 'first_name', e.target.value)}
+                              error={props.validationErr[`child_${index}_first_name`]}
+                              errorAsterisk={props.validationErr[`child_${index}_first_nameAsterisk`]}
                             />
                             <FormTextfield
                               label="Middle Name"
@@ -154,6 +160,7 @@ const ParentRegistrationForm = (props) => {
                               id={`child_middle_name_${index}`}
                               val={child.middle_name}
                               change={(e) => handleChildChange(index, 'middle_name', e.target.value)}
+                              error={props.validationErr[`child_${index}_middle_name`]}
                             />
                             <FormTextfield
                               label="Last Name"
@@ -161,6 +168,8 @@ const ParentRegistrationForm = (props) => {
                               id={`child_last_name_${index}`}
                               val={child.last_name}
                               change={(e) => handleChildChange(index, 'last_name', e.target.value)}
+                              error={props.validationErr[`child_${index}_last_name`]}
+                              errorAsterisk={props.validationErr[`child_${index}_last_nameAsterisk`]}
                             />
                           </div>
                           <div className="flex flex-col sm:flex-row gap-5">
@@ -170,6 +179,7 @@ const ParentRegistrationForm = (props) => {
                               id={`sex_${index}`}
                               change={(e) => handleChildChange(index, "sex", e.target.value)}
                               val={child.sex}
+                              error={props.validationErr[`child_${index}_sex`]}
                               list={[
                                 { value: "m", label: "Male" },
                                 { value: "f", label: "Female" },
@@ -182,6 +192,7 @@ const ParentRegistrationForm = (props) => {
                               id={`program_${index}`}
                               onChange={(e) => handleChildChange(index, 'program', e.target.value)}
                               val={child.program}
+                              error={props.validationErr[`child_${index}_program`]}
                               list={props.programs}
                             />
                           </div>
@@ -190,8 +201,8 @@ const ParentRegistrationForm = (props) => {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-[0.85em] text-gray-500 border border-dashed border-gray-300 rounded-lg p-4 text-center">
-                    No child added yet.
+                  <div className={`text-[0.85em] border border-dashed rounded-lg p-4 text-center ${props.validationErr.children ? "border-[#d12323] text-[#d12323]" : "border-gray-300 text-gray-500"}`}>
+                    {props.validationErr.children ?? "No child added yet."}
                   </div>
                 )}
               </div>
@@ -218,6 +229,7 @@ const ParentRegistrationForm = (props) => {
                       id="sex"
                       change={props.onchange}
                       val={props.data.sex}
+                      error={props.validationErr.sex}
                       list={[
                         { value: "m", label: "Male" },
                         { value: "f", label: "Female" },
@@ -233,8 +245,6 @@ const ParentRegistrationForm = (props) => {
                   id="email"
                   type="email"
                   val={props.data.email}
-                  checkExists={(v) => checkUserExist("email", v)}
-                  setExist={props.setExistEmail}
                   change={props.onchange}
                   error={props.validationErr.email}
                   errorAsterisk={props.validationErr.emailAsterisk}

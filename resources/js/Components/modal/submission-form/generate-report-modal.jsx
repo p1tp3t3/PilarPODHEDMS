@@ -3,6 +3,7 @@ import UpModal from "../up-modal"
 import { change, showOutputModal, getProfilePic, toTitleCase } from "@/others/function"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
 import BetweenTextfield from "@/Components/input/between-input"
+import FieldError from "@/Components/input/field-error"
 import FormTextfield from "@/Components/input/form-input"
 import FormButton from "@/Components/button/button"
 import DropdownField from "@/Components/input/dropdown"
@@ -10,6 +11,7 @@ import CheckBoxButton from "@/Components/input/checkbox"
 import SearchUserBar from "@/Components/input/search-user-bar"
 import SelectedUser from "@/Components/other/selected-user"
 import RadioButton from "@/Components/input/radio"
+import { validateForm, hasErrors, requiredIf, maxLength } from "@/others/validation"
 
 const DEFAULT_DATA = {
     type: 'incident',
@@ -34,6 +36,7 @@ const GenerateReportModal = (props) => {
 
     const [data, setData] = useState(DEFAULT_DATA)
     const [filterBy, setFilterBy] = useState('date') // 'date' | 'school_year'
+    const [errs, setErrs] = useState({})
     const [individual, setIndividual] = useState(false),
           [searchComplainant, setSearchComplainant] = useState(""),
           [searchedComplainant, setSearchedComplainant] = useState(null),
@@ -73,10 +76,21 @@ const GenerateReportModal = (props) => {
     const handleSubmit = (e) => {
         e.preventDefault()
 
-        if (filterBy === 'school_year' && !data.school_year) {
-            showOutputModal('Please select a school year.', 'e')
-            return
+        const found = validateForm(data, {
+            program: [requiredIf((d) => !d.individual, "Program")],
+            school_year: [requiredIf(() => filterBy === 'school_year', "School year")],
+            report_name: [maxLength(100, "Filter name")],
+        })
+        if (data.individual && !searchedComplainant) found.student = "Select a student, or untick Individual Student Report."
+        if (filterBy === 'date') {
+            // Dates may both be left empty (all time), but not just one, and the
+            // range can't run backwards.
+            if (data.date_from && !data.date_to) { found.date_range = "Choose an end date too."; }
+            else if (!data.date_from && data.date_to) { found.date_range = "Choose a start date too."; }
+            else if (data.date_from && data.date_to && new Date(data.date_to) < new Date(data.date_from)) { found.date_range = "The end date can't be before the start date."; }
         }
+        setErrs(found)
+        if (hasErrors(found)) return
 
         setReload(true)
 
@@ -148,6 +162,7 @@ const GenerateReportModal = (props) => {
                                 <FormTextfield
                                     label="Filter Name (Optional)"
                                     name="report_name"
+                                    error={errs.report_name}
                                     id="report_name"
                                     val={data.report_name}
                                     change={handleChange}
@@ -210,6 +225,7 @@ const GenerateReportModal = (props) => {
                                             unselect={setSearchedComplainant}
                                         />
                                     </div>}
+                                    <FieldError msg={errs.student} />
                                 </div>}
                             </div>
                             {hasSubType &&
@@ -232,6 +248,7 @@ const GenerateReportModal = (props) => {
                                     ]}
                                     onChange={handleChange}
                                     name="program"
+                                    error={errs.program}
                                     val={data.program}
                                 />
                             </div>}
@@ -266,6 +283,7 @@ const GenerateReportModal = (props) => {
                                     data={[data.date_from, data.date_to]}
                                     setData={setData}
                                 />
+                                <FieldError msg={errs.date_range} />
                             </div>}
                             {filterBy === 'school_year' &&
                             <div className="w-full">
@@ -274,6 +292,7 @@ const GenerateReportModal = (props) => {
                                     list={(props.schoolYears || []).map((y) => ({ val: y, label: y }))}
                                     onChange={handleChange}
                                     name="school_year"
+                                    error={errs.school_year}
                                     val={data.school_year}
                                 />
                             </div>}

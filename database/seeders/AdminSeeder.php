@@ -52,7 +52,7 @@ class AdminSeeder extends Seeder
             'created_at' => now(),
         ]);
         User::find($userId)->assignRole($role);
-        $address = fake()->address();
+        $address = \Database\Factories\ProfileFactory::zamboangaAddress();
 
         DB::table('profiles')->insert([
             'user_id' => $userId,
@@ -60,6 +60,8 @@ class AdminSeeder extends Seeder
             'last_name' => $lastName,
             'current_address' => $address,
             'permanent_address' => $address,
+            'religion' => 'Catholic',
+            'citizenship' => 'Filipino',
         ]);
     }
 }

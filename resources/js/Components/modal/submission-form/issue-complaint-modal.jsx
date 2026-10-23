@@ -13,6 +13,7 @@ import { clearField, showOutputModal, getProfilePic, showWarningModal, toTitleCa
 import PicVidUpload from "@/Components/input/pic-vid-upload"
 import ProfilePic from "@/Components/other/profile-pic"
 import { X } from "lucide-react"
+import { isBlank } from "@/others/validation"
 
 const IssueComplaintModal = (props) => {
     const [search, setSearch] = useState(""),
@@ -217,7 +218,7 @@ const IssueComplaintModal = (props) => {
                 ...errorMessage,
                 incident: ""
             }
-        }if(field.complaint_description == '') {
+        }if(isBlank(field.complaint_description)) {
             errorMessage = {
                 ...errorMessage,
                 reason: "This Is Required. Please State Your Reason To Complaint"

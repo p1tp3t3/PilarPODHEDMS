@@ -6,6 +6,7 @@ import FormButton from "@/Components/button/button"
 import { AbsentFormService } from "@/others/services/absent-form-service"
 import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
+import { validateForm, hasErrors, maxLength } from "@/others/validation"
 
 const NoteAbsentFormModal = (props) => {
     const MySwal = withReactContent(Swal)
@@ -13,8 +14,13 @@ const NoteAbsentFormModal = (props) => {
         note: ''
     })
 
+    const [noteError, setNoteError] = useState("")
+
     const handleSubmit = (e) => {
         e.preventDefault()
+        const found = validateForm(data, { note: [maxLength(1000, "Remarks")] })
+        setNoteError(found.note ?? "")
+        if (hasErrors(found)) return
         showWarningModal(
             'Are You Sure You Want To Approve This Absent Form?',
             'Approve Absent Form',
@@ -61,8 +67,9 @@ const NoteAbsentFormModal = (props) => {
                 <form onSubmit={handleSubmit} className="grid gap-3">
                     <div>
                         <RichTextEditor
-                            label='Set Remarks'
-                            change={(html) => setData((prev) => ({ ...prev, note: html }))}
+                            label='Set Remarks (Optional)'
+                            change={(html) => { setData((prev) => ({ ...prev, note: html })); setNoteError("") }}
+                            error={noteError}
                             val={data.note}
                             minHeight="8rem"
                         />

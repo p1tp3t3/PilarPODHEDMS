@@ -14,6 +14,11 @@ class EducationBackground extends Model
 
     public $timestamps = false;
 
+    // A student's current (non-transferee) college is always this school —
+    // fixed, never taken from user input.
+    public const CURRENT_SCHOOL_NAME = 'Pilar College of Zamboanga City Inc';
+    public const CURRENT_SCHOOL_ADDRESS = 'R.T. Lim Boulevard, Cawa Cawa, Zamboanga City';
+
     protected $fillable = ['student_id', 'education_type', 'school_name', 'school_address', 'year_graduated', 'transferee', 'program', 'date_attended', 'year_level'];
 
     public function user(): BelongsTo

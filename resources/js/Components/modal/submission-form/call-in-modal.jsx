@@ -4,10 +4,12 @@ import FormButton from "../../button/button"
 import RichTextEditor from "@/Components/input/rich-text-editor"
 import { change, clearField, showOutputModal, getProfilePic } from "../../../others/function"
 import SearchUserBar from "@/Components/input/search-user-bar"
+import FieldError from "@/Components/input/field-error"
 import AuthContext from "@/context-provider/auth-provider"
 import SelectedUser from "../../other/selected-user"
 import { AppointmentService } from "@/others/services/appointment-service"
 import { Phone, TriangleAlert } from "lucide-react"
+import { validateForm, hasErrors, required, minLength } from "@/others/validation"
 
 const CallInModal = (props) => {
     const { showToast } = useContext(AuthContext)
@@ -31,9 +33,14 @@ const CallInModal = (props) => {
         change(e, setData)
     }
 
+    const [errs, setErrs] = useState({})
+
     const handleSubmit = (e) => {
         e.preventDefault()
-        const f = (e)=>{}
+        const found = validateForm(data, { call_in_reason: [required("Message"), minLength(5, "Message")] })
+        if (!searchedStudent) found.student = "Select the student to call in."
+        setErrs(found)
+        if (hasErrors(found)) return
         if(!submit) {
             setSubmit(true)
             AppointmentService.callIn(data, success, error)
@@ -99,6 +106,7 @@ const CallInModal = (props) => {
                                 apiLink="/api/all-users/student"
                             />
                         </div>
+                        <FieldError msg={errs.student} />
                         {searchedStudent && (
                             <div className="">
                                 <h3 className="text-sm font-semibold">Selected Student</h3>
@@ -114,7 +122,8 @@ const CallInModal = (props) => {
                             <RichTextEditor
                                 label="Enter Your Message"
                                 val={data.call_in_reason}
-                                change={(html) => setData((prev) => ({ ...prev, call_in_reason: html }))}
+                                change={(html) => { setData((prev) => ({ ...prev, call_in_reason: html })); setErrs((p) => ({ ...p, call_in_reason: undefined })) }}
+                                error={errs.call_in_reason}
                                 minHeight="8rem"
                             />
                         </div>

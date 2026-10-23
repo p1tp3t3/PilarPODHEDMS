@@ -29,9 +29,20 @@ const ManagePositionsModal = ({ close, closeModal, positions, setPositions }) =>
     const [editingId, setEditingId] = useState(null)
     const [editingName, setEditingName] = useState("")
 
+    // A position name: required, up to 50 characters, not already used.
+    const nameError = (name, exceptId = null) => {
+        const n = name.trim()
+        if (!n) return "Position name is required."
+        if (n.length > 50) return "Position name must be at most 50 characters."
+        if (positions.some((p) => p.id !== exceptId && String(p.name).trim().toLowerCase() === n.toLowerCase())) return "That position already exists."
+        return ""
+    }
+
     const handleCreate = (e) => {
         e.preventDefault()
-        if (!newName.trim()) return
+        const msg = nameError(newName)
+        setError(msg)
+        if (msg) return
 
         PositionService.create(
             { name: newName.trim() },
@@ -57,7 +68,9 @@ const ManagePositionsModal = ({ close, closeModal, positions, setPositions }) =>
     }
 
     const saveEdit = (row) => {
-        if (!editingName.trim()) return
+        const msg = nameError(editingName, row.id)
+        setError(msg)
+        if (msg) return
 
         PositionService.update(
             { id: row.id, name: editingName.trim() },

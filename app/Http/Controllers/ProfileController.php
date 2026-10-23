@@ -87,13 +87,12 @@ class ProfileController extends Controller
             ], $parentStudent->getParentAndStudent());
         }
 
-        // Incidents/violations are restricted to the prefect, the student's
-        // program head, and the student's parent — matching the tab's own
-        // gating in profile.jsx. Not computed for anyone else (not just
-        // hidden in the UI), so the data never ships in the page payload
-        // for a viewer who shouldn't see it in the first place.
-        $canViewIncidents = in_array(auth()->user()->role, ['sub_admin', 'parent'])
-            || (auth()->user()->role === 'teaching_staff' && ViolationController::canViewStudent($account->id));
+        // Incidents/violations follow ViolationController::canViewStudent():
+        // the prefect, the student's program head, the student themselves
+        // and the student's own parent. Not computed for anyone else (not
+        // just hidden in the UI), so the data never ships in the page
+        // payload for a viewer who shouldn't see it in the first place.
+        $canViewIncidents = ViolationController::canViewStudent($account->id);
 
         if ($account->role == 'student' && $canViewIncidents) {
             $props = array_merge($props, [
@@ -137,29 +136,40 @@ class ProfileController extends Controller
      */
     public function getStudentIncidentGroups($id)
     {
-        $subjects = ComplaintSubject::with(['complaint.violation', 'offenses'])
+        $subjects = ComplaintSubject::with(['complaint.violation', 'offenses.violation'])
             ->where('student_id', $id)
             ->whereHas('complaint', fn ($q) => $q->where('complaint_status', 'resolved'))
             ->get();
 
-        return $subjects->groupBy(fn ($cs) => $cs->complaint->incident_id)
+        // Grouped by incident type; a complaint with no incident type gets
+        // its own group, titled by its reference number.
+        return $subjects->groupBy(fn ($cs) => $cs->complaint->incident_id ?? 'complaint-'.$cs->complaint_id)
             ->map(function ($group) {
                 $first = $group->first();
+                $hasIncident = $first->complaint->incident_id && $first->complaint->violation;
 
                 return [
-                    'violation_id' => $first->complaint->incident_id,
-                    'violation_name' => $first->complaint->violation->violation_name ?? 'Unknown',
+                    'violation_id' => $first->complaint->incident_id ?? 'complaint-'.$first->complaint_id,
+                    'violation_name' => $hasIncident
+                        ? $first->complaint->violation->violation_name
+                        : 'Reference No. '.$first->complaint->complaint_number,
                     'incidents' => $group->map(fn ($cs) => [
                         // complaint_subject/complaint_subject_violation are
                         // composite-key junction tables with no id column;
                         // complaint_id is unique per student within a group.
                         'complaint_subject_id' => $cs->complaint_id,
                         'case_number' => $cs->complaint->case_number,
+                        'reference_number' => $cs->complaint->complaint_number,
                         'created_at' => $cs->complaint->created_at,
                         'incident' => $cs->complaint->violation->violation_name ?? null,
                         'resolved_since' => $cs->complaint->resolved_at,
-                        'summary' => $cs->complaint->incident_summary ?? $cs->incident_summary,
-                        'offenses' => $cs->offenses->map(fn ($o) => ['id' => $o->violation_id])->values(),
+                        'summary' => can_see_incident_summary() ? ($cs->complaint->incident_summary ?? $cs->incident_summary) : null,
+                        // offenses() joins on complaint_id only, so keep just this
+                        // student's rows (a complaint can name several students).
+                        'offenses' => $cs->offenses
+                            ->where('student_id', $cs->student_id)
+                            ->map(fn ($o) => ['id' => $o->violation_id, 'name' => $o->violation?->violation_name])
+                            ->values(),
                     ])->values(),
                 ];
             })
@@ -513,8 +523,8 @@ class ProfileController extends Controller
             ->where('student_id', $educationBackground['student_id'])
             ->where('transferee', 0)
             ->update([
-                'school_name' => self::isKeyUndefined($educationBackground, 'college_school_name'),
-                'school_address' => self::isKeyUndefined($educationBackground, 'college_school_address'),
+                'school_name' => EducationBackground::CURRENT_SCHOOL_NAME,
+                'school_address' => EducationBackground::CURRENT_SCHOOL_ADDRESS,
                 'year_graduated' => self::isKeyUndefined($educationBackground, 'college_year_graduated'),
                 'program' => $program,
             ]);

@@ -5,11 +5,13 @@ import FormButton from "../../button/button"
 import { useState, useEffect } from "react"
 import { change, getProfilePic, showUserType, showOutputModal, showWarningModal, toTitleCase } from "../../../others/function"
 import SearchUserBar from "@/Components/input/search-user-bar"
+import FieldError from "@/Components/input/field-error"
 import ProfilePic from "../../other/profile-pic"
 import { AppointmentService } from "@/others/services/appointment-service"
 import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
 import { X } from "lucide-react"
+import { validateForm, hasErrors, required, minLength, dateNotBefore } from "@/others/validation"
 
 
 const AppointmentModal = (props) => {
@@ -26,6 +28,7 @@ const AppointmentModal = (props) => {
                       String(today.getMonth() + 1).padStart(2, "0") + "-" +
                       String(today.getDate()).padStart(2, "0")
 
+    const [errs, setErrs] = useState({})
     const [appoint, setAppointment] = useState({
         user_id: locked?.id ?? props.id,
         type: (isResched) ? 'reschedule' : 'schedule',
@@ -90,14 +93,22 @@ const AppointmentModal = (props) => {
     }
     const handleSubmit = (e) => {
         e.preventDefault()
-        if (appoint.date_appoint < todayStr) {
-            showOutputModal("You Can't Schedule an Appointment for a Past Date.", 'e', () => {})
-            return
-        }
-        if (appoint.time_start && (appoint.time_start < "07:00" || appoint.time_start > "16:30")) {
-            showOutputModal("Appointments Can Only Be Scheduled Between 7:00 AM and 4:30 PM.", 'e', () => {})
-            return
-        }
+        // Everything is checked at once and shown under its own field.
+        const needsTime = !isCancel && props.user_type == 'sub_admin'
+        const found = validateForm(appoint, {
+            date_appoint: isCancel ? [] : [
+                required("Date"),
+                dateNotBefore(todayStr, "You can't schedule an appointment for a past date."),
+            ],
+            time_start: needsTime ? [
+                required("Time"),
+                (v) => (v && (v < "07:00" || v > "16:30") ? "Appointments can only be between 7:00 AM and 4:30 PM." : null),
+            ] : [],
+            reason: [required("Reason"), minLength(5, "Reason")],
+        })
+        if (!isCancel && !isResched && !locked && !searchedStudentParent) found.person = "Select a student or parent."
+        setErrs(found)
+        if (hasErrors(found)) return
         let label = (isResched) ? 'Are You Sure You Want To Re-Schedule ' + searchedStudentParent[0].profile?.first_name + "'s Appointment?"
                                 : 'Are You Sure You Want To Schedule An Appointment For ' + searchedStudentParent[0].profile?.first_name + "?",
             btn = (isResched) ? 'Re-Sched Appointment' : 'Schedule Appointment',
@@ -215,6 +226,7 @@ const AppointmentModal = (props) => {
                                 unselect={null}
                             />}
                         </div>}
+                        <FieldError msg={errs.person} />
                         <div className="grid gap-5">
                             {((!isCancel)
                             ?
@@ -224,6 +236,8 @@ const AppointmentModal = (props) => {
                                 <FormTextfield
                                     label={`Date to ${isResched ? 'Re-Schedule' : 'Appoint'}`}
                                     name="date_appoint"
+                                    error={errs.date_appoint}
+                                    errorAsterisk={errs.date_appointAsterisk}
                                     type="date"
                                     val={appoint.date_appoint}
                                     change={handleChange}
@@ -236,6 +250,8 @@ const AppointmentModal = (props) => {
                                 <FormTextfield
                                     label={`Time to ${isResched ? 'Re-Schedule' : 'Appoint'}`}
                                     name="time_start"
+                                    error={errs.time_start}
+                                    errorAsterisk={errs.time_startAsterisk}
                                     type="time"
                                     val={appoint.time_start}
                                     change={handleChange}
@@ -251,7 +267,8 @@ const AppointmentModal = (props) => {
                                 <RichTextEditor
                                     label={`Reason to ${((isResched) ? 'Re-Schedule' : (isCancel) ? 'Cancel' : 'Appoint')}`}
                                     val={appoint.reason}
-                                    change={(html) => setAppointment((prev) => ({ ...prev, reason: html }))}
+                                    change={(html) => { setAppointment((prev) => ({ ...prev, reason: html })); setErrs((p) => ({ ...p, reason: undefined })) }}
+                                    error={errs.reason}
                                     req={true}
                                     minHeight="10rem"
                                 />

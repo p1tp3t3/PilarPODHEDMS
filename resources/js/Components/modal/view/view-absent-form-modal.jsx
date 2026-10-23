@@ -2,7 +2,7 @@ import UpModal from "../up-modal"
 import { useState, useEffect } from "react"
 import { readableDate, readableTime, formatSchoolYearSemester } from "../../../others/function"
 import { AbsentFormService } from "@/others/services/absent-form-service"
-import { ModalHeader, Section, Stat, StatGrid, PersonList, safeParseArray, ByPrefect, ViewModalSkeleton } from "./view-modal-parts"
+import { ModalHeader, Section, Stat, StatGrid, PersonList, safeParseArray, ByPrefect, useOwnerTitle, useIsOwner, ViewModalSkeleton } from "./view-modal-parts"
 import {
     CalendarClock,
     CheckCircle2,
@@ -73,11 +73,15 @@ const Body = ({ data }) => {
     const status = statusFor(data)
     const reasons = safeParseArray(data.reason)
     const evidences = safeParseArray(data.evidences)
+    const ownerId = data.user?.id ?? data.student_id
+    const title = useOwnerTitle(ownerId, data.user?.profile?.first_name, "Absent Form")
+    const isOwner = useIsOwner(ownerId)
+    const showOwner = !isOwner || !!data.prefect
 
     return (
         <div>
             <ModalHeader
-                title={`${data.user?.profile?.first_name ?? 'Student'}'s Absent Form`}
+                title={title}
                 reference={data.form_number}
                 status={status}
                 styles={STATUS_STYLES}
@@ -103,17 +107,17 @@ const Body = ({ data }) => {
                 </Section>}
 
                 {status === 'revoked' &&
-                <Section icon={Undo2} title="Revoked by Student" tone="border-gray-200">
+                <Section icon={Undo2} title={isOwner ? "Revoked by You" : "Revoked by Student"} tone="border-gray-200">
                     <p className="text-sm text-gray-600">
                         The student withdrew this absent form. It is kept on record and remains visible here, but is no longer active.
                     </p>
                 </Section>}
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                    <Section icon={UserCircle2} title="Student">
-                        <PersonList data={data.user} emptyLabel="No student on record." />
+                <div className={`grid gap-4 ${showOwner ? 'sm:grid-cols-2' : ''}`}>
+                    {showOwner && <Section icon={UserCircle2} title={isOwner ? "Issued For You" : "Student"}>
+                        {!isOwner && <PersonList data={data.user} emptyLabel="No student on record." />}
                         <ByPrefect prefect={data.prefect} label="Issued by the Prefect" />
-                    </Section>
+                    </Section>}
                     <Section icon={CalendarRange} title="Date of Absence">
                         <p className="text-sm text-gray-700">
                             {readableDate(data.date_from)} to {readableDate(data.date_to)}

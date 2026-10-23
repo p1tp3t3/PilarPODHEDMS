@@ -27,6 +27,13 @@ class ProfileAuthorization
 
         $targetRole = $targetUser->role;
 
+        // Student data privacy: a student's profile is only for the student,
+        // the prefect / IT admin, their own parent, and teaching staff of the
+        // student's own program. Everyone else is sent home.
+        if ($targetRole === 'student' && ! self::canViewStudentProfile($targetUser)) {
+            return Inertia::location('/');
+        }
+
         // Check if current user is allowed to access the target user role
         if (!self::checkRole($authRole, $targetRole)) {
             if (self::restrictProfileAccess($targetUser->username)) {
@@ -52,6 +59,30 @@ class ProfileAuthorization
         ];
 
         return isset($allowedRoles[$authRole]) && in_array($targetRole, $allowedRoles[$authRole]);
+    }
+
+    protected function canViewStudentProfile(User $student): bool
+    {
+        $viewer = auth()->user();
+
+        if ($viewer->id === $student->id || in_array($viewer->role, ['sub_admin', 'super_admin'])) {
+            return true;
+        }
+
+        if ($viewer->role === 'parent') {
+            $familyIds = \App\Models\FamilyMember::where('member_id', $viewer->id)->pluck('family_id');
+
+            return $familyIds->isNotEmpty()
+                && \App\Models\FamilyMember::whereIn('family_id', $familyIds)->where('member_id', $student->id)->exists();
+        }
+
+        if ($viewer->role === 'teaching_staff') {
+            $programId = \App\Models\Enrollment::where('student_id', $student->id)->latest('id')->value('program_id');
+
+            return $programId && \App\Models\TeachingStaff::programIdsFor($viewer->id)->contains($programId);
+        }
+
+        return false;
     }
 
     protected function restrictProfileAccess($target): bool

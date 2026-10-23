@@ -325,7 +325,7 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::post('/appointment/action', [AppointmentController::class, 'action']);
      Route::post('/calendar/appointment/get/list', [AppointmentController::class, 'getAppointment']);
      Route::get('/calendar/appointment/events', [AppointmentController::class, 'calendarEvents']);
-     Route::get('/appointment/{id}', [AppointmentController::class, 'show'])->whereNumber('id');
+     Route::get('/appointment/{id}', [AppointmentController::class, 'show'])->where('id', 'eyJ[A-Za-z0-9_=-]+');
 
      Route::get('/complaint', [ComplaintController::class, 'index']);
      Route::post('/complaint/create', [ComplaintController::class, 'store']);

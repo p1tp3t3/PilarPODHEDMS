@@ -22,7 +22,8 @@ const FormTextfield = ({
     setExist,
     errorAsterisk = false,
     min = null,
-    max = null
+    max = null,
+    readOnly = false
 }) => {
     const [focus, setFocus] = useState(false)
     const [localError, setLocalError] = useState(null)
@@ -101,7 +102,7 @@ const FormTextfield = ({
 
     return (
         <div className='w-full flex flex-col'>
-            <div className={`w-[100%] ${(type != 'textarea') ? 'h-[2.6rem]' : 'h-[10rem]'} frm-inpt-brdr border-b-[1px] ${color.border} ${color.bg} relative`}>
+            <div className={`w-[100%] ${(type != 'textarea') ? 'h-[2.6rem]' : 'h-[10rem]'} frm-inpt-brdr border-b-[1px] ${readOnly ? 'border-gray-300 bg-gray-100 cursor-not-allowed' : `${color.border} ${color.bg}`} relative`}>
                 <div className="flex items-center gap-2 pr-3 pl-3">
                     {Icon &&
                     <div className='text-[13px]'>
@@ -113,7 +114,9 @@ const FormTextfield = ({
                         <input
                             value={val}
                             placeholder=''
-                            className='text-[12px] h-full'
+                            className={`text-[12px] h-full ${readOnly ? 'text-gray-600 cursor-not-allowed' : ''}`}
+                            readOnly={readOnly}
+                            tabIndex={readOnly ? -1 : undefined}
                             type={(type === 'password' && showPassword) ? 'text' : type}
                             name={name}
                             id={id}
@@ -155,11 +158,11 @@ const FormTextfield = ({
                         )}
                     </div>
                 </div>
-                <motion.div
+                {!readOnly && <motion.div
                     className="justify-self-center h-[1px] self-end bg-blue-500 absolute"
                     animate={{ width: isStretched ? '100%' : '0%' }}
                     transition={{ duration: 0.3 }}
-                ></motion.div>
+                ></motion.div>}
             </div>
             <div className="text-[#d12323] text-[13px] flex items-center gap-2">
                 <div className="transition-[0.2s] font-[600]">

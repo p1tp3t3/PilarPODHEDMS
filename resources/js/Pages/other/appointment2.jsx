@@ -5,10 +5,12 @@ import { useReload } from "@/context-provider/reload-provider"
 import { AppointmentService } from "@/others/services/appointment-service"
 import { showOutputModal, showWarningModal, readableDate, readableTime } from "@/others/function"
 import { useState, useEffect } from "react"
-import { Head } from "@inertiajs/react"
+import { Head, usePage } from "@inertiajs/react"
 import { Paper, Chip, Button } from "@mui/material"
 
-const OtherAppointment = ({ user, appointment_history = [], call_in_history = [] }) => {
+const OtherAppointment = ({ appointment_history = [], call_in_history = [], ...props }) => {
+    // The controller doesn't pass `user` — fall back to the signed-in user.
+    const user = props.user ?? usePage().props.auth.user
     const [reasonModalOpen, setReasonModalOpen] = useState(false)
     const [activeNotifId, setActiveNotifId] = useState(null)
     const [reasonData, setReasonData] = useState({ user_id: user.id, reason: "" })

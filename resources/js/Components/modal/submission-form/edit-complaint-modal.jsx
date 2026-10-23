@@ -11,6 +11,7 @@ import { showOutputModal, showWarningModal, getProfilePic, toTitleCase, isSamePe
 import PicVidUpload from "@/Components/input/pic-vid-upload"
 import ProfilePic from "@/Components/other/profile-pic"
 import { X } from "lucide-react"
+import { isBlank } from "@/others/validation"
 
 const safeParseArray = (value) => {
     if (Array.isArray(value)) return value
@@ -84,7 +85,7 @@ const EditComplaintModal = (props) => {
     const validateForm = () => {
         const errors = { subject: '', reason: '' }
         if (selectedStudents.length === 0) errors.subject = "This Is Required. Please Specify The Subject Of Complaint"
-        if (description.trim() === '') errors.reason = "This Is Required. Please State Your Reason To Complaint"
+        if (isBlank(description)) errors.reason = "This Is Required. Please State Your Reason To Complaint"
 
         setValidationError(errors)
         return errors.subject === '' && errors.reason === ''

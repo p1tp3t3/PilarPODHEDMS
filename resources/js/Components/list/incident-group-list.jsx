@@ -156,19 +156,28 @@ const Row = memo(({ data, isOpen, onToggle }) => {
                   </div>
 
                   <div style={{ marginTop: 6 }}>
-                    <div style={{ fontSize: 13, opacity: 0.8 }}>
-                        Incident Reported:{" "}
-                        <b>{incident?.incident ?? "—"}</b>
-                    </div>
+                    {incident?.reference_number && (
+                      <div style={{ fontSize: 13, opacity: 0.8 }}>
+                          Reference No.: <b>{incident.reference_number}</b>
+                      </div>
+                    )}
+                    {incident?.incident && (
+                      <div style={{ fontSize: 13, opacity: 0.8 }}>
+                          Incident Reported: <b>{incident.incident}</b>
+                      </div>
+                    )}
 
                     <div style={{ fontSize: 13, opacity: 0.8 }}>
                         Resolved Since: {readableDate(incident?.resolved_since)} ({readableTime(incident?.resolved_since)})
                     </div>
                   </div>
 
-                  <div style={{ fontSize: 13, opacity: 0.8 }}>
-                    Prefect's Remark: {toTitleCase(incident?.summary ?? "—")}
-                  </div>
+                  {/* Only sent to the prefect. */}
+                  {incident?.summary && (
+                    <div style={{ fontSize: 13, opacity: 0.8 }}>
+                      Prefect's Remark: {toTitleCase(incident.summary)}
+                    </div>
+                  )}
 
                   {/* Offenses (same JSON key: offenses) */}
                   {Array.isArray(incident.offenses) &&
@@ -182,7 +191,7 @@ const Row = memo(({ data, isOpen, onToggle }) => {
                             marginBottom: 6,
                           }}
                         >
-                          Offenses
+                          Violations
                         </div>
 
                         <div
@@ -203,7 +212,7 @@ const Row = memo(({ data, isOpen, onToggle }) => {
                                 background: "#fff",
                               }}
                             >
-                              Offense #{offense.id}
+                              {offense.name ? toTitleCase(offense.name) : "Unknown Violation"}
                             </span>
                           ))}
                         </div>

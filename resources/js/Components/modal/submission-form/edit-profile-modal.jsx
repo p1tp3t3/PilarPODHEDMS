@@ -183,6 +183,7 @@ const Body = (props) => {
         method="post"
         className="w-full grid gap-6 sm:gap-8"
       >
+        {props.heading ?? (
         <h1 className="text-[1.2em] sm:text-[1.3em] text-center font-bold">
           Edit{" "}
           {props.user.id == props.data.user_id
@@ -190,6 +191,7 @@ const Body = (props) => {
             : `${toTitleCase(props.data.first_name)}'s`}{" "}
           Profile Information
         </h1>
+        )}
 
         {/* Profile Pic */}
         <div className="grid place-items-center gap-3">
