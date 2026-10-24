@@ -1,3 +1,4 @@
+import SchoolYearSemesterFilter from "@/Components/input/school-year-semester-filter"
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import { useEffect, useState } from "react"
@@ -60,7 +61,10 @@ const Complaint = (props) => {
     }, [])
     const handleSelect = (type) => {
         const url = window.location.pathname
-        router.visit(`${url}?status=${type}`)
+        // Keep the school year / semester filters when switching tabs.
+        const q = new URLSearchParams(window.location.search)
+        q.set("status", type)
+        router.visit(`${url}?${q.toString()}`)
         setChoose(type)
       }
 
@@ -131,7 +135,7 @@ const Complaint = (props) => {
             incident_list={props.incident_list}
         />
         : ''}
-        <PageLayout
+        <PageLayout actionsWithFilters
             title="COMPLAINT"
             rightSideComponent={props.user.allow_complaint &&
                 <div className="flex gap-3">
@@ -140,6 +144,7 @@ const Complaint = (props) => {
                     </Btn>
                 </div>}
         >
+                <SchoolYearSemesterFilter schoolYears={props.school_years} />
                 <div>
                     <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
                 </div>

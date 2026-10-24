@@ -70,6 +70,19 @@ $windowsIconList = [
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
 
+        <!-- Dark mode: applied before first paint, signed-in users only (see
+             theme-mode-provider.jsx) — guest pages like the login are always light. -->
+        @auth
+        <script>
+            try {
+                if (localStorage.getItem('theme') === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.style.colorScheme = 'dark';
+                }
+            } catch (e) {}
+        </script>
+        @endauth
+
         <!-- Scripts -->
         @routes
         @viteReactRefresh

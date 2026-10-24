@@ -5,7 +5,7 @@ import { CalendarDays } from "lucide-react"
 const ATTENDANCE_META = {
     present: { label: "Present", backgroundColor: "#dcfce7", color: "#15803d" },
     absent: { label: "Absent", backgroundColor: "#fee2e2", color: "#b91c1c" },
-    not_marked: { label: "Attendance Not Marked", backgroundColor: "#f3f4f6", color: "#6b7280" },
+    not_marked: { label: "Attendance Not Marked", backgroundColor: "var(--dm-raised, #f3f4f6)", color: "var(--dm-text-soft, #6b7280)" },
 }
 
 const AppointmentEventModal = ({ close, closeModal, event, onCancel, onReschedule, onMarkAttendance }) => {

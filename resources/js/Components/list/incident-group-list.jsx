@@ -64,11 +64,11 @@ const Row = memo(({ data, isOpen, onToggle }) => {
   return (
     <div
       style={{
-        border: "1px solid #e5e7eb",
+        border: "1px solid var(--dm-border, #e5e7eb)",
         borderRadius: 10,
         marginBottom: 10,
         overflow: "hidden",
-        background: "#fff",
+        background: "var(--dm-surface, #fff)",
       }}
     >
       {/* Violation row */}
@@ -80,7 +80,7 @@ const Row = memo(({ data, isOpen, onToggle }) => {
           width: "100%",
           textAlign: "left",
           padding: "12px 14px",
-          background: "#fff",
+          background: "var(--dm-surface, #fff)",
           border: "none",
           cursor: "pointer",
           display: "flex",
@@ -115,7 +115,7 @@ const Row = memo(({ data, isOpen, onToggle }) => {
           transition={{ duration: 0.22 }}
           style={{
             overflow: "hidden",
-            background: "#f9fafb",
+            background: "var(--dm-surface-2, #f9fafb)",
           }}
         >
         {/* Inner content */}
@@ -128,8 +128,8 @@ const Row = memo(({ data, isOpen, onToggle }) => {
                 <li
                   key={incident.complaint_subject_id}
                   style={{
-                    background: "#fff",
-                    border: "1px solid #e5e7eb",
+                    background: "var(--dm-surface, #fff)",
+                    border: "1px solid var(--dm-border, #e5e7eb)",
                     borderRadius: 10,
                     padding: 12,
                     marginBottom: 8,
@@ -208,8 +208,8 @@ const Row = memo(({ data, isOpen, onToggle }) => {
                                 fontSize: 12,
                                 padding: "4px 8px",
                                 borderRadius: 999,
-                                border: "1px solid #e5e7eb",
-                                background: "#fff",
+                                border: "1px solid var(--dm-border, #e5e7eb)",
+                                background: "var(--dm-surface, #fff)",
                               }}
                             >
                               {offense.name ? toTitleCase(offense.name) : "Unknown Violation"}

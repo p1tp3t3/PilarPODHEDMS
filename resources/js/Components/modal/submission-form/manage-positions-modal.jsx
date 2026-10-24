@@ -3,7 +3,7 @@ import Btn from "@/Components/button/normal-btn"
 import ActionBtn from "@/Components/button/action-btn"
 import { useState } from "react"
 import { PositionService } from "@/others/services/position-service"
-import { showWarningModal } from "@/others/function"
+import { showWarningModal , showLoadingModal , closeLoadingModal , showOutputModal } from "@/others/function"
 import { Pencil, Trash2, X, Check, Lock } from "lucide-react"
 
 // Mirrors AccountController::PROTECTED_POSITIONS — these can't be renamed
@@ -89,11 +89,12 @@ const ManagePositionsModal = ({ close, closeModal, positions, setPositions }) =>
             "Delete",
             "Cancel",
             () => {
+                showLoadingModal("Deleting the position")
                 PositionService.delete(
                     row.id,
                     (list) => setPositions(list),
-                    () => {},
-                    (err) => setError(err.response?.data?.message ?? "Failed to delete position.")
+                    () => closeLoadingModal(),
+                    (err) => { closeLoadingModal(); setError(err.response?.data?.message ?? "Failed to delete position.") }
                 )
             }
         )

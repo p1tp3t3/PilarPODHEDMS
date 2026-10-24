@@ -268,7 +268,7 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
                     width: "100%",
                     minWidth: 0,
                     overflow: "hidden",
-                    backgroundColor: "#fff",
+                    backgroundColor: "var(--dm-surface, #fff)",
                     borderRadius: 2,
                     boxShadow: style ? 0 : 2,
                     p: style ? 0 : 2,

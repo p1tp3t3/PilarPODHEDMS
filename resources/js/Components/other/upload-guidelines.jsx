@@ -124,10 +124,10 @@ const UploadGuidelines = (props) => {
       </div>
 
       {/* Transposed Table */}
-      <TableContainer sx={{ width: "100%", border: "1px solid #d1d5db" }}>
+      <TableContainer sx={{ width: "100%", border: "1px solid var(--dm-border-strong, #d1d5db)" }}>
         <Table sx={{ width: "100%", fontSize: "0.875rem", textAlign: "center" }}>
           <TableHead>
-            <TableRow sx={{ "& .MuiTableCell-root": { backgroundColor: "#f3f4f6", border: "1px solid #d1d5db" } }}>
+            <TableRow sx={{ "& .MuiTableCell-root": { backgroundColor: "var(--dm-raised, #f3f4f6)", border: "1px solid var(--dm-border-strong, #d1d5db)" } }}>
               {data.map((item, idx) => (
                 <TableCell key={idx} align="center">
                   {item.field}
@@ -136,7 +136,7 @@ const UploadGuidelines = (props) => {
             </TableRow>
           </TableHead>
           <TableBody>
-            <TableRow sx={{ "& .MuiTableCell-root": { backgroundColor: "#f9fafb", border: "1px solid #d1d5db" } }}>
+            <TableRow sx={{ "& .MuiTableCell-root": { backgroundColor: "var(--dm-surface-2, #f9fafb)", border: "1px solid var(--dm-border-strong, #d1d5db)" } }}>
               {data.map((item, idx) => (
                 <TableCell key={idx} align="center" sx={{ fontFamily: "monospace", color: "#1d4ed8" }}>
                   {item.example}

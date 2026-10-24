@@ -1,3 +1,135 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Dark mode (html.dark — toggled from the header, see
+ * resources/js/context-provider/theme-mode-provider.jsx).
+ *
+ * The app is styled with plain light Tailwind classes, so instead of adding
+ * dark: variants to every component, the handful of neutral colours it
+ * actually uses are remapped here. Brand/status colours (blue buttons, red
+ * badges, ...) are left as they are; only their pale tinted backgrounds are
+ * darkened so text on them stays readable.
+ */
+html.dark {
+    color-scheme: dark;
+    --dm-page: #0b1220;
+    --dm-surface: #1e293b;
+    --dm-surface-2: #172033;
+    --dm-raised: #273449;
+    --dm-border: #334155;
+    --dm-border-strong: #475569;
+    --dm-text: #e2e8f0;
+    --dm-text-strong: #f8fafc;
+    --dm-text-muted: #cbd5e1;
+    --dm-text-soft: #94a3b8;
+    --dm-text-faint: #64748b;
+}
+
+html.dark body { background-color: var(--dm-page); color: var(--dm-text); }
+
+/* Top bar: keep the brand blue, but deeper so it isn't glaring in the dark. */
+html.dark header.bg-blue-500 { background-color: #1e3a8a; }
+
+/* Surfaces */
+html.dark .bg-white { background-color: var(--dm-surface); }
+html.dark .bg-gray-50, html.dark .bg-slate-50 { background-color: var(--dm-surface-2); }
+html.dark .bg-gray-100, html.dark .bg-slate-100 { background-color: var(--dm-page); }
+html.dark .bg-gray-200 { background-color: var(--dm-raised); }
+html.dark .bg-gray-300 { background-color: var(--dm-border-strong); }
+html.dark .hover\:bg-gray-50:hover, html.dark .hover\:bg-gray-100:hover,
+html.dark .hover\:bg-slate-50:hover, html.dark .hover\:bg-black\/5:hover { background-color: var(--dm-raised); }
+html.dark .hover\:bg-gray-200:hover { background-color: var(--dm-border); }
+
+/* Pale status tints (chips, banners, highlighted rows) */
+html.dark .bg-blue-50, html.dark .bg-blue-100, html.dark .bg-indigo-50, html.dark .bg-sky-50 { background-color: rgb(59 130 246 / 0.15); }
+html.dark .bg-red-50, html.dark .bg-red-100, html.dark .bg-rose-50 { background-color: rgb(239 68 68 / 0.15); }
+html.dark .bg-green-50, html.dark .bg-green-100, html.dark .bg-emerald-50 { background-color: rgb(34 197 94 / 0.15); }
+html.dark .bg-yellow-50, html.dark .bg-yellow-100, html.dark .bg-amber-50, html.dark .bg-amber-100, html.dark .bg-orange-50 { background-color: rgb(245 158 11 / 0.15); }
+html.dark .bg-purple-50, html.dark .bg-violet-50 { background-color: rgb(168 85 247 / 0.15); }
+html.dark .border-blue-100, html.dark .border-blue-200 { border-color: rgb(59 130 246 / 0.35); }
+html.dark .border-red-100, html.dark .border-red-200 { border-color: rgb(239 68 68 / 0.35); }
+html.dark .border-green-100, html.dark .border-green-200 { border-color: rgb(34 197 94 / 0.35); }
+html.dark .border-amber-200, html.dark .border-yellow-200 { border-color: rgb(245 158 11 / 0.35); }
+html.dark .text-blue-900, html.dark .text-blue-800 { color: #bfdbfe; }
+html.dark .text-red-800, html.dark .text-red-900 { color: #fecaca; }
+html.dark .text-green-800, html.dark .text-green-900 { color: #bbf7d0; }
+html.dark .text-amber-800, html.dark .text-yellow-800 { color: #fde68a; }
+
+/* Text */
+html.dark .text-black, html.dark .text-gray-900, html.dark .text-slate-900 { color: var(--dm-text-strong); }
+html.dark .text-gray-800, html.dark .text-slate-800 { color: var(--dm-text); }
+html.dark .text-gray-700, html.dark .text-slate-700 { color: var(--dm-text-muted); }
+html.dark .text-gray-600, html.dark .text-slate-600 { color: #b6c2d1; }
+html.dark .text-gray-500, html.dark .text-slate-500 { color: var(--dm-text-soft); }
+html.dark .text-gray-400, html.dark .text-slate-400 { color: var(--dm-text-faint); }
+html.dark .hover\:text-gray-800:hover, html.dark .hover\:text-gray-900:hover { color: var(--dm-text-strong); }
+
+/* Borders / dividers */
+/* Plain `border` with no colour class (zero specificity, so any border-* class still wins). */
+:where(html.dark) *, :where(html.dark) ::before, :where(html.dark) ::after { border-color: var(--dm-border); }
+html.dark .border-gray-50, html.dark .border-gray-100, html.dark .border-gray-200,
+html.dark .border-slate-200, html.dark .divide-gray-100 > * + *, html.dark .divide-gray-200 > * + * { border-color: var(--dm-border); }
+html.dark .border-gray-300, html.dark .border-gray-400 { border-color: var(--dm-border-strong); }
+
+/* Native form controls (the forms plugin paints them white) */
+html.dark input:not([type=checkbox]):not([type=radio]):not([type=range]),
+html.dark textarea, html.dark select { color: var(--dm-text); }
+html.dark input::placeholder, html.dark textarea::placeholder { color: var(--dm-text-faint); }
+html.dark select option { background-color: var(--dm-surface); }
+
+/* Rich text editor content */
+html.dark .ProseMirror { color: var(--dm-text); }
+
+/* SweetAlert2 popups */
+html.dark .swal2-popup { background: var(--dm-surface); color: var(--dm-text); }
+html.dark .swal2-title, html.dark .swal2-html-container { color: var(--dm-text); }
+html.dark .swal2-input, html.dark .swal2-textarea { background: var(--dm-surface-2); color: var(--dm-text); border-color: var(--dm-border); }
+
+/* Plain bordered inputs (search boxes etc.) that the forms plugin paints white */
+html.dark input.border:not([type=checkbox]):not([type=radio]), html.dark textarea.border, html.dark select.border,
+html.dark input[class*="border-gray"], html.dark textarea[class*="border-gray"] { background-color: var(--dm-surface-2); }
+
+/* Translucent pale tints (bg-blue-50/60 and friends) */
+html.dark [class*="bg-white/"], html.dark [class*="bg-gray-50/"], html.dark [class*="bg-gray-100/"] { background-color: rgb(30 41 59 / 0.7); }
+html.dark [class*="bg-blue-50/"], html.dark [class*="bg-blue-100/"] { background-color: rgb(59 130 246 / 0.12); }
+html.dark [class*="bg-red-50/"], html.dark [class*="bg-red-100/"] { background-color: rgb(239 68 68 / 0.12); }
+html.dark [class*="bg-green-50/"], html.dark [class*="bg-emerald-50/"] { background-color: rgb(34 197 94 / 0.12); }
+html.dark [class*="bg-amber-50/"], html.dark [class*="bg-yellow-50/"] { background-color: rgb(245 158 11 / 0.12); }
+html.dark .border-blue-300, html.dark .border-blue-400 { border-color: rgb(59 130 246 / 0.5); }
+
+/* Status text colours: the -600/-700/-800 shades are too dark on a dark surface */
+html.dark .text-red-600, html.dark .text-red-700 { color: #f87171; }
+html.dark .text-green-600, html.dark .text-green-700, html.dark .text-emerald-700 { color: #4ade80; }
+html.dark .text-blue-600, html.dark .text-blue-700, html.dark .text-indigo-700 { color: #60a5fa; }
+html.dark .text-amber-700, html.dark .text-yellow-700, html.dark .text-amber-800, html.dark .text-yellow-800 { color: #fbbf24; }
+html.dark .text-orange-600, html.dark .text-orange-700 { color: #fb923c; }
+html.dark .text-purple-700, html.dark .text-violet-700 { color: #c084fc; }
+/* …but keep white/brand text on solid coloured buttons and badges untouched */
+html.dark [class*="bg-blue-6"] .text-white, html.dark [class*="bg-blue-7"] .text-white { color: #fff; }
+
+/* FullCalendar (appointment calendar) */
+html.dark .fc {
+    --fc-border-color: var(--dm-border);
+    --fc-page-bg-color: var(--dm-surface);
+    --fc-neutral-bg-color: var(--dm-surface-2);
+    --fc-today-bg-color: rgb(59 130 246 / 0.25);
+    color: var(--dm-text);
+}
+html.dark .fc th, html.dark .fc .fc-col-header-cell { background-color: var(--dm-surface-2); }
+html.dark .fc td.fc-day-past, html.dark .fc td.fc-day-other { background-color: var(--dm-page); }
+html.dark .fc .fc-col-header-cell-cushion, html.dark .fc .fc-daygrid-day-number { color: var(--dm-text-muted); }
+
+/* Native tables without classes */
+html.dark table th { background-color: inherit; }
+
+/* Gradients (e.g. the account menu header: from-blue-50 to-white) */
+html.dark .from-blue-50 { --tw-gradient-from: rgb(59 130 246 / 0.22) var(--tw-gradient-from-position); --tw-gradient-to: rgb(59 130 246 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+html.dark .to-white { --tw-gradient-to: var(--dm-surface) var(--tw-gradient-to-position); }
+
+/* Hover tints */
+html.dark .hover\:bg-white:hover, html.dark .group:hover .group-hover\:bg-white { background-color: var(--dm-border); }
+html.dark .hover\:bg-blue-50:hover { background-color: rgb(59 130 246 / 0.15); }
+html.dark .hover\:bg-green-50:hover { background-color: rgb(34 197 94 / 0.15); }
+html.dark .hover\:bg-red-50:hover { background-color: rgb(239 68 68 / 0.15); }

@@ -1,6 +1,7 @@
 import AuthLayout from "@/Layouts/auth-layout";
 import QuantityCard from "@/Components/card/qntty-statistic-card";
 import CurrentSemesterBanner from "@/Components/other/current-semester-banner";
+import { PrefectAvailabilityCard } from "@/Components/other/prefect-availability";
 import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder";
 import CurrentDateTime from "@/Components/other/current-datetime";
 import '../style.css'
@@ -24,6 +25,7 @@ const NonTeachingStaffDashboard = (props) => {
                     <CurrentDateTime />
                     <CurrentSemesterBanner />
                 </div>
+                <PrefectAvailabilityCard />
 
                 <div className="w-full flex gap-5">
                     <div className="w-full flex gap-5 pt-6">

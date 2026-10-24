@@ -46,7 +46,7 @@ class ProfileController extends Controller
             abort(404, 'User not found.');
         }
 
-        return redirect("/profile/{$username}");
+        return redirect('/profile/'.$id);
     }
 
     public function index($id)
@@ -59,6 +59,14 @@ class ProfileController extends Controller
             abort(404, 'User not found.');
         }
 
+        // A student viewing someone else (e.g. a sibling) gets the About info
+        // only — never their username, email, phone number or ID numbers.
+        $hideContact = auth()->user()->role === 'student' && auth()->id() !== $account->id;
+        if ($hideContact) {
+            $account->makeHidden(['email', 'id_number', 'username']);
+            $account->profile?->makeHidden('contact_number');
+        }
+
         $props = [
             // teachingStaff loaded so the frontend can tell a program head
             // apart from regular faculty (position === 'program_head'),
@@ -66,7 +74,7 @@ class ProfileController extends Controller
             'user' => User::with('teachingStaff')->find(auth()->id()),
             'otherUserProfile' => $account,
             // Earlier ID numbers (e.g. the student ID of someone now staff).
-            'previous_id_numbers' => \App\Models\UserIdNumber::where('user_id', $account->id)
+            'previous_id_numbers' => $hideContact ? [] : \App\Models\UserIdNumber::where('user_id', $account->id)
                 ->with('role:id,name,label')
                 ->whereNotNull('ended_at')->orderByDesc('ended_at')
                 ->get(['id_number', 'role_id', 'started_at', 'ended_at']),
@@ -207,7 +215,7 @@ class ProfileController extends Controller
         // Resolve the target account from the route, never from a client-supplied
         // id in the request body — trusting a posted id let anyone edit anyone
         // else's profile just by changing a form field.
-        $targetUser = User::where('username', $username)->first();
+        $targetUser = User::resolveProfileKey($username);
 
         if (! $targetUser) {
             abort(404, 'User not found.');
@@ -596,6 +604,17 @@ class ProfileController extends Controller
                 if ($member->role === 'student' && ! in_array($member->id, $seenChildren)) {
                     $seenChildren[] = $member->id;
                     $members['child'][] = $member;
+                }
+            }
+        }
+
+        // A student only gets their family members' names/photos (and the
+        // username the list links with) — not their email, phone or ID number.
+        if (auth()->user()?->role === 'student') {
+            foreach ([...$members['parent'], ...$members['child']] as $member) {
+                if ($member->id !== auth()->id()) {
+                    $member->makeHidden(['email', 'id_number']);
+                    $member->profile?->makeHidden('contact_number');
                 }
             }
         }

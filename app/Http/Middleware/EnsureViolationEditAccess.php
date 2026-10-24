@@ -25,15 +25,25 @@ class EnsureViolationEditAccess
 
             if (!$grant) {
                 return response()->json([
-                    'message' => "You need prefect-approved \"$accessType\" access to $resource management to do this. Request access from the Access Requests tab.",
+                    'message' => "You don't have \"$accessType\" access to $resource management right now. The prefect can give it to you.",
                 ], 403);
             }
 
-            // Single-use: consumed the instant it's let through, even if the
-            // controller action itself later fails — the grant existing at
-            // all still means the one-time use it that this middleware
-            // exists to gate has already happened.
-            $grant->update(['status' => 'used', 'used_at' => now()]);
+            $response = $next($request);
+
+            // Only a change that actually went through uses up an attempt
+            // (a failed validation doesn't). When a limited grant runs out of
+            // uses it ends, even if its time hasn't.
+            if ($response->isSuccessful()) {
+                $grant->increment('uses_count');
+                $grant->refresh();
+                $grant->update([
+                    'used_at' => now(),
+                    'status' => ($grant->max_uses !== null && $grant->uses_count >= $grant->max_uses) ? 'used' : 'approved',
+                ]);
+            }
+
+            return $response;
         }
 
         return $next($request);

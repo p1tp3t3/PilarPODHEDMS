@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { readableDate, readableTime, showUserType } from "@/others/function"
+import { readableDate, readableTime, showUserType, profileUrl } from "@/others/function"
 import { Link } from "@inertiajs/react"
 import SearchBar from "../input/search-bar"
 import { PanelBody, PanelHeader, PersonRow, matchesPerson } from "./dashboard-panel-parts"
@@ -24,7 +24,7 @@ const NewStudentList = ({ list = null, weekStart = null, weekEnd = null }) => {
             </PanelHeader>
             <PanelBody list={shown} empty={search ? "No matching students" : "No new students this week"}>
                 {shown?.map((e) => (
-                    <Link key={e.id} href={`/profile/${e.username}`} className="block">
+                    <Link key={e.id} href={`${profileUrl(e)}`} className="block">
                         <PersonRow
                             user={e}
                             sub={`${e.id_number ? `${e.id_number.toUpperCase()} · ` : ""}${showUserType(e)}`}

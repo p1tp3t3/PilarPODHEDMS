@@ -126,7 +126,7 @@ const IncidentReportList = ({ list }) => {
                         border: "none",
                     },
                     "& .MuiDataGrid-columnHeaders": {
-                        backgroundColor: "#f9fafb",
+                        backgroundColor: "var(--dm-surface-2, #f9fafb)",
                         fontWeight: "bold",
                     },
                     "& .MuiDataGrid-cell": {

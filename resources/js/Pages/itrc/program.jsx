@@ -20,7 +20,7 @@ const ITRCProgram = (props) => {
     const { loadRegister, setReload, setOnClose } = useReload();
 
     useEffect(() => {
-        setOnClose(() => (e) => {
+        setOnClose((e) => {
             if(action != 'add') {
                 setReload(e)
                 if(clickedOk) window.location.href = '/'
@@ -31,7 +31,7 @@ const ITRCProgram = (props) => {
 
     const openActionModal = (type, act, editData = null) => {
         setAction(act);
-        if(act != 'add') setData(editData);
+        setData(act != 'add' ? editData : null);
         if(type === 'program') {
             openProgram(true);
         } else if(type === 'violation') {

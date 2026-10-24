@@ -55,12 +55,14 @@ class ChannelAuth
 
             $user->loadMissing('profile');
 
+            // Shared with every member of the channel: the profile link uses
+            // the encrypted id — usernames are never sent.
             return [
                 'id' => $user->id,
-                'username' => $user->username,
+                'encrypted_id' => encrypt_id($user->id),
                 'id_number' => $user->id_number,
                 'role' => $user->role,
-                'name' => trim(($user->profile?->first_name ?? '').' '.($user->profile?->last_name ?? '')) ?: $user->username,
+                'name' => trim(($user->profile?->first_name ?? '').' '.($user->profile?->last_name ?? '')) ?: 'User',
                 'profile_picture' => $user->profile?->profile_picture,
                 'sex' => $user->profile?->sex,
             ];

@@ -8,7 +8,7 @@ import ScheduleMaintenanceModal from "@/Components/modal/submission-form/schedul
 import { useReload } from "@/context-provider/reload-provider";
 import { SystemService } from "@/others/services/system-service";
 import { Broadcast } from "@/others/classes/broadcast-cofiguration";
-import { readableDate, readableTime, showOutputModal, showWarningModal } from "@/others/function";
+import { readableDate, readableTime, showOutputModal, showWarningModal , showLoadingModal , closeLoadingModal } from "@/others/function";
 import TabSwitcher from "@/Components/other/tab-switcher";
 import { DataGrid } from "@/Components/other/data-grid";
 import Box from "@mui/material/Box";
@@ -71,8 +71,9 @@ const SystemMaintenance = (props) => {
             "Cancel Schedule",
             "Keep It",
             () => {
+                showLoadingModal("Cancelling the scheduled maintenance")
                 SystemService.cancelScheduledMaintenanceMode(
-                    () => setScheduledAt(null),
+                    () => { closeLoadingModal(); setScheduledAt(null) },
                     () => showOutputModal("Failed To Cancel The Schedule", "e")
                 );
             }
@@ -226,6 +227,7 @@ const BackupTab = ({ reload }) => {
             "Delete Backup",
             "Cancel",
             () => {
+                showLoadingModal("Deleting the backup")
                 SystemService.deleteBackup(
                     name,
                     () => {
@@ -412,9 +414,11 @@ const LogsTab = () => {
             "Cancel",
             () => {
                 setClearing(true);
+                showLoadingModal("Clearing the log file");
                 SystemService.clearLogs(
                     () => {
                         setClearing(false);
+                        closeLoadingModal();
                         fetchLogs();
                     },
                     () => {

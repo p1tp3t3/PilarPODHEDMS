@@ -22,6 +22,6 @@ class VerifyEmailController extends Controller
             event(new Verified($user));
         }
 
-        return redirect("/profile/{$user->username}/edit");
+        return redirect('/profile/'.encrypt_id($user->id).'/edit');
     }
 }

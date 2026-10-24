@@ -40,6 +40,8 @@ class ViolationAccessRequest extends Model
         'denied_at',
         'revoked_at',
         'used_at',
+        'max_uses',
+        'uses_count',
     ];
 
     protected function casts(): array
@@ -82,11 +84,13 @@ class ViolationAccessRequest extends Model
      */
     public static function activeGrant(int $userId, string $resource, string $accessType): ?self
     {
+        // Active = approved, not expired, and (if limited) uses left.
         return self::where('user_id', $userId)
             ->where('resource', $resource)
             ->where('access_type', $accessType)
             ->where('status', 'approved')
             ->where('expires_at', '>', now())
+            ->where(fn ($q) => $q->whereNull('max_uses')->orWhereColumn('uses_count', '<', 'max_uses'))
             ->first();
     }
 

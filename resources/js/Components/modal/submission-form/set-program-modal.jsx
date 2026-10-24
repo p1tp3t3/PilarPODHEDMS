@@ -28,18 +28,21 @@ const SetProgramModal = (props) => {
         colorAsterisk: false,
     })
 
+    // Every time the form opens: Edit fills it from the chosen program, Add
+    // starts blank — so a cancelled edit never leaks into the next "Add".
     useEffect(() => {
-        if (action === 'edit' && editData) {
-            setData({
-                id: editData.id || '',
-                name: editData.name || '',
-                description: editData.description || '',
-                color: editData.color_code || '',
-                logo: null,
-            })
-            setPreview(null)
-        }
-    }, [action, editData])
+        if (!props.close) return
+        const d = action === 'edit' ? (props.data || {}) : {}
+        setData({
+            id: d.id || '',
+            name: d.name || '',
+            description: d.description || '',
+            color: d.color_code || '',
+            logo: null,
+        })
+        setPreview(null)
+        setValidationErr({ name: "", nameAsterisk: false, description: "", descriptionAsterisk: false, color: "", colorAsterisk: false })
+    }, [props.close, action, props.data])
 
     const handleLogoChange = (e) => {
         fileChange(e, setPreview, (file) => setData((prev) => ({ ...prev, logo: file })), true)
@@ -104,9 +107,21 @@ const SetProgramModal = (props) => {
                 formData.append('color', data.color)
                 if (data.logo) formData.append('logo', data.logo)
 
+                // SweetAlert result; OK clears the loading overlay (and, on
+                // success, closes this form — the list is already updated
+                // through props.setter).
                 ProgramService.save(action, formData, props.setter,
-                    () => props.reload(true, 'success', successMsg),
-                    (e) => props.reload(true, 'error', 'Failed. ' + (e?.response.data.message || ''))
+                    () => {
+                        props.reload(true, '')
+                        showOutputModal(successMsg, 's', () => {
+                            props.reload(false)
+                            props.closeModal(false)
+                        })
+                    },
+                    (e) => {
+                        props.reload(true, '')
+                        showOutputModal('Failed. ' + (e?.response?.data?.message || ''), 'e', () => props.reload(false))
+                    }
                 )
             }
         )

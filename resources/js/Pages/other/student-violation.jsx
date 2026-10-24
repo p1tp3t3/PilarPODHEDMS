@@ -458,7 +458,7 @@ const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_
             displayEmpty
             sx={{
                 minWidth: "190px",
-                bgcolor: "white",
+                bgcolor: "var(--dm-surface, white)",
                 '& .MuiOutlinedInput-root, &.MuiOutlinedInput-root': { borderRadius: '8px', fontSize: '0.85em' },
             }}
         >

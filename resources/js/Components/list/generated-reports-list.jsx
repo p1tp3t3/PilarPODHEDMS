@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
-import { readableDate, readableTime, showWarningModal, toTitleCase } from "@/others/function"
+import { readableDate, readableTime, showWarningModal, toTitleCase , showLoadingModal , closeLoadingModal , showOutputModal } from "@/others/function"
 import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
 import { Chip, IconButton, Tooltip } from "@mui/material"
 import { Trash2, Download, Eye, FolderOpen } from "lucide-react"
 
 const NoReportsOverlay = () => (
-    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 1, color: "#6b7280", fontSize: "0.9em" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 1, color: "var(--dm-text-soft, #6b7280)", fontSize: "0.9em" }}>
         <FolderOpen size="2.2em" style={{ opacity: 0.6 }} />
         <span>No reports generated yet.</span>
     </Box>
@@ -34,7 +34,12 @@ const GeneratedReportsList = () => {
             "Delete Report",
             "Cancel",
             () => {
-                ReportArchiveService.deleteGeneratedReport(report.id, load, load)
+                showLoadingModal("Deleting the report")
+                ReportArchiveService.deleteGeneratedReport(
+                    report.id,
+                    () => { closeLoadingModal(); load() },
+                    () => { showOutputModal("Failed to delete the report.", "e"); load() },
+                )
             }
         )
     }
@@ -93,7 +98,7 @@ const GeneratedReportsList = () => {
                     <div className="flex items-center gap-1 h-full">
                         {r.view_url &&
                         <Tooltip title="View" arrow>
-                            <IconButton size="small" component="a" href={r.view_url} target="_blank" rel="noreferrer" aria-label="View" sx={{ color: "#374151" }}>
+                            <IconButton size="small" component="a" href={r.view_url} target="_blank" rel="noreferrer" aria-label="View" sx={{ color: "var(--dm-text-muted, #374151)" }}>
                                 <Eye size={18} />
                             </IconButton>
                         </Tooltip>}

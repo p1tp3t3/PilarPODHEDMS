@@ -110,10 +110,9 @@ const Body = ({ id, reload, issue = false, onIssued }) => {
       issue ? "Absent Form Issued Successfully" : "Your Absent Form Sent Successfully to the Prefect",
       's',
       () => {
-        if (issue) {
-          setStudent(null);
-          onIssued?.();
-        }
+        if (issue) setStudent(null);
+        // Closes the modal and refreshes the list behind it (issue or request).
+        onIssued?.();
         setData((prev) => ({
       ...prev,
           date_from: "",

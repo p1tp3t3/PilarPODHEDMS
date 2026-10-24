@@ -8,7 +8,7 @@ import logo from '../../images/pilar.png'
 import RegistrationForm from "./register/main-form";
 import NormalValidationModal from "@/Components/modal/validation/normal-validation-modal";
 import { UserPlus } from "lucide-react";
-import { showOutputModal, showWarningModal, toTitleCase } from "@/others/function";
+import { showOutputModal, showWarningModal, toTitleCase , showLoadingModal } from "@/others/function";
 import CsvStudentPreviewPage from "@/Components/other/csv-student-preview-page";
 import CsvStudentProgressModal from "@/Components/modal/view/csv-student-progress-modal";
 import { Head } from "@inertiajs/react";
@@ -144,6 +144,7 @@ const Register = (props) => {
         }
         openUserListCSV(false)
         setUploadingCSV(true)
+        showLoadingModal("Uploading the CSV file")
 
         RegisterService.uploadUserCsv(data, success, error)
     }

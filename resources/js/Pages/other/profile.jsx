@@ -3,7 +3,7 @@ import ProfilePic from "@/Components/other/profile-pic";
 import React, { useEffect, useState, useContext } from "react";
 import { Link, useForm } from "@inertiajs/react";
 import DropdownField from "@/Components/input/dropdown";
-import { splitStr, showOutputModal, change, getProfilePic, checkActiveStatus, readableActiveDuration, showWarningModal, canViewEnrollmentHistory, showUserType } from "@/others/function";
+import { splitStr, showOutputModal, change, getProfilePic, checkActiveStatus, readableActiveDuration, showWarningModal, canViewEnrollmentHistory, showUserType, profileUrl } from "@/others/function";
 import AuthContext from "@/context-provider/auth-provider";
 import EditProfileModal from "@/Components/modal/submission-form/edit-profile-modal";
 import { useReload } from "@/context-provider/reload-provider";
@@ -401,7 +401,7 @@ const Profile = (props) => {
             'Cancel',
             () => {
                 loadRegister(true, "text-wait", `${(isAllowToEdit() ? `${profileData.first_name}'s` : 'Your')} Profile Information Is Updating`);
-                ProfileService.updateProfile(user.username, data, success, error);
+                ProfileService.updateProfile(user.encrypted_id, data, success, error);
             }
         );
     };
@@ -413,7 +413,7 @@ const Profile = (props) => {
             () => {
                 loadRegister(false);
                 closeEditProfile(false);
-                window.location.href = `/profile/${profileData.username}`;
+                window.location.href = `${profileUrl(props.otherUserProfile)}`;
             }
         )
     };
@@ -510,9 +510,11 @@ const Profile = (props) => {
                                             {`${user.profile?.first_name ?? ""} ${user.profile?.middle_name ?? ""} ${user.profile?.last_name ?? ""}`}
                                             {user.role === "super_admin" && " (IT Admin)"}
                                         </h1>
+                                        {user.id_number && (
                                         <p className="text-[1.1em] sm:text-[1.3em] text-gray-700">
                                             #{user.id_number}
                                         </p>
+                                        )}
                                         {/* Students: program and year level, e.g. "BSIT • 3rd Year". */}
                                         {user.role === "student" && (
                                             <p className="text-[0.95em] sm:text-[1.05em] text-gray-600 -mt-1 md:-mt-2">
@@ -551,15 +553,8 @@ const Profile = (props) => {
 
 
                         {/* ✅ Responsive tabs */}
-        {((props.user.role == "super_admin" && props.otherUserProfile.role == 'student') ||
-                          (props.user.role == "sub_admin" && props.otherUserProfile.role == 'student') ||
-                          ((props.user.role == "parent" && props.otherUserProfile.role == 'student')) ||
-                          (props.user.role == "teaching_staff" && props.otherUserProfile.role == 'student')  ||
-                          (props.user.role == 'student' && props.otherUserProfile.role != 'parent') ||
-                          showComplaintsFiledTab ||
-                          showReferralsFiledTab ||
-                          showAbsentFormsFiledTab ||
-                          showGatepassRequestedTab) && (
+        {/* A single tab (just About) needs no tab bar. */}
+        {tabOptions.length > 1 && (
                             <div className="w-full bg-white shadow-black/20 shadow-md border-t border-gray-300 px-4 sm:px-6 md:px-10 flex flex-wrap items-center justify-between gap-3 py-2">
                                 <div className="min-w-0">
                                     <TabSwitcher tabs={tabOptions} value={tab} onChange={setTab} />
@@ -610,6 +605,10 @@ const EditProfileAccountBtn = ({
     canEditProfile,
     canEditAccount
 }) => {
+    const showAccount = canEditAccount && (acc.role != 'super_admin' || user.role != 'super_admin')
+    // Nothing to show (e.g. a sibling's profile) — don't leave an empty pill.
+    if (!canEditProfile && !showAccount) return null
+
     return (
         <div className="flex bg-gray-100 p-2 rounded-full w-fit items-center gap-3 shadow-inner">
 
@@ -617,7 +616,7 @@ const EditProfileAccountBtn = ({
             {canEditProfile && (
                 <>
                     {user.role === "student" ? (
-                        <Link href={`/profile/${user.username}/edit`}>
+                        <Link href={`${profileUrl(user)}/edit`}>
                             <button
                                 className="flex items-center gap-2 px-5 py-2.5
                                            rounded-full bg-green-600 text-white font-medium

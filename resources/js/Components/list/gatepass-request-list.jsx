@@ -57,21 +57,25 @@ const GatePassRequestList = (props) => {
         return [
             {
                 field: 'i',
-                headerName: '#'
+                headerName: '#',
+                width: 60,
             },
             {
                 field: 'gatepass_number',
                 headerName: 'Reference No.',
                 flex: 0.8,
+                minWidth: 130,
             },
             {
                 field: 'user_id',
-                headerName: 'Student I.D'
+                headerName: 'Student I.D',
+                minWidth: 120,
             },
             {
                 field: "name",
                 headerName: "Student",
                 flex: 1.2,
+                minWidth: 220,
                 sortable: false,
                 renderCell: (params) => {
                     const u = params.row.user
@@ -79,14 +83,9 @@ const GatePassRequestList = (props) => {
                         <div className="flex items-center gap-3 h-full">
                             <ProfilePic size={2.5} src={getProfilePic(u?.profile?.profile_picture, u?.profile?.sex)} />
                             <div className="flex flex-col justify-center leading-tight">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-[0.9em] font-semibold">
-                                        {u ? `${u.profile?.first_name ?? ""} ${u.profile?.last_name ?? ""}` : "-"}
-                                    </span>
-                                    <span className={`px-2 py-0.5 rounded-full text-[0.75em] font-medium ${STATUS_STYLES[params.row.status]}`}>
-                                        {toTitleCase(params.row.status)}
-                                    </span>
-                                </div>
+                                <span className="text-[0.9em] font-semibold">
+                                    {u ? `${u.profile?.first_name ?? ""} ${u.profile?.last_name ?? ""}` : "-"}
+                                </span>
                                 <div className="text-[0.8em] text-gray-600">
                                     {u ? showUserType(u) : "-"}
                                 </div>
@@ -100,11 +99,24 @@ const GatePassRequestList = (props) => {
                     )
                 },
             },
+            {
+                field: "status",
+                headerName: "Status",
+                width: 120,
+                renderCell: (params) => (
+                    <div className="h-full flex items-center">
+                        <span className={`px-2 py-0.5 rounded-full text-[0.75em] font-medium ${STATUS_STYLES[params.row.status]}`}>
+                            {toTitleCase(params.row.status)}
+                        </span>
+                    </div>
+                ),
+            },
             ...(usr?.role === "sub_admin" ? [filedByColumn((r) => r.prefect)] : []),
             {
                 field: "created_at",
                 headerName: "Request Since",
                 flex: 1,
+                minWidth: 170,
                 renderCell: (params) => (
                     <div className="text-[0.85em] leading-tight py-2">
                         <div>{params.value ? `${readableDate(params.value)} (${readableTime(params.value)})` : "-"}</div>
@@ -118,6 +130,7 @@ const GatePassRequestList = (props) => {
                 field: "rejected_at",
                 headerName: "Rejected Since",
                 flex: 1,
+                minWidth: 170,
                 renderCell: (params) => (
                     <div className="text-[0.85em] leading-tight py-2">
                         <div>{params.value ? `${readableDate(params.value)} (${readableTime(params.value)})` : "-"}</div>
@@ -131,6 +144,7 @@ const GatePassRequestList = (props) => {
                 field: "revoked_at",
                 headerName: "Revoked Since",
                 flex: 1,
+                minWidth: 170,
                 renderCell: (params) => (
                     <div className="text-[0.85em] leading-tight py-2">
                         <div>{params.value ? `${readableDate(params.value)} (${readableTime(params.value)})` : "-"}</div>
@@ -193,7 +207,7 @@ const GatePassRequestList = (props) => {
                 width: "100%",
                 minWidth: 0,
                 overflow: "hidden",
-                backgroundColor: "#fff",
+                backgroundColor: "var(--dm-surface, #fff)",
                 borderRadius: 2,
                 boxShadow: 2,
                 p: 2,

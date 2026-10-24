@@ -19,7 +19,8 @@ class ProfileAuthorization
     {
         $authRole = auth()->user()->role;
         $username = $request->route('username');
-        $targetUser = User::where('username', $username)->first();
+        // The segment is an encrypted id (or, for old links, a username).
+        $targetUser = User::resolveProfileKey($username);
 
         if (!$targetUser) {
             abort(404, 'User not found.');
@@ -28,10 +29,13 @@ class ProfileAuthorization
         $targetRole = $targetUser->role;
 
         // Student data privacy: a student's profile is only for the student,
-        // the prefect / IT admin, their own parent, and teaching staff of the
-        // student's own program. Everyone else is sent home.
-        if ($targetRole === 'student' && ! self::canViewStudentProfile($targetUser)) {
-            return Inertia::location('/');
+        // the prefect / IT admin, their own parent, their siblings, and
+        // teaching staff of the student's own program. That rule alone decides
+        // student profiles; everyone else is sent home.
+        if ($targetRole === 'student') {
+            return self::canViewStudentProfile($targetUser)
+                ? $next($request)
+                : Inertia::location('/');
         }
 
         // Check if current user is allowed to access the target user role
@@ -69,11 +73,9 @@ class ProfileAuthorization
             return true;
         }
 
-        if ($viewer->role === 'parent') {
-            $familyIds = \App\Models\FamilyMember::where('member_id', $viewer->id)->pluck('family_id');
-
-            return $familyIds->isNotEmpty()
-                && \App\Models\FamilyMember::whereIn('family_id', $familyIds)->where('member_id', $student->id)->exists();
+        // A parent sees their own children; a student sees their siblings.
+        if (in_array($viewer->role, ['parent', 'student'])) {
+            return $viewer->sharesFamilyWith($student);
         }
 
         if ($viewer->role === 'teaching_staff') {

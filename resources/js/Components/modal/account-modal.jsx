@@ -1,7 +1,8 @@
-import { getProfilePic } from "@/others/function"
+import { getProfilePic, profileUrl } from "@/others/function"
 import ProfilePic from "../other/profile-pic"
 import { Link, router } from "@inertiajs/react"
 import { motion, AnimatePresence } from "framer-motion"
+import { Switch } from "@mui/material"
 import { User, Settings, LogOut, ChevronRight, History } from "lucide-react"
 
 const roleLabel = (identity) => {
@@ -27,6 +28,30 @@ const MenuLink = ({ href, icon: Icon, children }) => (
         <span className="flex-1 font-medium">{children}</span>
         <ChevronRight size={15} className="text-gray-400" />
     </Link>
+)
+
+// Header actions (call in, active users, full screen, dark mode) are listed
+// in this menu instead of as header buttons.
+const MenuAction = ({ icon: Icon, label, onClick, badge, toggled, className = "flex" }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        className={`group ${className} w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[0.85em] text-gray-700 hover:bg-gray-100 text-left`}
+    >
+        <span className="w-8 h-8 rounded-full bg-gray-100 group-hover:bg-white grid place-items-center text-gray-600">
+            <Icon size={16} />
+        </span>
+        <span className="flex-1 font-medium">{label}</span>
+        {/* The whole row is the click target; the switch just shows the state. */}
+        {toggled !== undefined && (
+            <Switch size="small" checked={toggled} tabIndex={-1} inputProps={{ "aria-hidden": true }} sx={{ pointerEvents: "none", my: -1 }} />
+        )}
+        {badge != null && badge > 0 && (
+            <span className="min-w-[1.3rem] h-[1.3rem] px-1 rounded-full bg-green-600 text-white text-[0.75em] font-semibold grid place-items-center">
+                {badge > 99 ? "99+" : badge}
+            </span>
+        )}
+    </button>
 )
 
 const AccountModal = (props) => {
@@ -59,10 +84,16 @@ const AccountModal = (props) => {
             </div>
 
             <div className="p-2">
-                <MenuLink href={`/profile/${user.username}`} icon={User}>See Profile</MenuLink>
+                <MenuLink href={`${profileUrl(user)}`} icon={User}>See Profile</MenuLink>
                 <MenuLink href={'/settings/' + user.username} icon={Settings}>Account Settings</MenuLink>
                 <MenuLink href="/my-activity" icon={History}>My Activity</MenuLink>
             </div>
+
+            {props.actions?.length > 0 && (
+                <div className="p-2 border-t border-gray-100">
+                    {props.actions.map((a) => <MenuAction key={a.key ?? a.label} {...a} />)}
+                </div>
+            )}
 
             <div className="border-t border-gray-100 p-2">
                 <button

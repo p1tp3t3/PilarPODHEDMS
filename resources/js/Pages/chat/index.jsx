@@ -2,7 +2,7 @@ import AuthLayout from "@/Layouts/auth-layout"
 import { useState, useEffect, useRef, useContext } from "react"
 import { Head, usePage } from "@inertiajs/react"
 import ProfilePic from "@/Components/other/profile-pic"
-import { getProfilePic, readableDate, readableTime, toTitleCase, showUserType, showWarningModal, checkActiveStatus, readableActiveDuration } from "@/others/function"
+import { getProfilePic, readableDate, readableTime, toTitleCase, showUserType, showWarningModal, checkActiveStatus, readableActiveDuration , showLoadingModal , closeLoadingModal , showOutputModal } from "@/others/function"
 import { ChatService } from "@/others/services/chat-service"
 import { UserService } from "@/others/services/user-service"
 import { Broadcast } from "@/others/classes/broadcast-cofiguration"
@@ -46,6 +46,8 @@ const Chat = ({ contacts: initialContacts }) => {
     const messageRefs = useRef({})
     const textareaRef = useRef(null)
     const isTouchDevice = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
+    // The keyboard hint only fits in the message box on wide screens.
+    const isWide = typeof window !== 'undefined' && window.matchMedia?.('(min-width: 1024px)').matches
 
     useEffect(() => { activeIdRef.current = activeId }, [activeId])
     useEffect(() => { activeEncryptedIdRef.current = activeEncryptedId }, [activeEncryptedId])
@@ -59,7 +61,10 @@ const Chat = ({ contacts: initialContacts }) => {
     }, [activeId])
 
     useEffect(() => {
-        bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+        // Scroll the message list only — scrollIntoView would also scroll
+        // the whole page and push the header off screen on phones/tablets.
+        const list = bottomRef.current?.parentElement
+        list?.scrollTo({ top: list.scrollHeight, behavior: "smooth" })
     }, [messages])
 
     useEffect(() => {
@@ -248,11 +253,13 @@ const Chat = ({ contacts: initialContacts }) => {
             'Unsend',
             'Cancel',
             () => {
+                showLoadingModal("Unsending message")
                 ChatService.unsend(messageId, () => {
+                    closeLoadingModal()
                     setMessages((prev) => prev.map((m) => (
                         m.id === messageId ? { ...m, unsent_at: new Date().toISOString(), body: null } : m
                     )))
-                }, () => {})
+                }, () => showOutputModal("Failed to unsend the message.", "e"))
             }
         )
     }
@@ -260,7 +267,8 @@ const Chat = ({ contacts: initialContacts }) => {
     const scrollToMessage = (id) => {
         const el = messageRefs.current[id]
         if (!el) return
-        el.scrollIntoView({ behavior: "smooth", block: "center" })
+        const list = el.closest('.overflow-y-auto')
+        list?.scrollTo({ top: el.offsetTop - list.clientHeight / 2 + el.offsetHeight / 2, behavior: "smooth" })
         el.classList.add("chat-bubble-highlight")
         setTimeout(() => el.classList.remove("chat-bubble-highlight"), 1200)
     }
@@ -320,14 +328,16 @@ const Chat = ({ contacts: initialContacts }) => {
                     </div>
                 </div>
             )}
-            <div className="w-full py-6">
-                <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm overflow-hidden" style={{ height: '75vh' }}>
-                    <div className="grid grid-cols-1 sm:grid-cols-[18rem_1fr] h-full">
-                        {/* Mobile: contact list and the active thread are two
-                            separate full-screen views (list until a contact
-                            is picked, then just the thread) — on sm+ both
-                            columns show side by side as normal. */}
-                        <div className={`border-r border-gray-200 overflow-y-auto ${active ? 'hidden sm:block' : ''}`}>
+            <div className="w-full py-4 md:py-6">
+                {/* Fills the screen: below md the bottom nav bar (64px) is
+                    also on screen, so it leaves room for that too. */}
+                <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm overflow-hidden h-[calc(100dvh-9.75rem)] md:h-[calc(100dvh-7.5rem)] min-h-[22rem]">
+                    <div className="grid grid-cols-1 md:grid-cols-[16rem_1fr] lg:grid-cols-[18rem_1fr] h-full">
+                        {/* Phone/tablet: contact list and the active thread are
+                            two separate full views (list until a contact is
+                            picked, then just the thread) — on md+ both
+                            columns show side by side. */}
+                        <div className={`border-r border-gray-200 overflow-y-auto ${active ? 'hidden md:block' : ''}`}>
                             <div className="px-4 py-3 border-b border-gray-200">
                                 <h1 className="text-[1.1em] font-bold">Chat</h1>
                             </div>
@@ -394,14 +404,14 @@ const Chat = ({ contacts: initialContacts }) => {
                             })}
                         </div>
 
-                        <div className={`flex-col h-full min-h-0 ${active ? 'flex' : 'hidden sm:flex'}`}>
+                        <div className={`flex-col h-full min-h-0 ${active ? 'flex' : 'hidden md:flex'}`}>
                             {active
                             ? <>
                                 <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-3">
                                     <button
                                         type="button"
                                         onClick={() => { setActiveId(null); setActiveEncryptedId(null) }}
-                                        className="sm:hidden text-gray-500 hover:text-gray-800 shrink-0"
+                                        className="md:hidden text-gray-500 hover:text-gray-800 shrink-0"
                                         title="Back to contacts"
                                     >
                                         <ArrowLeft size={18} />
@@ -426,7 +436,7 @@ const Chat = ({ contacts: initialContacts }) => {
                                     </div>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50">
+                                <div className="relative flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50">
                                     {messages.map((m, i) => {
                                         const mine = m.sender_id === user.id
                                         return (
@@ -570,7 +580,7 @@ const Chat = ({ contacts: initialContacts }) => {
                                             e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
                                         }}
                                         onKeyDown={handleKeyDown}
-                                        placeholder={isTouchDevice ? "Type a message..." : "Type a message... (Enter to send, Shift+Enter for new line)"}
+                                        placeholder={isTouchDevice || !isWide ? "Type a message..." : "Type a message... (Enter to send, Shift+Enter for new line)"}
                                         className="flex-1 border border-gray-300 rounded-2xl px-4 py-2 text-[0.85em] resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 max-h-[7.5rem]"
                                     />
                                     <button

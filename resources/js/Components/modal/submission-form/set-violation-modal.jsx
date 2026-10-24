@@ -40,31 +40,34 @@ const SetViolationModal = (props) => {
     })
 
     // ------------------ LOAD EDIT DATA ------------------
+    // Every time the form opens: Edit fills it from the chosen violation,
+    // Add starts blank — so a cancelled edit never leaks into the next "Add".
     useEffect(() => {
-        if (action === "edit" && editData) {
-            setData({
-                id: editData.id || "",
-                violation_name: editData.violation_name || "",
-                offense_status: editData.offense_status != null ? String(editData.offense_status) : "1",
-                keywords: Array.isArray(editData.keywords) ? editData.keywords : [],
-            });
-
-            if (editData.penalties) {
-                const transformed = [1, 2, 3, 4, 5, 6].map(occ => {
-                    const matching = editData.penalties.filter(p => Number(p.occurrence) === occ);
-
-                    return {
-                        occurrence: occ,
-                        list: matching.length > 0
-                            ? matching.map(p => ({ penalty_id: String(p.penalty_id) }))
-                            : [{ penalty_id: "" }]
-                    };
-                });
-
-                setPenalties(transformed);
-            }
-        }
-    }, [action, editData]);
+        if (!props.close) return
+        const d = action === "edit" ? (props.data || {}) : {}
+        setData({
+            id: d.id || "",
+            violation_name: d.violation_name || "",
+            offense_status: d.offense_status != null ? String(d.offense_status) : "1",
+            keywords: Array.isArray(d.keywords) ? d.keywords : [],
+        });
+        setKeywordInput("");
+        setPenalties([1, 2, 3, 4, 5, 6].map((occ) => {
+            const matching = (d.penalties || []).filter((p) => Number(p.occurrence) === occ);
+            return {
+                occurrence: occ,
+                list: matching.length > 0
+                    ? matching.map((p) => ({ penalty_id: String(p.penalty_id) }))
+                    : [{ penalty_id: "" }],
+            };
+        }));
+        setValidationErr({
+            violation_name: "", violation_nameAsterisk: false,
+            offense_status: "", offense_statusAsterisk: false,
+            keywords: "", keywordsAsterisk: false,
+            penalties: "",
+        });
+    }, [props.close, action, props.data]);
 
     // ------------------ VALIDATION ------------------
     const validate = () => {

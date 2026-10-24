@@ -62,10 +62,10 @@ const FullCalendarView = ({ onEventClick, onSlotSelect, refreshKey, selectedDate
     }
 
     const btnSx = {
-        color: "#374151",
-        border: "1px solid #d1d5db",
+        color: "var(--dm-text-muted, #374151)",
+        border: "1px solid var(--dm-border-strong, #d1d5db)",
         borderRadius: "0.5rem",
-        "&:hover": { backgroundColor: "#f3f4f6" },
+        "&:hover": { backgroundColor: "var(--dm-raised, #f3f4f6)" },
     }
 
     return (

@@ -1,5 +1,5 @@
 import ProfilePic from "../other/profile-pic"
-import { checkActiveStatus, getProfilePic, readableDate, readableTime, showUserType } from "@/others/function"
+import { checkActiveStatus, getProfilePic, readableDate, readableTime, showUserType, profileUrl } from "@/others/function"
 import { Link } from "@inertiajs/react"
 import PaginationButton from "../button/pagination-btn"
 import { useEffect, useMemo, useState, useContext } from "react"
@@ -24,7 +24,7 @@ const ParentList = ({ list }) => {
         id: e.id,
         i: i + 1,
         user_id: e.id_number,
-        username: e.username,
+        encrypted_id: e.encrypted_id,
         subtitle: showUserType(e, true),
         profile_picture: e.profile?.profile_picture,
         sex: e.profile?.sex,
@@ -74,7 +74,7 @@ const ParentList = ({ list }) => {
             headerName: "Action",
             width: 120,
             renderCell: (params) => (
-                <Link href={`/profile/${params.row.username}`}>
+                <Link href={`${profileUrl(params.row)}`}>
                     <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700">
                         View
                     </ActionBtn>

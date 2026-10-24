@@ -55,7 +55,7 @@ class ForceAccountSetup
         }
 
         $allowed = [
-            "/force-change/{$user->username}",
+            '/force-change/',
             '/account-setup/complete',
             '/api/password/verify',
             '/log-out',
@@ -67,6 +67,6 @@ class ForceAccountSetup
             }
         }
 
-        return Inertia::location("/force-change/{$user->username}");
+        return Inertia::location('/force-change/'.encrypt_id($user->id));
     }
 }

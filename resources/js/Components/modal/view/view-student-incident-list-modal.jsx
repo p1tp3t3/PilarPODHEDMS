@@ -7,8 +7,7 @@ import {
   readableDate, 
   readableTime, 
   showWarningModal, 
-  toTitleCase 
-} from "@/others/function"
+  toTitleCase, profileUrl , showLoadingModal , closeLoadingModal , showOutputModal } from "@/others/function"
 import SelectedUser from "@/Components/other/selected-user"
 import { Link } from "@inertiajs/react"
 import QuantityCard from "@/Components/card/qntty-statistic-card"
@@ -108,6 +107,7 @@ const Body = ({ data, usr, type }) => {
         `Notify ${label}`,
         "Cancel",
         () => {
+          showLoadingModal("Sending the notification")
           RiskPredictionService.notifyRisk(d, success, error)
         }
       )
@@ -117,10 +117,10 @@ const Body = ({ data, usr, type }) => {
   }
 
   const success = () => {
-    alert("Notification sent successfully!")
+    showOutputModal("Notification sent successfully!", "s")
   }
   const error = () => {
-    alert("Failed to send notification.")
+    showOutputModal("Failed to send the notification. Please try again.", "e")
   }
 
   return (
@@ -130,7 +130,7 @@ const Body = ({ data, usr, type }) => {
       </div>
       <div className="mt-4">
         <h2 className="text-sm font-semibold">Student:</h2>
-        <Link href={`/profile/${user.username}`}>
+        <Link href={`${profileUrl(user)}`}>
           <SelectedUser
             src={getProfilePic(user.profile_picture, user.sex)}
             name={[user.first_name, user.last_name]}

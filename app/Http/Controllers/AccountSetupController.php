@@ -21,7 +21,7 @@ class AccountSetupController extends Controller
         $user = auth()->user();
 
         if ($user->hasVerifiedEmail()) {
-            return redirect("/force-change/{$user->username}");
+            return redirect('/force-change/'.encrypt_id($user->id));
         }
 
         return Inertia::render('auth/verify-email', [
@@ -40,13 +40,14 @@ class AccountSetupController extends Controller
      * the profile step is done — a local view change, not a navigation, so
      * nothing here needs to dispatch to AccountController::accountSettingsIndex.
      */
-    public function showStep($username)
+    public function showStep($key)
     {
         if (! session('force_account_setup')) {
             abort(404);
         }
 
-        return (new ProfileController)->edit($username);
+        // Always the signed-in user's own setup, whatever the URL segment says.
+        return (new ProfileController)->edit(encrypt_id(auth()->id()));
     }
 
     public function resendVerificationEmail()

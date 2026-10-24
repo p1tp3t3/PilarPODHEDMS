@@ -18,7 +18,7 @@ const SearchBar = (props) => {
                 sx={{
                     "& .MuiOutlinedInput-root": {
                         borderRadius: "10rem",
-                        backgroundColor: "rgb(229 231 235)",
+                        backgroundColor: "var(--dm-raised, rgb(229 231 235))",
                         "& fieldset": { borderColor: "rgb(107 114 128)" },
                         "&:hover fieldset": { borderColor: "rgb(17 24 39)" },
                         "&.Mui-focused fieldset": { borderColor: "rgb(17 24 39)", borderWidth: "1px" },

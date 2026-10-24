@@ -110,7 +110,7 @@ const GatePassReportList = ({ list = [] }) => {
                 width: "100%",
                 minWidth: 0,
                 overflow: "auto",
-                backgroundColor: "#fff",
+                backgroundColor: "var(--dm-surface, #fff)",
                 borderRadius: 2,
                 boxShadow: 2,
                 p: 2,
@@ -130,7 +130,7 @@ const GatePassReportList = ({ list = [] }) => {
                 sx={{
                     border: "none",
                     "& .MuiDataGrid-columnHeaders": {
-                        backgroundColor: "#f9fafb",
+                        backgroundColor: "var(--dm-surface-2, #f9fafb)",
                         fontWeight: "bold",
                     },
                 }}

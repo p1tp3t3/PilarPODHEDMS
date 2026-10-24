@@ -936,10 +936,20 @@ class MaintenanceController extends Controller
     public function penaltyStore(Request $request)
     {
         $data = $request->validate([
+            'ref_number' => ['required', 'regex:/^\d{1,3}(\.\d)?$/', 'unique:penalty,ref_number'],
             'description' => 'required|string|max:191',
+        ], [
+            'ref_number.regex' => 'Use a reference number like 6 or 1.4.',
+            'ref_number.unique' => 'That reference number is already used.',
         ]);
 
-        Penalty::insert($data);
+        // The penalty table needs a reference number and a name; the name and
+        // description are the same text throughout the catalog.
+        Penalty::insert([
+            'ref_number' => $data['ref_number'],
+            'name' => $data['description'],
+            'description' => $data['description'],
+        ]);
 
         return Penalty::latest('created_at')->get();
     }

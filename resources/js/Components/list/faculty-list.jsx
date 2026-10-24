@@ -1,6 +1,6 @@
 import ProfilePic from "../other/profile-pic"
 import LiveActiveSince from "@/Components/other/live-active-since";
-import { checkActiveStatus, getProfilePic, readableActiveDuration, readableDate, readableTime, showUserType } from "../../others/function"
+import { checkActiveStatus, getProfilePic, readableActiveDuration, readableDate, readableTime, showUserType, profileUrl } from "../../others/function"
 import { Link } from "@inertiajs/react"
 import PaginationButton from "../button/pagination-btn"
 import { useEffect, useMemo, useState, useContext } from "react"
@@ -25,7 +25,7 @@ const FacultyList = ({ list, style = true, type = 'prefect', paginate = true }) 
         id: e.id,
         i: i + 1,
         user_id: e.id_number,
-        username: e.username,
+        encrypted_id: e.encrypted_id,
         name: `${e.profile?.first_name ?? ""} ${e.profile?.last_name ?? ""}`,
         profile_picture: e.profile?.profile_picture,
         sex: e.profile?.sex,
@@ -84,7 +84,7 @@ const FacultyList = ({ list, style = true, type = 'prefect', paginate = true }) 
             headerName: "Action",
             width: 120,
             renderCell: (params) => (
-                <Link href={`/profile/${params.row.username}`}>
+                <Link href={`${profileUrl(params.row)}`}>
                     <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700">
                         View
                     </ActionBtn>

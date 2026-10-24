@@ -5,7 +5,7 @@ import { Search, UsersRound } from "lucide-react"
 import AuthContext from "@/context-provider/auth-provider"
 import ProfilePic from "../other/profile-pic"
 import { MenuItem, Select } from "@mui/material"
-import { getProfilePic, toTitleCase } from "@/others/function"
+import { getProfilePic, toTitleCase, profileUrl } from "@/others/function"
 
 // Same scope as the dashboard's Active Users widget: both admins see
 // everyone (and can filter by role in the panel).
@@ -54,7 +54,7 @@ const ActiveUsersModal = ({ click, refs }) => {
     const q = search.trim().toLowerCase()
     const shown = users.filter((u) =>
         (role === "all" || u.role === role) &&
-        (!q || `${u.name ?? ""} ${u.username ?? ""} ${u.id_number ?? ""}`.toLowerCase().includes(q))
+        (!q || `${u.name ?? ""} ${u.id_number ?? ""}`.toLowerCase().includes(q))
     )
 
     return (
@@ -119,7 +119,7 @@ const ActiveUsersModal = ({ click, refs }) => {
                     shown.map((u) => (
                         <Link
                             key={u.id}
-                            href={`/profile/${u.username}`}
+                            href={`${profileUrl(u)}`}
                             className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-gray-50"
                         >
                             <ProfilePic
@@ -130,7 +130,7 @@ const ActiveUsersModal = ({ click, refs }) => {
                                 activeSize={0.6}
                             />
                             <div className="min-w-0 flex-1">
-                                <p className="text-[0.85em] font-semibold text-gray-900 truncate">{toTitleCase(u.name ?? u.username)}</p>
+                                <p className="text-[0.85em] font-semibold text-gray-900 truncate">{toTitleCase(u.name ?? "User")}</p>
                                 <p className="text-[0.7em] text-gray-500 truncate">
                                     {ROLE_LABEL[u.role] ?? toTitleCase(u.role ?? "")}{u.id_number ? ` · ${u.id_number.toUpperCase()}` : ""}
                                 </p>

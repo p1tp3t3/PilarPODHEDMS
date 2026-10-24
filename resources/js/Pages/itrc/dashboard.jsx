@@ -1,6 +1,7 @@
 import AuthLayout from "@/Layouts/auth-layout";
 import QuantityCard from "@/Components/card/qntty-statistic-card";
 import CurrentSemesterBanner from "@/Components/other/current-semester-banner";
+import { PrefectAvailabilityCard } from "@/Components/other/prefect-availability";
 import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder";
 import CurrentDateTime from "@/Components/other/current-datetime";
 import SystemInfoPanel from "@/Components/other/system-info-panel";
@@ -130,6 +131,7 @@ const ITRCDashboard = (props) => {
             <CurrentDateTime />
             <CurrentSemesterBanner />
           </div>
+          <PrefectAvailabilityCard />
 
           {/* === TOP SECTION === */}
           <div className="w-full grid gap-5">

@@ -21,7 +21,7 @@ const Accounts = (props) => {
   const { loadRegister, setReload, setOnClose } = useReload();
 
   useEffect(() => {
-    setOnClose(() => (e) => {
+    setOnClose((e) => {
       setReload(e);
       if (clickedOk) window.location.reload();
       setClickOk(false);
@@ -31,6 +31,8 @@ const Accounts = (props) => {
   const url = new URLSearchParams(window.location.search);
   const activeTab = url.get("tab") || "users";
   const roleFilter = url.get("role") || "all";
+  const schoolYear = url.get("school-year") || "all";
+  const semester = url.get("semester") || "all";
 
   // Preserves every other active query param (tab, role) when only one of
   // them changes, instead of rebuilding the query string from scratch.
@@ -87,6 +89,45 @@ const Accounts = (props) => {
     )
   };
 
+  // School year / semester (accounts registered in that period) and role —
+  // shown under the tabs, with the table's select button on the right.
+  const userFilters = (
+            <div className="w-full flex flex-col sm:flex-row sm:flex-wrap gap-3">
+              {/* School year / semester: accounts registered in that period. */}
+              <div className="w-full sm:w-48">
+                <DropdownField
+                  default={{ val: "all", label: "All School Years" }}
+                  list={(props.school_years ?? []).map((y) => ({ val: y, label: y }))}
+                  val={schoolYear}
+                  onChange={(e) => updateQuery({ "school-year": e.target.value })}
+                  name="school_year_filter"
+                />
+              </div>
+              <div className="w-full sm:w-44">
+                <DropdownField
+                  default={{ val: "all", label: "All Semesters" }}
+                  list={[
+                    { val: 1, label: "1st Semester" },
+                    { val: 2, label: "2nd Semester" },
+                  ]}
+                  val={semester === "all" ? "all" : Number(semester)}
+                  onChange={(e) => updateQuery({ semester: e.target.value })}
+                  name="semester_filter"
+                />
+              </div>
+              <div className="w-full sm:w-48">
+                <DropdownField
+                  default={{ val: "all", label: "All Roles" }}
+                  list={(props.roles ?? []).map((r) => ({ val: r.name, label: r.label }))}
+                  val={roleFilter}
+                  onChange={handleRoleChange}
+                  name="role_filter"
+                  keepCase={true}
+                />
+              </div>
+            </div>
+  );
+
   const buttonStyle =
     "px-4 h-[2rem] rounded-md bg-blue-700 text-white text-[0.8em] hover:bg-blue-900";
 
@@ -105,32 +146,19 @@ const Accounts = (props) => {
 
       <PageLayout title="USER LIST">
         {/* Tabs */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-          <TabSwitcher
-            tabs={[
-              { key: "users", label: "Users" },
-              { key: "files", label: "Account Files" },
-            ]}
-            value={activeTab}
-            onChange={goToTab}
-          />
-          {activeTab === "users" && (
-            <div className="w-full sm:w-56 flex-shrink-0">
-              <DropdownField
-                default={{ val: "all", label: "All Roles" }}
-                list={(props.roles ?? []).map((r) => ({ val: r.name, label: r.label }))}
-                val={roleFilter}
-                onChange={handleRoleChange}
-                name="role_filter"
-                keepCase={true}
-              />
-            </div>
-          )}
-        </div>
+        <TabSwitcher
+          tabs={[
+            { key: "users", label: "Users" },
+            { key: "files", label: "Account Files" },
+          ]}
+          value={activeTab}
+          onChange={goToTab}
+        />
 
         {activeTab === "users" && (
           <div>
             <AccountList
+              filters={userFilters}
               row={props.account_list}
               openEditUserInfo={showEditUserInfo}
               deleteUser={openDeleteUserAccount}

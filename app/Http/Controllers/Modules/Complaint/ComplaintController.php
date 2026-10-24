@@ -700,6 +700,7 @@ class ComplaintController extends Controller
         if (in_array($status, ['pending', 'ongoing', 'resolved', 'rejected', 'revoked'])) {
             $data = $data->where('complaint_status', $status);
         }
+        \App\Models\SchoolYearSemester::applyFilter($data, 'created_at', request('school-year'), request('semester'));
 
         $data = $data->latest('created_at');
 

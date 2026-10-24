@@ -1,4 +1,4 @@
-import { checkActiveStatus, getProfilePic, readableActiveDuration, toTitleCase } from "@/others/function"
+import { checkActiveStatus, getProfilePic, readableActiveDuration, toTitleCase, profileUrl } from "@/others/function"
 import ProfilePic from "../other/profile-pic"
 import { Link } from "@inertiajs/react"
 import AuthContext from "@/context-provider/auth-provider"
@@ -156,7 +156,7 @@ const Row = ({ data }) => {
     const { isUserOnline } = useContext(AuthContext)
 
     return (
-        <Link className="w-full" href={`/profile/${data.username}`}>
+        <Link className="w-full" href={`${profileUrl(data)}`}>
             <div className="py-1 px-3 flex justify-between hover:bg-gray-200 items-center border-b">
                 <div className="flex gap-3 items-center">
                     <div>

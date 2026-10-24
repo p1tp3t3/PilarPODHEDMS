@@ -3,7 +3,7 @@ import FormTextfield from "@/Components/input/form-input"
 import RichTextEditor from "@/Components/input/rich-text-editor"
 import FormButton from "@/Components/button/button"
 import { SystemService } from "@/others/services/system-service"
-import { disablePrevDate, showWarningModal } from "@/others/function"
+import { disablePrevDate, showWarningModal , showLoadingModal, closeLoadingModal } from "@/others/function"
 import { useState } from "react"
 import { CalendarClock } from "lucide-react"
 
@@ -33,11 +33,13 @@ const ScheduleMaintenanceModal = ({ close, closeModal, onScheduled }) => {
             "Cancel",
             () => {
                 setSubmitting(true)
+                showLoadingModal("Scheduling maintenance and notifying users")
                 SystemService.scheduleMaintenanceMode(
                     startsAt,
                     message,
                     (res) => {
                         setSubmitting(false)
+                        closeLoadingModal()
                         setStartsAt("")
                         setMessage("")
                         closeModal(false)
@@ -45,6 +47,7 @@ const ScheduleMaintenanceModal = ({ close, closeModal, onScheduled }) => {
                     },
                     (err) => {
                         setSubmitting(false)
+                        closeLoadingModal()
                         setErrors({ starts_at: err?.response?.data?.message || "Failed to schedule maintenance." })
                     }
                 )

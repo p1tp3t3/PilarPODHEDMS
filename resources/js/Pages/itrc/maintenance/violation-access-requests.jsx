@@ -1,571 +1,326 @@
 import { useEffect, useMemo, useState } from "react"
 import { DataGrid } from "@/Components/other/data-grid"
-import { Box, Chip } from "@mui/material"
-import { AlertTriangle, ClipboardList, Plus, Pencil, Trash2 } from "lucide-react"
+import { Box, Chip, Checkbox, FormControlLabel } from "@mui/material"
+import { AlertTriangle, ClipboardList, KeyRound, ShieldCheck, Clock } from "lucide-react"
 import ActionBtn from "@/Components/button/action-btn"
 import FormButton from "@/Components/button/button"
 import DropdownField from "@/Components/input/dropdown"
-import FormTextfield from "@/Components/input/form-input"
 import RichTextEditor from "@/Components/input/rich-text-editor"
+import { isBlank, maxLength } from "@/others/validation"
 import UpModal from "@/Components/modal/up-modal"
-import TabSwitcher from "@/Components/other/tab-switcher"
-import ProfilePic from "@/Components/other/profile-pic"
 import { ViolationAccessService } from "@/others/services/violation-access-service"
-import { getProfilePic, readableDate, readableTime, showOutputModal, showWarningModal, toTitleCase } from "@/others/function"
+import { readableDate, readableTime, showOutputModal, showWarningModal, toTitleCase , showLoadingModal } from "@/others/function"
 
-const RESOURCES = [
-    { val: "violation", label: "Violation Management", icon: AlertTriangle },
-    { val: "penalty", label: "Penalty Management", icon: ClipboardList },
+// Edit access to the violation / penalty catalog. The prefect GIVES the IT
+// admin (super admin) access directly — no request — scoped per action and
+// for a chosen length of time, and can revoke it at any time.
+// Backend: ViolationAccessController (grant / index / status / revoke).
+
+const PERMISSIONS = [
+    { resource: "violation", label: "Violations", icon: AlertTriangle, actions: ["add", "edit", "delete"] },
+    { resource: "penalty", label: "Penalties", icon: ClipboardList, actions: ["add", "delete"] },
 ]
 
-// Penalties have no "edit" endpoint — only add/delete.
-const ACCESS_TYPES_BY_RESOURCE = {
-    violation: [
-        { val: "add", label: "Add", icon: Plus },
-        { val: "edit", label: "Edit", icon: Pencil },
-        { val: "delete", label: "Delete", icon: Trash2 },
-    ],
-    penalty: [
-        { val: "add", label: "Add", icon: Plus },
-        { val: "delete", label: "Delete", icon: Trash2 },
-    ],
+const DURATION_LABEL = { 30: "30 minutes", 60: "1 hour", 240: "4 hours", 480: "8 hours", 1440: "1 day", 4320: "3 days", 10080: "7 days" }
+
+const hasUsesLeft = (r) => r.max_uses == null || (r.uses_count ?? 0) < r.max_uses
+const isActive = (r) => r.status === "approved" && r.expires_at && new Date(r.expires_at) > new Date() && hasUsesLeft(r)
+// "2 of 3 used" for a limited grant, "Used 2 times" / "Not used yet" otherwise.
+const usageLabel = (r) => {
+    const n = r.uses_count ?? 0
+    if (r.max_uses != null) return `${n} of ${r.max_uses} ${r.max_uses === 1 ? "use" : "uses"} used`
+    return n ? `Used ${n} ${n === 1 ? "time" : "times"} (no limit)` : "No limit on uses"
 }
+const USE_LABEL = { 1: "Once", 3: "3 times", 5: "5 times", 10: "10 times" }
+// What the row is now: an approved grant past its time shows as expired.
+const shownStatus = (r) => (r.status === "approved" && !isActive(r) ? "expired" : r.status)
 
 const STATUS_COLOR = {
-    pending: { bg: "#fef3c7", fg: "#b45309" },
-    approved: { bg: "#dcfce7", fg: "#15803d" },
-    denied: { bg: "#fee2e2", fg: "#b91c1c" },
-    expired: { bg: "#f3f4f6", fg: "#6b7280" },
-    revoked: { bg: "#f3f4f6", fg: "#6b7280" },
-    used: { bg: "#e0e7ff", fg: "#4338ca" },
+    approved: { bg: "#dcfce7", fg: "#15803d", label: "Active" },
+    expired: { bg: "#f3f4f6", fg: "#6b7280", label: "Expired" },
+    revoked: { bg: "#f3f4f6", fg: "#6b7280", label: "Revoked" },
+    used: { bg: "#e0e7ff", fg: "#4338ca", label: "Used up" },
+    pending: { bg: "#fef3c7", fg: "#b45309", label: "Pending (old request)" },
+    denied: { bg: "#fee2e2", fg: "#b91c1c", label: "Denied" },
 }
 
 const StatusChip = ({ status }) => {
     const c = STATUS_COLOR[status] ?? STATUS_COLOR.expired
-    return (
-        <Chip
-            label={status.charAt(0).toUpperCase() + status.slice(1)}
-            size="small"
-            sx={{ fontWeight: 600, backgroundColor: c.bg, color: c.fg }}
-        />
-    )
+    return <Chip label={c.label} size="small" sx={{ fontWeight: 600, backgroundColor: c.bg, color: c.fg }} />
 }
 
-const isActiveRow = (row) => row.status === "approved" && row.expires_at && new Date(row.expires_at) > new Date()
+// Notes are rich text — shown as plain text in lists.
+const plainText = (html) => String(html ?? "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim()
+const permissionLabel = (r) => `${toTitleCase(r.access_type)} ${r.resource === "penalty" ? "penalties" : "violations"}`
+const personName = (u) => [u?.profile?.first_name, u?.profile?.last_name].filter(Boolean).join(" ") || "—"
+const when = (d) => (d ? `${readableDate(d)} (${readableTime(d)})` : "—")
 
-// The timestamp for whichever transition actually applies to this request's
-// current status — `responded_at` alone can't tell approved/denied/revoked
-// apart once overwritten, so each status keeps its own column.
-const statusTimestamp = (r) => {
-    switch (r.status) {
-        case "approved": return r.approved_at
-        case "denied": return r.denied_at
-        case "revoked": return r.revoked_at
-        case "used": return r.used_at
-        default: return null
-    }
+// "in 3h 20m" / "in 12m"
+const timeLeft = (d) => {
+    const mins = Math.max(0, Math.round((new Date(d) - new Date()) / 60000))
+    if (mins >= 1440) return `${Math.floor(mins / 1440)}d ${Math.floor((mins % 1440) / 60)}h left`
+    if (mins >= 60) return `${Math.floor(mins / 60)}h ${mins % 60}m left`
+    return `${mins}m left`
 }
 
-const dt = (value) => value ? `${readableDate(value)} (${readableTime(value)})` : "—"
-
-const ViolationAccessRequests = ({ user }) => {
-    const isSuperAdmin = user?.role === "super_admin"
-
-    return isSuperAdmin
-        ? <SuperAdminAccessPanel />
-        : <PrefectAccessPanel />
+// giveOpen / setGiveOpen: the page's title-bar "Give Access" button opens the form.
+const ViolationAccessRequests = ({ user, giveOpen, setGiveOpen }) => {
+    const isPrefect = user?.role === "sub_admin"
+    return isPrefect ? <PrefectView giveOpen={giveOpen} setGiveOpen={setGiveOpen} /> : <AdminView />
 }
 
-// ========================
-// SUPER ADMIN: request form + own request history
-// ========================
-const SuperAdminAccessPanel = () => {
-    const [requests, setRequests] = useState(null)
-    const [hasAccess, setHasAccess] = useState({})
-    const [mainTab, setMainTab] = useState("request")
-    const [activeResource, setActiveResource] = useState("violation")
-    const [showForm, openForm] = useState(false)
-    const [resource, setResource] = useState("")
-    const [accessType, setAccessType] = useState("")
-    const [reason, setReason] = useState("")
-    const [formError, setFormError] = useState({})
+// ---------------------------------------------------------------------------
+// Prefect: give access, see active access, revoke, history
+// ---------------------------------------------------------------------------
+const PrefectView = ({ giveOpen = false, setGiveOpen = () => {} }) => {
+    const [state, setState] = useState(null) // { grants, admins, durations }
+    // Access always goes to the IT admin account(s) — no one to choose.
+    const [form, setForm] = useState({ perms: {}, duration: 60, max_uses: "unlimited", note: "" })
+    const [errors, setErrors] = useState({})
+    // The form starts fresh each time it opens.
+    useEffect(() => {
+        if (!giveOpen) return
+        setForm((f) => ({ ...f, perms: {}, duration: 60, max_uses: "unlimited", note: "" }))
+        setErrors({})
+    }, [giveOpen])
 
-    const load = () => {
-        ViolationAccessService.getStatus((data) => {
-            setRequests(data.requests)
-            setHasAccess(data.has_access)
-        })
-    }
-
+    const load = () => ViolationAccessService.getList(setState)
     useEffect(() => { load() }, [])
 
-    const openRequestForm = () => {
-        setResource("")
-        setAccessType("")
-        setReason("")
-        setFormError({})
-        openForm(true)
+    const grants = state?.grants ?? []
+    const active = useMemo(() => grants.filter(isActive), [grants])
+
+    const togglePerm = (key) => {
+        setForm((f) => ({ ...f, perms: { ...f.perms, [key]: !f.perms[key] } }))
+        setErrors((e) => ({ ...e, perms: undefined }))
     }
 
-    const handleResourceChange = (e) => {
-        setResource(e.target.value)
-        setAccessType("") // the previous type may not be valid for the new resource (e.g. penalty has no "edit")
-    }
+    const give = () => {
+        const permissions = Object.entries(form.perms).filter(([, on]) => on).map(([key]) => {
+            const [resource, access_type] = key.split(".")
+            return { resource, access_type }
+        })
+        const found = {}
+        if (permissions.length === 0) found.perms = "Choose at least one action."
+        const noteError = maxLength(1000, "The note")(form.note)
+        if (noteError) found.note = noteError
+        setErrors(found)
+        if (Object.keys(found).length) return
 
-    const handleSubmit = (e) => {
-        e.preventDefault()
-        const errors = {}
-        if (!resource) errors.resource = "Please select which management area you need access to."
-        if (!accessType) errors.access_type = "Please select the type of access you need."
-        if (!reason.trim()) errors.reason = "Please explain why you need this access."
-        setFormError(errors)
-        if (Object.keys(errors).length > 0) return
-
-        ViolationAccessService.requestAccess(
-            { resource, access_type: accessType, reason },
-            () => {
-                openForm(false)
-                showOutputModal("Access request sent to the prefect.", "s", () => load())
-            },
-            (err) => setFormError({ submit: err.response?.data?.message ?? "Failed to send request." })
-        )
-    }
-
-    const handleCancel = (r) => {
-        const isActive = r.status === "approved"
         showWarningModal(
-            isActive
-                ? `Are You Sure You Want To Give Up Your "${toTitleCase(r.access_type)}" Access To ${toTitleCase(r.resource)} Management?`
-                : `Are You Sure You Want To Withdraw This "${toTitleCase(r.access_type)}" Request For ${toTitleCase(r.resource)} Management?`,
-            isActive ? "Revoke Access" : "Withdraw Request",
+            `Give the IT admin access to ${permissions.map(permissionLabel).join(", ")} for ${DURATION_LABEL[form.duration]}${form.max_uses === "unlimited" ? "" : `, ${USE_LABEL[form.max_uses] ?? `${form.max_uses} times`} each`}?`,
+            "Give Access",
             "Cancel",
-            () => {
-                ViolationAccessService.revoke(
-                    r.id,
-                    () => showOutputModal(isActive ? "Access revoked." : "Request withdrawn.", "s", () => load()),
-                    (err) => showOutputModal(err.response?.data?.message ?? "Failed to revoke.", "e", () => {})
-                )
-            }
+            () => { showLoadingModal("Giving access"); ViolationAccessService.grant(
+                { permissions, duration_minutes: form.duration, max_uses: form.max_uses === "unlimited" ? null : form.max_uses, note: isBlank(form.note) ? null : form.note },
+                () => {
+                    setGiveOpen(false)
+                    showOutputModal("Access Given", "s", () => {})
+                    load()
+                },
+                (e) => showOutputModal(e?.response?.data?.message || "Failed to give access.", "e", () => {}),
+            ) },
         )
     }
 
-    const latestByKey = useMemo(() => {
-        const map = {}
-        for (const r of requests ?? []) {
-            const key = `${r.resource}:${r.access_type}`
-            if (!map[key]) map[key] = r
-        }
-        return map
-    }, [requests])
+    const revoke = (row) => showWarningModal(
+        `Remove ${personName(row.requester)}'s "${permissionLabel(row)}" access now?`,
+        "Revoke Access",
+        "Cancel",
+        () => { showLoadingModal("Revoking access"); ViolationAccessService.revoke(
+            row.id,
+            () => { showOutputModal("Access Revoked", "s", () => {}); load() },
+            (e) => showOutputModal(e?.response?.data?.message || "Failed to revoke access.", "e", () => {}),
+        ) },
+    )
 
-    if (requests === null) return <div className="text-[0.85em] text-gray-500">Loading access status...</div>
-
-    const activeTypes = ACCESS_TYPES_BY_RESOURCE[activeResource]
+    if (!state) return <div className="h-64 rounded-md bg-white animate-pulse" />
 
     return (
-        <div className="grid gap-5 max-w-3xl">
-            <UpModal close={showForm} closeModal={openForm} isEnableOuterClose={true} pd={["px-8", "py-6"]} bgColor="bg-white" w="w-[26rem]" cntr={true}>
-                <form onSubmit={handleSubmit} className="w-full grid gap-4">
-                    <h1 className="text-[1.1em]"><b>Request Violation/Penalty Edit Access</b></h1>
-                    <DropdownField
-                        default={{ val: "", label: "Select Management Area" }}
-                        list={RESOURCES}
-                        val={resource}
-                        onChange={handleResourceChange}
-                        name="resource"
-                        error={formError.resource}
-                    />
-                    <DropdownField
-                        default={{ val: "", label: "Select Type of Access" }}
-                        list={resource ? ACCESS_TYPES_BY_RESOURCE[resource] : []}
-                        val={accessType}
-                        onChange={(e) => setAccessType(e.target.value)}
-                        name="access_type"
-                        titleCase={true}
-                        error={formError.access_type}
-                    />
-                    <RichTextEditor
-                        label="Reason"
-                        val={reason}
-                        change={setReason}
-                        req={true}
-                        error={formError.reason}
-                        minHeight="10rem"
-                    />
-                    {formError.submit && <div className="text-[#d12323] text-[0.8em]">{formError.submit}</div>}
-                    <FormButton type="submit" label="Send Request" />
-                </form>
+        <div className="grid gap-5">
+            <p className="text-[0.85em] text-gray-500 max-w-[40rem]">
+                Give the IT admin time-limited access to change the violation or penalty list. You can revoke it anytime.
+            </p>
+
+            {/* Give access (modal) */}
+            <UpModal close={giveOpen} closeModal={setGiveOpen} isEnableOuterClose={true} cntr={true} w="w-[95%] sm:w-[46rem]" pd={["px-5", "py-6"]}>
+            <div className="grid gap-4">
+                <div className="flex items-start gap-3 pr-6">
+                    <span className="w-10 h-10 shrink-0 rounded-full bg-blue-50 text-blue-700 grid place-items-center"><KeyRound size={18} /></span>
+                    <div>
+                        <h2 className="font-semibold text-gray-900">Give Edit Access</h2>
+                        <p className="text-[0.85em] text-gray-500">
+                            Let the IT admin change the violation or penalty list for a limited time, optionally only a few times. It ends when the time or the uses run out, and you can revoke it anytime.
+                        </p>
+                    </div>
+                </div>
+
+                {state.admins.length === 0 ? (
+                    <p className="text-[0.85em] text-gray-500">There's no IT admin account to give access to.</p>
+                ) : (
+                    <>
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            <div>
+                                <p className="text-[0.8em] font-semibold text-gray-700 mb-1">For how long</p>
+                                <DropdownField
+                                    list={(state.durations ?? [60]).map((m) => ({ val: m, label: DURATION_LABEL[m] ?? `${m} minutes` }))}
+                                    val={form.duration}
+                                    onChange={(e) => setForm((f) => ({ ...f, duration: Number(e.target.value) }))}
+                                    keepCase={true}
+                                />
+                            </div>
+                            <div>
+                                <p className="text-[0.8em] font-semibold text-gray-700 mb-1">How many times (each action)</p>
+                                <DropdownField
+                                    list={[
+                                        ...(state.use_limits ?? [1, 3, 5, 10]).map((n) => ({ val: n, label: USE_LABEL[n] ?? `${n} times` })),
+                                        { val: "unlimited", label: "No limit (until time ends)" },
+                                    ]}
+                                    val={form.max_uses}
+                                    onChange={(e) => setForm((f) => ({ ...f, max_uses: e.target.value === "unlimited" ? "unlimited" : Number(e.target.value) }))}
+                                    keepCase={true}
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <p className="text-[0.8em] font-semibold text-gray-700 mb-1">What they can do</p>
+                            <div className="grid sm:grid-cols-2 gap-3">
+                                {PERMISSIONS.map((g) => {
+                                    const Icon = g.icon
+                                    return (
+                                        <div key={g.resource} className="rounded-lg border border-gray-200 px-3 py-2">
+                                            <p className="flex items-center gap-2 text-[0.85em] font-semibold text-gray-800"><Icon size={15} className="text-gray-500" /> {g.label}</p>
+                                            <div className="flex flex-wrap gap-x-4">
+                                                {g.actions.map((a) => {
+                                                    const key = `${g.resource}.${a}`
+                                                    return (
+                                                        <FormControlLabel
+                                                            key={key}
+                                                            control={<Checkbox size="small" checked={!!form.perms[key]} onChange={() => togglePerm(key)} />}
+                                                            label={<span className="text-[0.85em]">{toTitleCase(a)}</span>}
+                                                        />
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                            {errors.perms && <p className="text-[#d12323] text-[13px] font-[600] mt-1">{errors.perms}</p>}
+                        </div>
+
+                        <RichTextEditor
+
+                            label="Note (optional) — e.g. why access is given"
+
+                            val={form.note}
+
+                            change={(html) => { setForm((f) => ({ ...f, note: html })); setErrors((x) => ({ ...x, note: undefined })) }}
+
+                            error={errors.note}
+
+                            minHeight="7rem"
+
+                        />
+
+                        <div className="flex justify-end">
+                            <FormButton type="button" label="Give Access" click={give} />
+                        </div>
+                    </>
+                )}
+            </div>
             </UpModal>
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <h2 className="font-semibold text-[1.05em]">Violation / Penalty Edit Access</h2>
-                {mainTab === "request" && (
-                    <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700" onClick={openRequestForm}>
-                        Request Access
-                    </ActionBtn>
+            {/* Active access */}
+            <div className="bg-white rounded-md shadow-sm shadow-black/20 p-5">
+                <h2 className="font-semibold text-gray-900 mb-3">Active Access</h2>
+                {active.length === 0 ? (
+                    <p className="text-[0.85em] text-gray-500">The IT admin has no edit access right now.</p>
+                ) : (
+                    <div className="grid gap-2">
+                        {active.map((r) => (
+                            <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-green-100 bg-green-50 px-3 py-2">
+                                <div className="min-w-0">
+                                    <p className="text-[0.9em] font-semibold text-gray-800">{permissionLabel(r)} <span className="font-normal text-gray-500">· {personName(r.requester)}</span></p>
+                                    <p className="text-[0.75em] text-gray-500 flex items-center gap-1"><Clock size={12} /> Until {when(r.expires_at)} · {timeLeft(r.expires_at)} · {usageLabel(r)}</p>
+                                </div>
+                                <ActionBtn className="bg-red-600 text-white hover:bg-red-700" onClick={() => revoke(r)}>Revoke</ActionBtn>
+                            </div>
+                        ))}
+                    </div>
                 )}
             </div>
 
-            <TabSwitcher
-                tabs={[
-                    { key: "request", label: "Request" },
-                    { key: "history", label: "History" },
-                ]}
-                value={mainTab}
-                onChange={setMainTab}
-            />
-
-            {mainTab === "request" && (
-                <div className="bg-white rounded-md shadow-black/20 shadow-sm overflow-hidden">
-                    <div className="px-5 pt-2">
-                        <TabSwitcher
-                            tabs={RESOURCES.map(({ val, label, icon }) => ({ key: val, label, icon }))}
-                            value={activeResource}
-                            onChange={setActiveResource}
-                        />
-                    </div>
-
-                    <div className="p-5 grid gap-1">
-                        {activeTypes.map(({ val, label, icon: Icon }) => {
-                            const key = `${activeResource}:${val}`
-                            const latest = latestByKey[key]
-                            const active = hasAccess[activeResource]?.[val]
-                            return (
-                                <div key={key} className="flex items-center justify-between gap-3 py-3 border-b border-gray-100 last:border-0">
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-8 w-8 flex-shrink-0 grid place-items-center rounded-full bg-blue-50 text-blue-600">
-                                            <Icon size={15} />
-                                        </div>
-                                        <span className="text-[0.9em] font-medium">{label}</span>
-                                    </div>
-
-                                    {active ? (
-                                        <div className="flex items-center gap-2 flex-wrap justify-end">
-                                            <span className="text-[0.8em] text-green-700 font-medium text-right">
-                                                Active until {dt(latest.expires_at)}
-                                            </span>
-                                            <ActionBtn
-                                                className="bg-gray-400 text-white hover:bg-gray-500"
-                                                onClick={() => handleCancel(latest)}
-                                            >
-                                                Revoke
-                                            </ActionBtn>
-                                        </div>
-                                    ) : latest ? (
-                                        <div className="flex items-center gap-2 flex-wrap justify-end">
-                                            <span className="text-[0.75em] text-gray-500">{readableDate(latest.created_at)}</span>
-                                            <StatusChip status={latest.status} />
-                                            {latest.status === "pending" && (
-                                                <ActionBtn
-                                                    className="bg-gray-400 text-white hover:bg-gray-500"
-                                                    onClick={() => handleCancel(latest)}
-                                                >
-                                                    Cancel
-                                                </ActionBtn>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <span className="text-[0.8em] text-gray-400">Never requested</span>
-                                    )}
-                                </div>
-                            )
-                        })}
-                    </div>
-                </div>
-            )}
-
-            {mainTab === "history" && (
-                <div className="bg-white rounded-md shadow-black/20 shadow-sm p-5 grid gap-3">
-                    {requests.length === 0 ? (
-                        <div className="text-[0.85em] text-gray-400 text-center py-6">No requests made yet.</div>
-                    ) : (
-                        <div className="grid gap-3">
-                            {requests.map((r) => (
-                                <div key={r.id} className="rounded-md border border-gray-100 bg-gray-50/60 p-3 grid gap-1.5">
-                                    <div className="flex items-center gap-2 flex-wrap justify-between">
-                                        <span className="text-[0.85em] font-semibold">
-                                            {toTitleCase(r.resource)} <span className="text-gray-400 font-normal">—</span> {toTitleCase(r.access_type)}
-                                        </span>
-                                        <div className="flex items-center gap-2">
-                                            <StatusChip status={r.status} />
-                                            {(r.status === "pending" || isActiveRow(r)) && (
-                                                <ActionBtn
-                                                    className="bg-gray-400 text-white hover:bg-gray-500"
-                                                    onClick={() => handleCancel(r)}
-                                                >
-                                                    {r.status === "pending" ? "Cancel" : "Revoke"}
-                                                </ActionBtn>
-                                            )}
-                                        </div>
-                                    </div>
-                                    {r.reason && (
-                                        <div className="text-[0.8em] text-gray-600">{r.reason}</div>
-                                    )}
-                                    {r.status === "denied" && r.response_reason && (
-                                        <div className="text-[0.8em] text-red-700 bg-red-50 border border-red-100 rounded px-2 py-1">
-                                            Prefect's reason: {r.response_reason}
-                                        </div>
-                                    )}
-                                    <div className="text-[0.7em] text-gray-400">
-                                        Requested {dt(r.created_at)}
-                                        {statusTimestamp(r) && ` • ${toTitleCase(r.status)} ${dt(statusTimestamp(r))}`}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
+            <HistoryTable rows={grants} showAdmin={true} />
         </div>
     )
 }
 
-// ========================
-// PREFECT: full roster + approve/deny/revoke
-// ========================
-const DenyReasonModal = ({ close, closeModal, onSubmit }) => {
-    const [reason, setReason] = useState("")
-    const [error, setError] = useState("")
+// ---------------------------------------------------------------------------
+// IT admin: what access they have right now + history
+// ---------------------------------------------------------------------------
+const AdminView = () => {
+    const [rows, setRows] = useState(null)
+    useEffect(() => { ViolationAccessService.getStatus((d) => setRows(d.requests ?? [])) }, [])
 
-    useEffect(() => {
-        if (close) { setReason(""); setError("") }
-    }, [close])
-
-    const handleSubmit = (e) => {
-        e.preventDefault()
-        if (!reason.trim()) {
-            setError("Please explain why this request is being denied.")
-            return
-        }
-        onSubmit(reason)
-    }
+    if (!rows) return <div className="h-48 rounded-md bg-white animate-pulse" />
+    const active = rows.filter(isActive)
 
     return (
-        <UpModal close={close} closeModal={closeModal} isEnableOuterClose={true} pd={["px-8", "py-6"]} bgColor="bg-white" w="w-[26rem]" cntr={true}>
-            <form onSubmit={handleSubmit} className="w-full grid gap-4">
-                <h1 className="text-[1.1em]"><b>Deny Access Request</b></h1>
-                <RichTextEditor
-                    label="Reason for Denial"
-                    val={reason}
-                    change={setReason}
-                    req={true}
-                    error={error}
-                    minHeight="10rem"
-                />
-                <FormButton type="submit" label="Send Denial" />
-            </form>
-        </UpModal>
-    )
-}
-
-const RequestDetailModal = ({ close, closeModal, request }) => {
-    return (
-        <UpModal close={close} closeModal={closeModal} isEnableOuterClose={true} pd={["px-8", "py-6"]} bgColor="bg-white" w="w-[28rem]" cntr={true}>
-            {request && (
-                <div className="w-full grid gap-4">
-                    <div className="flex items-center gap-3">
-                        <ProfilePic size={2.4} src={getProfilePic(request.requester_picture, request.requester_sex)} />
-                        <div className="leading-tight">
-                            <div className="font-semibold">{request.requester_name}</div>
-                            <div className="text-gray-500 text-[0.85em]">{request.requester_username}</div>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="font-medium">{toTitleCase(request.resource)} Management</div>
-                            <div className="text-gray-500 text-[0.85em]">{toTitleCase(request.access_type)} Access</div>
-                        </div>
-                        <StatusChip status={request.status} />
-                    </div>
-
+        <div className="grid gap-5">
+            <div className="bg-white rounded-md shadow-sm shadow-black/20 p-5">
+                <div className="flex items-start gap-3 mb-3">
+                    <span className="w-10 h-10 shrink-0 rounded-full bg-blue-50 text-blue-700 grid place-items-center"><ShieldCheck size={18} /></span>
                     <div>
-                        <div className="text-[0.75em] font-semibold text-gray-500 uppercase tracking-wide mb-1">Requester's Reason</div>
-                        <div className="text-[0.85em] text-gray-700">{request.reason || "No reason given."}</div>
-                    </div>
-
-                    {request.status === "denied" && request.response_reason && (
-                        <div>
-                            <div className="text-[0.75em] font-semibold text-gray-500 uppercase tracking-wide mb-1">Denial Reason</div>
-                            <div className="text-[0.85em] text-red-700 bg-red-50 border border-red-100 rounded px-2 py-1">{request.response_reason}</div>
-                        </div>
-                    )}
-
-                    <div>
-                        <div className="text-[0.75em] font-semibold text-gray-500 uppercase tracking-wide mb-1">Timeline</div>
-                        <div className="grid gap-0.5 text-[0.8em] text-gray-600">
-                            <span>Requested: {dt(request.created_at)}</span>
-                            {statusTimestamp(request) && <span>{toTitleCase(request.status)}: {dt(statusTimestamp(request))}</span>}
-                            {request.expires_at && <span>Expires: {dt(request.expires_at)}</span>}
-                        </div>
+                        <h2 className="font-semibold text-gray-900">Your Edit Access</h2>
+                        <p className="text-[0.85em] text-gray-500">The prefect gives you access to change the violation and penalty lists. It ends on its own at the time shown.</p>
                     </div>
                 </div>
-            )}
-        </UpModal>
-    )
-}
-
-const PrefectAccessPanel = () => {
-    const [list, setList] = useState(null)
-    const [denyModal, openDenyModal] = useState(false)
-    const [denyTarget, setDenyTarget] = useState(null)
-    const [viewModal, openViewModal] = useState(false)
-    const [viewTarget, setViewTarget] = useState(null)
-
-    const openView = (row) => {
-        setViewTarget(row)
-        openViewModal(true)
-    }
-
-    const load = () => {
-        ViolationAccessService.getList(setList)
-    }
-
-    useEffect(() => { load() }, [])
-
-    const rows = useMemo(() => (list ?? []).map((e) => ({
-        id: e.id,
-        requester_name: `${e.requester?.profile?.first_name ?? ""} ${e.requester?.profile?.last_name ?? ""}`.trim() || e.requester?.username,
-        requester_username: e.requester?.username,
-        requester_picture: e.requester?.profile?.profile_picture,
-        requester_sex: e.requester?.profile?.sex,
-        resource: e.resource,
-        access_type: e.access_type,
-        reason: e.reason,
-        response_reason: e.response_reason,
-        status: e.status,
-        created_at: e.created_at,
-        approved_at: e.approved_at,
-        denied_at: e.denied_at,
-        revoked_at: e.revoked_at,
-        used_at: e.used_at,
-        expires_at: e.expires_at,
-    })), [list])
-
-    const handleApprove = (row) => {
-        ViolationAccessService.approve(
-            row.id,
-            () => showOutputModal("Access approved.", "s", () => load()),
-            (err) => showOutputModal(err.response?.data?.message ?? "Failed to approve.", "e", () => {})
-        )
-    }
-    const openDeny = (row) => {
-        setDenyTarget(row)
-        openDenyModal(true)
-    }
-    const handleDenySubmit = (reason) => {
-        ViolationAccessService.deny(
-            denyTarget.id,
-            reason,
-            () => {
-                openDenyModal(false)
-                showOutputModal("Access denied.", "s", () => load())
-            },
-            (err) => showOutputModal(err.response?.data?.message ?? "Failed to deny.", "e", () => {})
-        )
-    }
-    const columns = [
-        {
-            field: "requester_name",
-            headerName: "Super Admin",
-            flex: 1,
-            minWidth: 210,
-            renderCell: ({ row }) => (
-                <div className="flex items-center gap-2 h-full">
-                    <ProfilePic
-                        size={1.9}
-                        src={getProfilePic(row.requester_picture, row.requester_sex)}
-                    />
-                    <div className="leading-tight">
-                        <div className="font-medium text-[0.9em]">{row.requester_name}</div>
-                        <div className="text-gray-500 text-[0.8em]">{row.requester_username}</div>
+                {active.length === 0 ? (
+                    <p className="text-[0.85em] text-gray-500">You don't have edit access right now. Ask the prefect if you need to change something.</p>
+                ) : (
+                    <div className="grid gap-2">
+                        {active.map((r) => (
+                            <div key={r.id} className="rounded-md border border-green-100 bg-green-50 px-3 py-2">
+                                <p className="text-[0.9em] font-semibold text-gray-800">{permissionLabel(r)}</p>
+                                <p className="text-[0.75em] text-gray-500 flex items-center gap-1"><Clock size={12} /> Until {when(r.expires_at)} · {timeLeft(r.expires_at)} · {usageLabel(r)}</p>
+                                {!isBlank(r.reason) && <p className="text-[0.8em] text-gray-600 mt-1">Note: {plainText(r.reason)}</p>}
+                            </div>
+                        ))}
                     </div>
-                </div>
-            ),
-        },
-        {
-            field: "request",
-            headerName: "Request",
-            width: 160,
-            renderCell: ({ row }) => (
-                <div className="leading-tight py-1">
-                    <div className="font-medium">{toTitleCase(row.resource)}</div>
-                    <div className="text-gray-500 text-[0.85em]">{toTitleCase(row.access_type)}</div>
-                </div>
-            ),
-        },
-        {
-            field: "status",
-            headerName: "Status",
-            width: 150,
-            renderCell: ({ row }) => (
-                <div className="flex flex-col gap-1 py-2">
-                    <StatusChip status={row.status} />
-                    {row.status === "denied" && row.response_reason && (
-                        <span className="text-[0.7em] text-gray-500 whitespace-normal">{row.response_reason}</span>
-                    )}
-                </div>
-            ),
-        },
-        {
-            field: "timeline",
-            headerName: "Timeline",
-            width: 200,
-            renderCell: ({ row }) => (
-                <div className="flex flex-col gap-0.5 py-2 text-[0.75em] text-gray-500">
-                    <span>Requested: {dt(row.created_at)}</span>
-                    {statusTimestamp(row) && <span>{toTitleCase(row.status)}: {dt(statusTimestamp(row))}</span>}
-                    {row.expires_at && <span>Expires: {dt(row.expires_at)}</span>}
-                </div>
-            ),
-        },
-        {
-            field: "actions",
-            type: "actions",
-            headerName: "Action",
-            width: 280,
-            sortable: false,
-            renderCell: ({ row }) => (
-                <div className="flex gap-2 items-center h-full">
-                    <ActionBtn className="bg-gray-600 text-white hover:bg-gray-700" onClick={() => openView(row)}>View</ActionBtn>
-                    {row.status === "pending" && (
-                        <>
-                            <ActionBtn className="bg-green-600 text-white hover:bg-green-700" onClick={() => handleApprove(row)}>Approve</ActionBtn>
-                            <ActionBtn className="bg-red-600 text-white hover:bg-red-700" onClick={() => openDeny(row)}>Deny</ActionBtn>
-                        </>
-                    )}
-                </div>
-            ),
-        },
-    ]
-
-    return (
-        <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
-            <RequestDetailModal close={viewModal} closeModal={openViewModal} request={viewTarget} />
-            <DenyReasonModal close={denyModal} closeModal={openDenyModal} onSubmit={handleDenySubmit} />
-            <div className="w-full px-5 py-3 min-w-0">
-                <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
-                    <DataGrid
-                        rows={rows}
-                        columns={columns}
-                        getRowId={(row) => row.id}
-                        disableRowSelectionOnClick
-                        showToolbar
-                        hideFooterSelectedRowCount
-                        pagination
-                        getRowHeight={() => "auto"}
-                        initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
-                        pageSizeOptions={[20, 50, 100]}
-                        localeText={{ noRowsLabel: "No Access Requests Yet" }}
-                        sx={{
-                            "& .MuiDataGrid-toolbarContainer": {
-                                minHeight: "2.75rem",
-                                paddingBlock: "0.4rem",
-                            },
-                        }}
-                    />
-                </Box>
+                )}
             </div>
+            <HistoryTable rows={rows} showAdmin={false} />
+        </div>
+    )
+}
+
+const HistoryTable = ({ rows, showAdmin }) => {
+    const columns = [
+        { field: "permission", headerName: "Access", flex: 1, minWidth: 160, valueGetter: (v, r) => permissionLabel(r) },
+        ...(showAdmin ? [{ field: "admin", headerName: "IT Admin", flex: 1, minWidth: 150, valueGetter: (v, r) => personName(r.requester) }] : []),
+        { field: "given", headerName: "Given", flex: 1, minWidth: 170, valueGetter: (v, r) => when(r.approved_at ?? r.created_at) },
+        { field: "until", headerName: "Until", flex: 1, minWidth: 170, valueGetter: (v, r) => when(r.revoked_at ?? r.expires_at) },
+        { field: "uses", headerName: "Uses", width: 170, valueGetter: (v, r) => (r.max_uses != null ? `${r.uses_count ?? 0} of ${r.max_uses}` : `${r.uses_count ?? 0} (no limit)`) },
+        { field: "status", headerName: "Status", width: 170, renderCell: (p) => <div className="h-full flex items-center"><StatusChip status={shownStatus(p.row)} /></div> },
+        { field: "reason", headerName: "Note", flex: 1.2, minWidth: 180, valueGetter: (v, r) => (isBlank(r.reason) ? "—" : plainText(r.reason)) },
+    ]
+    return (
+        <div className="bg-white rounded-md shadow-sm shadow-black/20 p-5">
+            <h2 className="font-semibold text-gray-900 mb-3">History</h2>
+            <Box sx={{ width: "100%", minWidth: 0 }}>
+                <DataGrid
+                    rows={rows}
+                    columns={columns}
+                    getRowId={(r) => r.id}
+                    autoHeight
+                    initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+                    pageSizeOptions={[10, 20]}
+                    disableRowSelectionOnClick
+                    mobileSummary={(r) => ({ name: permissionLabel(r), role: `${when(r.approved_at ?? r.created_at)} · ${STATUS_COLOR[shownStatus(r)]?.label ?? ""}` })}
+                />
+            </Box>
         </div>
     )
 }

@@ -18,6 +18,7 @@ import WatchList from "@/Components/list/watch-list"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import UnresolvedComplaintModal from "@/Components/modal/validation/unresolved-complaint-modal"
 import CurrentSemesterBanner from "@/Components/other/current-semester-banner"
+import { PrefectAvailabilityCard } from "@/Components/other/prefect-availability";
 import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder"
 import CurrentDateTime from "@/Components/other/current-datetime"
 import { Head, Link, router } from "@inertiajs/react"
@@ -223,6 +224,7 @@ const PrefectDashBoard = (props) => {
                   <CurrentDateTime />
                   <CurrentSemesterBanner />
                 </div>
+                <PrefectAvailabilityCard />
 
                 {/* Statistic Cards */}
                 <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">

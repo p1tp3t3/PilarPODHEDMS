@@ -1,8 +1,9 @@
 import { APIRequest } from "../classes/api-req";
 
 export const ProfileService = {
-    updateProfile(username, data, success, error) {
-        const api = new APIRequest(`/profile/${username}/edit`, "post", data, () => {}, success, error);
+    // key: the profile owner's encrypted id.
+    updateProfile(key, data, success, error) {
+        const api = new APIRequest(`/profile/${key}/edit`, "post", data, () => {}, success, error);
         api.sendPostData();
     },
 };

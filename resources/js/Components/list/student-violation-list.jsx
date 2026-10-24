@@ -126,7 +126,7 @@ const StudentViolationList = ({ list = [], fromKey = null }) => {
   ];
 
   return (
-    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", p: 2, bgcolor: "white", borderRadius: 2 }}>
+    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", p: 2, bgcolor: "var(--dm-surface, white)", borderRadius: 2 }}>
       <DataGrid
         rows={rows}
         columns={columns}

@@ -164,6 +164,7 @@ Route::middleware(['role:super_admin,sub_admin', 'activate', 'user-activity'])->
      Route::post('/violation-access/request', [ViolationAccessController::class, 'request']);
      Route::get('/violation-access/status', [ViolationAccessController::class, 'status']);
      Route::get('/violation-access', [ViolationAccessController::class, 'index']);
+     Route::post('/violation-access/grant', [ViolationAccessController::class, 'grant']);
      Route::post('/violation-access/{id}/approve', [ViolationAccessController::class, 'approve']);
      Route::post('/violation-access/{id}/deny', [ViolationAccessController::class, 'deny']);
      Route::post('/violation-access/{id}/revoke', [ViolationAccessController::class, 'revoke']);
@@ -314,6 +315,9 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/chat/message/{id}/history', [ChatController::class, 'getEditHistory']);
      Route::get('/chat/unread-count', [ChatController::class, 'unreadCount']);
 
+     // Prefect weekly availability: everyone reads it, only a prefect saves (their own).
+     Route::get('/prefect-availability', [\App\Http\Controllers\Modules\Appointment\PrefectAvailabilityController::class, 'index']);
+     Route::post('/prefect-availability', [\App\Http\Controllers\Modules\Appointment\PrefectAvailabilityController::class, 'update']);
      Route::get('/appointment', [AppointmentController::class, 'index']);
      Route::post('/prefect/appointment/req/get/{reqId}', [AppointmentController::class, 'getReqList']);
 
@@ -405,7 +409,7 @@ Route::middleware(['auth', 'activate'])->group(function() {
      Route::post('/account/update', [AccountController::class, 'update']);
      Route::get('/api/password/verify/{value}/{id}', [AccountController::class, 'checkCurrentPassword']);
      Route::post('/account-setup/complete', [\App\Http\Controllers\AccountSetupController::class, 'complete']);
-     Route::get('/force-change/{username}', [\App\Http\Controllers\AccountSetupController::class, 'showStep']);
+     Route::get('/force-change/{key}', [\App\Http\Controllers\AccountSetupController::class, 'showStep']);
 
      Route::get('/verify-email', [\App\Http\Controllers\AccountSetupController::class, 'verifyEmailPrompt'])
           ->name('verification.notice');

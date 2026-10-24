@@ -13,7 +13,8 @@ import { Link, usePage } from "@inertiajs/react";
 import { Broadcast } from "@/others/classes/broadcast-cofiguration";
 import { IconButton } from "@mui/material";
 import { ChatService } from "@/others/services/chat-service";
-import { Home, Phone, MessageCircle, Bell, UsersRound } from "lucide-react";
+import { Home, Phone, MessageCircle, Bell, UsersRound, Moon, Maximize, Minimize } from "lucide-react";
+import { useThemeMode } from "@/context-provider/theme-mode-provider";
 import ActiveUsersModal, { canSeeActiveUsers, useActiveUsers } from "../modal/active-users-modal";
 import MobileBottomNav from "../sidebar/mobile-bottom-nav";
 import { useIsMobile } from "@/others/use-is-mobile";
@@ -99,6 +100,21 @@ const AuthHeader = (props) => {
   };
 
 
+  const { mode, toggleMode } = useThemeMode();
+
+  // Full screen (same as F11). Kept in sync when the user leaves with Esc/F11.
+  const canFullscreen = typeof document !== "undefined" && !!document.fullscreenEnabled;
+  const [isFullscreen, setIsFullscreen] = useState(() => typeof document !== "undefined" && !!document.fullscreenElement);
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    else document.documentElement.requestFullscreen?.().catch(() => {});
+  };
+
   const btnSx = {
     height: "2.5rem",
     width: "2.5rem",
@@ -106,11 +122,21 @@ const AuthHeader = (props) => {
     position: "relative",
     borderRadius: "100%",
     fontSize: "1.2em",
-    color: "#000",
-    backgroundColor: "#fff",
-    "&:hover": { backgroundColor: "rgba(0,0,0,0.3)" },
+    color: mode === "dark" ? "#e2e8f0" : "#000",
+    backgroundColor: mode === "dark" ? "#1e293b" : "#fff",
+    "&:hover": { backgroundColor: mode === "dark" ? "#334155" : "rgba(0,0,0,0.3)" },
     "&:active": { backgroundColor: "rgba(0,0,0,0.5)" },
   };
+  // Call in, full screen and dark mode live in the account menu (all screen
+  // sizes); the header keeps active users, chat, notifications and the
+  // profile picture.
+  const menuActions = [
+    ...(props.user.role == "sub_admin" ? [{ label: "Call In", icon: Phone, onClick: () => { setOpenPanelId(null); openCallIn(true); } }] : []),
+    // Full screen is a desktop/tablet thing (hidden on phones).
+    ...(canFullscreen ? [{ key: "fullscreen", label: "Full Screen", icon: isFullscreen ? Minimize : Maximize, toggled: isFullscreen, onClick: toggleFullscreen, className: "hidden md:flex" }] : []),
+    { key: "theme", label: "Dark Mode", icon: Moon, toggled: mode === "dark", onClick: toggleMode },
+  ];
+
   const activeBtnSx = {
     ...btnSx,
     color: "#1d4ed8",
@@ -158,18 +184,11 @@ const AuthHeader = (props) => {
 
           <div className="grid relative shrink-0">
             <div className="flex gap-1.5 md:gap-2 items-center">
-              {props.user.role == "sub_admin" && (
-                <IconButton
-                  sx={btnSx}
-                  onClick={() => openCallIn(true)}
-                >
-                  <Phone size={18} />
-                </IconButton>
-              )}
               {showActiveUsers && (
                 <IconButton
                   sx={pane == "active" ? activeBtnSx : btnSx}
                   title="Active users"
+                  aria-label="Active users"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleTogglePanel("active");
@@ -228,6 +247,7 @@ const AuthHeader = (props) => {
 
           {/* ✅ Responsive modals: fixed full-width on mobile */}
           <AccountModal
+            actions={menuActions}
             addPicRoute={props.addPicRoute}
             user={props.user}
             identity={identity}

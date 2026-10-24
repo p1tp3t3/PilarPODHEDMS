@@ -3,7 +3,7 @@ import { useMemo } from "react"
 import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
 import ProfilePic from "../other/profile-pic"
-import { getProfilePic, showUserType } from "@/others/function"
+import { getProfilePic, showUserType, profileUrl } from "@/others/function"
 import ActionBtn from "../button/action-btn"
 
 const ChildrenList = ({ list = null, style }) => {
@@ -12,7 +12,7 @@ const ChildrenList = ({ list = null, style }) => {
         return list.map((e, i) => ({
             id: e.id ?? i,
             name: `${e.profile?.first_name ?? ""} ${e.profile?.middle_name ?? ""} ${e.profile?.last_name ?? ""}`.trim(),
-            username: e.username,
+            encrypted_id: e.encrypted_id,
             profile_picture: e.profile?.profile_picture,
             sex: e.profile?.sex,
             subtitle: showUserType(e),
@@ -41,7 +41,7 @@ const ChildrenList = ({ list = null, style }) => {
             headerName: "Action",
             width: 130,
             renderCell: (params) => (
-                <Link href={`/profile/${params.row.username}`}>
+                <Link href={`${profileUrl(params.row)}`}>
                     <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700">
                         View
                     </ActionBtn>

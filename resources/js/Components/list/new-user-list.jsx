@@ -1,6 +1,6 @@
 import { Link } from "@inertiajs/react"
 import ProfilePic from "../other/profile-pic"
-import { getProfilePic, getYearLevel, readableDate, readableTime, showUserType } from "@/others/function"
+import { getProfilePic, getYearLevel, readableDate, readableTime, showUserType, profileUrl } from "@/others/function"
 import ListSkeleton from "../reload/list-skeleton"
 import { AlertCircle } from "lucide-react"
 
@@ -52,7 +52,7 @@ const Row = ({ obj }) => {
 
     return (
         <div key={obj.id}>
-            <Link className="w-full" href={`/profile/${obj.username}`}>
+            <Link className="w-full" href={`${profileUrl(obj)}`}>
                 <div>
                     <div className="py-3 px-2 flex justify-between items-center border-b hover:bg-gray-200">
                         <div className="flex gap-3 items-center">

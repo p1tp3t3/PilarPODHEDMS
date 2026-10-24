@@ -1,3 +1,4 @@
+import { profileUrl } from "@/others/function";
 import { Link, usePage } from "@inertiajs/react"
 import { Paper, BottomNavigation, BottomNavigationAction, Badge, Fab } from "@mui/material"
 import { Home, MessageCircle, User, Menu, DoorOpen, CalendarX, Share2, Wrench, Users, GraduationCap } from "lucide-react"
@@ -23,7 +24,7 @@ const primaryPageFor = (usr) => {
 const actionSx = {
     minWidth: 0,
     px: 0.5,
-    color: "#6b7280",
+    color: "var(--dm-text-soft, #6b7280)",
     "&.Mui-selected": { color: "#2563eb" },
     "& .MuiBottomNavigationAction-label": { fontSize: "0.65rem", mt: 0.25, whiteSpace: "nowrap" },
     "& .MuiBottomNavigationAction-label.Mui-selected": { fontSize: "0.65rem", fontWeight: 600 },
@@ -44,7 +45,7 @@ const MobileBottomNav = ({ chatUnread = 0 }) => {
         super_admin: { value: "maintenance", label: "Maintenance", icon: Wrench, href: "/maintenance" },
     }
     const fourth = FOURTH_SLOT[usr.role]
-        ?? { value: "profile", label: "Profile", icon: User, href: `/profile/${usr.username}` }
+        ?? { value: "profile", label: "Profile", icon: User, href: `${profileUrl(usr)}` }
     // Teaching staff have nothing else behind "Menu", so their user list
     // (program head) / student list (faculty) takes that slot instead,
     // just before Referral.

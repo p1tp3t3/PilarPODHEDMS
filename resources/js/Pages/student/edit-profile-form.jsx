@@ -1,6 +1,6 @@
 import EditProfileModal from "@/Components/modal/submission-form/edit-profile-modal"
 import AccountSettingsForm from "@/Components/other/account-settings-form"
-import { change, getProfilePic, showOutputModal, showWarningModal, splitStr } from "@/others/function";
+import { change, getProfilePic, showOutputModal, showWarningModal, splitStr, profileUrl } from "@/others/function";
 import { Head, useForm } from "@inertiajs/react";
 import { useEffect, useState } from "react";
 import { useReload } from "@/context-provider/reload-provider";
@@ -203,7 +203,7 @@ const StudentEditProfileForm = (props) => {
                     `${nameLabel} profile information is updating`
                 );
 
-                ProfileService.updateProfile(profileData.username, data, success, error);
+                ProfileService.updateProfile(props.otherUserProfile.encrypted_id, data, success, error);
             }
         );
     };
@@ -214,7 +214,7 @@ const StudentEditProfileForm = (props) => {
             "s",
             () => {
                 loadRegister(false);
-                window.location.href = `/profile/${profileData.username}`;
+                window.location.href = `${profileUrl(props.otherUserProfile)}`;
             }
         );
     };

@@ -2,7 +2,7 @@ import { useMemo } from "react"
 import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
 import { Chip } from "@mui/material"
-import { readableDate, readableTime, toTitleCase, showWarningModal, showOutputModal } from "@/others/function"
+import { readableDate, readableTime, toTitleCase, showWarningModal, showOutputModal , showLoadingModal , closeLoadingModal } from "@/others/function"
 import ActionBtn from "../button/action-btn"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
 import { Play, Pencil, Trash2 } from "lucide-react"
@@ -63,9 +63,10 @@ const ReportFilterList = ({ list = null, onEdit, onChange, showType = true, gene
             "Delete",
             "Cancel",
             () => {
+                showLoadingModal("Deleting the filter")
                 ReportArchiveService.deleteReportFilter(
                     row.id,
-                    () => onChange?.(),
+                    () => { closeLoadingModal(); onChange?.() },
                     () => showOutputModal("Failed to delete filter.", "e")
                 )
             }

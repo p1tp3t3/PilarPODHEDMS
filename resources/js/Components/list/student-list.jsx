@@ -3,7 +3,7 @@ import LiveActiveSince from "@/Components/other/live-active-since";
 import { Box } from "@mui/material";
 import { DataGrid } from "@/Components/other/data-grid";
 import ProfilePic from "../other/profile-pic";
-import { checkActiveStatus, getProfilePic, getYearLevel, ordinal, readableActiveDuration, readableDate, readableTime, studentProgram, studentYearLevel } from "../../others/function";
+import { checkActiveStatus, getProfilePic, getYearLevel, ordinal, readableActiveDuration, readableDate, readableTime, studentProgram, studentYearLevel, profileUrl } from "../../others/function";
 import { Link } from "@inertiajs/react";
 import ActionBtn from "../button/action-btn";
 import AuthContext from "@/context-provider/auth-provider";
@@ -29,7 +29,7 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
       id: i,
       index: i,
       user_id: user.id_number,
-      username: user.username,
+      encrypted_id: user.encrypted_id,
       full_name: fullName,
 
       // 🔥 FLATTENED SEARCH FIELD
@@ -112,7 +112,7 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
       align: "left",
       renderCell: (params) => (
         <div className="flex gap-2 items-center h-full">
-          <Link href={`/profile/${params.row.username}`}>
+          <Link href={`${profileUrl(params.row)}`}>
             <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700">
               View
             </ActionBtn>

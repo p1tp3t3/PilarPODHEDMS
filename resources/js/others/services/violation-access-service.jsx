@@ -6,6 +6,12 @@ export const ViolationAccessService = {
         api.setHeaders({ "Content-Type": "application/json" });
         api.sendPostData();
     },
+    // Prefect gives a super admin access: { user_id, permissions: [{resource, access_type}], duration_minutes, note }
+    grant(data, success, error) {
+        const api = new APIRequest("/violation-access/grant", "post", data, () => {}, success, error);
+        api.setHeaders({ "Content-Type": "application/json" });
+        api.sendPostData();
+    },
     getStatus(setter) {
         const api = new APIRequest("/violation-access/status", "get", null, setter);
         api.fetchData();

@@ -108,6 +108,23 @@ export const showWarningModal = (
     });
 }
 
+// The "please wait" modal shown after a confirmation while the request runs.
+// Any showOutputModal (success/error) replaces it; call closeLoadingModal()
+// when a request finishes without showing a result message.
+export const showLoadingModal = (text = "Processing") => {
+    Swal.fire({
+        title: "Please wait",
+        text: `${text}...`,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading(),
+    });
+};
+export const closeLoadingModal = () => {
+    if (Swal.isVisible() && Swal.isLoading()) Swal.close();
+};
+
 export const showOutputModal = (text = "Success", type = "s", callBack, htmlContent = null, timer = null) => {
     const modalAtt = {
         's': {
@@ -238,6 +255,11 @@ export const formatSchoolYearSemester = (sys) =>
     sys?.school_year?.year && sys?.semester
         ? `SY ${sys.school_year.year}, ${ordinal(sys.semester)} Sem`
         : null
+// A user's profile URL, by encrypted id — usernames are never used in
+// profile URLs. Every serialized User carries encrypted_id.
+export function profileUrl(user) {
+    return `/profile/${user?.encrypted_id ?? ''}`
+}
 export function canViewEnrollmentHistory(viewer) {
     return ['super_admin', 'sub_admin'].includes(viewer?.role) ||
         viewer?.teaching_staff?.position === 'program_head';

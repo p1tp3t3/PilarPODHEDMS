@@ -54,6 +54,7 @@ class AccountController extends Controller
                 'program' => Program::all(['id', 'name']),
                 'account_files' => FileController::scopedAccountFiles(),
                 'roles' => Role::orderBy('id')->get(['id', 'name', 'label', 'is_active']),
+                'school_years' => \App\Models\SchoolYear::orderByDesc('year')->pluck('year'),
             ]));
     }
 

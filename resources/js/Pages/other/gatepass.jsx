@@ -1,3 +1,4 @@
+import SchoolYearSemesterFilter from "@/Components/input/school-year-semester-filter"
 import { useState, useEffect } from "react";
 import AuthLayout from "@/Layouts/auth-layout";
 import PageLayout from "@/Layouts/page-layout";
@@ -53,7 +54,7 @@ const permissionLabel = (gp) => {
 };
 
 const optionTab = [
-  { key: "all", label: "All", icon: List },
+  { key: "all", label: "All Gate Passes", icon: List },
   { key: "pending", label: "Pending", icon: Clock },
   { key: "approved", label: "Approved", icon: CheckCircle2 },
   { key: "expired", label: "Expired", icon: XCircle },
@@ -143,7 +144,7 @@ const GatePass = (props) => {
         data={editData}
         reload={loadRegister}
       />
-      <PageLayout
+      <PageLayout actionsWithFilters
         title="GATE PASS"
         rightSideComponent={
           canRequestNewGatePass(latestGatepass) && props.user.allow_gatepass ? (
@@ -151,6 +152,7 @@ const GatePass = (props) => {
           ) : null
         }
       >
+          <SchoolYearSemesterFilter schoolYears={props.school_years} />
           <TabSwitcher tabs={optionTab} value={tab} onChange={setTab} />
 
             <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3">

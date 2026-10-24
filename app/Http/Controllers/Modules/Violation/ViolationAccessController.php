@@ -9,14 +9,106 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Super admin manages the violation/penalty catalog but isn't trusted to
- * edit it unsupervised — a prefect (sub_admin) has to grant time-limited
- * edit access first. See MaintenanceController's ensureViolationEditAccess()
- * for where that grant is actually enforced.
+ * The prefect (sub_admin) owns the violation/penalty catalog. The super
+ * admin can only change it while holding access the prefect GAVE them
+ * directly (grant()) — scoped per resource + action, time-limited, and
+ * revocable by the prefect at any time. Enforced by EnsureViolationEditAccess.
+ *
+ * Grants reuse the violation_access_requests table (status 'approved' with
+ * an expires_at), so older request-based rows stay in the history.
  */
 class ViolationAccessController extends Controller
 {
+    /** How long a grant may last (minutes) — what the prefect can choose from. */
+    public const DURATIONS = [30, 60, 240, 480, 1440, 4320, 10080];
+
+    /** How many times a grant may be used (null = unlimited until it expires). */
+    public const USE_LIMITS = [1, 3, 5, 10];
+
+    /**
+     * The prefect gives a super admin access to one or more actions.
+     * Any still-active grant for the same admin + action is replaced.
+     */
+    public function grant(Request $request)
+    {
+        if (auth()->user()->role !== 'sub_admin') {
+            return response()->json(['message' => 'Only a prefect can give violation/penalty access.'], 403);
+        }
+
+        $data = $request->validate([
+            'permissions' => 'required|array|min:1',
+            'permissions.*.resource' => 'required|in:'.implode(',', ViolationAccessRequest::RESOURCES),
+            'permissions.*.access_type' => 'required|in:'.implode(',', ViolationAccessRequest::ACCESS_TYPES),
+            'duration_minutes' => 'required|integer|in:'.implode(',', self::DURATIONS),
+            'max_uses' => 'nullable|integer|in:'.implode(',', self::USE_LIMITS),
+            'note' => 'nullable|string|max:5000', // rich text (HTML); the page limits the visible text to 1000
+        ]);
+
+        // Access goes to the IT admin — every super admin account, so none is left out.
+        $admins = User::whereRole('super_admin')->get();
+        if ($admins->isEmpty()) {
+            return response()->json(['message' => "There's no IT admin account to give access to."], 422);
+        }
+
+        $permissions = collect($data['permissions'])->unique(fn ($p) => $p['resource'].'.'.$p['access_type'])->values();
+        foreach ($permissions as $p) {
+            if (! in_array($p['access_type'], ViolationAccessRequest::VALID_COMBINATIONS[$p['resource']], true)) {
+                return response()->json(['message' => 'There is no "'.$p['access_type'].'" action for '.$p['resource'].' management.'], 422);
+            }
+        }
+
+        $expiresAt = now()->addMinutes($data['duration_minutes']);
+        foreach ($admins as $admin) {
+        foreach ($permissions as $p) {
+            // Replace an existing active grant for the same action.
+            ViolationAccessRequest::where('user_id', $admin->id)
+                ->where('resource', $p['resource'])->where('access_type', $p['access_type'])
+                ->where('status', 'approved')->where('expires_at', '>', now())
+                ->update(['status' => 'revoked', 'revoked_at' => now(), 'responded_by' => auth()->id()]);
+
+            ViolationAccessRequest::create([
+                'user_id' => $admin->id,
+                'resource' => $p['resource'],
+                'access_type' => $p['access_type'],
+                'reason' => $data['note'] ?? null,
+                'status' => 'approved',
+                'responded_by' => auth()->id(),
+                'responded_at' => now(),
+                'approved_at' => now(),
+                'expires_at' => $expiresAt,
+                'max_uses' => $data['max_uses'] ?? null,
+                'uses_count' => 0,
+            ]);
+        }
+        }
+
+        $times = isset($data['max_uses']) ? ' — '.$data['max_uses'].' '.($data['max_uses'] == 1 ? 'time' : 'times').' each' : '';
+        $list = $permissions->map(fn ($p) => ucfirst($p['access_type']).' '.$p['resource'].'s')->implode(', ');
+        $until = $expiresAt->format('M j, Y g:i A');
+        foreach ($admins as $admin) {
+            notify_single_user([
+                'notif_type' => 'violation_access',
+                'sender_id' => auth()->id(),
+                'receiver_id' => $admin->id,
+                'content' => json_encode([
+                    'sender_notif_message' => "Gave access: $list (until $until$times).",
+                    'receiver_notif_message' => "The prefect gave you access: $list (until $until$times).",
+                ]),
+                'read_since' => null,
+            ]);
+        }
+
+        return response()->json(['message' => 'Access given.']);
+    }
+
+    /** Retired: the prefect now gives access directly (see grant()). */
     public function request(Request $request)
+    {
+        return response()->json(['message' => 'Access is now given by the prefect directly, so there is nothing to request.'], 410);
+    }
+
+    // The old request flow, kept for reference only (no route calls it).
+    private function legacyRequest(Request $request)
     {
         if (auth()->user()->role !== 'super_admin') {
             return response()->json(['message' => 'Only super admin accounts request violation edit access.'], 403);
@@ -96,11 +188,18 @@ class ViolationAccessController extends Controller
             return response()->json(['message' => 'Only a prefect can view access requests.'], 403);
         }
 
-        return response()->json(
-            ViolationAccessRequest::with(['requester.profile', 'responder.profile'])
+        return response()->json([
+            'grants' => ViolationAccessRequest::with(['requester.profile', 'responder.profile'])
                 ->latest('id')
-                ->get()
-        );
+                ->get(),
+            'admins' => User::with('profile')->whereRole('super_admin')->get()
+                ->map(fn ($u) => [
+                    'id' => $u->id,
+                    'name' => trim(($u->profile?->first_name ?? '').' '.($u->profile?->last_name ?? '')) ?: 'IT Admin',
+                ])->values(),
+            'durations' => self::DURATIONS,
+            'use_limits' => self::USE_LIMITS,
+        ]);
     }
 
     public function approve($id)
@@ -159,13 +258,17 @@ class ViolationAccessController extends Controller
     {
         $user = auth()->user();
 
-        $accessRequest = ViolationAccessRequest::where('id', $id)
-            ->where('user_id', $user->id)
-            ->whereIn('status', ['pending', 'approved'])
-            ->first();
+        // The prefect can take back any grant; a super admin can give up their own.
+        $query = ViolationAccessRequest::where('id', $id)->whereIn('status', ['pending', 'approved']);
+        if ($user->role === 'super_admin') {
+            $query->where('user_id', $user->id);
+        } elseif ($user->role !== 'sub_admin') {
+            return response()->json(['message' => 'Not allowed.'], 403);
+        }
+        $accessRequest = $query->first();
 
-        if ($user->role !== 'super_admin' || ! $accessRequest) {
-            return response()->json(['message' => 'No pending or active request of yours was found to revoke.'], 404);
+        if (! $accessRequest) {
+            return response()->json(['message' => 'No active access was found to revoke.'], 404);
         }
 
         $accessRequest->update([
@@ -175,7 +278,11 @@ class ViolationAccessController extends Controller
             'revoked_at' => now(),
         ]);
 
-        return response()->json(['message' => 'Request withdrawn.']);
+        if ($user->role === 'sub_admin') {
+            self::notifyRequester($accessRequest, 'The prefect removed your "'.$accessRequest->access_type.'" access to '.ucfirst($accessRequest->resource).' Management.');
+        }
+
+        return response()->json(['message' => 'Access revoked.']);
     }
 
     private static function authorizedPendingRequest($id)

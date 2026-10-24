@@ -1,3 +1,4 @@
+import SchoolYearSemesterFilter from "@/Components/input/school-year-semester-filter"
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import RequestAbsentFormModal from "@/Components/modal/submission-form/request-absent-form-modal"
@@ -6,9 +7,10 @@ import ViewAbsentFormModal from "@/Components/modal/view/view-absent-form-modal"
 import { useState, useEffect } from "react"
 import { useReload } from "@/context-provider/reload-provider"
 import TabSwitcher from "@/Components/other/tab-switcher"
-import { readableDate, readableTime, showWarningModal, toTitleCase } from "@/others/function"
+import Btn from "@/Components/button/normal-btn"
+import { readableDate, readableTime, showWarningModal, showOutputModal, toTitleCase } from "@/others/function"
 import { AbsentFormService } from "@/others/services/absent-form-service"
-import { FileText, List, Clock, CheckCircle2, Ban, FolderOpen, Undo2 } from "lucide-react"
+import { Send, List, Clock, CheckCircle2, Ban, FolderOpen, Undo2 } from "lucide-react"
 import { Head, router } from "@inertiajs/react"
 
 const STATUS_META = {
@@ -29,8 +31,7 @@ const isRevocable = (form) => !form.confirmed_at && !form.rejected_at && !form.r
 const isEditable = (form) => isRevocable(form) && !form.edited_at
 
 const optionTab = [
-    { key: "request", label: "Request Absent Form", icon: FileText },
-    { key: "all", label: "All", icon: List },
+    { key: "all", label: "All Absent Forms", icon: List },
     { key: "pending", label: "Pending", icon: Clock },
     { key: "noted", label: "Approved", icon: CheckCircle2 },
     { key: "rejected", label: "Rejected", icon: Ban },
@@ -47,7 +48,8 @@ const reasonLabel = (form) => {
 }
 
 const AbsentForm = (props) => {
-    const [tab, setTab] = useState("request")
+    const [tab, setTab] = useState("all")
+    const [requestOpen, setRequestOpen] = useState(false)
     const [editForm, setEditForm] = useState(null)
     const [editOpen, setEditOpen] = useState(false)
     const [viewId, setViewId] = useState('')
@@ -82,10 +84,16 @@ const AbsentForm = (props) => {
                     id,
                     () => {},
                     () => {
-                        loadRegister(true, "success", "Absent Form Revoked Successfully")
-                        router.reload({ only: ["absent_form_list"] })
+                        loadRegister(true, "")
+                        showOutputModal("Absent Form Revoked Successfully", "s", () => {
+                            loadRegister(false)
+                            router.reload({ only: ["absent_form_list"] })
+                        })
                     },
-                    () => loadRegister(true, "error", "Failed to Revoke Absent Form")
+                    () => {
+                        loadRegister(true, "")
+                        showOutputModal("Failed to Revoke Absent Form", "e", () => loadRegister(false))
+                    }
                 )
             }
         )
@@ -110,47 +118,27 @@ const AbsentForm = (props) => {
                     if (args[0] === false) router.reload({ only: ['absent_form_list'] })
                 }}
             />
-            <PageLayout title="ABSENT FORM">
+            <RequestAbsentFormModal
+                close={requestOpen}
+                closeModal={setRequestOpen}
+                pd={["px-5", "py-7"]}
+                isEnableOuterClose={true}
+                id={props.user.id}
+                reload={loadRegister}
+                onIssued={() => router.reload({ only: ["absent_form_list"] })}
+            />
+            <PageLayout actionsWithFilters
+                title="ABSENT FORM"
+                rightSideComponent={
+                    props.user.allow_absent_form == 1 ? (
+                        <Btn onclick={() => setRequestOpen(true)} icon={<Send size={19} />}>Send Absent Form</Btn>
+                    ) : null
+                }
+            >
+                    <SchoolYearSemesterFilter schoolYears={props.school_years} />
                     <TabSwitcher tabs={optionTab} value={tab} onChange={setTab} />
 
-                    {tab === "request" && (
-                        <div className="w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm">
-                        {props.user.allow_absent_form != 1 ? (
-                                // 🚫 Restricted View
-                                <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-                                    <div className="flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-red-100">
-                                        <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="w-8 h-8 text-red-600"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        strokeWidth={2}
-                                        >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            d="M12 11c.828 0 1.5.672 1.5 1.5v4.5a1.5 1.5 0 01-3 0v-4.5c0-.828.672-1.5 1.5-1.5zM12 7a4 4 0 014 4v1H8v-1a4 4 0 014-4z"
-                                        />
-                                        </svg>
-                                    </div>
-
-                                    <h2 className="text-2xl font-bold text-red-600 mb-2">Access Restricted</h2>
-                                    <p className="text-gray-700 max-w-md">
-                                        You don’t have permission to access or submit this form.
-                                        Please contact your <span className="font-semibold">administrator</span> if you believe this is an error.
-                                    </p>
-                                </div>
-
-                            ) :
-                            <RequestAbsentFormModal.Body
-                                id={props.user.id}
-                                reload={loadRegister}
-                            />}
-                        </div>
-                    )}
-
-                    {tab !== "request" && (
+                    {(
                         <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3">
                             {shownForms.length === 0 ? (
                                 <div className="py-10 text-center text-gray-500">

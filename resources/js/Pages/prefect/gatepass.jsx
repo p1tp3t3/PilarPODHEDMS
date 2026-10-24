@@ -38,7 +38,7 @@ const PrefectGatePass = (props) => {
     })
 
     const optionTab = [
-      { key: "all", label: "All", icon: List },
+      { key: "all", label: "All Gate Passes", icon: List },
       { key: "req-current", label: "Pending", icon: Clock },
       { key: "confirmed-users", label: "Approved", icon: CheckCircle2 },
       { key: "expired-users", label: "Expired", icon: XCircle },

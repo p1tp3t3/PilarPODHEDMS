@@ -419,6 +419,7 @@ class GatePassController extends Controller
     {
         return User::with(['gatepass' => function ($query) {
             $query->latest('created_at');
+            self::filterBySchoolYearSemester($query);
         }])
             ->where('id', $id)
             ->first();

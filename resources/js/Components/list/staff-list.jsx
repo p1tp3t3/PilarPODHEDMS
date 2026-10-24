@@ -1,5 +1,5 @@
 import ProfilePic from "../other/profile-pic"
-import { checkActiveStatus, getProfilePic, readableDate, readableTime, showUserType } from "@/others/function"
+import { checkActiveStatus, getProfilePic, readableDate, readableTime, showUserType, profileUrl } from "@/others/function"
 import { Link } from "@inertiajs/react"
 import PaginationButton from "../button/pagination-btn"
 import { useEffect, useMemo, useState, useContext } from "react"
@@ -24,7 +24,7 @@ const StaffList = ({ list, canManagePosition = false }) => {
         id: e.id,
         i: i + 1,
         user_id: e.id_number,
-        username: e.username,
+        encrypted_id: e.encrypted_id,
         role: e.role,
         // The line under the name already says the position ("Guard",
         // "Faculty (BSIT)"), so there's no separate Position column;
@@ -85,7 +85,7 @@ const StaffList = ({ list, canManagePosition = false }) => {
             width: 120,
             renderCell: (params) => (
                 <div className="flex gap-2 items-center h-full">
-                    <Link href={`/profile/${params.row.username}`}>
+                    <Link href={`${profileUrl(params.row)}`}>
                         <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700">
                             View
                         </ActionBtn>

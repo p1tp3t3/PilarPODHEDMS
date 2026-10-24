@@ -10,9 +10,12 @@ import { useReload } from "@/context-provider/reload-provider";
 import { ViolationAccessService } from "@/others/services/violation-access-service";
 import PageLayout from "@/Layouts/page-layout";
 import { Head } from "@inertiajs/react";
+import Btn from "@/Components/button/normal-btn";
+import { KeyRound } from "lucide-react";
 
 const ViolationManagement = (props) => {
     const isSuperAdmin = props.auth?.user?.role === 'super_admin';
+    const [giveAccessOpen, setGiveAccessOpen] = useState(false);
     const [access, setAccess] = useState(
         isSuperAdmin
             ? { violation: { add: false, edit: false, delete: false }, penalty: { add: false, delete: false } }
@@ -25,7 +28,7 @@ const ViolationManagement = (props) => {
         violations: 'Violations',
         penalties: 'Penalties',
         'student-violations': 'Student Violations',
-        access: isSuperAdmin ? 'Edit Access' : 'Access Requests',
+        access: 'Edit Access',
     };
     const [penalty, openPenalty] = useState(false),
           [violation, openViolation] = useState(false),
@@ -44,7 +47,7 @@ const ViolationManagement = (props) => {
     }, []);
 
     useEffect(() => {
-        setOnClose(() => (e) => {
+        setOnClose((e) => {
             if(action != 'add') {
                 setReload(e)
                 if(clickedOk) window.location.href = '/'
@@ -55,7 +58,7 @@ const ViolationManagement = (props) => {
 
     const openActionModal = (type, act, editData = null) => {
         setAction(act);
-        if(act != 'add') setData(editData);
+        setData(act != 'add' ? editData : null);
         if(type === 'penalty') {
             openPenalty(true);
         } else if(type === 'violation') {
@@ -90,8 +93,16 @@ const ViolationManagement = (props) => {
             data={data}
             setClickOk={setClickOk}
             setter={setPenaltyList}
+            list={penalty_list}
         />
-        <PageLayout title={TITLES[section].toUpperCase()}>
+        <PageLayout
+            title={TITLES[section].toUpperCase()}
+            // Edit Access: the prefect's "Give Access" sits in the title bar
+            // (a round icon button on phones, like other pages' actions).
+            rightSideComponent={section === "access" && !isSuperAdmin
+                ? <Btn onclick={() => setGiveAccessOpen(true)} icon={<KeyRound size={18} />}>Give Access</Btn>
+                : null}
+        >
             <div className="min-w-0">
                 {section === "violations" && (
                     <ManageViolation
@@ -125,7 +136,7 @@ const ViolationManagement = (props) => {
                 )}
 
                 {section === "access" && (
-                    <ViolationAccessRequests user={props.auth?.user} />
+                    <ViolationAccessRequests user={props.auth?.user} giveOpen={giveAccessOpen} setGiveOpen={setGiveAccessOpen} />
                 )}
             </div>
         </PageLayout>

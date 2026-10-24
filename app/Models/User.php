@@ -237,9 +237,30 @@ class User extends Authenticatable implements MustVerifyEmail
      *   programs (their own, or one they head);
      * - the prefect, the IT admin, and the student themselves: visible.
      */
+    /**
+     * Whether this user and $other belong to the same family (a parent and
+     * their child, or two siblings) — via the family_member table.
+     */
+    public function sharesFamilyWith(?User $other): bool
+    {
+        if (! $other || $other->id === $this->id) {
+            return false;
+        }
+
+        $familyIds = FamilyMember::where('member_id', $this->id)->pluck('family_id');
+
+        return $familyIds->isNotEmpty()
+            && FamilyMember::whereIn('family_id', $familyIds)->where('member_id', $other->id)->exists();
+    }
+
     public function photoHiddenFrom(?User $viewer): bool
     {
         if ($this->role !== 'student' || ! $viewer || $viewer->id === $this->id) {
+            return false;
+        }
+
+        // Family (the student's parent or sibling) always sees the real photo.
+        if (in_array($viewer->role, ['parent', 'student'], true) && $viewer->sharesFamilyWith($this)) {
             return false;
         }
 
@@ -399,17 +420,29 @@ class User extends Authenticatable implements MustVerifyEmail
         };
     }
 
-    public function findAccount(string $username)
+    /**
+     * The user a profile URL segment points at — always an encrypted id
+     * (/profile/{encrypt_id}); usernames never appear in profile URLs.
+     */
+    public static function resolveProfileKey(?string $key): ?self
     {
-        $role = $this->where('username', $username)->first()?->role;
+        $id = decrypt_id($key);
 
-        // Unknown username (or no role yet): let the caller 404.
-        if ($role === null) {
+        return $id !== null ? static::find($id) : null;
+    }
+
+    // $key: an encrypted id (see resolveProfileKey()).
+    public function findAccount(string $key)
+    {
+        $user = static::resolveProfileKey($key);
+
+        // Unknown user (or no role yet): let the caller 404.
+        if ($user?->role === null) {
             return null;
         }
 
-        return $this->with($this->relationsForRole($role))
-            ->where('username', $username)
+        return $this->with($this->relationsForRole($user->role))
+            ->where('id', $user->id)
             ->first();
     }
 
@@ -466,6 +499,9 @@ class User extends Authenticatable implements MustVerifyEmail
                 }
             }
         }
+
+        // School year / semester: accounts registered during that period.
+        SchoolYearSemester::applyFilter($query, 'users.created_at', request('school-year'), request('semester'));
 
         $data = $query->latest('users.created_at')->get();
 

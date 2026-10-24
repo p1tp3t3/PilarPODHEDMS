@@ -1,4 +1,4 @@
-import { getProfilePic, toTitleCase } from "../../../others/function"
+import { getProfilePic, toTitleCase, profileUrl } from "../../../others/function"
 import SelectedUser from "../../other/selected-user"
 import { Link, usePage } from "@inertiajs/react"
 
@@ -72,15 +72,15 @@ export const StatGrid = ({ children }) => (
 // (a record left with no resolvable subject shouldn't crash the modal).
 // `linkable` = false shows the person without a link to their profile.
 export const PersonList = ({ data, data_list = null, emptyLabel = 'No one on record.', linkable = true }) => {
-    const Wrap = ({ username, children }) => linkable
-        ? <Link href={`/profile/${username}`} className="block">{children}</Link>
+    const Wrap = ({ user, children }) => linkable
+        ? <Link href={profileUrl(user)} className="block">{children}</Link>
         : <div className="block">{children}</div>
 
     if (data_list != null && data_list.length !== 0) {
         return (
             <div className="grid gap-1">
                 {data_list.map((e, i) => (
-                    <Wrap key={e.user?.id ?? i} username={e.user.username}>
+                    <Wrap key={e.user?.id ?? i} user={e.user}>
                         <SelectedUser
                             src={getProfilePic(e.user.profile?.profile_picture, e.user.profile?.sex)}
                             name={[e.user.profile?.first_name, e.user.profile?.last_name]}
@@ -97,7 +97,7 @@ export const PersonList = ({ data, data_list = null, emptyLabel = 'No one on rec
     }
 
     return (
-        <Wrap username={data.username}>
+        <Wrap user={data}>
             <SelectedUser
                 src={getProfilePic(data.profile?.profile_picture, data.profile?.sex)}
                 name={[data.profile?.first_name, data.profile?.last_name]}

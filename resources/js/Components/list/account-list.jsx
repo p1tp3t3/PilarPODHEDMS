@@ -12,8 +12,7 @@ import {
   showOutputModal,
   showUserType,
   showWarningModal,
-  toTitleCase,
-} from "../../others/function";
+  toTitleCase, profileUrl } from "../../others/function";
 import Switch from "../button/switch-btn";
 import { AccountService } from "@/others/services/account-service";
 import { Link } from "@inertiajs/react";
@@ -89,15 +88,10 @@ const AccountList = (props) => {
   return (
     <div className="w-full account-list">
       <div className="w-full">
-        {/* === ACTION HEADER === */}
-        <div className="w-full flex flex-wrap items-center gap-3 py-5">
-          <ActionBtn
-            className="bg-blue-700 hover:bg-blue-800"
-            onClick={() => enableSelect(!select)}
-          >
-            {select ? <X size={14} /> : <Check size={14} />}
-          </ActionBtn>
-
+        {/* === ACTION HEADER: page filters (left), bulk-select controls (right) === */}
+        <div className={`w-full flex flex-wrap gap-3 py-5 ${props.filters ? "items-start sm:items-center" : "items-center"}`}>
+          {props.filters && <div className="min-w-0 flex-1">{props.filters}</div>}
+          <div className={`flex flex-wrap items-center gap-3 ${props.filters ? "ml-auto" : ""}`}>
           {select && (
             <div className="flex gap-5 items-center flex-wrap">
               <LabeledCheckbox label="Select All" id="select-all" onChange={selectAllRow} className="text-[0.8em]" />
@@ -116,6 +110,13 @@ const AccountList = (props) => {
               </div>
             </div>
           )}
+          <ActionBtn
+            className="bg-blue-700 hover:bg-blue-800"
+            onClick={() => enableSelect(!select)}
+          >
+            {select ? <X size={14} /> : <Check size={14} />}
+          </ActionBtn>
+          </div>
         </div>
 
         <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
@@ -248,7 +249,7 @@ const ActionCell = ({ row, select, deleteUser }) => {
 
   return (
     <div className="flex gap-2 items-center h-full">
-      <Link href={`/profile/${row.username}`}>
+      <Link href={`${profileUrl(row)}`}>
         <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700">View</ActionBtn>
       </Link>
 

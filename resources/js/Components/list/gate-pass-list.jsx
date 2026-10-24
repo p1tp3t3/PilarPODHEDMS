@@ -36,6 +36,7 @@ const GatePassList = (props) => {
             field: 'user',
             headerName: 'User',
             flex: 1.2,
+            minWidth: 220,
             renderCell: (params) => (
                 <div className="flex gap-2 items-center">
                     <ProfilePic
@@ -58,6 +59,7 @@ const GatePassList = (props) => {
             field: 'requested',
             headerName: 'Requested Since',
             flex: 1,
+            minWidth: 170,
             renderCell: (params) => (
                 <div className="leading-tight py-2">
                     <div>{params.value ? `${readableDate(params.value)} (${readableTime(params.value)})` : '-'}</div>
@@ -71,6 +73,7 @@ const GatePassList = (props) => {
             field: 'confirmed',
             headerName: 'Confirmed Since',
             flex: 1,
+            minWidth: 170,
             renderCell: (params) => (
                 <div className="leading-tight py-2">
                     <div>{params.value ? `${readableDate(params.value)} (${readableTime(params.value)})` : '-'}</div>
@@ -84,6 +87,7 @@ const GatePassList = (props) => {
             field: 'expiration',
             headerName: 'Expiration',
             flex: 1,
+            minWidth: 170,
             renderCell: (params) =>
                 params.value
                     ? `${readableDate(params.value)} (${readableTime(params.value)})`
@@ -122,7 +126,7 @@ const GatePassList = (props) => {
                 width: '100%',
                 minWidth: 0,
                 overflow: 'hidden',
-                backgroundColor: '#fff',
+                backgroundColor: 'var(--dm-surface, #fff)',
                 borderRadius: 2,
                 boxShadow: 2,
                 p: 2,
@@ -151,7 +155,7 @@ const GatePassList = (props) => {
                 sx={{
                     border: 'none',
                     '& .MuiDataGrid-columnHeaders': {
-                        backgroundColor: '#f9fafb',
+                        backgroundColor: 'var(--dm-surface-2, #f9fafb)',
                         fontWeight: 'bold'
                     }
                 }}

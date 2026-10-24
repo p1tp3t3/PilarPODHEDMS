@@ -104,7 +104,7 @@ export const sidebarPages = [
             { id: "violation-management/violations", href: "/violation-management/violations", icon: ShieldAlert, label: "Violations" },
             { id: "violation-management/penalties", href: "/violation-management/penalties", icon: Gavel, label: "Penalties" },
             { id: "violation-management/student-violations", href: "/violation-management/student-violations", icon: GraduationCap, label: "Student Violations" },
-            { id: "violation-management/access", href: "/violation-management/access", icon: KeyRound, label: "Access Requests" },
+            { id: "violation-management/access", href: "/violation-management/access", icon: KeyRound, label: "Edit Access" },
         ],
     },
     { type: "link", id: "appointment", href: "/prefect/appointment", icon: Calendar, label: "Appointment", roles: ["sub_admin"] },

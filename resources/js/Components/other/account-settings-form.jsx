@@ -296,7 +296,7 @@ const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, r
                 // in the real forced-setup flow — the route-based fallback only
                 // matters if this component is ever reused somewhere that
                 // doesn't pass onBackToProfile.
-                () => onBackToProfile ? onBackToProfile() : router.visit(`/force-change/${targetAccount.username}`)
+                () => onBackToProfile ? onBackToProfile() : router.visit(`/force-change/${targetAccount.encrypted_id}`)
             );
             return;
         }

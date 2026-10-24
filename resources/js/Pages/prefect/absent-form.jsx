@@ -39,7 +39,7 @@ const PrefectAbsentForm = (props) => {
     })
 
     const option = [
-        { key: 'all', label: 'All', icon: List },
+        { key: 'all', label: 'All Absent Forms', icon: List },
         { key: 'req-current', label: 'Pending', icon: Clock },
         { key: 'rejected', label: 'Rejected', icon: Ban },
         { key: 'revoked', label: 'Revoked', icon: Undo2 },
@@ -75,12 +75,15 @@ const PrefectAbsentForm = (props) => {
         }
     }
 
-    const successConfirm = () => loadRegister(true, 'success', 'Absent Form Approved Successfully')
-    const successCancel = () => loadRegister(true, 'success', 'Absent Form Rejected Successfully')
-    const errorConfirm = () => loadRegister(true, 'error', 'Failed to Approve Absent Form')
-    const errorCancel = () => loadRegister(true, 'error', 'Failed to Reject Absent Form')
-
-    const removeLoad = () => setTimeout(() => loadRegister(false), 3000)
+    // SweetAlert result, same as every other absent form action.
+    const successCancel = () => {
+        loadRegister(true, '')
+        showOutputModal('Absent Form Rejected Successfully', 's', () => loadRegister(false))
+    }
+    const errorCancel = () => {
+        loadRegister(true, '')
+        showOutputModal('Failed to Reject Absent Form', 'e', () => loadRegister(false))
+    }
 
     return (
         <>

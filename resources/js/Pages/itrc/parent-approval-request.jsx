@@ -1,3 +1,4 @@
+import { showLoadingModal } from "@/others/function";
 import ParentRequestList from "@/Components/list/parent-request-list"
 import RegisterFamilyModal from "@/Components/modal/submission-form/register-family-modal"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
@@ -34,6 +35,7 @@ const ParentApprovalRequest = (props) => {
                 'Approve',
                 'Cancel',
                 () => {
+                    showLoadingModal("Approving the parent request")
                     const api = new APIRequest(
                         `/super-admin/parent-request/approve`, 
                         'post', 

@@ -215,7 +215,7 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
   }
 
   return (
-    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", height: 550, p: 2, bgcolor: "white", borderRadius: 2 }}>
+    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", height: 550, p: 2, bgcolor: "var(--dm-surface, white)", borderRadius: 2 }}>
       <DataGrid
         rows={rows}
         columns={columns}

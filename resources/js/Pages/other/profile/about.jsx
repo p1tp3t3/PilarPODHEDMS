@@ -1,6 +1,6 @@
 import React, { useState, useContext } from "react"
 import ProfileSectionWrapper from "@/wrapper/profile-section-wrapper"
-import { change, check, checkActiveStatus, getProfilePic, getProgramLogo, getYearLevel, ordinal, readableDate, replaceUnderScoreToSpace, toTitleCase } from "@/others/function"
+import { change, check, checkActiveStatus, getProfilePic, getProgramLogo, getYearLevel, ordinal, readableDate, replaceUnderScoreToSpace, toTitleCase, profileUrl } from "@/others/function"
 import SelectedUser from "@/Components/other/selected-user"
 import FormTextfield from "@/Components/input/form-input"
 import FormButton from "@/Components/button/button"
@@ -131,10 +131,12 @@ const About = (props) => {
                 </ProfileSectionWrapper>}
                 <ProfileSectionWrapper title="Personal Information" icon={User}>
                     <div className="">
-                        <Label
-                            title="Username"
-                            desc={`@${props.data.username}`}
-                        />
+                        {props.data.username !== undefined && (
+                            <Label
+                                title="Username"
+                                desc={`@${props.data.username}`}
+                            />
+                        )}
                         {!['super_admin', 'sub_admin'].includes(props.data.user_type) &&
                         <>
                         <Label
@@ -214,14 +216,20 @@ const About = (props) => {
                                 address={props.data.permanent_address}
                             />
                         </div>
-                        <Label
-                            title="Email"
-                            desc={props.data.email || 'N/A'}
-                        />
-                        <Label
-                            title="Phone Number"
-                            desc={props.data.phone_number || 'N/A'}
-                        />
+                        {/* Left out of the data entirely when the viewer may not see them
+                            (a student viewing a sibling's profile). */}
+                        {props.data.email !== undefined && (
+                            <Label
+                                title="Email"
+                                desc={props.data.email || 'N/A'}
+                            />
+                        )}
+                        {props.data.phone_number !== undefined && (
+                            <Label
+                                title="Phone Number"
+                                desc={props.data.phone_number || 'N/A'}
+                            />
+                        )}
                     </div>
                 </ProfileSectionWrapper>
                 {((props.data.user_type === 'student') || props.data.user_type === 'parent') && (
@@ -307,7 +315,7 @@ const UserGroupSection = ({ title, list }) => {
             <div className="font-semibold text-gray-700">{title}</div>
             <div className="space-y-3">
                 {list.map((e, i) => (
-                    <Link key={i} href={`/profile/${e.username}`} className="block">
+                    <Link key={i} href={`${profileUrl(e)}`} className="block">
                         <SelectedUser
                             user={e}
                             src={getProfilePic(e.profile?.profile_picture, e.profile?.sex)}

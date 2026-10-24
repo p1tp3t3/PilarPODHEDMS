@@ -181,7 +181,7 @@ const ArchiveList = ({ list = [], viewDocument, deleteDocument, recoverDocument 
   );
 
   return (
-    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", backgroundColor: "#fff", borderRadius: 2, boxShadow: 1, p: 2 }}>
+    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", backgroundColor: "var(--dm-surface, #fff)", borderRadius: 2, boxShadow: 1, p: 2 }}>
       <DataGrid
         rows={rows}
         columns={columns}

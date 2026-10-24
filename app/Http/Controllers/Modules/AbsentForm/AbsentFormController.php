@@ -42,10 +42,11 @@ class AbsentFormController extends Controller
                 'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
             ]);
         } else {
+            $mine = Absence::where('student_id', $user->id)->latest('created_at');
+            SchoolYearSemester::applyFilter($mine, 'created_at', request('school-year'), request('semester'));
             $props = array_merge($props, [
-                'absent_form_list' => AbsenceResource::collection(
-                    Absence::where('student_id', $user->id)->latest('created_at')->get()
-                ),
+                'absent_form_list' => AbsenceResource::collection($mine->get()),
+                'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
             ]);
         }
 
