@@ -9,7 +9,7 @@ import PendingRequestList from "@/Components/list/pending-request-list";
 import AvailabilityList from "@/Components/list/availability-list";
 import DashboardTabs from "@/Components/other/dashboard-tabs";
 import { Head, Link } from "@inertiajs/react";
-import { FileText } from "lucide-react";
+import { FileText , Share2 } from "lucide-react";
 import { PageTitle } from "@/context-provider/page-title-provider";
 
 const NonTeachingStaffDashboard = (props) => {
@@ -25,14 +25,14 @@ const NonTeachingStaffDashboard = (props) => {
                     <CurrentDateTime />
                     <CurrentSemesterBanner />
                 </div>
-                <PrefectAvailabilityCard />
+                <div className="mt-3"><PrefectAvailabilityCard /></div>
 
                 <div className="w-full flex gap-5">
                     <div className="w-full flex gap-5 pt-6">
-                        <div className={`h-full w-full grid ${props.is_guard ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-3`}>
+                        <div className={`h-full w-full grid ${props.is_guard || props.is_guidance ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-3`}>
                             <Link href="/complaint">
                                 <QuantityCard
-                                    h='h-[9rem]'
+                                    h='h-[6rem]'
                                     num={props.complaint}
                                     icon={FileText}
                                     label='Total Complaints'
@@ -43,7 +43,7 @@ const NonTeachingStaffDashboard = (props) => {
                             {props.is_guard &&
                             <Link href="/gatepass-verification">
                                 <QuantityCard 
-                                    h='h-[9rem]' 
+                                    h='h-[6rem]' 
                                     num={props.approved_gatepass}
                                     icon={FileText}
                                     label='Total Approved Gate Pass'
@@ -51,6 +51,17 @@ const NonTeachingStaffDashboard = (props) => {
                                     color={{bg: 'bg-white hover:bg-black/5 transition-all'}}
                                 />
                             </Link> }
+                            {props.is_guidance &&
+                            <Link href="/guidance/referral">
+                                <QuantityCard
+                                    h='h-[6rem]'
+                                    num={props.referral}
+                                    icon={Share2}
+                                    label='Total Referrals'
+                                    textColor='text-blue-700'
+                                    color={{bg: 'bg-white hover:bg-black/5 transition-all'}}
+                                />
+                            </Link>}
                         </div>
                     </div>
                 </div>

@@ -240,17 +240,19 @@ const PicVidUpload = ({
 const File = ({ type, onRemove, src, href, name }) => {
     const content = (
         <>
-            <div className="justify-self-end self-start z-10">
+            <div className="absolute top-1.5 right-1.5 z-10">
                 <button
                 type="button"
-                className="bg-white w-[1.2rem] h-[1.2rem] rounded-full text-[0.8em]"
+                aria-label="Remove"
+                className="bg-white w-[1.4rem] h-[1.4rem] rounded-full grid place-items-center shadow-sm hover:bg-gray-100"
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove() }}
                 >
                 <X size={12} />
                 </button>
             </div>
 
-            {type === "pic" && <img src={src} alt="" className="absolute" />}
+            {/* Fill the tile and stay centred: pictures whole (letterboxed), video thumbnails cropped. */}
+            {type === "pic" && <img src={src} alt="" className="absolute inset-0 w-full h-full object-contain" />}
             {type === "vid" && (
                 <>
                 {/* New uploads carry a generated data-URL thumbnail; existing
@@ -258,13 +260,13 @@ const File = ({ type, onRemove, src, href, name }) => {
                     video file itself, which an <img> can't render — show a
                     generic icon for those instead. */}
                 {src?.startsWith("data:") ? (
-                    <img src={src} alt="" className="absolute" />
+                    <img src={src} alt="" className="absolute inset-0 w-full h-full object-cover" />
                 ) : (
                     <FileText size="5.5em" className="text-gray-500" />
                 )}
                 <button
                     type="button"
-                    className="cursor-default absolute w-[2rem] h-[2rem] text-white/80 bg-black/80 rounded-full z-10"
+                    className="cursor-default absolute w-[2rem] h-[2rem] grid place-items-center text-white/80 bg-black/80 rounded-full z-10"
                 >
                     <Play size={16} />
                 </button>

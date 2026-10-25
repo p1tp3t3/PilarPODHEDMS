@@ -1,16 +1,17 @@
 import GatePassApprovedList from "@/Components/list/gatepass-approved-list"
-import SearchBar from "@/Components/input/search-bar"
 import DropdownField from "@/Components/input/dropdown"
 import AuthLayout from "@/Layouts/auth-layout"
 import { GatePassService } from "@/others/services/gatepass-service"
 import { useState, useEffect, useMemo } from "react"
-import { Paper, IconButton, Tooltip, Typography, Chip } from "@mui/material"
-import { RefreshCw, ShieldCheck } from "lucide-react"
+import { Chip } from "@mui/material"
+import { RefreshCw } from "lucide-react"
+import PageLayout from "@/Layouts/page-layout"
+import { PageActions } from "@/context-provider/page-title-provider"
+import Btn from "@/Components/button/normal-btn"
 import { Head } from "@inertiajs/react"
 
 const StaffGatePassVerification = (props) => {
     const [gatepassApprovedList, setGatePassApprovedList] = useState(null),
-            [search, setSearch] = useState(''),
             [programFilter, setProgramFilter] = useState('all')
 
     useEffect(() => {
@@ -27,9 +28,9 @@ const StaffGatePassVerification = (props) => {
 
     const fetchApprovedUsers = () => {
         setGatePassApprovedList(null)
-        setSearch('')
         setProgramFilter('all')
-        GatePassService.getApprovedUsers(setGatePassApprovedList)
+        // A bad reply shows an empty list instead of breaking the page.
+        GatePassService.getApprovedUsers((d) => setGatePassApprovedList(Array.isArray(d) ? d : (Array.isArray(d?.data) ? d.data : [])))
     }
 
     // Filter is built from whatever's already loaded — no extra request,
@@ -48,47 +49,28 @@ const StaffGatePassVerification = (props) => {
 
     const filteredList = useMemo(() => {
         if (!gatepassApprovedList) return null
-        const term = search.trim().toLowerCase()
 
         return gatepassApprovedList.filter((e) => {
             const matchesProgram = programFilter === 'all' || e.program?.id === programFilter
-            const fullName = `${e.profile?.first_name ?? ''} ${e.profile?.last_name ?? ''}`.toLowerCase()
-            const matchesSearch = term === '' || fullName.includes(term)
-            return matchesProgram && matchesSearch
+            return matchesProgram
         })
-    }, [gatepassApprovedList, programFilter, search])
+    }, [gatepassApprovedList, programFilter])
 
     return (
         <>
         <Head title="Gate Pass Verification" />
-        <div className="w-full py-4 grid gap-5">
-            <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-3">
-                <div>
-                    <Typography variant="h5" fontWeight={700} className="flex items-center gap-2">
-                        <ShieldCheck className="text-blue-600" size="0.9em" />
-                        Gate Pass Verification
-                    </Typography>
-                </div>
-                <Tooltip title="Refresh list">
-                    <IconButton
-                        onClick={() => fetchApprovedUsers()}
-                        sx={{ bgcolor: "primary.main", color: "white", "&:hover": { bgcolor: "primary.dark" } }}
-                    >
-                        <RefreshCw size="1.1em" className={gatepassApprovedList === null ? "animate-spin" : ""} />
-                    </IconButton>
-                </Tooltip>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3">
-                <SearchBar
-                    name="search_approved_user"
-                    search={search}
-                    setSearch={setSearch}
-                    handleSearch={(e) => setSearch(e.target.value)}
-                    plc="Search Gate Pass Approved User"
-                />
+        <PageLayout actionsWithFilters
+            title="GATE PASS VERIFICATION"
+            rightSideComponent={
+                <Btn onclick={() => fetchApprovedUsers()} icon={<RefreshCw size={18} className={gatepassApprovedList === null ? "animate-spin" : ""} />}>
+                    Refresh
+                </Btn>
+            }
+        >
+            {/* Program filter, with Refresh beside it on tablet/desktop. */}
+            <div className="flex flex-wrap items-center gap-3">
                 {programOptions.length > 0 && (
-                    <div className="w-full sm:w-56 flex-shrink-0">
+                    <div className="w-full sm:w-56">
                         <DropdownField
                             default={{ val: 'all', label: 'All Programs' }}
                             list={programOptions}
@@ -98,20 +80,17 @@ const StaffGatePassVerification = (props) => {
                         />
                     </div>
                 )}
+                <PageActions />
             </div>
 
-            <Paper variant="outlined" sx={{ borderRadius: "0.75rem", overflow: "hidden" }}>
-                <div className="px-5 py-3 border-b border-gray-200 flex items-center gap-3">
-                    <Typography variant="subtitle2" fontWeight={700} color="text.primary">
-                        Recently Approved
-                    </Typography>
-                    {filteredList != null && (
-                        <Chip size="small" label={`${filteredList.length} approved`} />
-                    )}
+            <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3 min-w-0">
+                <div className="flex items-center gap-2 pb-2">
+                    <span className="font-semibold text-gray-800 text-[0.95em]">Approved Gate Passes</span>
+                    {filteredList != null && <Chip size="small" label={`${filteredList.length} active`} />}
                 </div>
                 <GatePassApprovedList list={filteredList} />
-            </Paper>
-        </div>
+            </div>
+        </PageLayout>
         </>
     )
 }

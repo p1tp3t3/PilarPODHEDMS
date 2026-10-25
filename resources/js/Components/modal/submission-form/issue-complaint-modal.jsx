@@ -95,7 +95,7 @@ const IssueComplaintModal = (props) => {
             f.append('subject', searchedStudent2[0]['id'])
             searchedStudent2.forEach((e, i) => f.append(`student_subjects[${i}]`, e['id']))
             f.append('complaint_description', props.val.complaint_description)
-            f.append('incident_id', props.val.complaint_incident);
+            if (props.val.complaint_incident) f.append('incident_id', props.val.complaint_incident);
 
 
             // Omit `evidence` entirely when nothing was attached — FormData
@@ -208,17 +208,10 @@ const IssueComplaintModal = (props) => {
                 ...errorMessage,
                 subject: ""
             }
-        }if(field.complaint_incident == '' || field.complaint_incident == null) {
-            errorMessage = {
-                ...errorMessage,
-                incident: "This Is Required. Please Select An Incident That You Want To Report"
-            }
-        }else {
-            errorMessage = {
-                ...errorMessage,
-                incident: ""
-            }
-        }if(isBlank(field.complaint_description)) {
+        }
+        // The incident is optional — a complaint goes through as long as it has a reason.
+        errorMessage = { ...errorMessage, incident: "" }
+        if(isBlank(field.complaint_description)) {
             errorMessage = {
                 ...errorMessage,
                 reason: "This Is Required. Please State Your Reason To Complaint"
@@ -357,7 +350,7 @@ const IssueComplaintModal = (props) => {
                         <div className="w-full relative">
                             <div className="grid gap-3 relative">
                                 <DropdownField.Search
-                                    default={{ val: '', label: 'Select Incident' }}
+                                    default={{ val: '', label: 'Select Incident (Optional)' }}
                                     list={props.incident_list}
                                     onChange={props.change}
                                     name="complaint_incident"

@@ -50,11 +50,15 @@ const MobileBottomNav = ({ chatUnread = 0 }) => {
     // (program head) / student list (faculty) takes that slot instead,
     // just before Referral.
     const isProgramHead = usr.teaching_staff?.position === "program_head"
+    // Parents likewise: their only other page is Children Monitoring, so it
+    // takes this slot and there's no "Menu".
     const listSlot = usr.role === "teaching_staff"
         ? (isProgramHead
             ? { value: "account-files", label: "User List", icon: Users, href: "/teaching-staff/account-files" }
             : { value: "student-list", label: "Student List", icon: GraduationCap, href: "/teaching-staff/student-list" })
-        : null
+        : usr.role === "parent"
+            ? { value: "children", label: "Children", icon: Users, href: "/children/monitor" }
+            : null
     fourth.match = url.startsWith(fourth.value === "profile" ? "/profile" : fourth.href)
     const value =
         url.startsWith("/dashboard") ? "home"

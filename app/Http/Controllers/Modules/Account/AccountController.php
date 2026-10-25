@@ -840,6 +840,7 @@ class AccountController extends Controller
             'program_name' => is_program_head(),
             'students' => ['data' => self::getStudent()],
             'faculty' => self::getFaculty(),
+            'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
             'account_files' => FileController::scopedAccountFiles(),
         ]);
     }
@@ -1399,6 +1400,10 @@ class AccountController extends Controller
                 });
             }
 
+            // School year / semester: faculty accounts registered in that period
+            // (faculty have no enrollment to go by).
+            \App\Models\SchoolYearSemester::applyFilter($data, 'users.created_at', request('school-year'), request('semester'));
+
             // Apply search filter if present
             if (isset($_GET['search']) && $_GET['search'] !== '') {
                 $data = $data->where('id_number', 'like', "%{$_GET['search']}%")
@@ -1508,7 +1513,8 @@ class AccountController extends Controller
 
             self::setId($programId);
 
-            $data = User::with(['profile', 'program', 'enrollments'])
+            // enrollments.schoolYear so the School Year column has something to show.
+            $data = User::with(['profile', 'program', 'enrollments.schoolYear'])
                 ->whereRole('student')
                 ->where('id', '!=', auth()->user()->id);
 
@@ -1522,6 +1528,14 @@ class AccountController extends Controller
                 $data->whereHas('enrollments', function ($q) {
                     $q->where('year_level', request('year-level'));
                 });
+            }
+
+            // School year / semester: students enrolled in that period.
+            if (request()->filled('school-year') && request('school-year') !== 'all') {
+                $data->whereHas('enrollments.schoolYear', fn ($q) => $q->where('year', request('school-year')));
+            }
+            if (request()->filled('semester') && request('semester') !== 'all') {
+                $data->whereHas('enrollments', fn ($q) => $q->where('semester', request('semester')));
             }
 
             return UserResource::collection($data->get());
@@ -1707,17 +1721,15 @@ class AccountController extends Controller
                 $query->whereRole('student');
                 break;
             case 'program_student':
-                $query->whereRole('student');
-                $myTeachingStaff = auth()->user()->role === 'teaching_staff'
-                    ? TeachingStaff::where('user_id', auth()->id())->first()
-                    : null;
-                $programIds = $myTeachingStaff?->position === 'program_head'
-                    ? $myTeachingStaff->programsHandled->pluck('id')
-                    : collect($myTeachingStaff?->program_id ? [$myTeachingStaff->program_id] : []);
-                if ($programIds->isNotEmpty()) {
-                    $query->whereHas('enrollments', function ($q) use ($programIds) {
-                        $q->whereIn('program_id', $programIds);
-                    });
+                // Teaching staff referring a student: only active, currently
+                // enrolled students whose latest enrollment is in the
+                // teacher's own program(s) (their program + any they head).
+                $query->whereRole('student')
+                    ->where('activate', true)
+                    ->whereHas('enrollment');
+                if (auth()->user()->role === 'teaching_staff') {
+                    $programIds = TeachingStaff::programIdsFor(auth()->id());
+                    $query->whereHas('latestEnrollment', fn ($q) => $q->whereIn('program_id', $programIds));
                 }
                 break;
             case 'student_parent':

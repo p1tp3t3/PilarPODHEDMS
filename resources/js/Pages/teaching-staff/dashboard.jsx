@@ -37,11 +37,11 @@ const TeachingStaffDashboard = (props) => {
             <PrefectAvailabilityCard />
 
             {/* === STAT CARDS SECTION === */}
-            <div className={`grid grid-cols-1 sm:grid-cols-2 ${isProgramHead ? 'lg:grid-cols-4' : ''} gap-4`}>
+            <div className={`grid grid-cols-1 sm:grid-cols-2 ${isProgramHead ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
               {isProgramHead && (
                 <Link href="/teaching-staff/faculty-list" className="h-full grid">
                   <QuantityCard
-                    h="h-[9rem]"
+                    h="h-[6rem]"
                     num={props.faculty}
                     icon={User}
                     textColor="text-green-700"
@@ -55,7 +55,7 @@ const TeachingStaffDashboard = (props) => {
 
               <Link href="/teaching-staff/student-list" className="h-full grid">
                 <QuantityCard
-                  h="h-[9rem]"
+                  h="h-[6rem]"
                   num={props.student_list}
                   icon={GraduationCap}
                   textColor="text-green-700"
@@ -68,7 +68,7 @@ const TeachingStaffDashboard = (props) => {
 
               <Link href="/complaint" className="h-full grid">
                 <QuantityCard
-                  h="h-[9rem]"
+                  h="h-[6rem]"
                   num={props.complaint}
                   icon={FileText}
                   textColor="text-green-700"
@@ -79,20 +79,19 @@ const TeachingStaffDashboard = (props) => {
                 />
               </Link>
 
-              {isProgramHead && (
-                <Link href="/referral" className="h-full grid">
-                  <QuantityCard
-                    h="h-[9rem]"
-                    num={props.referral}
-                    icon={FileText}
-                    label="Total Referral"
-                    textColor="text-blue-700"
-                    color={{
-                      bg: "bg-white hover:bg-black/5 transition-all",
-                    }}
-                  />
-                </Link>
-              )}
+              {/* Faculty refer students too, so everyone sees their referral count. */}
+              <Link href="/referral" className="h-full grid">
+                <QuantityCard
+                  h="h-[6rem]"
+                  num={props.referral}
+                  icon={FileText}
+                  label="Total Referral"
+                  textColor="text-blue-700"
+                  color={{
+                    bg: "bg-white hover:bg-black/5 transition-all",
+                  }}
+                />
+              </Link>
             </div>
 
             {/* === NEW USERS + ACTIVE USERS (their program) === */}

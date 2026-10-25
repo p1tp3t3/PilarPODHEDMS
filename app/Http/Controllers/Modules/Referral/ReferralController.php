@@ -32,6 +32,24 @@ class ReferralController extends Controller
 {
     use GeneratesSequenceCode;
 
+    // Teaching staff may only refer students of their own program(s) — the
+    // prefect can refer anyone. Returns an error response, or null if fine.
+    private static function outsideProgramResponse($studentIds)
+    {
+        if (auth()->user()->role !== 'teaching_staff') {
+            return null;
+        }
+        $programIds = \App\Models\TeachingStaff::programIdsFor(auth()->id());
+        $allowed = User::whereIn('id', collect($studentIds))
+            ->whereHas('latestEnrollment', fn ($q) => $q->whereIn('program_id', $programIds))
+            ->pluck('id');
+        if (collect($studentIds)->map(fn ($id) => (int) $id)->diff($allowed)->isNotEmpty()) {
+            return response()->json(['message' => 'You can only refer students from your own program.'], 422);
+        }
+
+        return null;
+    }
+
     // Students are never shown referrals (not even ones about them) and
     // can't file or touch one.
     private static function denyStudents(): void
@@ -75,12 +93,16 @@ class ReferralController extends Controller
 
         return Inertia::render('guidance/referral', [
             'referral' => self::getAllReferral(),
+            'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
         ]);
     }
 
     public function store(StoreReferralRequest $request)
     {
         self::denyStudents();
+        if ($blocked = self::outsideProgramResponse($request->referred_students ?? [])) {
+            return $blocked;
+        }
         DB::beginTransaction(); // ✅ Start transaction
         $output = null; // File path tracker for cleanup if fails
 
@@ -356,6 +378,9 @@ class ReferralController extends Controller
     public function updateReferral(UpdateReferralRequest $request, $id)
     {
         self::denyStudents();
+        if ($blocked = self::outsideProgramResponse($request->referred_students ?? [])) {
+            return $blocked;
+        }
         $referral = Referral::where('id', $id)->first();
 
         if (! $referral) {

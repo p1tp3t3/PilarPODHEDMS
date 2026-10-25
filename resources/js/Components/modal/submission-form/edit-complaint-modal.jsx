@@ -201,7 +201,7 @@ const EditComplaintModal = (props) => {
                         <div className="w-full relative">
                             <div className="grid gap-3 relative">
                                 <DropdownField.Search
-                                    default={{ val: '', label: 'Select Incident' }}
+                                    default={{ val: '', label: 'Select Incident (Optional)' }}
                                     list={props.incident_list}
                                     onChange={(e) => setIncident(e.target.value)}
                                     name="complaint_incident"

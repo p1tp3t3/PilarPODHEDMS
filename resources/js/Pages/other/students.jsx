@@ -1,3 +1,4 @@
+import SchoolYearSemesterFilter from "@/Components/input/school-year-semester-filter"
 import Btn from "@/Components/button/normal-btn"
 import StudentList from "@/Components/list/student-list"
 import AuthLayout from "@/Layouts/auth-layout"
@@ -164,6 +165,9 @@ const Students = (props) => {
                         onChange={setActiveTab}
                     />
                 ) : null}
+
+                {/* School year / semester: students enrolled in that period. */}
+                {activeTab === "list" && <SchoolYearSemesterFilter schoolYears={props.school_years} />}
 
                 {activeTab === "list" && (
                     <StudentList

@@ -94,6 +94,7 @@ const Referral = (props) => {
             isEnableOuterClose={true}
             data={editData}
             student_list={props.students}
+            user={props.user}
             reload={loadRegister}
         />
         <ReportReferralModal

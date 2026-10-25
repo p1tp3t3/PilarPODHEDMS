@@ -27,10 +27,10 @@ const ChildrenList = ({ list = null, style }) => {
             minWidth: 220,
             renderCell: (params) => (
                 <div className="flex gap-3 items-center h-full">
-                    <ProfilePic size={1.9} src={getProfilePic(params.row.profile_picture, params.row.sex)} />
-                    <div>
-                        <h1 className="text-[0.8rem]"><b>{params.value}</b></h1>
-                        <p className="text-[0.7em] text-gray-500">{params.row.subtitle}</p>
+                    <ProfilePic size={2.5} src={getProfilePic(params.row.profile_picture, params.row.sex)} />
+                    <div className="leading-tight">
+                        <p className="text-[0.9em] font-semibold text-gray-800">{params.value}</p>
+                        <p className="text-[0.8em] text-gray-500">{params.row.subtitle}</p>
                     </div>
                 </div>
             ),
@@ -41,11 +41,13 @@ const ChildrenList = ({ list = null, style }) => {
             headerName: "Action",
             width: 130,
             renderCell: (params) => (
-                <Link href={`${profileUrl(params.row)}`}>
-                    <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700">
-                        View
-                    </ActionBtn>
-                </Link>
+                <div className="h-full flex items-center justify-center">
+                    <Link href={`${profileUrl(params.row)}`}>
+                        <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700">
+                            View
+                        </ActionBtn>
+                    </Link>
+                </div>
             ),
         },
     ], [])
@@ -59,7 +61,7 @@ const ChildrenList = ({ list = null, style }) => {
                     mobileSummary={(row) => ({ name: row.name, role: row.subtitle, picture: row.profile_picture, sex: row.sex, hide: ["name"] })}
                     hideFooter
                     disableRowSelectionOnClick
-                    getRowHeight={() => "auto"}
+                    rowHeight={64}
                     showToolbar
                     localeText={{ noRowsLabel: list === null ? "Reloading..." : "No Child Yet" }}
                 />

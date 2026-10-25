@@ -3,7 +3,9 @@ import FacultyList from "@/Components/list/faculty-list"
 import AccountFilesTab from "@/Components/other/account-files-tab"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import AuthLayout from "@/Layouts/auth-layout"
+import PageLayout from "@/Layouts/page-layout"
 import { Head, router } from "@inertiajs/react"
+import SchoolYearSemesterFilter from "@/Components/input/school-year-semester-filter"
 
 const tabs = [
     { key: "students", label: "Students" },
@@ -13,38 +15,26 @@ const tabs = [
 
 const ProgramAccountFiles = (props) => {
     const activeTab = new URLSearchParams(window.location.search).get("tab") || "students"
-    const goToTab = (tab) => router.visit(`/teaching-staff/account-files?tab=${tab}`)
+    // Switching tabs keeps the school year / semester filters.
+    const goToTab = (tab) => {
+        const q = new URLSearchParams(window.location.search)
+        q.set("tab", tab)
+        router.visit(`/teaching-staff/account-files?${q.toString()}`)
+    }
 
     return (
         <>
         <Head title="Program Accounts" />
-        <div className="w-full py-4">
-            <div className="flex flex-col sm:flex-row w-full justify-between items-start sm:items-center gap-3">
-                <h1 className="text-[1.3em] sm:text-[1.5em] font-bold">{props.program_name} ACCOUNTS</h1>
-            </div>
+        <PageLayout title={`${props.program_name ?? ""} ACCOUNTS`.trim()}>
+            <TabSwitcher tabs={tabs} value={activeTab} onChange={goToTab} />
 
-            <div className="mt-3">
-                <TabSwitcher tabs={tabs} value={activeTab} onChange={goToTab} />
-            </div>
+            {/* Students: enrolled in that period. Faculty: registered in it. */}
+            {activeTab !== "files" && <SchoolYearSemesterFilter schoolYears={props.school_years} />}
 
-            {activeTab === "students" && (
-                <div className="pt-3">
-                    <StudentList list={props.students} type="program_head" />
-                </div>
-            )}
-
-            {activeTab === "faculty" && (
-                <div className="pt-3">
-                    <FacultyList list={props.faculty} type="program_head" />
-                </div>
-            )}
-
-            {activeTab === "files" && (
-                <div className="pt-3">
-                    <AccountFilesTab files={props.account_files} canDelete={false} />
-                </div>
-            )}
-        </div>
+            {activeTab === "students" && <StudentList list={props.students} type="program_head" />}
+            {activeTab === "faculty" && <FacultyList list={props.faculty} type="program_head" />}
+            {activeTab === "files" && <AccountFilesTab files={props.account_files} canDelete={false} />}
+        </PageLayout>
         </>
     )
 }

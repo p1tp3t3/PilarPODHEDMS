@@ -157,8 +157,7 @@ const Chat = ({ contacts: initialContacts }) => {
         const timeout = setTimeout(() => {
             UserService.search('/api/all-users/all-2', search, (data) => {
                 const found = Array.isArray(data) ? data : []
-                // The prefect can't message parents (only the IT admin can).
-                setSearchResults(user.role === 'sub_admin' ? found.filter((u) => u.role !== 'parent') : found)
+                setSearchResults(found)
             })
         }, 500)
 

@@ -11,7 +11,6 @@ use App\Models\Enrollment;
 use App\Models\ProgramHeadProgram;
 use App\Models\Message;
 use App\Models\MessageEdit;
-use App\Models\TeachingStaff;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -23,13 +22,13 @@ class ChatController extends Controller
     /**
      * Who may chat with whom (the same rule both ways):
      * - IT admin (super_admin): everyone;
-     * - prefect (sub_admin): everyone except parents;
-     * - program head: the students and teaching staff of the program(s)
-     *   they head;
-     * - student / teaching staff: their program head, the prefect and the
-     *   IT admin (so faculty don't message each other or other students);
+     * - prefect (sub_admin): everyone (parents included);
+     * - program head: the students of the program(s) they head;
+     * - student: their program head, the prefect and the IT admin;
+     * - teaching staff (faculty): the prefect and the IT admin (not their
+     *   program head, each other, or students);
      * - non-teaching staff: the prefect and the IT admin;
-     * - parent: the IT admin only.
+     * - parent: the prefect and the IT admin.
      */
     private function canChat(User $a, User $b): bool
     {
@@ -44,7 +43,7 @@ class ChatController extends Controller
         }
 
         if (in_array('sub_admin', $roles, true)) {
-            return ! in_array('parent', $roles, true);
+            return true;
         }
 
         return $this->headsProgramOf($a, $b) || $this->headsProgramOf($b, $a);
@@ -63,11 +62,10 @@ class ChatController extends Controller
             return false;
         }
 
-        $programs = match ($other->role) {
-            'student' => $this->latestProgramIds(collect([$other->id])),
-            'teaching_staff' => $this->teacherProgramIds($other),
-            default => collect(),
-        };
+        // Only students — a program head doesn't chat with the faculty.
+        $programs = $other->role === 'student'
+            ? $this->latestProgramIds(collect([$other->id]))
+            : collect();
 
         return $headed->intersect($programs)->isNotEmpty();
     }
@@ -84,12 +82,6 @@ class ChatController extends Controller
         return ProgramHeadProgram::whereIn('program_id', $programIds)->pluck('user_id');
     }
 
-    // A teacher's own program plus any programs they head.
-    private function teacherProgramIds(User $teacher)
-    {
-        return TeachingStaff::programIdsFor($teacher->id);
-    }
-
     private function latestProgramIds($studentIds)
     {
         return Enrollment::whereIn('id', Enrollment::whereIn('student_id', $studentIds)
@@ -97,15 +89,6 @@ class ChatController extends Controller
             ->groupBy('student_id'))
             ->pluck('program_id')
             ->filter()
-            ->unique()
-            ->values();
-    }
-
-    // Teaching staff who teach in or head one of these programs.
-    private function teachersInPrograms($programIds)
-    {
-        return TeachingStaff::whereIn('program_id', $programIds)->pluck('user_id')
-            ->merge(\App\Models\ProgramHeadProgram::whereIn('program_id', $programIds)->pluck('user_id'))
             ->unique()
             ->values();
     }
@@ -138,19 +121,16 @@ class ChatController extends Controller
         $partnerIds = Message::where('receiver_id', $me->id)->pluck('sender_id')
             ->merge(Message::where('sender_id', $me->id)->pluck('receiver_id'));
 
-        // Always the IT admin and the prefect (canChat drops the prefect for
-        // parents), plus: a student's / teacher's program head, and for a
-        // program head, the faculty and students of the programs they head.
+        // Always the IT admin and the prefect, plus: a student's program head,
+        // and for a program head, the students of the programs they head.
         $suggestedIds = User::whereRole(self::ADMIN_ROLES)->pluck('id');
 
         if ($me->role === 'student') {
             $suggestedIds = $suggestedIds->merge($this->headsOfPrograms($this->latestProgramIds(collect([$me->id]))));
         } elseif ($me->role === 'teaching_staff') {
             $headed = $this->headedProgramIds($me);
-            $suggestedIds = $suggestedIds
-                ->merge($this->headsOfPrograms($this->teacherProgramIds($me)))
-                ->merge($this->teachersInPrograms($headed))
-                ->merge($this->studentsInPrograms($headed));
+            // A program head is suggested their program's students (not its faculty).
+            $suggestedIds = $suggestedIds->merge($this->studentsInPrograms($headed));
         }
 
         $contactIds = $suggestedIds->merge($partnerIds)

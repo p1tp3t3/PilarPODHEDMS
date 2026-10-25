@@ -140,11 +140,14 @@ class DashboardController extends Controller
         return Inertia::render('parent/dashboard', $parentProps);
     }
 
-    // Guidance's one real task is reviewing referrals from the prefect —
-    // rather than a separate landing page, send them straight there.
+    // Guidance gets the same staff dashboard as everyone else, with a card
+    // for the referrals they review (their Referrals page lists them all).
     public function guidanceDashboard()
     {
-        return redirect('/guidance/referral');
+        return Inertia::render('staff/dashboard', array_merge(self::getStaffStatictics(), [
+            'is_guidance' => true,
+            'referral' => Referral::count(),
+        ]));
     }
 
     public function getITRCStatistics()
@@ -381,7 +384,6 @@ class DashboardController extends Controller
         $id = auth()->id();
         $complaint = Complaint::where('complainant_id', $id)->count();
         $appointmentCount = Appointment::where('user_id', $id)->count();
-        $appointment = new AppointmentController;
 
         $familyId = FamilyMember::where('member_id', $id)->value('family_id');
         $children = $familyId
@@ -394,7 +396,6 @@ class DashboardController extends Controller
             'complaint' => $complaint,
             'children' => $children,
             'appointment' => $appointmentCount,
-            'upcoming_appointment' => $appointment->getUpcomingAppointmentList($id),
         ];
     }
 
@@ -644,32 +645,41 @@ class DashboardController extends Controller
         $permissions = $user->permissions;
 
         $records = [];
+        // Only the record types a role can actually file (each still needs
+        // its permission switch on too).
+        $types = match ($user->role) {
+            'student' => ['complaint', 'absent_form', 'gate_pass', 'appointment'],
+            'teaching_staff', 'sub_admin' => ['complaint', 'referral'],
+            'parent' => ['complaint', 'appointment'],
+            default => ['complaint'], // non-teaching staff, IT admin
+        };
+        $can = fn (string $type) => in_array($type, $types, true);
 
-        if ($permissions?->allow_complaint) {
+        if ($permissions?->allow_complaint && $can('complaint')) {
             $records['complaint'] = self::scopeToCurrentSemester(
                 Complaint::with(['user.profile', 'subject.profile'])->where('complainant_id', $user->id)
             )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
         }
 
-        if ($permissions?->allow_referral && $user->role !== 'student') {
+        if ($permissions?->allow_referral && $can('referral')) {
             $records['referral'] = self::scopeToCurrentSemester(
                 Referral::with(['user.profile', 'referredStudent.profile'])->where('teaching_staff_id', $user->id)
             )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
         }
 
-        if ($permissions?->allow_absent_form) {
+        if ($permissions?->allow_absent_form && $can('absent_form')) {
             $records['absent_form'] = self::scopeToCurrentSemester(
                 Absence::where('student_id', $user->id)
             )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
         }
 
-        if ($permissions?->allow_gatepass) {
+        if ($permissions?->allow_gatepass && $can('gate_pass')) {
             $records['gate_pass'] = self::scopeToCurrentSemester(
                 GatePass::where('user_id', $user->id)
             )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
         }
 
-        if ($permissions?->allow_appointment) {
+        if ($permissions?->allow_appointment && $can('appointment')) {
             $records['appointment'] = self::scopeToCurrentSemester(
                 Appointment::where('user_id', $user->id)
             )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));

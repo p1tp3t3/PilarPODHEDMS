@@ -17,7 +17,9 @@ export const GatePassService = {
         api.fetchData();
     },
     getApprovedUsers(setter) {
-        const api = new APIRequest("/gatepass/approved-users", "post");
+        // GET (signed-in route): the old body-less multipart POST made PHP print a
+        // "Missing boundary" warning in front of the JSON, so the list never parsed.
+        const api = new APIRequest("/gatepass/approved-users", "get");
         api.setSetter(setter);
         api.fetchData();
     },

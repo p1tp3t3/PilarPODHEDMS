@@ -357,7 +357,8 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::post('/gatepass/verify/{id}/cancel', [GatePassController::class, 'disapproveGatePassRequest']);
      Route::post('/gatepass/{id}/revoke', [GatePassController::class, 'revokeGatePass']);
      Route::post('/gatepass/{id}/edit', [GatePassController::class, 'updateGatePass']);
-     Route::get('/gatepass/{id}', [GatePassController::class, 'get']);
+     // {id} is always an encrypted id — so it can't swallow /gatepass/approved-users below.
+     Route::get('/gatepass/{id}', [GatePassController::class, 'get'])->where('id', 'eyJ[A-Za-z0-9_=-]+');
      Route::get('/gatepass/approved-users', [GatePassController::class, 'getAllApprovedGatePass']);
 
      Route::get('/notification/{receiver}/{l}', [NotificationController::class, 'getNotif']);

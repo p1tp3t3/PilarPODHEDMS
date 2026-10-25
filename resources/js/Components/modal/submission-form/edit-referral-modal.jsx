@@ -115,7 +115,7 @@ const EditReferralModal = (props) => {
                                 def="Student Not Found"
                                 withLink={false}
                                 click={getSelectedStudent}
-                                apiLink="/api/all-users/student"
+                                apiLink={`/api/all-users/${props.user?.role === "teaching_staff" ? "program_student" : "student"}`}
                             />
                         </div>
                         {error && <div className="text-[#d12323] text-[12px]"><b>{error}</b></div>}

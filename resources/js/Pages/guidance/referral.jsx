@@ -4,6 +4,7 @@ import { useState } from "react"
 import ReferralList from "@/Components/list/referral-list"
 import ViewReferralModal from "@/Components/modal/view/view-referral-modal"
 import { Head } from "@inertiajs/react"
+import SchoolYearSemesterFilter from "@/Components/input/school-year-semester-filter"
 
 const GuidanceReferral = (props) => {
     const [viewReferral, openViewReferral] = useState(false)
@@ -25,6 +26,7 @@ const GuidanceReferral = (props) => {
                 referralId={referralId}
             />
             <PageLayout title="REFERRALS FROM THE PREFECT">
+                    <SchoolYearSemesterFilter schoolYears={props.school_years} />
                     <div className="w-full bg-white rounded-md shadow-sm shadow-black/20 min-w-0">
                         <ReferralList
                             list={props.referral?.data}

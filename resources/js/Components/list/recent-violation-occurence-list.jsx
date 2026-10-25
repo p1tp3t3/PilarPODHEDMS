@@ -50,50 +50,63 @@ const RecentViolationOccurenceList = ({ user_id, list: listProp = null }) => {
     );
 };
 
+// One violation's offenses as a vertical timeline: a numbered step per
+// offense, joined by a line, newest at the bottom (highlighted).
 const Row = ({ data }) => {
     const violation = data.offense?.violation;
     const occurrences = data.occurrence_list ?? [];
 
     const name = violation?.violation_name ?? "Unknown Violation";
     const count = data.total_occurrence;
-    const occurrenceLabel = `${count} Offense${count > 1 ? "s" : ""}`;
 
     return (
-        <div className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition">
-
-            {/* TITLE */}
-            <h2 className="font-semibold text-[1.05em] text-gray-900 mb-1">
-                {name}
-            </h2>
-
-            {/* OCCURRENCE */}
-            <p className="text-gray-600 text-sm mb-3">
-                <b>Occurrences:</b> {occurrenceLabel}
-            </p>
-
-            {/* PER-OCCURRENCE BREAKDOWN */}
-            <div className="grid gap-2">
-                {occurrences.map((o) => (
-                    <div key={o.occurrence} className="bg-blue-50 border border-blue-300 px-3 py-2 rounded text-sm text-blue-900">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                            <b>{ordinal(o.occurrence)} Offense</b>
-                            <span className="text-xs text-blue-700">
-                                {o.date ? `${readableDate(o.date)} (${readableTime(o.date)})` : "N/A"}
-                            </span>
-                        </div>
-                        {o.penalty ? (
-                            <p className="mt-1">
-                                {o.penalty.description}
-                                <span className="text-xs text-blue-700">
-                                    {" "}(Based on {ordinal(o.penalty.occurrence_used)} occurrence)
-                                </span>
-                            </p>
-                        ) : (
-                            <p className="mt-1 text-gray-600 italic">No penalty defined for this occurrence.</p>
-                        )}
-                    </div>
-                ))}
+        <div className="border border-gray-200 rounded-lg p-4 sm:p-5 bg-white shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <h2 className="font-semibold text-[1.05em] text-gray-900">{name}</h2>
+                <span className="rounded-full bg-blue-50 text-blue-700 px-2.5 py-0.5 text-[0.75em] font-semibold">
+                    {count} offense{count === 1 ? "" : "s"}
+                </span>
             </div>
+
+            <ol className="relative">
+                {occurrences.map((o, i) => {
+                    const last = i === occurrences.length - 1;
+                    return (
+                        <li key={o.occurrence} className="relative flex gap-3 sm:gap-4">
+                            {/* step dot + connecting line */}
+                            <div className="flex flex-col items-center">
+                                <span className={`w-7 h-7 shrink-0 rounded-full grid place-items-center text-[0.75em] font-bold ${last ? "bg-blue-600 text-white ring-4 ring-blue-100" : "bg-white text-blue-700 border-2 border-blue-300"}`}>
+                                    {o.occurrence}
+                                </span>
+                                {!last && <span className="w-0.5 flex-1 bg-blue-300" />}
+                            </div>
+
+                            <div className={`flex-1 min-w-0 ${last ? "pb-0" : "pb-5"}`}>
+                                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 pt-0.5">
+                                    <p className={`text-[0.9em] font-semibold ${last ? "text-blue-800" : "text-gray-800"}`}>
+                                        {ordinal(o.occurrence)} Offense
+                                        {last && <span className="ml-2 text-[0.75em] font-medium text-blue-600">Latest</span>}
+                                    </p>
+                                    <span className="text-[0.75em] text-gray-500">
+                                        {o.date ? `${readableDate(o.date)} (${readableTime(o.date)})` : "N/A"}
+                                    </span>
+                                </div>
+                                {o.penalty ? (
+                                    <p className="text-[0.85em] text-gray-600 mt-0.5">
+                                        <span className="text-gray-400">Penalty:</span> {o.penalty.description}
+                                        {/* Only when the penalty came from a different (lower) occurrence. */}
+                                        {o.penalty.occurrence_used !== o.occurrence && (
+                                            <span className="text-[0.85em] text-gray-400"> (uses the {ordinal(o.penalty.occurrence_used)} occurrence's penalty)</span>
+                                        )}
+                                    </p>
+                                ) : (
+                                    <p className="text-[0.85em] text-gray-400 italic mt-0.5">No penalty defined for this occurrence.</p>
+                                )}
+                            </div>
+                        </li>
+                    );
+                })}
+            </ol>
         </div>
     );
 };
