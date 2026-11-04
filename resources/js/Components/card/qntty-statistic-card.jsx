@@ -1,17 +1,10 @@
 import { Card, CardActionArea, CardContent, Box, Typography, Tooltip } from "@mui/material";
 
-// Tailwind needs literal class strings to generate them at build time, so the
-// handful of accent colors callers pass via `textColor` are mapped here
-// rather than derived by string-concatenating a class name at runtime.
-const ACCENT_COLORS = {
-    "text-blue-700": { bg: "bg-blue-100", text: "text-blue-700" },
-    "text-green-700": { bg: "bg-green-100", text: "text-green-700" },
-    "text-amber-700": { bg: "bg-amber-100", text: "text-amber-700" },
-};
-const DEFAULT_ACCENT = { bg: "bg-blue-100", text: "text-blue-600" };
+// Every quantity card uses the same blue icon accent.
+const ACCENT = { bg: "bg-blue-100", text: "text-blue-600" };
 
-const QuantityCard = ({ label, icon: Icon, num, h = "h-[6rem]", textColor }) => {
-    const accent = ACCENT_COLORS[textColor] ?? DEFAULT_ACCENT;
+const QuantityCard = ({ label, icon: Icon, num, h = "h-[6rem]" }) => {
+    const accent = ACCENT;
 
     return (
         <Tooltip title={`${label}: ${num}`} arrow placement="top">

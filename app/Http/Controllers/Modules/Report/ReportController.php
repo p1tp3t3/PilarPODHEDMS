@@ -378,7 +378,7 @@ class ReportController extends Controller
 
     public function itrcIndex(string $section = 'statistics')
     {
-        return Inertia::render('itrc/report', [
+        return Inertia::render('super-admin/report', [
             'section' => $section,
             'students' => User::with(['profile', 'program', 'teachingStaff.program', 'parent'])->get(),
             'action_log_list' => self::getAllActionLogs(),
@@ -616,12 +616,23 @@ class ReportController extends Controller
      * list can tell two rows apart (and avoid re-generating the same thing)
      * without opening either file.
      */
+    private static function semesterSuffix($semester): string
+    {
+        return match ((int) $semester) {
+            1 => ' (1st Semester)',
+            2 => ' (2nd Semester)',
+            default => '',
+        };
+    }
+
     private function summarizeReportFilters(array $filters, string $reportType): string
     {
         $parts = [];
 
         if (! empty($filters['school_year'])) {
-            $parts[] = "SY {$filters['school_year']}";
+            $parts[] = $filters['school_year'] === 'all'
+                ? 'All School Years'
+                : "SY {$filters['school_year']}".self::semesterSuffix($filters['semester'] ?? null);
         } elseif (! empty($filters['date_from']) && ! empty($filters['date_to'])) {
             $parts[] = Carbon::parse($filters['date_from'])->format('M j, Y').' – '.Carbon::parse($filters['date_to'])->format('M j, Y');
         }

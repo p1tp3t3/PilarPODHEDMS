@@ -20,8 +20,10 @@ class ChatController extends Controller
     private const ADMIN_ROLES = ['sub_admin', 'super_admin'];
 
     /**
-     * Who may chat with whom (the same rule both ways):
-     * - IT admin (super_admin): everyone;
+     * Whether $a may chat with $b (send to them, see the thread, list them):
+     * - IT admin (super_admin): the prefect, and anyone else only once that
+     *   person has messaged the IT admin first — the IT admin replies, but
+     *   never starts a conversation with a user;
      * - prefect (sub_admin): everyone (parents included);
      * - program head: the students of the program(s) they head;
      * - student: their program head, the prefect and the IT admin;
@@ -38,8 +40,13 @@ class ChatController extends Controller
 
         $roles = [$a->role, $b->role];
 
-        if (in_array('super_admin', $roles, true)) {
+        // Anyone may start a chat with the IT admin; the IT admin may only
+        // answer (any admin aside).
+        if ($b->role === 'super_admin') {
             return true;
+        }
+        if ($a->role === 'super_admin') {
+            return in_array($b->role, self::ADMIN_ROLES, true) || $this->hasMessaged($b, $a);
         }
 
         if (in_array('sub_admin', $roles, true)) {
@@ -47,6 +54,12 @@ class ChatController extends Controller
         }
 
         return $this->headsProgramOf($a, $b) || $this->headsProgramOf($b, $a);
+    }
+
+    // Whether $from has ever sent $to a message.
+    private function hasMessaged(User $from, User $to): bool
+    {
+        return Message::where('sender_id', $from->id)->where('receiver_id', $to->id)->exists();
     }
 
     // Whether $head is the program head of a program $other belongs to
@@ -103,7 +116,7 @@ class ChatController extends Controller
 
     public function index()
     {
-        return Inertia::render('chat/index', [
+        return Inertia::render('shared/chat/index', [
             'contacts' => $this->getContacts(),
         ]);
     }

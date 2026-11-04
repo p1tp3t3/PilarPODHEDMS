@@ -14,7 +14,7 @@ class OTPVerificationController extends Controller
 {
     public function contactIndex()
     {
-        return Inertia::render('other/password-recovery');
+        return Inertia::render('guest/password-recovery');
     }
 
     public function store(Request $request)

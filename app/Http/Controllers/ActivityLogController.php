@@ -22,7 +22,7 @@ class ActivityLogController extends Controller
             $query->where('action_type', request('action_type'));
         }
 
-        return Inertia::render('other/my-activity', [
+        return Inertia::render('shared/my-activity', [
             'logs' => ActionLogResource::collection($query->paginate(50)->withQueryString())->response()->getData(true),
             'action_types' => ActionLog::where('user_id', auth()->id())->distinct()->orderBy('action_type')->pluck('action_type'),
             'action_type' => request('action_type', 'all'),

@@ -9,6 +9,7 @@ import AuthContext from "@/context-provider/auth-provider"
 import SelectedUser from "../../other/selected-user"
 import { AppointmentService } from "@/others/services/appointment-service"
 import { Phone, TriangleAlert } from "lucide-react"
+import { Link } from "@inertiajs/react"
 import { validateForm, hasErrors, required, minLength } from "@/others/validation"
 
 const CallInModal = (props) => {
@@ -128,7 +129,15 @@ const CallInModal = (props) => {
                             />
                         </div>
                     </div>
-                    <div className="flex justify-end">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        {/* The call-ins already sent: Appointment page, Call-In History tab. */}
+                        <Link
+                            href="/prefect/appointment?tab=call-ins"
+                            onClick={() => props.closeModal(false)}
+                            className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                        >
+                            View Call-In History
+                        </Link>
                         <FormButton label='Call In' type="submit" loading={submit} />
                     </div>
                 </form>

@@ -12,6 +12,8 @@ use App\Mail\AbsentFormMail;
 use App\Models\Absence;
 use App\Models\AbsenceRevision;
 use App\Models\ActionLog;
+use App\Models\Enrollment;
+use App\Models\Program;
 use App\Models\SchoolYear;
 use App\Models\SchoolYearSemester;
 use App\Models\User;
@@ -40,6 +42,7 @@ class AbsentFormController extends Controller
             $props = array_merge($props, [
                 'absent_form_request_list' => self::getAllAbsentForm(),
                 'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
+                'programs' => Program::orderBy('name')->get(['id', 'name']),
             ]);
         } else {
             $mine = Absence::where('student_id', $user->id)->latest('created_at');
@@ -374,6 +377,7 @@ class AbsentFormController extends Controller
             $prefectName = auth()->user()->profile?->first_name.' '.auth()->user()->profile?->middle_name.' '.auth()->user()->profile?->last_name;
             $studentName = $student->user->profile?->first_name.' '.$student->user->profile?->middle_name.' '.$student->user->profile?->last_name;
             $pdfData = [
+                'form_number' => $student->form_number,
                 'sender_name' => $studentName,
                 'prefect_name' => $prefectName,
                 'date_from' => $student->date_from,
@@ -490,6 +494,11 @@ class AbsentFormController extends Controller
         }
 
         SchoolYearSemester::applyFilter($absence, 'created_at', request('school-year'), request('semester'));
+
+        $program = request('program');
+        if ($program && $program !== 'all') {
+            $absence->whereIn('student_id', Enrollment::studentIdsInProgram($program));
+        }
 
         return AbsenceResource::collection($absence->paginate(100)->appends(['status' => $status]));
     }

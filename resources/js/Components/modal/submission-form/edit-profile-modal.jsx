@@ -14,7 +14,7 @@ import {
 } from "../../../others/function";
 import RadioButton from "@/Components/input/radio";
 import ProfilePicEdit from "@/Components/input/profile-pic-edit-input";
-import About from "@/Pages/other/profile/about";
+import About from "@/Pages/shared/profile/about";
 import { Validator } from "@/others/classes/validator";
 import { requestType } from "@/others/list/type-list";
 import CheckBoxButton from "@/Components/input/checkbox";

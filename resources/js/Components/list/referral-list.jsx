@@ -1,6 +1,7 @@
 import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
-import { useContext, useMemo } from "react"
+import { useContext, useMemo, useState } from "react"
+import { Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material"
 import AuthContext from "@/context-provider/auth-provider"
 
 import { getProfilePic, readableDate, readableTime, toTitleCase, formatSchoolYearSemester } from "../../others/function"
@@ -8,7 +9,7 @@ import ProfilePic from "../other/profile-pic"
 import ListSkeleton from "../reload/list-skeleton"
 import ActionBtn from "../button/action-btn"
 import { StatusAvatar, statusLabel } from "@/Components/other/mobile-card-list"
-import { Send } from "lucide-react"
+import { Send, ChevronDown, HeartHandshake, MonitorCog } from "lucide-react"
 import { filedByColumn } from "@/Components/list/filed-by-column"
 
 const STATUS_STYLES = {
@@ -16,6 +17,51 @@ const STATUS_STYLES = {
     approved: "bg-green-100 text-green-700",
     rejected: "bg-red-100 text-red-700",
     revoked: "bg-gray-200 text-gray-700",
+}
+
+// One "Send to" button with the offices a referral can be forwarded to,
+// instead of a button per office. Each opens the send page in a new tab.
+const SEND_TO = [
+    { key: "send-guidance", label: "Guidance", icon: HeartHandshake },
+    { key: "send-it-staff", label: "IT Staff", icon: MonitorCog },
+]
+
+const SendToMenu = ({ encryptedId }) => {
+    const [anchor, setAnchor] = useState(null)
+
+    return (
+        <>
+            <ActionBtn
+                className="bg-orange-500 hover:bg-orange-600"
+                onClick={(e) => setAnchor(e.currentTarget)}
+            >
+                <span className="flex items-center gap-1">
+                    Send to <ChevronDown size={14} />
+                </span>
+            </ActionBtn>
+            <Menu
+                anchorEl={anchor}
+                open={Boolean(anchor)}
+                onClose={() => setAnchor(null)}
+                anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+                transformOrigin={{ vertical: "top", horizontal: "left" }}
+            >
+                {SEND_TO.map(({ key, label, icon: Icon }) => (
+                    <MenuItem
+                        key={key}
+                        dense
+                        onClick={() => {
+                            setAnchor(null)
+                            window.open(`/referral/verify/${encryptedId}/${key}`, "_blank")
+                        }}
+                    >
+                        <ListItemIcon><Icon size={16} /></ListItemIcon>
+                        <ListItemText>{label}</ListItemText>
+                    </MenuItem>
+                ))}
+            </Menu>
+        </>
+    )
 }
 
 const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
@@ -171,7 +217,7 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
             headerAlign: 'start',
             sortable: false,
             filterable: false,
-            width: usr?.role === "sub_admin" ? 640 : 300,
+            width: usr?.role === "sub_admin" ? 420 : 300,
             renderCell: (params) => {
                 const row = params.row
                 const canModerate = usr?.role === "sub_admin" && !row.confirmed_at && !row.rejected_at && !row.revoked_at
@@ -197,19 +243,7 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
                                     Approve
                                 </ActionBtn>
 
-                                <ActionBtn
-                                    className="bg-orange-500 hover:bg-orange-600"
-                                    onClick={() => window.open(`/referral/verify/${row.raw?.encrypted_id}/send-guidance`, "_blank")}
-                                >
-                                    Send to Guidance
-                                </ActionBtn>
-
-                                <ActionBtn
-                                    className="bg-purple-500 hover:bg-purple-600"
-                                    onClick={() => window.open(`/referral/verify/${row.raw?.encrypted_id}/send-it-staff`, "_blank")}
-                                >
-                                    Send to IT Staff
-                                </ActionBtn>
+                                <SendToMenu encryptedId={row.raw?.encrypted_id} />
 
                                 <ActionBtn
                                     className="bg-red-500 hover:bg-red-600"
@@ -222,7 +256,7 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
 
                         {isOwner && isPending && !row.raw?.edited_at && (
                             <ActionBtn
-                                className="bg-indigo-600 hover:bg-indigo-700"
+                                className="bg-green-600 hover:bg-green-700"
                                 onClick={() => events("edit", row.id)}
                             >
                                 Edit

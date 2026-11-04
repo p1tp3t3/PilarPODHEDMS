@@ -119,7 +119,7 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
           </Link>
           {canEditEnrollment && (
             <ActionBtn
-              className="bg-indigo-600 text-white hover:bg-indigo-700"
+              className="bg-green-600 text-white hover:bg-green-700"
               onClick={() => onEditEnrollment(params.row.raw)}
             >
               Edit Enrollment

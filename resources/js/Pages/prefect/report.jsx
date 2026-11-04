@@ -4,9 +4,7 @@ import ReportStatistics from "./report/report-statistics"
 import AuthLayout from "@/Layouts/auth-layout"
 import { router, Link } from "@inertiajs/react"
 import { useEffect, useRef, useState } from "react"
-import RadioButton from "@/Components/input/radio"
-import DropdownField from "@/Components/input/dropdown"
-import BetweenTextfield from "@/Components/input/between-input"
+import ReportFilterModal, { EMPTY_REPORT_FILTER, isUsableReportFilter, reportFilterSummary } from "@/Components/modal/submission-form/report-filter-modal"
 import ArchiveList from "@/Components/list/archive-list"
 import ReportFilterList from "@/Components/list/report-filter-list"
 import GeneratedReportsList from "@/Components/list/generated-reports-list"
@@ -24,13 +22,8 @@ import ViolationReport from "./report/violation-report"
 import TardyReport from "./report/tardy-report"
 import AppointmentReport from "./report/appointment-report"
 import GatePassReport from "./report/gatepass-report"
-import { Plus } from "lucide-react"
+import { Plus, SlidersHorizontal, X } from "lucide-react"
 import { Head } from "@inertiajs/react"
-
-const semesterList = [
-    { val: 1, label: "1st Semester" },
-    { val: 2, label: "2nd Semester" },
-]
 
 const PrefectReport = (props) => {
     // Each report is its own page (/prefect/report/{section}, see
@@ -67,40 +60,38 @@ const PrefectReport = (props) => {
 
     // One shared filter for every list tab above (not a separate copy per
     // tab) — reloads the page's report props from the server with the
-    // chosen date range / school year+semester applied. The Analytical
-    // Report tab keeps its own independent filter+export, unrelated to this.
-    const [filterBy, setFilterBy] = useState('date')
-    const [dateFrom, setDateFrom] = useState('')
-    const [dateTo, setDateTo] = useState('')
-    const [schoolYearId, setSchoolYearId] = useState('')
-    const [semester, setSemester] = useState('')
+    // chosen date range / school year+semester applied. It's edited in a
+    // modal (Filter button); the Analytical Report tab keeps its own
+    // independent filter+export, unrelated to this.
+    const [filterModal, openFilterModal] = useState(false)
+    const [appliedFilter, setAppliedFilter] = useState(() => {
+        const q = new URLSearchParams(window.location.search)
+        const f = { ...EMPTY_REPORT_FILTER }
+        Object.keys(f).forEach((k) => { if (q.get(k)) f[k] = q.get(k) })
+        return isUsableReportFilter(f) ? f : EMPTY_REPORT_FILTER
+    })
+    const hasFilter = isUsableReportFilter(appliedFilter)
 
-    const hasUsableFilter = filterBy === 'date' ? (dateFrom && dateTo) : !!schoolYearId
+    const reloadWith = (query) =>
+        router.get(window.location.pathname, query, { preserveState: true, preserveScroll: true, replace: true })
 
-    // Filter fields no longer submit on every change — the user sets the
-    // date range/school year (+semester) first, then explicitly clicks
-    // "Apply Filter" to reload the list with it, instead of firing a
-    // request on each click.
-    const applyFilter = () => {
-        if (!hasUsableFilter) return
-
-        router.get(window.location.pathname, {
-            filter_by: filterBy,
-            date_from: filterBy === 'date' ? dateFrom : '',
-            date_to: filterBy === 'date' ? dateTo : '',
-            school_year_id: filterBy === 'school_year' ? schoolYearId : '',
-            semester: filterBy === 'school_year' ? semester : '',
-        }, { preserveState: true, preserveScroll: true, replace: true })
+    const applyFilter = (f) => {
+        setAppliedFilter(f)
+        reloadWith({
+            filter_by: f.filter_by,
+            date_from: f.filter_by === 'date' ? f.date_from : '',
+            date_to: f.filter_by === 'date' ? f.date_to : '',
+            school_year_id: f.filter_by === 'school_year' ? f.school_year_id : '',
+            semester: f.filter_by === 'school_year' ? f.semester : '',
+        })
     }
 
     const clearFilter = () => {
-        setFilterBy('date')
-        setDateFrom('')
-        setDateTo('')
-        setSchoolYearId('')
-        setSemester('')
-        router.get(window.location.pathname, {}, { preserveState: true, preserveScroll: true, replace: true })
+        setAppliedFilter(EMPTY_REPORT_FILTER)
+        reloadWith({})
     }
+
+    const filterSummary = reportFilterSummary(appliedFilter, props.school_years_full ?? [])
     const [choose2, setChoose2] = useState('all'),
           [complaint, openViewComplaint] = useState(false),
           [absent, openAbsentForm] = useState(false),
@@ -219,6 +210,14 @@ const PrefectReport = (props) => {
             pd={['px-5', 'py-7']}
             isEnableOuterClose={true}
         />
+        <ReportFilterModal
+            close={filterModal}
+            closeModal={openFilterModal}
+            value={appliedFilter}
+            schoolYears={props.school_years_full ?? []}
+            onApply={applyFilter}
+            onClear={clearFilter}
+        />
         <GenerateReportModal
             close={report}
             closeModal={openGenerateReport}
@@ -240,83 +239,31 @@ const PrefectReport = (props) => {
             <PageLayout title={current.label.toUpperCase()}>
                     <div className="grid gap-5 min-w-0">
                         {choose !== 'analytics' && choose !== 'saved-filters' && choose !== 'generated-reports' && view !== 'generate' &&
-                        <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm p-4 sm:p-5 grid gap-4 min-w-0">
-                            <RadioButton
-                                list={[
-                                    { val: "date", label: "Date Range" },
-                                    { val: "school_year", label: "School Year" },
-                                ]}
-                                id="filter_by"
-                                name="filter_by"
-                                val={filterBy}
-                                change={(e) => {
-                                    setFilterBy(e.target.value)
-                                    setDateFrom("")
-                                    setDateTo("")
-                                    setSchoolYearId("")
-                                    setSemester("")
-                                }}
-                            />
-
-                            {filterBy === "date" &&
-                            <div className="max-w-md">
-                                <BetweenTextfield
-                                    type="date"
-                                    labels={["Date From", "Date To"]}
-                                    name={["date_from", "date_to"]}
-                                    id={["date_from", "date_to"]}
-                                    data={[dateFrom, dateTo]}
-                                    setData={(updater) => {
-                                        const next = typeof updater === "function" ? updater({ date_from: dateFrom, date_to: dateTo }) : updater
-                                        setDateFrom(next.date_from ?? "")
-                                        setDateTo(next.date_to ?? "")
-                                    }}
-                                />
-                            </div>}
-
-                            {filterBy === "school_year" &&
-                            <div className="flex flex-col sm:flex-row gap-3 max-w-xl">
-                                <div className="w-full">
-                                    <DropdownField
-                                        default={{ val: "", label: "Select School Year" }}
-                                        list={(props.school_years_full ?? []).map((y) => ({ val: y.id, label: y.year }))}
-                                        onChange={(e) => setSchoolYearId(e.target.value)}
-                                        name="school_year_id"
-                                        val={schoolYearId}
-                                    />
-                                </div>
-                                <div className="w-full">
-                                    <DropdownField
-                                        default={{ val: "", label: "All Semesters" }}
-                                        list={semesterList}
-                                        onChange={(e) => setSemester(e.target.value)}
-                                        name="semester"
-                                        val={semester}
-                                    />
-                                </div>
-                            </div>}
-
-                            <div className="flex items-center gap-3">
-                                <button
-                                    type="button"
-                                    onClick={applyFilter}
-                                    disabled={!hasUsableFilter}
-                                    className={`text-[0.85em] px-3 py-1.5 rounded text-white ${
-                                        hasUsableFilter ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-300 cursor-not-allowed"
-                                    }`}
-                                >
-                                    Apply Filter
-                                </button>
-
-                                {hasUsableFilter &&
+                        <div className="flex flex-wrap items-center justify-end gap-2 min-w-0">
+                            {hasFilter &&
+                            <span className="flex items-center gap-1.5 max-w-full pl-3 pr-1.5 py-1 rounded-full bg-blue-50 text-blue-800 text-[0.85em]">
+                                <span className="truncate">{filterSummary}</span>
                                 <button
                                     type="button"
                                     onClick={clearFilter}
-                                    className="text-[0.85em] text-gray-600 hover:text-gray-900 underline"
+                                    title="Clear filter"
+                                    aria-label="Clear filter"
+                                    className="grid place-items-center w-5 h-5 rounded-full hover:bg-blue-100"
                                 >
-                                    Clear Filter
-                                </button>}
-                            </div>
+                                    <X size={13} />
+                                </button>
+                            </span>}
+                            <button
+                                type="button"
+                                onClick={() => openFilterModal(true)}
+                                className={`flex items-center gap-2 px-4 py-2 text-[0.9em] rounded border transition-colors ${
+                                    hasFilter
+                                        ? "border-blue-600 bg-blue-600 text-white hover:bg-blue-700"
+                                        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                                }`}
+                            >
+                                <SlidersHorizontal size={16} /> Filter
+                            </button>
                         </div>}
                         {isReportType &&
                         <TabSwitcher

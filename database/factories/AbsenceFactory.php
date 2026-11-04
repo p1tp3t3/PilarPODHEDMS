@@ -70,6 +70,7 @@ class AbsenceFactory extends Factory
                 $prefect = User::with('profile')->whereRole('sub_admin')->first();
 
                 $data = [
+                    'form_number' => $absence->form_number,
                     'sender_name' => trim("{$student?->profile?->first_name} {$student?->profile?->middle_name} {$student?->profile?->last_name}"),
                     'prefect_name' => trim("{$prefect?->profile?->first_name} {$prefect?->profile?->middle_name} {$prefect?->profile?->last_name}"),
                     'date_from' => $absence->date_from,

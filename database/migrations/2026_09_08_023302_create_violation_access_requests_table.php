@@ -9,10 +9,10 @@ return new class extends Migration
     /**
      * Run the migrations.
      *
-     * An approved grant is single-use — the middleware consumes it (sets
-     * used_at + flips status to 'used') the moment it lets the request
-     * through, so it can never be exercised a second time even while still
-     * inside its expires_at window. Violation and penalty management are
+     * An approved grant can be limited to a number of uses (max_uses; null
+     * = unlimited until expires_at). uses_count counts the changes made with
+     * it, and once it runs out the grant is marked 'used'. Violation and
+     * penalty management are
      * gated separately — an "add" grant for violations doesn't also cover
      * adding penalties.
      */
@@ -31,6 +31,8 @@ return new class extends Migration
             $table->foreignId('responded_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('responded_at')->nullable();
             $table->timestamp('expires_at')->nullable();
+            $table->unsignedSmallInteger('max_uses')->nullable();
+            $table->unsignedSmallInteger('uses_count')->default(0);
             // A distinct column per transition keeps the whole timeline
             // (requested/approved/denied/revoked) readable off one row
             // without needing a separate history table.

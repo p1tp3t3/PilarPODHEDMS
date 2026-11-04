@@ -38,6 +38,8 @@ class Report extends Model
             'program' => $filters['program'] ?? null,
             'report_type' => $filters['report_type'] ?? null,
             'school_year' => $filters['school_year'] ?? null,
+            // Only meaningful with a school year (blank = the whole year).
+            'semester' => ! empty($filters['school_year']) && $filters['school_year'] !== 'all' && ! empty($filters['semester']) ? (int) $filters['semester'] : null,
             'date_from' => $filters['date_from'] ?? null,
             'date_to' => $filters['date_to'] ?? null,
         ];

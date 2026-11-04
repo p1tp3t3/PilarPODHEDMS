@@ -44,7 +44,6 @@ const TeachingStaffDashboard = (props) => {
                     h="h-[6rem]"
                     num={props.faculty}
                     icon={User}
-                    textColor="text-green-700"
                     label="Total Faculty Members"
                     color={{
                       bg: "bg-white hover:bg-black/5 transition-all",
@@ -58,7 +57,6 @@ const TeachingStaffDashboard = (props) => {
                   h="h-[6rem]"
                   num={props.student_list}
                   icon={GraduationCap}
-                  textColor="text-green-700"
                   label="Total Enrolled Students"
                   color={{
                     bg: "bg-white hover:bg-black/5 transition-all",
@@ -71,7 +69,6 @@ const TeachingStaffDashboard = (props) => {
                   h="h-[6rem]"
                   num={props.complaint}
                   icon={FileText}
-                  textColor="text-green-700"
                   label="Total Complaints"
                   color={{
                     bg: "bg-white hover:bg-black/5 transition-all",
@@ -86,7 +83,6 @@ const TeachingStaffDashboard = (props) => {
                   num={props.referral}
                   icon={FileText}
                   label="Total Referral"
-                  textColor="text-blue-700"
                   color={{
                     bg: "bg-white hover:bg-black/5 transition-all",
                   }}

@@ -13,6 +13,7 @@ import {
 } from "../../others/function";
 import AuthContext from "@/context-provider/auth-provider";
 import ListSkeleton from "../reload/list-skeleton";
+import { useIsMobile } from "@/others/use-is-mobile";
 import { statusLabel } from "@/Components/other/mobile-card-list";
 import { filedByColumn } from "@/Components/list/filed-by-column";
 
@@ -206,6 +207,10 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
     return cols;
   }, [events, noted, usr, urlStatus]);
 
+  // Phones show cards that grow with the page instead of scrolling inside
+  // a fixed-height box.
+  const isMobile = useIsMobile();
+
   if (!list) {
     return (
       <div className="flex justify-center items-center w-full py-10">
@@ -215,7 +220,7 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
   }
 
   return (
-    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", height: 550, p: 2, bgcolor: "var(--dm-surface, white)", borderRadius: 2 }}>
+    <Box sx={{ width: "100%", minWidth: 0, overflow: isMobile ? "visible" : "hidden", height: isMobile ? "auto" : 550, p: 2, bgcolor: "var(--dm-surface, white)", borderRadius: 2 }}>
       <DataGrid
         rows={rows}
         columns={columns}

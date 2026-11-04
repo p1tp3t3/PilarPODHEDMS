@@ -30,6 +30,11 @@ export const AppointmentService = {
         const api = new APIRequest("/prefect/call-in", "post", data, () => {}, success, error);
         api.sendPostData();
     },
+    // Every call-in sent to students (prefect's Call-In History).
+    getCallInHistory(setter, error = () => {}) {
+        const api = new APIRequest("/prefect/call-in/history", "get", {}, setter, () => {}, error);
+        api.fetchData();
+    },
     getAppointmentInfo(id, setter) {
         const api = new APIRequest(`/appointment/${id}`, "get", {}, setter);
         api.fetchData();

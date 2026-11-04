@@ -31,7 +31,6 @@ const ParentDashboard = (props) => {
                             h="h-[6rem]"
                             num={props.children}
                             icon={Users}
-                            textColor="text-green-700"
                             label="Total Children"
                             color={{ bg: "bg-white hover:bg-black/5 transition-all" }}
                         />
@@ -41,7 +40,6 @@ const ParentDashboard = (props) => {
                             h="h-[6rem]"
                             num={props.complaint}
                             icon={FileText}
-                            textColor="text-green-700"
                             label="Total Complaints"
                             color={{ bg: "bg-white hover:bg-black/5 transition-all" }}
                         />

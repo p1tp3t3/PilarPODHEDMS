@@ -33,6 +33,6 @@ class CheckMaintenanceMode
             ], 503);
         }
 
-        return Inertia::render('maintenance-notice')->toResponse($request);
+        return Inertia::render('guest/maintenance-notice')->toResponse($request);
     }
 }

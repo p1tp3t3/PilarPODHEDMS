@@ -42,7 +42,7 @@ class RegisteredUserController extends Controller
     {
         $student = new User;
 
-        return Inertia::render('itrc/register', [
+        return Inertia::render('super-admin/register', [
             'authType' => auth()->user()->role,
             'student' => $student->getAllStudent(),
             'program' => Program::select('id', 'name', 'description')->get(),
@@ -56,7 +56,7 @@ class RegisteredUserController extends Controller
     {
         $programs = Program::all(['id', 'name']);
 
-        return Inertia::render('parent-registration', [
+        return Inertia::render('guest/parent-registration', [
             'programs' => $programs,
         ]);
     }

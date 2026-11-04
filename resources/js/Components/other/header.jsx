@@ -133,7 +133,7 @@ const AuthHeader = (props) => {
   const menuActions = [
     ...(props.user.role == "sub_admin" ? [{ label: "Call In", icon: Phone, onClick: () => { setOpenPanelId(null); openCallIn(true); } }] : []),
     // Full screen is a desktop/tablet thing (hidden on phones).
-    ...(canFullscreen ? [{ key: "fullscreen", label: "Full Screen", icon: isFullscreen ? Minimize : Maximize, toggled: isFullscreen, onClick: toggleFullscreen, className: "hidden md:flex" }] : []),
+    ...(canFullscreen ? [{ key: "fullscreen", label: "Full Screen", icon: isFullscreen ? Minimize : Maximize, toggled: isFullscreen, onClick: toggleFullscreen, hideBelow: "md" }] : []),
     { key: "theme", label: "Dark Mode", icon: Moon, toggled: mode === "dark", onClick: toggleMode },
   ];
 

@@ -24,7 +24,7 @@ class AccountSetupController extends Controller
             return redirect('/force-change/'.encrypt_id($user->id));
         }
 
-        return Inertia::render('auth/verify-email', [
+        return Inertia::render('guest/verify-email', [
             'user' => $user,
             'email' => $user->email,
         ]);

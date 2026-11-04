@@ -186,7 +186,7 @@
 
   <main class="page" role="main" aria-label="Incident report">
     <header>
-        <img src="{{ public_path('default-pic/pilar.png') }}" width="90" alt="">
+        <img src="{{ public_path('default-pic/pilar-pdf.png') }}" width="90" alt="">
         <h1>Pilar College of Zamboanga City, Inc.</h1>
         <p>R.T. Lim Boulevard, Zamboanga City</p>
         <p>Higher Education</p>

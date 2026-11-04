@@ -2,6 +2,7 @@ import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import DropdownField from "@/Components/input/dropdown"
+import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import Btn from "@/Components/button/normal-btn"
 import StudentList from "@/Components/list/student-list"
 import StaffList from "@/Components/list/staff-list"
@@ -108,6 +109,7 @@ const PrefectUserList = (props) => {
                         </div>
                     )}
                     <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+                        <MobileFilters active={countActive(studentProgram, studentSchoolYear, studentSemester)}>
                         <div className="w-full sm:w-[14rem] flex-shrink-0">
                             <DropdownField
                                 default={{ val: "all", label: "All Programs" }}
@@ -135,6 +137,7 @@ const PrefectUserList = (props) => {
                                 onChange={(e) => handleStudentFilter("semester", e.target.value)}
                             />
                         </div>
+                        </MobileFilters>
                     </div>
                     <div className="w-full min-w-0">
                         <StudentList list={props.students} />
@@ -144,6 +147,7 @@ const PrefectUserList = (props) => {
                 {tab === "staff" &&
                 <>
                     <div className="flex flex-col sm:flex-row gap-3 sm:items-center md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
+                        <MobileFilters active={countActive(staffType, staffProgram, staffPosition)}>
                         <div className="w-full sm:w-[14rem] flex-shrink-0">
                             <DropdownField
                                 list={[
@@ -179,6 +183,7 @@ const PrefectUserList = (props) => {
                                 />
                             </div>
                         )}
+                        </MobileFilters>
                         <PageActions />
                     </div>
                     <StaffList

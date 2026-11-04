@@ -36,7 +36,11 @@ const BarGraph = (props) => {
           text: props.xTitle,
         },
       },
+      // Counts: start at 0 (so bar heights compare honestly) and step in
+      // whole numbers.
       y: {
+        beginAtZero: true,
+        ticks: { precision: 0 },
         title: {
           display: true,
           text: props.yTitle,

@@ -245,7 +245,7 @@ const ComplaintList = ({
                 {obj.complainant_id === user?.id && obj.complaint_status === "pending" && !obj.edited_at && (
                 <ActionBtn
                     onClick={() => actionEvent("edit", obj.encrypted_id)}
-                    className="bg-indigo-600 text-white hover:bg-indigo-700"
+                    className="bg-green-600 text-white hover:bg-green-700"
                 >
                     Edit
                 </ActionBtn>

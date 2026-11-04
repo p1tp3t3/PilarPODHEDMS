@@ -4,6 +4,7 @@ import IssueComplaintModal from "@/Components/modal/submission-form/issue-compla
 import ComplaintList from "@/Components/list/complaint-list"
 import { useState, useEffect } from "react"
 import DropdownField from "@/Components/input/dropdown"
+import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import { useReload } from "@/context-provider/reload-provider"
 import ViewComplaintModal from "@/Components/modal/view/view-complaint-modal"
 import IssueViolationModal from "@/Components/modal/submission-form/issue-violation-modal"
@@ -276,6 +277,7 @@ const PrefectComplaint = (props) => {
             {/* Search and Filters */}
             <div className="grid gap-3">
               <div className="flex flex-wrap gap-3 items-center md:max-xl:flex-row md:max-xl:flex-nowrap md:max-xl:items-center md:max-xl:[&>div:not(:last-child)]:flex-1 md:max-xl:[&>div:not(:last-child)]:min-w-0 md:max-xl:[&>div:not(:last-child)]:w-auto">
+                <MobileFilters active={countActive(role, schoolYear, semester)}>
                 {/* Dropdowns */}
                 <div className="flex flex-col sm:flex-row sm:flex-wrap xl:flex-nowrap gap-3 w-full xl:w-auto justify-start md:max-xl:flex-nowrap md:max-xl:[&>div]:flex-1 md:max-xl:[&>div]:min-w-0">
                   <div className="w-full sm:w-auto">
@@ -312,6 +314,7 @@ const PrefectComplaint = (props) => {
                     />
                   </div>
                 </div>
+                </MobileFilters>
                   <PageActions />
               </div>
 

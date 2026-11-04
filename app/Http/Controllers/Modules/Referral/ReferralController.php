@@ -9,8 +9,10 @@ use App\Http\Requests\Referral\UpdateReferralRequest;
 use App\Http\Resources\ReferralResource;
 use App\Mail\ReferralMail;
 use App\Models\ActionLog;
+use App\Models\Enrollment;
 use App\Models\NonTeachingStaff;
 use App\Models\Position;
+use App\Models\Program;
 use App\Models\Referral;
 use App\Models\ReferralReferredStudent;
 use App\Models\ReferralRevision;
@@ -18,7 +20,6 @@ use App\Models\SchoolYear;
 use App\Models\SchoolYearSemester;
 use App\Models\User;
 use App\Traits\GeneratesSequenceCode;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -72,6 +73,7 @@ class ReferralController extends Controller
             'referral' => self::getAllReferral(),
             'program_name' => is_program_head(),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
+            'programs' => Program::orderBy('name')->get(['id', 'name']),
         ];
         $props = ! self::isPrefect() ? $props : array_merge($props, [
             'referral_request' => self::getReferralRequest(),
@@ -183,7 +185,7 @@ class ReferralController extends Controller
                 ->where('referral_id', $lastIndex)
                 ->get();
 
-            self::generateReferralDocuments($referralRecord, $referredStudents, $prefectName);
+            self::generateReferralDocuments($referralRecord, $prefectName);
 
             ActionLog::create([
                 'user_id' => auth()->user()->id,
@@ -268,6 +270,12 @@ class ReferralController extends Controller
 
         SchoolYearSemester::applyFilter($referrals, 'created_at', request('school-year'), request('semester'));
 
+        // Program: referrals naming at least one student of that program.
+        $program = request('program');
+        if ($program && $program !== 'all') {
+            $referrals->whereHas('referralReferredStudent', fn ($q) => $q->whereIn('student_id', Enrollment::studentIdsInProgram($program)));
+        }
+
         return ReferralResource::collection($referrals->paginate(20));
     }
 
@@ -316,7 +324,7 @@ class ReferralController extends Controller
         $prefect = User::with('profile')->whereRole('sub_admin')->first();
         $prefectName = "{$prefect->profile?->first_name} {$prefect->profile?->middle_name} {$prefect->profile?->last_name}";
 
-        self::generateReferralDocuments($referralRecord, $referredStudents, $prefectName);
+        self::generateReferralDocuments($referralRecord, $prefectName);
 
         $referral = Referral::with(['user.profile', 'referredStudent.profile'])->where('id', $id)->first();
 
@@ -494,45 +502,13 @@ class ReferralController extends Controller
     }
 
     /**
-     * Render one PDF per referred student into the referral's folder.
-     * Idempotent — skips a student whose PDF already exists.
+     * Render the referral's Referral Form (see Referral::saveReferralForm()).
      *
-     * @return array<int, string> full paths of every student's PDF (existing + newly generated)
+     * @return array<int, string> full path of the form, as a one-item list
      */
-    private function generateReferralDocuments(Referral $referral, $referredStudents, string $prefectName): array
+    private function generateReferralDocuments(Referral $referral, string $prefectName): array
     {
-        $folder = storage_path("app/private/referrals/referral-{$referral->referral_number}");
-        if (! File::isDirectory($folder)) {
-            File::makeDirectory($folder, 0755, true);
-        }
-
-        $files = [];
-
-        foreach ($referredStudents as $item) {
-            $student = $item->user;
-            $filePath = "{$folder}/referral-student-{$student->id}-{$referral->referral_number}.pdf";
-
-            if (! file_exists($filePath)) {
-                $studentName = trim("{$student->profile?->first_name} {$student->profile?->middle_name} {$student->profile?->last_name}");
-                $enrollment = $student->enrollments?->sortByDesc('id')->first();
-                $program = trim(($student->program?->name ?? '').' '.($enrollment?->year_level ?? ''));
-
-                $data = [
-                    'date_issued' => Carbon::parse($item->referral->created_at ?? $referral->created_at)->format('F d, Y'),
-                    'prefect_name' => $prefectName,
-                    'referred_student_name' => $studentName,
-                    'program' => $program,
-                    'referred_student_id' => $student->id_number,
-                    'referral_reason' => $item->referral->reason_description ?? $referral->reason_description,
-                ];
-
-                Pdf::loadView('pdf.referral-guidance', $data)->save($filePath);
-            }
-
-            $files[] = $filePath;
-        }
-
-        return $files;
+        return [$referral->saveReferralForm($prefectName)];
     }
 
     /**
@@ -564,14 +540,14 @@ class ReferralController extends Controller
         $prefect = User::with('profile')->whereRole('sub_admin')->first();
         $prefectName = "{$prefect->profile?->first_name} {$prefect->profile?->middle_name} {$prefect->profile?->last_name}";
 
-        $files = self::generateReferralDocuments($referral, $referredStudents, $prefectName);
+        $files = self::generateReferralDocuments($referral, $prefectName);
 
         $studentNames = $referredStudents
             ->map(fn ($item) => trim("{$item->user->profile?->first_name} {$item->user->profile?->last_name}"))
             ->implode(', ');
 
-        // Email to the target office — one attachment per referred student's
-        // PDF. "Guidance"/"IT Staff" are non_teaching_staff positions, not roles.
+        // Email to the target office with the referral form attached.
+        // "Guidance"/"IT Staff" are non_teaching_staff positions, not roles.
         $recipients = User::whereHas('nonTeachingStaff', function ($q) use ($positionName) {
             $q->where('position_id', Position::idFor($positionName));
         })->with('profile')->get();

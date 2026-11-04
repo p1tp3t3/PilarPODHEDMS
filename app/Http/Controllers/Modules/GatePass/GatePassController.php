@@ -12,8 +12,10 @@ use App\Http\Requests\GatePass\UpdateGatePassRequest;
 use App\Http\Resources\GatePassResource;
 use App\Mail\GatePassMail;
 use App\Models\ActionLog;
+use App\Models\Enrollment;
 use App\Models\GatePass;
 use App\Models\GatePassRevision;
+use App\Models\Program;
 use App\Models\SchoolYear;
 use App\Models\SchoolYearSemester;
 use App\Models\User;
@@ -60,6 +62,7 @@ class GatePassController extends Controller
             'gatepass_request_list' => $gatepass,
             'user_gatepass' => self::getGatePass(auth()->user()->id),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
+            'programs' => Program::orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -72,6 +75,24 @@ class GatePassController extends Controller
     private static function filterBySchoolYearSemester($query)
     {
         SchoolYearSemester::applyFilter($query, 'created_at', request('school-year'), request('semester'));
+
+        return $query;
+    }
+
+    /**
+     * The list filters of the prefect gatepass page: school year/semester,
+     * plus the program of the student it belongs to (their latest
+     * enrollment). Works on a gate_pass builder or a whereHas('gatepass')
+     * closure alike, since both are scoped to the gate_pass table.
+     */
+    private static function filterList($query)
+    {
+        self::filterBySchoolYearSemester($query);
+
+        $program = request('program');
+        if ($program && $program !== 'all') {
+            $query->whereIn('user_id', Enrollment::studentIdsInProgram($program));
+        }
 
         return $query;
     }
@@ -437,7 +458,7 @@ class GatePassController extends Controller
             ->whereNull('archived_at')
             ->latest('created_at');
 
-        return GatePassResource::collection(self::filterBySchoolYearSemester($query)->get());
+        return GatePassResource::collection(self::filterList($query)->get());
     }
 
     /**
@@ -453,7 +474,7 @@ class GatePassController extends Controller
             ->whereNull('archived_at')
             ->latest('created_at');
 
-        return GatePassResource::collection(self::filterBySchoolYearSemester($query)->get());
+        return GatePassResource::collection(self::filterList($query)->get());
     }
 
     /**
@@ -475,7 +496,7 @@ class GatePassController extends Controller
             ->whereNotNull('rejected_at')
             ->latest('rejected_at');
 
-        return GatePassResource::collection(self::filterBySchoolYearSemester($query)->get());
+        return GatePassResource::collection(self::filterList($query)->get());
     }
 
     public function getAllRevokedGatePass()
@@ -484,7 +505,7 @@ class GatePassController extends Controller
             ->whereNotNull('revoked_at')
             ->latest('revoked_at');
 
-        return GatePassResource::collection(self::filterBySchoolYearSemester($query)->get());
+        return GatePassResource::collection(self::filterList($query)->get());
     }
 
     public function getAllGatePass()
@@ -495,7 +516,7 @@ class GatePassController extends Controller
                 $q->whereNotNull('confirmed_at')
                     ->whereNull('archived_at')
                     ->where('date_expiration', '>=', now());
-                self::filterBySchoolYearSemester($q);
+                self::filterList($q);
             })
             ->with(['gatepass' => function ($q) {
                 $q->whereNotNull('confirmed_at')
@@ -503,7 +524,7 @@ class GatePassController extends Controller
                     ->where('date_expiration', '>=', now())
                     ->latest()
                     ->limit(1);
-                self::filterBySchoolYearSemester($q);
+                self::filterList($q);
             }])
             ->orderByDesc(
                 GatePass::select('confirmed_at')
@@ -523,7 +544,7 @@ class GatePassController extends Controller
                 $q->whereNotNull('confirmed_at')
                     ->whereNull('archived_at')
                     ->where('date_expiration', '<=', now());
-                self::filterBySchoolYearSemester($q);
+                self::filterList($q);
             })
             ->with(['gatepass' => function ($q) {
                 $q->whereNotNull('confirmed_at')
@@ -531,7 +552,7 @@ class GatePassController extends Controller
                     ->where('date_expiration', '<=', now())
                     ->latest()
                     ->limit(1);
-                self::filterBySchoolYearSemester($q);
+                self::filterList($q);
             }])
             ->orderByDesc(
                 GatePass::select('confirmed_at')

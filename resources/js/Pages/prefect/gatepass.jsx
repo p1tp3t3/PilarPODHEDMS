@@ -3,6 +3,7 @@ import PageLayout from "@/Layouts/page-layout"
 import IssueGatePassModal from "@/Components/modal/submission-form/issue-gatepass-modal"
 import Btn from "@/Components/button/normal-btn"
 import DropdownField from "@/Components/input/dropdown"
+import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import { useState, useEffect } from "react"
 import GatePassRequestList from "@/Components/list/gatepass-request-list"
 import GatePassList from "@/Components/list/gate-pass-list"
@@ -26,6 +27,12 @@ const PrefectGatePass = (props) => {
     const [gatepassRequestList, setGatePassRequestList] = useState(props.gatepass_request_list)
     const [schoolYear, setSchoolYear] = useState(url.get("school-year") || "all")
     const [semester, setSemester] = useState(url.get("semester") || "all")
+    const [program, setProgram] = useState(url.get("program") || "all")
+    // Keeps the filters in the URL when switching tabs or reloading.
+    const filterQuery = (over = {}) => {
+        const f = { "school-year": schoolYear, semester, program, ...over }
+        return `school-year=${f["school-year"]}&semester=${f.semester}&program=${f.program}`
+    }
     const [gatepassList, setGatePassList] = useState([])
     const { loadRegister } = useReload()
     const [id, setGatePassId] = useState("")
@@ -49,15 +56,13 @@ const PrefectGatePass = (props) => {
         setLstOption(e)
         if (e !== lstOption) {
             const link = window.location.pathname
-            router.visit(`${link}?status=${e}&school-year=${schoolYear}&semester=${semester}`)
+            router.visit(`${link}?status=${e}&${filterQuery()}`)
         }
     }
 
     const handleFilterChange = (field, value) => {
         const link = window.location.pathname
-        const newSchoolYear = field === "school-year" ? value : schoolYear
-        const newSemester = field === "semester" ? value : semester
-        router.visit(`${link}?status=${lstOption}&school-year=${newSchoolYear}&semester=${newSemester}`)
+        router.visit(`${link}?status=${lstOption}&${filterQuery({ [field]: value })}`)
     }
 
     const setEvents = (i, type, status) => {
@@ -194,7 +199,7 @@ const PrefectGatePass = (props) => {
                 pd={["px-5", "py-7"]}
                 isEnableOuterClose={true}
                 reload={loadRegister}
-                onIssued={() => router.visit(`${window.location.pathname}?status=confirmed-users&school-year=${schoolYear}&semester=${semester}`)}
+                onIssued={() => router.visit(`${window.location.pathname}?status=confirmed-users&${filterQuery()}`)}
             />
 
             <SetReasonModal
@@ -229,6 +234,17 @@ const PrefectGatePass = (props) => {
                 >
                         {/* Filters */}
                         <div className="flex flex-wrap gap-3 md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
+                            <MobileFilters active={countActive(program, schoolYear, semester)}>
+                            <div className="w-full sm:w-56">
+                                <DropdownField
+                                    default={{ val: "all", label: "All Programs" }}
+                                    list={(props.programs || []).map((p) => ({ val: p.id, label: p.name }))}
+                                    val={program === "all" ? "all" : Number(program)}
+                                    onChange={(e) => handleFilterChange("program", e.target.value)}
+                                    name="program"
+                                    keepCase={true}
+                                />
+                            </div>
                             <div className="w-full sm:w-56">
                                 <DropdownField
                                     default={{ val: "all", label: "All School Years" }}
@@ -248,6 +264,7 @@ const PrefectGatePass = (props) => {
                                     onChange={(e) => handleFilterChange("semester", e.target.value)}
                                 />
                             </div>
+                            </MobileFilters>
                             <PageActions />
                         </div>
 

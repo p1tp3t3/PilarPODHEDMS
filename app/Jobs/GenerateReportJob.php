@@ -57,6 +57,13 @@ class GenerateReportJob implements ShouldQueue
 
             $this->filters = \App\Models\Report::resolveSchoolYearDates($this->filters);
 
+            // No dates (All School Years, or a date range left empty) means
+            // all time — the queries below always filter between two dates.
+            if (empty($this->filters['date_from']) || empty($this->filters['date_to'])) {
+                $this->filters['date_from'] = '2000-01-01';
+                $this->filters['date_to'] = now()->endOfDay()->toDateTimeString();
+            }
+
             $result = $type === 'analytics'
                 ? $this->buildAnalyticsFile()
                 : $this->buildListReportFile($type);
@@ -593,7 +600,16 @@ class GenerateReportJob implements ShouldQueue
             'report_title' => $reportName,
             'from' => $filters['date_from'],
             'to' => $filters['date_to'],
-            'school_year' => $filters['school_year'] ?? null,
+            // e.g. "2025-2026 (1st Semester)" when narrowed to one semester.
+            'school_year' => ($filters['school_year'] ?? null) === 'all'
+                ? 'All School Years'
+                : (! empty($filters['school_year'])
+                ? $filters['school_year'].match ((int) ($filters['semester'] ?? 0)) {
+                    1 => ' (1st Semester)',
+                    2 => ' (2nd Semester)',
+                    default => '',
+                }
+                : null),
             'type' => $type,
             'individual' => $individual,
         ]));

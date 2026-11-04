@@ -186,7 +186,7 @@
 
   <main class="page" role="main" aria-label="Incident report">
     <header>
-        <img src="{{ public_path('default-pic/pilar.png') }}" width="90" alt="">
+        <img src="{{ public_path('default-pic/pilar-pdf.png') }}" width="90" alt="">
         <h1>Pilar College of Zamboanga City, Inc.</h1>
         <p>R.T. Lim Boulevard, Zamboanga City</p>
         <p>Higher Education</p>
@@ -196,7 +196,7 @@
       <h2>Student Incident Report</h2>
       <div style="font-size: 11px; color: #555;">
         @if(!empty($school_year))
-          School Year <strong>{{ $school_year }}</strong>
+          @if($school_year === 'All School Years')<strong>All School Years</strong>@else School Year <strong>{{ $school_year }}</strong>@endif
         @else
           From <strong>{{ \Carbon\Carbon::parse($from)->format('F d, Y') }}</strong>
           to <strong>{{ \Carbon\Carbon::parse($to)->format('F d, Y') }}</strong>

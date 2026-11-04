@@ -473,30 +473,38 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function allUserAccount()
     {
-        $query = $this->with(['profile', 'program', 'enrollments', 'teachingStaff.program', 'nonTeachingStaff'])->where('id', '!=', auth()->id());
+        $query = $this->with(['profile', 'program', 'enrollments.program', 'teachingStaff.program', 'nonTeachingStaff', 'parent'])->where('id', '!=', auth()->id());
 
         $role = request()->query('role', request()->query('user-type'));
-        $program = request()->query('program');
+        $set = fn ($key) => ($v = request()->query($key)) && $v !== 'all' ? $v : null;
+        $program = $set('program');
+        $yearLevel = $set('year-level');
+        $position = $set('position');
+        $parentRole = $set('parent-role');
 
         if ($role && $role !== 'all') {
             $query->whereRole($role);
 
-            if ($role === 'student') {
-                $query->select('users.*');
-
-                if ($program && $program !== 'all') {
-                    $query->join('enrollment as e', 'e.student_id', '=', 'users.id')
-                        ->where('e.program_id', $program);
-                }
+            // Student: program / year level of their latest enrollment.
+            if ($role === 'student' && ($program || $yearLevel)) {
+                $query->whereIn('users.id', Enrollment::whereIn('id', Enrollment::selectRaw('MAX(id)')->groupBy('student_id'))
+                    ->when($program, fn ($q) => $q->where('program_id', $program))
+                    ->when($yearLevel, fn ($q) => $q->where('year_level', $yearLevel))
+                    ->select('student_id'));
             }
 
-            if ($role === 'teaching_staff') {
-                $query->join('teaching_staff as t', 't.user_id', '=', 'users.id')
-                    ->select('users.*');
+            if ($role === 'teaching_staff' && ($program || $position)) {
+                $query->whereHas('teachingStaff', fn ($q) => $q
+                    ->when($program, fn ($q) => $q->where('program_id', $program))
+                    ->when($position, fn ($q) => $q->where('position_id', $position)));
+            }
 
-                if ($program && $program !== 'all') {
-                    $query->where('t.program_id', $program);
-                }
+            if ($role === 'non_teaching_staff' && $position) {
+                $query->whereHas('nonTeachingStaff', fn ($q) => $q->where('position_id', $position));
+            }
+
+            if ($role === 'parent' && $parentRole) {
+                $query->whereHas('parent', fn ($q) => $q->where('parent_role', $parentRole));
             }
         }
 

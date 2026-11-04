@@ -15,20 +15,20 @@ return new class extends Migration
             $table->increments('id');
             $table->string('gatepass_number')->nullable()->unique();
             $table->foreignId('user_id')->constrained('users')->restrictOnDelete()->cascadeOnUpdate();
+            // The prefect who issued it directly; null when the student requested it.
+            $table->foreignId('prefect_id')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
             $table->text('reason');
             $table->text('allow_to')->nullable();
             $table->dateTime('confirmed_at')->nullable();
             $table->dateTime('date_expiration')->nullable();
+            // Set once the about-to-expire notice is sent, so it goes out only once.
+            $table->dateTime('expiration_notified_at')->nullable();
             $table->text('rejected_reason')->nullable();
             $table->dateTime('rejected_at')->nullable();
             $table->dateTime('revoked_at')->nullable();
             $table->dateTime('edited_at')->nullable();
             $table->dateTime('archived_at')->nullable();
             $table->timestamp('created_at')->useCurrent();
-            $table->foreignId('school_year_semester_id')->nullable()->constrained('school_year_semester')->nullOnDelete();
-            $table->foreignId('confirmed_school_year_semester_id')->nullable()->constrained('school_year_semester')->nullOnDelete();
-            $table->foreignId('rejected_school_year_semester_id')->nullable()->constrained('school_year_semester')->nullOnDelete();
-            $table->foreignId('revoked_school_year_semester_id')->nullable()->constrained('school_year_semester')->nullOnDelete();
         });
     }
 

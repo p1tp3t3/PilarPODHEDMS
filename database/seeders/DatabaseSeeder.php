@@ -49,8 +49,6 @@ class DatabaseSeeder extends Seeder
         $public_folders = [
             storage_path('app/public/profile-pictures'),
             storage_path('app/public/program-logos'),
-            storage_path('app/public/zips'),
-            storage_path('app/public/lists'),
         ];
 
         $this->command->info('Refreshing storage folders...');

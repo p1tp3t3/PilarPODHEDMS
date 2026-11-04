@@ -39,8 +39,9 @@ const textSx = { "& .MuiListItemText-primary": { color: "inherit", fontSize: "in
 // so every role's sidebar body is just data instead of repeated JSX + state.
 const SidebarNav = ({ list, height = "h-[26rem]", onNavigate }) => {
     const { url } = usePage()
-    const [open, setOpen] = useState({})
-    const toggle = (id) => setOpen((prev) => ({ ...prev, [id]: !prev[id] }))
+    // Only one dropdown open at a time: opening one closes the previous.
+    const [openId, setOpenId] = useState(null)
+    const toggle = (id) => setOpenId((prev) => (prev === id ? null : id))
 
     return (
         <div className={`${height} max-md:h-[calc(100dvh-10rem)] overflow-auto overflow-x-hidden dropdown`}>
@@ -50,7 +51,7 @@ const SidebarNav = ({ list, height = "h-[26rem]", onNavigate }) => {
                         <DropdownItem
                             key={item.id}
                             item={item}
-                            isOpen={!!open[item.id]}
+                            isOpen={openId === item.id}
                             toggle={() => toggle(item.id)}
                             url={url}
                             onNavigate={onNavigate}

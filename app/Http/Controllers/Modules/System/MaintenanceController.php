@@ -39,7 +39,7 @@ class MaintenanceController extends Controller
 {
     public function index()
     {
-        return Inertia::render('itrc/system-maintenance', [
+        return Inertia::render('super-admin/system-maintenance', [
             'maintenance_mode' => Cache::get('maintenance_mode', false),
             'maintenance_mode_scheduled_at' => Cache::get('maintenance_mode_scheduled_at'),
         ]);
@@ -101,7 +101,7 @@ class MaintenanceController extends Controller
             $props['student_violation_list'] = self::getStudentViolationList();
         }
 
-        return Inertia::render('other/violation-management', $props);
+        return Inertia::render('shared/violation-management', $props);
     }
 
     private function getStudentViolationList()
@@ -353,6 +353,13 @@ class MaintenanceController extends Controller
         }
 
         $size = File::size($path);
+
+        // An empty file (e.g. right after Clear Log) — fread() refuses a
+        // zero length, so answer before reading.
+        if ($size === 0) {
+            return response()->json(['content' => '', 'size' => 0, 'truncated' => false, 'exists' => true]);
+        }
+
         $maxBytes = 500 * 1024;
         $start = max(0, $size - $maxBytes);
 
@@ -368,12 +375,14 @@ class MaintenanceController extends Controller
             $content = $firstNewline !== false ? substr($content, $firstNewline + 1) : $content;
         }
 
+        // Reading from the middle can cut a multi-byte character in half;
+        // substitute it instead of failing the whole JSON response.
         return response()->json([
             'content' => $content,
             'size' => $size,
             'truncated' => $start > 0,
             'exists' => true,
-        ]);
+        ], 200, [], JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
     /**
@@ -578,7 +587,7 @@ class MaintenanceController extends Controller
 
     public function programIndex()
     {
-        return Inertia::render('itrc/program', [
+        return Inertia::render('super-admin/program', [
             'program' => ProgramResource::collection(self::programsWithUserCount()),
         ]);
     }
@@ -616,7 +625,7 @@ class MaintenanceController extends Controller
             ->latest('created_at')
             ->get();
 
-        return Inertia::render('itrc/program-users', [
+        return Inertia::render('super-admin/program-users', [
             'program' => new ProgramResource($program),
             'faculty' => UserResource::collection($faculty),
             'students' => UserResource::collection($students),

@@ -14,7 +14,7 @@ class PasswordResetController extends Controller
 {
     public function requestIndex()
     {
-        return Inertia::render('other/password-recovery');
+        return Inertia::render('guest/password-recovery');
     }
 
     public function sendOtp(Request $request)

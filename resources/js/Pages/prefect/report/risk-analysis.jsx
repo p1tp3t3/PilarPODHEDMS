@@ -5,13 +5,12 @@ import Box from "@mui/material/Box"
 import LineGraph from "@/Components/card/line-graph-statistic"
 import BarGraph from "@/Components/card/bar-graph-statistic-card"
 import ProfilePic from "@/Components/other/profile-pic"
-import RadioButton from "@/Components/input/radio"
-import DropdownField from "@/Components/input/dropdown"
-import BetweenTextfield from "@/Components/input/between-input"
+import ReportFilterModal, { EMPTY_REPORT_FILTER, isUsableReportFilter, reportFilterSummary } from "@/Components/modal/submission-form/report-filter-modal"
+import QuantityCard from "@/Components/card/qntty-statistic-card"
 import { getProfilePic, showUserType, configBroadcast } from "@/others/function"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
 import { router } from "@inertiajs/react"
-import { UserX } from "lucide-react"
+import { UserX, SlidersHorizontal, X, TriangleAlert, ShieldAlert, CheckCircle2 } from "lucide-react"
 import ViewProgramViolationModal from "@/Components/modal/view/view-program-violation-modal"
 
 const monthNames = [
@@ -25,27 +24,23 @@ const TREND_COLORS = [
   '#1a237e', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#06b6d4', '#6b7280',
 ]
 
-const semesterList = [
-  { val: 1, label: "1st Semester" },
-  { val: 2, label: "2nd Semester" },
-]
-
 const AnalyticalReport = (props) => {
-  const [filterBy, setFilterBy] = useState('date')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
-  const [schoolYear, setSchoolYear] = useState('')
-  const [semester, setSemester] = useState('')
+  // Edited in a modal (Filter button). The school years here are plain
+  // "2025-2026" strings, so the year itself doubles as the modal's id.
+  const [filter, setFilter] = useState(EMPTY_REPORT_FILTER)
+  const [filterModal, openFilterModal] = useState(false)
+  const schoolYears = (props.schoolYears ?? []).map((y) => ({ id: y, year: y }))
 
-  const data = {
-    filter_by: filterBy,
-    date_from: filterBy === 'date' ? dateFrom : '',
-    date_to: filterBy === 'date' ? dateTo : '',
-    school_year: filterBy === 'school_year' ? schoolYear : '',
-    semester: filterBy === 'school_year' ? semester : '',
-  }
+  const toRequest = (f) => ({
+    filter_by: f.filter_by,
+    date_from: f.filter_by === 'date' ? f.date_from : '',
+    date_to: f.filter_by === 'date' ? f.date_to : '',
+    school_year: f.filter_by === 'school_year' ? f.school_year_id : '',
+    semester: f.filter_by === 'school_year' ? f.semester : '',
+  })
+  const data = toRequest(filter)
 
-  const hasUsableFilter = filterBy === 'date' ? (dateFrom && dateTo) : !!schoolYear
+  const hasUsableFilter = isUsableReportFilter(filter)
 
   // On-screen preview data. Defaults to what the controller already
   // computed for the current year; refreshed from /prefect/analytics/preview
@@ -64,11 +59,7 @@ const AnalyticalReport = (props) => {
   const [preview, setPreview] = useState(defaultPreview)
 
   const clearFilter = () => {
-    setFilterBy('date')
-    setDateFrom('')
-    setDateTo('')
-    setSchoolYear('')
-    setSemester('')
+    setFilter(EMPTY_REPORT_FILTER)
     setPreview(defaultPreview())
   }
 
@@ -84,13 +75,12 @@ const AnalyticalReport = (props) => {
     setProgramModal(true)
   }
 
-  // Filter fields no longer fetch on every change — the user sets
-  // date range/school year (+semester) first, then explicitly clicks
-  // "Apply Filter" to submit it, instead of a request firing on each click.
-  const applyFilter = () => {
-    if (!hasUsableFilter) return
+  // Applied from the filter modal: refreshes the on-screen preview.
+  const applyFilter = (next) => {
+    if (!isUsableReportFilter(next)) return
+    setFilter(next)
 
-    ReportArchiveService.getAnalyticsPreview(data, (res) => {
+    ReportArchiveService.getAnalyticsPreview(toRequest(next), (res) => {
       setPreview({
         quantity: [res.incidentCount, res.resolved, res.totalViolations],
         violationProgram: res.violationPerProgram,
@@ -135,86 +125,19 @@ const AnalyticalReport = (props) => {
 
   return (
     <div className="w-full">
-      {/* Filter Section */}
-      <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm p-4 sm:p-5 grid gap-4 mb-6">
-        <RadioButton
-          list={[
-            { val: "date", label: "Date Range" },
-            { val: "school_year", label: "School Year" },
-          ]}
-          id="analytics_filter_by"
-          name="analytics_filter_by"
-          val={filterBy}
-          change={(e) => {
-            setFilterBy(e.target.value)
-            setDateFrom("")
-            setDateTo("")
-            setSchoolYear("")
-            setSemester("")
-          }}
-        />
+      <ReportFilterModal
+        close={filterModal}
+        closeModal={openFilterModal}
+        value={filter}
+        schoolYears={schoolYears}
+        onApply={applyFilter}
+        onClear={clearFilter}
+        description="Show the analytics for a date range or a school year."
+      />
 
-        {filterBy === "date" &&
-        <div className="max-w-md">
-          <BetweenTextfield
-            type="date"
-            labels={["Date From", "Date To"]}
-            name={["date_from", "date_to"]}
-            id={["date_from", "date_to"]}
-            data={[dateFrom, dateTo]}
-            setData={(updater) => {
-              const next = typeof updater === "function" ? updater({ date_from: dateFrom, date_to: dateTo }) : updater
-              setDateFrom(next.date_from ?? "")
-              setDateTo(next.date_to ?? "")
-            }}
-          />
-        </div>}
-
-        {filterBy === "school_year" &&
-        <div className="flex flex-col sm:flex-row gap-3 max-w-xl">
-          <div className="w-full">
-            <DropdownField
-              default={{ val: "", label: "Select School Year" }}
-              list={(props.schoolYears ?? []).map((y) => ({ val: y, label: y }))}
-              onChange={(e) => setSchoolYear(e.target.value)}
-              name="school_year"
-              val={schoolYear}
-            />
-          </div>
-          <div className="w-full">
-            <DropdownField
-              default={{ val: "", label: "All Semesters" }}
-              list={semesterList}
-              onChange={(e) => setSemester(e.target.value)}
-              name="semester"
-              val={semester}
-            />
-          </div>
-        </div>}
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={applyFilter}
-            disabled={!hasUsableFilter}
-            className={`text-[0.85em] px-3 py-1.5 rounded text-white ${
-              hasUsableFilter ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-300 cursor-not-allowed"
-            }`}
-          >
-            Apply Filter
-          </button>
-
-          {hasUsableFilter &&
-          <button
-            type="button"
-            onClick={clearFilter}
-            className="text-[0.85em] text-gray-600 hover:text-gray-900 underline"
-          >
-            Clear Filter
-          </button>}
-        </div>
-
-        <div className="flex items-center gap-3">
+      {/* Export (left) and Filter (right): the same bar as the super admin's Statistics. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 min-w-0 mb-6">
+        <div className="flex flex-wrap items-center gap-3">
           <Btn onclick={handleExport}>
             {exportStatus === 'queued' ? 'Generating…' : 'Export as PDF'}
           </Btn>
@@ -238,33 +161,47 @@ const AnalyticalReport = (props) => {
           </>}
           {exportStatus === 'failed' &&
           <span className="text-red-600 text-[0.85em]">Failed to generate report.</span>}
+          {!hasUsableFilter &&
+          <span className="text-gray-500 text-[0.85em]">Set a filter to export.</span>}
         </div>
+
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {hasUsableFilter &&
+          <span className="flex items-center gap-1.5 max-w-full pl-3 pr-1.5 py-1 rounded-full bg-blue-50 text-blue-800 text-[0.85em]">
+            <span className="truncate">{reportFilterSummary(filter, schoolYears)}</span>
+            <button
+              type="button"
+              onClick={clearFilter}
+              title="Clear filter"
+              aria-label="Clear filter"
+              className="grid place-items-center w-5 h-5 rounded-full hover:bg-blue-100"
+            >
+              <X size={13} />
+            </button>
+          </span>}
+          <button
+            type="button"
+            onClick={() => openFilterModal(true)}
+            className={`flex items-center gap-2 px-4 py-2 text-[0.9em] rounded border transition-colors ${
+              hasUsableFilter
+                ? "border-blue-600 bg-blue-600 text-white hover:bg-blue-700"
+                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            <SlidersHorizontal size={16} /> Filter
+          </button>
+        </div>
+      </div>
+
+      {/* Key metrics: the same cards as the dashboards' quantity cards. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
+        <QuantityCard h="h-[6rem]" num={preview.quantity[0] ?? 0} icon={TriangleAlert} label="Total Incidents" />
+        <QuantityCard h="h-[6rem]" num={preview.quantity[2] ?? 0} icon={ShieldAlert} label="Total Violations" />
+        <QuantityCard h="h-[6rem]" num={preview.quantity[1] ?? 0} icon={CheckCircle2} label="Resolved Complaints" />
       </div>
 
       {/* Report Body */}
       <div className="w-full mx-auto p-4 sm:p-6 bg-white shadow-black/20 shadow-sm rounded-md">
-        {/* Key Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-8">
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <h2 className="text-lg sm:text-xl font-semibold text-blue-800">Total Incidents</h2>
-            <p className="text-2xl sm:text-3xl font-bold text-blue-600">
-              {preview.quantity[0]}
-            </p>
-          </div>
-          <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-            <h2 className="text-lg sm:text-xl font-semibold text-yellow-800">Total Violations</h2>
-            <p className="text-2xl sm:text-3xl font-bold text-yellow-600">
-              {preview.quantity[2]}
-            </p>
-          </div>
-          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <h2 className="text-lg sm:text-xl font-semibold text-green-800">Resolved Complaints</h2>
-            <p className="text-2xl sm:text-3xl font-bold text-green-600">
-              {preview.quantity[1]}
-            </p>
-          </div>
-        </div>
-
         {/* Incident Trend (per incident type) */}
         <div className="mb-8 h-[22rem]">
           <LineGraph
@@ -289,7 +226,9 @@ const AnalyticalReport = (props) => {
           <h2 className="text-[1.1em] mb-4 font-bold">Violations Per Program</h2>
 
           {preview.violationProgram.length > 0 &&
-          <div className="mb-5 h-[18rem]">
+          <div className="mb-5">
+            {/* Fixed chart height so it stays inside its card; the section
+                heading above already names it. */}
             <BarGraph
               label={preview.violationProgram.map((e) => e.program)}
               dataset={[{
@@ -297,7 +236,7 @@ const AnalyticalReport = (props) => {
                 data: preview.violationProgram.map((e) => e.total_violations),
                 backgroundColor: '#3b82f6',
               }]}
-              title="Violations Per Program"
+              height={260}
               withBorder
             />
           </div>}

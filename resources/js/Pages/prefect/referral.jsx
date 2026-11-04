@@ -2,6 +2,7 @@ import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import { useState, useEffect } from "react"
 import DropdownField from "@/Components/input/dropdown"
+import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import ReferralList from "@/Components/list/referral-list"
 import ViewReferralModal from "@/Components/modal/view/view-referral-modal"
 import ReportReferralModal from "@/Components/modal/submission-form/report-referral-modal"
@@ -31,6 +32,7 @@ const PrefectReferral = (props) => {
           [choose, setChoose] = useState((url.has('status') ? url.get('status') : 'req')),
           [schoolYear, setSchoolYear] = useState(url.get('school-year') || 'all'),
           [semester, setSemester] = useState(url.get('semester') || 'all'),
+          [program, setProgram] = useState(url.get('program') || 'all'),
           [rejectReason, openRejectReason] = useState(false),
           [rejectId, setRejectId] = useState(''),
           [reasonData, setReasonData] = useState({ reason: '' })
@@ -61,19 +63,22 @@ const PrefectReferral = (props) => {
         const viewId = new URLSearchParams(window.location.search).get("view")
         if (viewId) setViewReferralId(viewId)
     }, [])
+    // Keeps the filters in the URL when switching tabs or reloading.
+    const filterQuery = (over = {}) => {
+        const f = { 'school-year': schoolYear, semester, program, ...over }
+        return `school-year=${f['school-year']}&semester=${f.semester}&program=${f.program}`
+    }
     const handleSelect = (type) => {
         if (choose != type) {
             const link = window.location.pathname;
-            router.visit(`${link}?status=${type}&school-year=${schoolYear}&semester=${semester}`)
+            router.visit(`${link}?status=${type}&${filterQuery()}`)
             setChoose(type)
         }
     }
 
     const handleFilterChange = (field, value) => {
         const link = window.location.pathname
-        const newSchoolYear = field === 'school-year' ? value : schoolYear
-        const newSemester = field === 'semester' ? value : semester
-        router.visit(`${link}?status=${choose}&school-year=${newSchoolYear}&semester=${newSemester}`)
+        router.visit(`${link}?status=${choose}&${filterQuery({ [field]: value })}`)
     }
     const setRequestActionEvent = (type, id) => {
         let route = '',
@@ -226,6 +231,17 @@ const PrefectReferral = (props) => {
                 >
                         {/* Filters */}
                         <div className="flex flex-wrap gap-3 md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
+                            <MobileFilters active={countActive(program, schoolYear, semester)}>
+                            <div className="w-full sm:w-56">
+                                <DropdownField
+                                    default={{ val: 'all', label: 'All Programs' }}
+                                    list={(props.programs || []).map((p) => ({ val: p.id, label: p.name }))}
+                                    val={program === 'all' ? 'all' : Number(program)}
+                                    onChange={(e) => handleFilterChange('program', e.target.value)}
+                                    name="program"
+                                    keepCase={true}
+                                />
+                            </div>
                             <div className="w-full sm:w-56">
                                 <DropdownField
                                     default={{ val: 'all', label: 'All School Years' }}
@@ -245,6 +261,7 @@ const PrefectReferral = (props) => {
                                     onChange={(e) => handleFilterChange('semester', e.target.value)}
                                 />
                             </div>
+                            </MobileFilters>
                             <PageActions />
                         </div>
 

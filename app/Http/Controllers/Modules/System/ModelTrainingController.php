@@ -54,7 +54,7 @@ class ModelTrainingController extends Controller
 
     public function index()
     {
-        return Inertia::render('itrc/model-training');
+        return Inertia::render('super-admin/model-training');
     }
 
     public function status()

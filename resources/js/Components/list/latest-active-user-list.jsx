@@ -1,4 +1,5 @@
-import { checkActiveStatus, getProfilePic, readableActiveDuration, toTitleCase, profileUrl } from "@/others/function"
+import { checkActiveStatus, getProfilePic, toTitleCase, profileUrl } from "@/others/function"
+import LiveActiveSince from "@/Components/other/live-active-since"
 import ProfilePic from "../other/profile-pic"
 import { Link } from "@inertiajs/react"
 import AuthContext from "@/context-provider/auth-provider"
@@ -174,7 +175,7 @@ const Row = ({ data }) => {
                     </div>
                 </div>
                 <div className="text-[0.7em] flex mt-1">
-                    <div>{readableActiveDuration(data.last_seen)}</div>
+                    <LiveActiveSince userId={data.id} lastSeen={data.last_seen} className="text-[1em]" align="right" />
                 </div>
             </div>
         </Link>

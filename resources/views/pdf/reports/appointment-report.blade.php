@@ -38,7 +38,7 @@
 <body>
   <table class="report-header">
     <tr>
-      <td style="width: 90px;"><img src="{{ public_path('default-pic/pilar.png') }}" alt="Logo"></td>
+      <td style="width: 90px;"><img src="{{ public_path('default-pic/pilar-pdf.png') }}" alt="Logo"></td>
       <td>
         <div class="school-name">PILAR COLLEGE OF ZAMBOANGA CITY, INC.</div>
         <div class="school-info">R.T. Lim Boulevard, Zamboanga City</div>
@@ -51,7 +51,7 @@
     <h2>{{ $report_title ?? 'Appointment Report' }}</h2>
     <div style="font-size: 11px; color: #555;">
       @if(!empty($school_year))
-        School Year <strong>{{ $school_year }}</strong>
+        @if($school_year === 'All School Years')<strong>All School Years</strong>@else School Year <strong>{{ $school_year }}</strong>@endif
       @else
         From <strong>{{ \Carbon\Carbon::parse($from)->format('F d, Y') }}</strong>
         to <strong>{{ \Carbon\Carbon::parse($to)->format('F d, Y') }}</strong>

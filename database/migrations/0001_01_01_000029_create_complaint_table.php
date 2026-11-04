@@ -17,6 +17,8 @@ return new class extends Migration
             $table->integer('case_number')->nullable();
             $table->string('complainant_name')->nullable();
             $table->foreignId('complainant_id')->nullable()->constrained('users')->restrictOnDelete()->cascadeOnUpdate();
+            // The prefect who filed it for the complainant; null when they filed it themselves.
+            $table->foreignId('prefect_id')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
             $table->foreignId('incident_id')->nullable()->constrained('violation')->nullOnDelete()->cascadeOnUpdate();
             $table->text('complaint_description');
             // One complaint can have 2+ complainees, but the prefect's
@@ -39,11 +41,6 @@ return new class extends Migration
             $table->dateTime('resolved_at')->nullable();
             $table->dateTime('archived_at')->nullable();
             $table->timestamp('created_at')->useCurrent();
-            $table->foreignId('school_year_semester_id')->nullable()->constrained('school_year_semester')->nullOnDelete();
-            $table->foreignId('confirmed_school_year_semester_id')->nullable()->constrained('school_year_semester')->nullOnDelete();
-            $table->foreignId('resolved_school_year_semester_id')->nullable()->constrained('school_year_semester')->nullOnDelete();
-            $table->foreignId('rejected_school_year_semester_id')->nullable()->constrained('school_year_semester')->nullOnDelete();
-            $table->foreignId('revoked_school_year_semester_id')->nullable()->constrained('school_year_semester')->nullOnDelete();
         });
     }
 

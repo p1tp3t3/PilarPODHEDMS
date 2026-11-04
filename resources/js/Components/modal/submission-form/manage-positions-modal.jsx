@@ -160,7 +160,7 @@ const ManagePositionsModal = ({ close, closeModal, positions, setPositions }) =>
                                         </span>
                                     ) : (
                                         <>
-                                            <ActionBtn onClick={() => startEdit(row)} className="bg-indigo-600 text-white hover:bg-indigo-700">
+                                            <ActionBtn onClick={() => startEdit(row)} className="bg-green-600 text-white hover:bg-green-700">
                                                 <Pencil size={14} />
                                             </ActionBtn>
                                             <ActionBtn onClick={() => handleDelete(row)} className="bg-red-600 text-white hover:bg-red-700">

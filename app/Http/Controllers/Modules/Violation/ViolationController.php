@@ -95,6 +95,12 @@ class ViolationController extends Controller
      */
     public function violationStudentsIndex($id)
     {
+        // Super admin manages the violation/penalty catalog, not student
+        // disciplinary records — this page is the prefect's only.
+        if (auth()->user()->role === 'super_admin') {
+            return redirect('/violation-management/violations');
+        }
+
         $id = decrypt_id($id) ?? abort(404);
 
         $violation = Violation::with(['penalties.penalty'])->findOrFail($id);
@@ -119,9 +125,7 @@ class ViolationController extends Controller
             ->values();
 
         // How many students currently sit at each occurrence count (1st,
-        // 2nd, 3rd... offense of this specific violation) — aggregate
-        // counts only, no student identity, so this is safe to keep for
-        // every role including super_admin.
+        // 2nd, 3rd... offense of this specific violation).
         $occurrenceBreakdown = $students
             ->groupBy('violation_count')
             ->map(fn ($group, $occurrence) => [
@@ -131,12 +135,10 @@ class ViolationController extends Controller
             ->sortBy('occurrence')
             ->values();
 
-        return Inertia::render('itrc/maintenance/violation-students', [
+        return Inertia::render('prefect/violation-students', [
             'violation' => $violation,
             'violation_key' => encrypt_id($violation->id),
-            // Super admin manages the violation/penalty catalog, not student
-            // disciplinary records — withhold the actual student roster.
-            'students' => auth()->user()->role === 'super_admin' ? [] : $students,
+            'students' => $students,
             'occurrence_breakdown' => $occurrenceBreakdown,
         ]);
     }
@@ -169,7 +171,7 @@ class ViolationController extends Controller
             ->distinct()
             ->get(['violation.id', 'violation.violation_name']);
 
-        return Inertia::render('other/student-violation', [
+        return Inertia::render('shared/student-violation', [
             'student' => User::with(['profile', 'program', 'enrollments.schoolYear'])->where('id', $id)->first(),
             'student_violations' => $studentViolations->get()->each(function ($sv) use ($occurrenceByRecord) {
                 $sv->complaint_key = $sv->complaint_id ? encrypt_id($sv->complaint_id) : null;

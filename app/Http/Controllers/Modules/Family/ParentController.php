@@ -25,7 +25,7 @@ class ParentController extends Controller
         $parentRequests = ParentRegistrationRequest::latest('created_at')->get()
             ->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
 
-        return Inertia::render('itrc/parent-approval-request', [
+        return Inertia::render('super-admin/parent-approval-request', [
             'parent_requests' => $parentRequests,
         ]);
     }
@@ -80,7 +80,7 @@ class ParentController extends Controller
         $data = $request->hasValidSignature() ? cache($key) : null;
 
         if (! $data) {
-            return Inertia::render('other/parent-register-confirm', [
+            return Inertia::render('guest/parent-register-confirm', [
                 'success' => false,
                 'message' => 'This confirmation link is invalid or has expired.',
             ]);
@@ -94,7 +94,7 @@ class ParentController extends Controller
         ]);
         cache()->forget($key);
 
-        return Inertia::render('other/parent-register-confirm', [
+        return Inertia::render('guest/parent-register-confirm', [
             'success' => true,
             'message' => 'Your registration request has been submitted and is awaiting admin approval.',
         ]);

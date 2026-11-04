@@ -3,7 +3,7 @@
 ############################################
 # 1) Frontend build (Vite + React)
 ############################################
-FROM node:20-alpine AS frontend
+FROM node:26-alpine AS frontend
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ RUN npm run build
 ############################################
 # 2) Application image (PHP + Apache)
 ############################################
-FROM php:8.3-apache AS app
+FROM php:8.5-apache AS app
 
 # System packages + PHP extensions this app actually needs:
 # - pdo_mysql           production database driver

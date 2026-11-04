@@ -265,8 +265,16 @@ export class Validator {
     };
 
     // ---------- COMMON: NAME FIELDS ----------
+    // Middle name is optional (many people don't have one) — the names
+    // aren't on the edit form, so a required-but-empty middle name used to
+    // block the save with an error nobody could see.
     ['first_name', 'middle_name', 'last_name'].forEach(nameKey => {
         const label = toTitleCase(nameKey.replace('_', ' '));
+        if (nameKey === 'middle_name' && !field[nameKey]?.trim()) {
+            errorMessage[nameKey] = '';
+            errorMessage[`${nameKey}Asterisk`] = '';
+            return;
+        }
         if (required(nameKey, label)) return;
 
         if (!/^[A-Za-z\s]+$/.test(field[nameKey])) {

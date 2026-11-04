@@ -61,7 +61,6 @@ const StudentDashboard = (props) => {
                   h="h-[6rem]"
                   num={props.complaint}
                   icon={FileText}
-                  textColor="text-green-700"
                   label="Total Complaints"
                   color={{
                     bg: "bg-white hover:bg-black/5 transition-all",
@@ -73,7 +72,6 @@ const StudentDashboard = (props) => {
                   h="h-[6rem]"
                   num={props.gatepass}
                   icon={DoorOpen}
-                  textColor="text-blue-700"
                   label="Total Gate Passes"
                   color={{
                     bg: "bg-white hover:bg-black/5 transition-all",
@@ -85,7 +83,6 @@ const StudentDashboard = (props) => {
                   h="h-[6rem]"
                   num={props.absent_form}
                   icon={CalendarX}
-                  textColor="text-amber-700"
                   label="Total Absent Forms"
                   color={{
                     bg: "bg-white hover:bg-black/5 transition-all",

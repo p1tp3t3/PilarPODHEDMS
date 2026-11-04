@@ -62,6 +62,7 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      Route::post('/maintenance/backups/full', [BackupController::class, 'createFullBackup']);
      Route::get('/maintenance/backups/{filename}/download', [BackupController::class, 'download']);
      Route::post('/maintenance/backups/{filename}/delete', [BackupController::class, 'destroy']);
+     Route::post('/maintenance/backups/{filename}/restore', [BackupController::class, 'restore']);
 
      Route::get('/super-admin/user-accounts', [AccountController::class, 'index'])
          ->name('type.super-admin.accounts');
@@ -208,6 +209,7 @@ Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(functi
     Route::get('/prefect/archive', [ArchiveController::class, 'index']);
 
     Route::post('/prefect/call-in', [NotificationController::class, 'notifyCallIn']);
+    Route::get('/prefect/call-in/history', [NotificationController::class, 'callInHistory']);
     Route::post('/prefect/violation/risk/notify', [NotificationController::class, 'notifyFacultyProgramHead']);
     Route::post('/prefect/violation/create', [ViolationController::class, 'store']);
 

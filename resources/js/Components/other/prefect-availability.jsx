@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
-import { Clock, ChevronDown, Plus, Trash2, CalendarClock } from "lucide-react"
+import { Clock, ChevronRight, Plus, Trash2, CalendarClock } from "lucide-react"
 import FormButton from "@/Components/button/button"
+import UpModal from "@/Components/modal/up-modal"
 import { showOutputModal } from "@/others/function"
 
 // The prefect's weekly availability (Mon–Sat), set in the prefect's Account
@@ -51,49 +52,69 @@ export const PrefectAvailabilityCard = () => {
     }, [])
 
     if (prefects === null) {
-        return <div className="w-full h-[4.5rem] rounded-lg bg-white border border-gray-200 animate-pulse" />
+        return <div className="w-full h-10 rounded-lg bg-white border border-gray-200 animate-pulse" />
     }
 
     const many = prefects.length > 1
+    const availableNow = prefects.some((p) => isAvailableNow(p.slots, now))
 
     return (
-        <div className="w-full rounded-lg bg-white border border-gray-200 shadow-sm">
-            <button
-                type="button"
-                onClick={() => setOpen((o) => !o)}
-                aria-expanded={open}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left"
-            >
-                <span className="w-9 h-9 shrink-0 rounded-full bg-blue-50 text-blue-700 grid place-items-center">
-                    <CalendarClock size={18} />
-                </span>
-                <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-gray-800 text-[0.95em]">Prefect Availability</span>
-                        {prefects.length > 0 && <NowBadge prefects={prefects} now={now} />}
-                    </div>
-                    <TodaySummary prefects={prefects} now={now} />
-                </div>
-                <span className="shrink-0 flex items-center gap-1 text-[0.8em] font-medium text-blue-700">
-                    <span className="hidden sm:inline">{open ? "Hide week" : "View week"}</span>
-                    <ChevronDown size={16} className={`transition-transform ${open ? "rotate-180" : ""}`} />
-                </span>
-            </button>
+        <>
+        {/* One slim line: status, today's hours, and a link to the week. */}
+        <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="group w-full flex items-center gap-2.5 rounded-lg bg-white border border-gray-200 px-4 py-2.5 text-left text-[0.85em] hover:border-blue-200 transition-colors"
+        >
+            <span className={`w-2 h-2 shrink-0 rounded-full ${availableNow ? "bg-green-500" : "bg-gray-300"}`} />
+            <span className="shrink-0 font-semibold text-gray-800">Prefect</span>
+            <span className={`shrink-0 ${availableNow ? "text-green-700" : "text-gray-500"}`}>
+                {availableNow ? "Available now" : "Not available now"}
+            </span>
+            <span className="text-gray-300">·</span>
+            <span className="min-w-0 flex-1 truncate text-gray-600">{todayText(prefects, now)}</span>
+            <span className="shrink-0 flex items-center gap-0.5 text-blue-700 group-hover:text-blue-900">
+                <span className="hidden sm:inline">View week</span>
+                <ChevronRight size={15} />
+            </span>
+        </button>
 
-            {open && (
-                <div className="border-t border-gray-100 px-4 py-3 grid gap-4">
-                    {prefects.length === 0 && (
-                        <p className="text-[0.85em] text-gray-500">No prefect account yet.</p>
-                    )}
-                    {prefects.map((p) => (
-                        <div key={p.id} className="grid gap-2">
-                            {many && <p className="text-[0.85em] font-semibold text-gray-700">{p.name}</p>}
-                            <WeekTable slots={p.slots} today={now.day} />
+        {/* The week's schedule opens in a modal instead of expanding the card. */}
+        <UpModal
+            close={open}
+            closeModal={setOpen}
+            isEnableOuterClose={true}
+            cntr={true}
+            pd={["px-6", "py-6"]}
+            bgColor="bg-white"
+            w="w-[32rem]"
+        >
+            <div className="grid gap-5">
+                <div className="flex items-center gap-3">
+                    <span className="w-10 h-10 shrink-0 rounded-full bg-blue-50 text-blue-700 grid place-items-center">
+                        <CalendarClock size={18} />
+                    </span>
+                    <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-semibold text-gray-800">Prefect Availability</span>
+                            {prefects.length > 0 && <NowBadge prefects={prefects} now={now} />}
                         </div>
-                    ))}
+                        <p className="text-[0.85em] text-gray-500">Weekly schedule, Monday to Saturday. Sunday is always off.</p>
+                    </div>
                 </div>
-            )}
-        </div>
+
+                {prefects.length === 0 && (
+                    <p className="text-[0.85em] text-gray-500">No prefect account yet.</p>
+                )}
+                {prefects.map((p) => (
+                    <div key={p.id} className="grid gap-2">
+                        {many && <p className="text-[0.85em] font-semibold text-gray-700">{p.name}</p>}
+                        <WeekTable slots={p.slots} today={now.day} />
+                    </div>
+                ))}
+            </div>
+        </UpModal>
+        </>
     )
 }
 
@@ -110,21 +131,12 @@ const NowBadge = ({ prefects, now }) => {
     )
 }
 
-const TodaySummary = ({ prefects, now }) => {
-    if (prefects.length === 0 || prefects.every((p) => p.slots.length === 0)) {
-        return <p className="text-[0.8em] text-gray-500 mt-0.5">The prefect hasn't set an availability schedule yet.</p>
-    }
-    if (now.day === 7) {
-        return <p className="text-[0.8em] text-gray-500 mt-0.5">Not available on Sundays.</p>
-    }
+const todayText = (prefects, now) => {
+    if (prefects.length === 0 || prefects.every((p) => p.slots.length === 0)) return "No schedule set yet"
+    if (now.day === 7) return "Off on Sundays"
     const today = prefects.flatMap((p) => p.slots.filter((s) => s.day_of_week === now.day))
         .sort((a, b) => a.start_time.localeCompare(b.start_time))
-    return (
-        <p className="text-[0.8em] text-gray-600 mt-0.5 truncate">
-            <span className="font-medium">Today:</span>{" "}
-            {today.length ? today.map(formatRange).join(", ") : "Not available"}
-        </p>
-    )
+    return today.length ? `Today ${today.map(formatRange).join(", ")}` : "Not available today"
 }
 
 const WeekTable = ({ slots, today }) => (

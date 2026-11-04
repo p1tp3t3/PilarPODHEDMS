@@ -1,4 +1,5 @@
 import DropdownField from "@/Components/input/dropdown"
+import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import SearchUserBar from "@/Components/input/search-user-bar"
 import StudentList from "@/Components/list/student-list"
 import AuthLayout from "@/Layouts/auth-layout"
@@ -39,6 +40,7 @@ const PrefectStudents = (props) => {
           {/* Search + Filters */}
           <div className="flex justify-between">
             <div className="w-full flex flex-col sm:flex-row gap-3">
+              <MobileFilters active={countActive(params.get("program"), params.get("school-year"), params.get("semester"))}>
               <DropdownField
                 default={{ val: "all", label: "All Programs" }}
                 list={props.program}
@@ -60,6 +62,7 @@ const PrefectStudents = (props) => {
                   val={params.get("semester")}
                   onChange={(e) => handleSelect("semester", e.target.value)}
               />
+              </MobileFilters>
             </div>
           </div>
 

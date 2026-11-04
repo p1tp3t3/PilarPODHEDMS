@@ -112,7 +112,7 @@
   <table class="report-header">
     <tr>
       <td style="width: 90px;">
-        <img src="{{ public_path('default-pic/pilar.png') }}" alt="Logo">
+        <img src="{{ public_path('default-pic/pilar-pdf.png') }}" alt="Logo">
       </td>
       <td>
         <div class="school-name">PILAR COLLEGE OF ZAMBOANGA CITY, INC.</div>

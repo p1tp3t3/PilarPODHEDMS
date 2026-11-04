@@ -24,7 +24,6 @@ return new class extends Migration
             $table->nullableMorphs('notifiable');
             $table->dateTime('read_since')->nullable();
             $table->timestamp('created_at')->useCurrent();
-            $table->foreignId('school_year_semester_id')->nullable()->constrained('school_year_semester')->nullOnDelete();
         });
     }
 

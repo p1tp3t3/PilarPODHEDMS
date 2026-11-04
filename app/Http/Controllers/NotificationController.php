@@ -44,7 +44,7 @@ class NotificationController extends Controller
         }
 
         $type = ($notif != null) ? str_replace('_', '-', $notif->notif_type) : '';
-        $filePath = ($notif != null) ? "other/notification/$type" : 'other/notification';
+        $filePath = ($notif != null) ? "shared/notification/$type" : 'shared/notification';
 
         return Inertia::render($filePath, [
             'notification' => Notifications::where('receiver_id', auth()->id())
@@ -65,7 +65,7 @@ class NotificationController extends Controller
 
         $type = str_replace('_', '-', $notif->notif_type);
 
-        return Inertia::render("other/notification/$type", [
+        return Inertia::render("shared/notification/$type", [
             'notification' => $notif,
         ]);
     }
@@ -149,6 +149,45 @@ class NotificationController extends Controller
                 'file' => $e->getFile(),
             ], 400);
         }
+    }
+
+    /**
+     * Every call-in sent to a student, newest first, for the prefect's
+     * Call-In History (Appointment page). A call-in is stored as a
+     * 'call_in' notification: the reason is in its content, and
+     * read_since tells whether the student has opened it.
+     */
+    public function callInHistory()
+    {
+        return Notifications::with(['sender.profile', 'receiver.profile', 'receiver.latestEnrollment.program'])
+            ->where('notif_type', 'call_in')
+            ->latest('created_at')
+            ->latest('id')
+            ->get()
+            ->map(function ($n) {
+                $content = json_decode($n->content, true) ?? [];
+                $student = $n->receiver;
+                $name = fn ($u) => $u ? trim("{$u->profile?->first_name} {$u->profile?->last_name}") ?: $u->username : null;
+
+                return [
+                    'id' => $n->id,
+                    'student' => $student ? [
+                        'name' => $name($student),
+                        'id_number' => $student->id_number,
+                        'program' => $student->latestEnrollment?->program?->name,
+                        'profile_picture' => $student->profile?->profile_picture,
+                        'sex' => $student->profile?->sex,
+                        'encrypted_id' => encrypt_id($student->id),
+                        'role' => $student->role,
+                        'username' => $student->username,
+                    ] : null,
+                    'reason' => $content['receiver_notif_message'] ?? null,
+                    'called_by' => $name($n->sender),
+                    'read_since' => $n->read_since,
+                    'created_at' => $n->created_at,
+                ];
+            })
+            ->values();
     }
 
     public function notifyViolationRisk(Request $request)

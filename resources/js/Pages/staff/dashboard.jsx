@@ -36,7 +36,6 @@ const NonTeachingStaffDashboard = (props) => {
                                     num={props.complaint}
                                     icon={FileText}
                                     label='Total Complaints'
-                                    textColor='text-blue-700'
                                     color={{bg: 'bg-white hover:bg-black/5 transition-all'}}
                                 />
                             </Link>
@@ -47,7 +46,6 @@ const NonTeachingStaffDashboard = (props) => {
                                     num={props.approved_gatepass}
                                     icon={FileText}
                                     label='Total Approved Gate Pass'
-                                    textColor='text-blue-700'
                                     color={{bg: 'bg-white hover:bg-black/5 transition-all'}}
                                 />
                             </Link> }
@@ -58,7 +56,6 @@ const NonTeachingStaffDashboard = (props) => {
                                     num={props.referral}
                                     icon={Share2}
                                     label='Total Referrals'
-                                    textColor='text-blue-700'
                                     color={{bg: 'bg-white hover:bg-black/5 transition-all'}}
                                 />
                             </Link>}

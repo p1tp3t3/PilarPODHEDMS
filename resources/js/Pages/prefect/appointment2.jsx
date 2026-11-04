@@ -9,10 +9,30 @@ import AppointmentModal from "@/Components/modal/submission-form/set-appointment
 import { useReload } from "@/context-provider/reload-provider";
 import { showWarningModal, showOutputModal } from "@/others/function";
 import { Paper, Popover, List, ListItemButton } from "@mui/material";
-import { CalendarPlus, Eye } from "lucide-react";
+import { CalendarPlus, Eye, CalendarDays, PhoneCall } from "lucide-react";
 import { Head } from "@inertiajs/react";
+import TabSwitcher from "@/Components/other/tab-switcher";
+import CallInHistoryList from "@/Components/list/call-in-history-list";
+
+const PAGE_TABS = [
+  { key: "calendar", label: "Calendar", icon: CalendarDays },
+  { key: "call-ins", label: "Call-In History", icon: PhoneCall },
+];
 
 const PrefectAppointment2 = (props) => {
+  // ?tab=call-ins opens the call-in history directly; kept in the URL so a
+  // reload stays on the same tab.
+  const [tab, setTab] = useState(() =>
+    new URLSearchParams(window.location.search).get("tab") === "call-ins" ? "call-ins" : "calendar"
+  );
+  const changeTab = (key) => {
+    setTab(key);
+    const url = new URL(window.location.href);
+    if (key === "calendar") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", key);
+    window.history.replaceState(window.history.state, "", url);
+  };
+
   const [appointmentId, setAppointmentId] = useState("");
   const [date, setDate] = useState(new Date());
   const [data, setData] = useState(null);
@@ -225,13 +245,21 @@ const PrefectAppointment2 = (props) => {
           <h1 className="text-[1.3em] sm:text-[1.5em] font-bold">APPOINTMENT</h1>
         </div>
 
+        <div className="mb-4">
+          <TabSwitcher tabs={PAGE_TABS} value={tab} onChange={changeTab} />
+        </div>
+
         <Paper elevation={2} sx={{ p: { xs: 1.25, sm: 2.5 }, borderRadius: "0.5rem", width: "100%", minWidth: 0, overflow: "hidden" }}>
-          <FullCalendarView
-            refreshKey={refreshKey}
-            onEventClick={handleEventClick}
-            onSlotSelect={handleDaySelect}
-            selectedDate={dayMenuDate}
-          />
+          {tab === "calendar" ? (
+            <FullCalendarView
+              refreshKey={refreshKey}
+              onEventClick={handleEventClick}
+              onSlotSelect={handleDaySelect}
+              selectedDate={dayMenuDate}
+            />
+          ) : (
+            <CallInHistoryList />
+          )}
         </Paper>
       </div>
     </>

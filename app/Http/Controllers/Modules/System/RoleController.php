@@ -18,7 +18,7 @@ class RoleController extends Controller
 {
     public function index()
     {
-        return Inertia::render('itrc/roles', [
+        return Inertia::render('super-admin/roles', [
             'roles' => self::list(),
         ]);
     }

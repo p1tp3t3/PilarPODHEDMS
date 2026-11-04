@@ -19,6 +19,8 @@ return new class extends Migration
             $table->id();
             $table->string('referral_number')->unique();
             $table->foreignId('teaching_staff_id')->constrained('users', 'id', 'referral_program_head_id_foreign')->restrictOnDelete()->cascadeOnUpdate();
+            // The prefect who filed it for the referrer; null when the referrer filed it.
+            $table->foreignId('prefect_id')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
             $table->longText('reason_description');
             // Nullable because the enum was widened via a raw MODIFY
             // statement (to add 'revoked') that omitted NOT NULL, which
@@ -32,10 +34,6 @@ return new class extends Migration
             $table->dateTime('confirmed_at')->nullable();
             $table->dateTime('archived_at')->nullable();
             $table->timestamp('created_at')->useCurrent();
-            $table->foreignId('school_year_semester_id')->nullable()->constrained('school_year_semester')->nullOnDelete();
-            $table->foreignId('confirmed_school_year_semester_id')->nullable()->constrained('school_year_semester')->nullOnDelete();
-            $table->foreignId('rejected_school_year_semester_id')->nullable()->constrained('school_year_semester')->nullOnDelete();
-            $table->foreignId('revoked_school_year_semester_id')->nullable()->constrained('school_year_semester')->nullOnDelete();
         });
     }
 

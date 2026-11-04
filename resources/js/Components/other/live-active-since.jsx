@@ -1,36 +1,21 @@
-import { useContext, useEffect, useState } from "react"
+import { useContext } from "react"
 import AuthContext from "@/context-provider/auth-provider"
-import { readableActiveDuration, readableDate, readableTime } from "@/others/function"
+import { readableDate, readableTime } from "@/others/function"
 
-// "Active Since" cell for the user lists, driven by the Reverb presence
-// channel: "Online now" while the user is connected, otherwise how long ago
-// they were last active — counted from the moment they left if that
-// happened while this page was open.
-const LiveActiveSince = ({ userId, lastSeen, withDate = false, className = "text-[0.8em]" }) => {
-    const { isUserOnline, lastSeenOf } = useContext(AuthContext)
-    const [, tick] = useState(0)
-
-    useEffect(() => {
-        const interval = setInterval(() => tick((n) => n + 1), 30000)
-        return () => clearInterval(interval)
-    }, [])
-
-    if (isUserOnline?.(userId)) {
-        return (
-            <span className={`${className} inline-flex items-center gap-1.5 font-semibold text-green-600`}>
-                <span className="h-2 w-2 rounded-full bg-green-500" /> Online now
-            </span>
-        )
-    }
-
+// "Active Since" cell for the user lists: the date and time the user was
+// last active. If they left while this page was open, that moment (from the
+// Reverb presence channel) is used instead of the stored last_seen.
+const LiveActiveSince = ({ userId, lastSeen, className = "text-[0.8rem]", align = "left" }) => {
+    const { lastSeenOf } = useContext(AuthContext)
     const seen = lastSeenOf ? lastSeenOf(userId, lastSeen) : lastSeen
+
     if (!seen) return <span className={className}>N/A</span>
 
     return (
-        <span className={className}>
-            {readableActiveDuration(seen)}
-            {withDate && ` • ${readableDate(seen)} (${readableTime(seen)})`}
-        </span>
+        <div className={align === "right" ? "text-right" : ""}>
+            <div className={className}>{readableDate(seen)}</div>
+            <div className="text-[0.7em]">{readableTime(seen)}</div>
+        </div>
     )
 }
 

@@ -1,8 +1,10 @@
 import { getProfilePic, profileUrl } from "@/others/function"
-import ProfilePic from "../other/profile-pic"
 import { Link, router } from "@inertiajs/react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Switch } from "@mui/material"
+import {
+    Avatar, Badge, Box, Chip, Divider, List, ListItemButton, ListItemIcon,
+    ListItemText, Paper, Switch, Typography,
+} from "@mui/material"
 import { User, Settings, LogOut, ChevronRight, History } from "lucide-react"
 
 const roleLabel = (identity) => {
@@ -17,41 +19,48 @@ const roleLabel = (identity) => {
     }
 }
 
+// One row of the menu: a round icon, the label, and whatever sits on the
+// right (chevron, switch or count).
+const rowSx = { borderRadius: 2, px: 1.5, py: 1, gap: 1.5 }
+const iconSx = (tone = "default") => ({
+    minWidth: 0,
+    width: 32,
+    height: 32,
+    borderRadius: "50%",
+    display: "grid",
+    placeItems: "center",
+    bgcolor: tone === "error"
+        ? (t) => (t.palette.mode === "dark" ? "rgba(239,68,68,0.15)" : "#fef2f2")
+        : "action.hover",
+    color: tone === "error" ? "error.main" : "text.secondary",
+})
+const labelProps = { primaryTypographyProps: { fontSize: "0.85rem", fontWeight: 500 } }
+
 const MenuLink = ({ href, icon: Icon, children }) => (
-    <Link
-        href={href}
-        className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[0.85em] text-gray-700 hover:bg-gray-100"
-    >
-        <span className="w-8 h-8 rounded-full bg-gray-100 group-hover:bg-white grid place-items-center text-gray-600">
-            <Icon size={16} />
-        </span>
-        <span className="flex-1 font-medium">{children}</span>
-        <ChevronRight size={15} className="text-gray-400" />
-    </Link>
+    <ListItemButton component={Link} href={href} sx={rowSx}>
+        <ListItemIcon sx={iconSx()}><Icon size={16} /></ListItemIcon>
+        <ListItemText primary={children} {...labelProps} />
+        <Box component={ChevronRight} size={15} sx={{ color: "text.disabled" }} />
+    </ListItemButton>
 )
 
-// Header actions (call in, active users, full screen, dark mode) are listed
-// in this menu instead of as header buttons.
-const MenuAction = ({ icon: Icon, label, onClick, badge, toggled, className = "flex" }) => (
-    <button
-        type="button"
+// Header actions (call in, full screen, dark mode) are listed in this menu
+// instead of as header buttons. `hideBelow` ("md") hides a row on smaller screens.
+const MenuAction = ({ icon: Icon, label, onClick, badge, toggled, hideBelow }) => (
+    <ListItemButton
         onClick={onClick}
-        className={`group ${className} w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[0.85em] text-gray-700 hover:bg-gray-100 text-left`}
+        sx={{ ...rowSx, ...(hideBelow && { display: { xs: "none", [hideBelow]: "flex" } }) }}
     >
-        <span className="w-8 h-8 rounded-full bg-gray-100 group-hover:bg-white grid place-items-center text-gray-600">
-            <Icon size={16} />
-        </span>
-        <span className="flex-1 font-medium">{label}</span>
+        <ListItemIcon sx={iconSx()}><Icon size={16} /></ListItemIcon>
+        <ListItemText primary={label} {...labelProps} />
         {/* The whole row is the click target; the switch just shows the state. */}
         {toggled !== undefined && (
             <Switch size="small" checked={toggled} tabIndex={-1} inputProps={{ "aria-hidden": true }} sx={{ pointerEvents: "none", my: -1 }} />
         )}
         {badge != null && badge > 0 && (
-            <span className="min-w-[1.3rem] h-[1.3rem] px-1 rounded-full bg-green-600 text-white text-[0.75em] font-semibold grid place-items-center">
-                {badge > 99 ? "99+" : badge}
-            </span>
+            <Badge badgeContent={badge} max={99} color="success" sx={{ mr: 1.5 }} />
         )}
-    </button>
+    </ListItemButton>
 )
 
 const AccountModal = (props) => {
@@ -69,47 +78,67 @@ const AccountModal = (props) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="absolute top-0 right-0 mt-[2.8rem] w-full sm:w-[18rem] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
+            className="absolute top-0 right-0 mt-[2.8rem] w-full sm:w-[18rem] z-30"
         >
-            <div className="flex items-center gap-3 px-4 py-4 bg-gradient-to-br from-blue-50 to-white border-b border-gray-100">
-                <ProfilePic src={getProfilePic(identity.profile?.profile_picture, identity.profile?.sex)} size={3.2} />
-                <div className="min-w-0">
-                    <p className="font-bold text-gray-900 truncate">{fullName}</p>
-                    {role && (
-                        <span className="inline-block mt-1 rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-[0.65em] font-semibold">
-                            {role}
-                        </span>
-                    )}
-                </div>
-            </div>
-
-            <div className="p-2">
-                <MenuLink href={`${profileUrl(user)}`} icon={User}>See Profile</MenuLink>
-                <MenuLink href={'/settings/' + user.username} icon={Settings}>Account Settings</MenuLink>
-                <MenuLink href="/my-activity" icon={History}>My Activity</MenuLink>
-            </div>
-
-            {props.actions?.length > 0 && (
-                <div className="p-2 border-t border-gray-100">
-                    {props.actions.map((a) => <MenuAction key={a.key ?? a.label} {...a} />)}
-                </div>
-            )}
-
-            <div className="border-t border-gray-100 p-2">
-                <button
-                    type="button"
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[0.85em] font-medium text-red-600 hover:bg-red-50"
-                    onClick={() => {
-                        localStorage.removeItem('is-unresolved-complaint-modal-clicked');
-                        router.visit('/log-out');
+            <Paper elevation={8} sx={{ borderRadius: 3, overflow: "hidden" }}>
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                        px: 2,
+                        py: 2,
+                        background: (t) => t.palette.mode === "dark"
+                            ? "linear-gradient(135deg, rgba(59,130,246,0.18), transparent)"
+                            : "linear-gradient(135deg, #eff6ff, #fff)",
                     }}
                 >
-                    <span className="w-8 h-8 rounded-full bg-red-50 grid place-items-center">
-                        <LogOut size={16} />
-                    </span>
-                    Log Out
-                </button>
-            </div>
+                    <Avatar
+                        src={getProfilePic(identity.profile?.profile_picture, identity.profile?.sex)}
+                        alt={fullName}
+                        sx={{ width: 52, height: 52, border: 2, borderColor: "background.paper" }}
+                    />
+                    <Box sx={{ minWidth: 0 }}>
+                        <Typography noWrap sx={{ fontWeight: 700 }}>{fullName}</Typography>
+                        {role && (
+                            <Chip label={role} size="small" color="primary" variant="outlined"
+                                sx={{ mt: 0.5, height: 20, fontSize: "0.7rem", fontWeight: 600 }} />
+                        )}
+                    </Box>
+                </Box>
+
+                <Divider />
+
+                <List dense disablePadding sx={{ p: 1 }}>
+                    <MenuLink href={`${profileUrl(user)}`} icon={User}>See Profile</MenuLink>
+                    <MenuLink href={'/settings/' + user.username} icon={Settings}>Account Settings</MenuLink>
+                    <MenuLink href="/my-activity" icon={History}>My Activity</MenuLink>
+                </List>
+
+                {props.actions?.length > 0 && (
+                    <>
+                        <Divider />
+                        <List dense disablePadding sx={{ p: 1 }}>
+                            {props.actions.map((a) => <MenuAction key={a.key ?? a.label} {...a} />)}
+                        </List>
+                    </>
+                )}
+
+                <Divider />
+
+                <List dense disablePadding sx={{ p: 1 }}>
+                    <ListItemButton
+                        sx={{ ...rowSx, color: "error.main", "&:hover": { bgcolor: (t) => t.palette.mode === "dark" ? "rgba(239,68,68,0.1)" : "#fef2f2" } }}
+                        onClick={() => {
+                            localStorage.removeItem('is-unresolved-complaint-modal-clicked');
+                            router.visit('/log-out');
+                        }}
+                    >
+                        <ListItemIcon sx={iconSx("error")}><LogOut size={16} /></ListItemIcon>
+                        <ListItemText primary="Log Out" {...labelProps} />
+                    </ListItemButton>
+                </List>
+            </Paper>
         </motion.div>
         }
         </AnimatePresence>

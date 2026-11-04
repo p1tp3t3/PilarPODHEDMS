@@ -13,6 +13,7 @@ import { ReportArchiveService } from "@/others/services/report-archive-service"
 import { router } from "@inertiajs/react"
 import NoteAbsentFormModal from "@/Components/modal/submission-form/note-absent-form-modal"
 import DropdownField from "@/Components/input/dropdown"
+import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import { Head } from "@inertiajs/react"
 
 
@@ -169,6 +170,7 @@ const PrefectArchive = (props) => {
             <PageLayout title="ARCHIVES">
                     <div className="grid gap-3">
                         <div className="flex flex-col sm:flex-row gap-3 sm:items-center md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
+                            <MobileFilters active={countActive(schoolYear, semester)}>
                             <div className="w-full sm:w-[14rem] flex-shrink-0">
                                 <DropdownField
                                     default={{ val: '', label: 'All School Years' }}
@@ -190,6 +192,7 @@ const PrefectArchive = (props) => {
                                     val={semester}
                                 />
                             </div>
+                            </MobileFilters>
                         </div>
                         <div className="w-full">
                             <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />

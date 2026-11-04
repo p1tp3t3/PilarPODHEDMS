@@ -35,6 +35,11 @@ export const SystemService = {
         const api = new APIRequest(endpoint, "post", {}, () => {}, success, error);
         api.sendPostData();
     },
+    restoreBackup(name, success, error) {
+        // fetchData() hands the response (with safety_backup) to the setter.
+        const api = new APIRequest(`/maintenance/backups/${name}/restore`, "post", {}, success, () => {}, error);
+        api.fetchData();
+    },
     deleteBackup(name, success, error) {
         const api = new APIRequest(`/maintenance/backups/${name}/delete`, "post", {}, () => {}, success, error);
         api.sendPostData();

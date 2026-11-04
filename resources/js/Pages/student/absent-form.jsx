@@ -183,7 +183,7 @@ const AbsentForm = (props) => {
                                                         {isEditable(form) && (
                                                             <button
                                                                 type="button"
-                                                                className="px-3 py-1 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-[0.85em] font-medium"
+                                                                className="px-3 py-1 rounded-md bg-green-600 hover:bg-green-700 text-white text-[0.85em] font-medium"
                                                                 onClick={() => {
                                                                     setEditForm(form)
                                                                     setEditOpen(true)

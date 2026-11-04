@@ -15,6 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('form_number')->unique();
             $table->foreignId('student_id')->constrained('users')->restrictOnDelete()->cascadeOnUpdate();
+            // The prefect who issued it directly; null when the student submitted it.
+            $table->foreignId('prefect_id')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
             $table->json('reason');
             $table->longText('evidences')->nullable();
             $table->text('note')->nullable();
@@ -27,10 +29,6 @@ return new class extends Migration
             $table->date('date_to')->nullable();
             $table->dateTime('archived_at')->nullable();
             $table->timestamp('created_at')->useCurrent();
-            $table->foreignId('school_year_semester_id')->nullable()->constrained('school_year_semester')->nullOnDelete();
-            $table->foreignId('confirmed_school_year_semester_id')->nullable()->constrained('school_year_semester')->nullOnDelete();
-            $table->foreignId('rejected_school_year_semester_id')->nullable()->constrained('school_year_semester')->nullOnDelete();
-            $table->foreignId('revoked_school_year_semester_id')->nullable()->constrained('school_year_semester')->nullOnDelete();
         });
     }
 

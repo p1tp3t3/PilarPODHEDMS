@@ -93,7 +93,7 @@ class DashboardController extends Controller
 
     public function itrcDashboard()
     {
-        return Inertia::render('itrc/dashboard', self::getITRCStatistics());
+        return Inertia::render('super-admin/dashboard', self::getITRCStatistics());
     }
 
     public function studentDashboard()

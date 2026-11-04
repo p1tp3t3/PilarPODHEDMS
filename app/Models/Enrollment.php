@@ -26,6 +26,17 @@ class Enrollment extends Model
         return $this->belongsTo(Program::class, 'program_id', 'id');
     }
 
+    /**
+     * Ids of the students whose latest enrollment is in this program, as a
+     * subquery for whereIn() — the list pages' "Program" filter.
+     */
+    public static function studentIdsInProgram($programId)
+    {
+        return self::whereIn('id', self::selectRaw('MAX(id)')->groupBy('student_id'))
+            ->where('program_id', $programId)
+            ->select('student_id');
+    }
+
     public function schoolYear(): BelongsTo
     {
         return $this->belongsTo(SchoolYear::class, 'school_year_id', 'id');

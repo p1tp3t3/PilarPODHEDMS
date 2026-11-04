@@ -23,7 +23,7 @@ class AuthenticatedSessionController extends Controller
             return Inertia::location('/dashboard');
         }
 
-        return Inertia::render('login', ['password' => $password]);
+        return Inertia::render('guest/login', ['password' => $password]);
     }
 
     public function gatepassLogin()
@@ -32,7 +32,7 @@ class AuthenticatedSessionController extends Controller
             return back()->withErrors(['message' => 'you are log in already']);
         }
 
-        return Inertia::render('gatepass-login');
+        return Inertia::render('guest/gatepass-login');
     }
 
     /**
@@ -57,7 +57,7 @@ class AuthenticatedSessionController extends Controller
             return Inertia::location('/dashboard');
         }
 
-        return Inertia::render('super-admin-login', ['password' => $password]);
+        return Inertia::render('guest/super-admin-login', ['password' => $password]);
     }
 
     /**

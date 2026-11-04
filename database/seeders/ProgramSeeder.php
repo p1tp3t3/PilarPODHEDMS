@@ -9,7 +9,7 @@ class ProgramSeeder extends Seeder
 {
     /**
      * Matches the program IDs 1-7 hardcoded in the registration CSV validation
-     * (resources/js/Pages/itrc/register.jsx errProgram()).
+     * (resources/js/Pages/super-admin/register.jsx errProgram()).
      */
     public function run(): void
     {

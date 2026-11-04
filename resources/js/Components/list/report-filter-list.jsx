@@ -11,7 +11,8 @@ const summarizeFilters = (filters) => {
     const parts = []
 
     if (filters.school_year) {
-        parts.push(`SY ${filters.school_year}`)
+        const sem = { 1: "1st Semester", 2: "2nd Semester" }[filters.semester]
+        parts.push(filters.school_year === "all" ? "All School Years" : `SY ${filters.school_year}${sem ? ` (${sem})` : ""}`)
     } else if (filters.date_from && filters.date_to) {
         parts.push(`${filters.date_from} to ${filters.date_to}`)
     } else {
@@ -108,7 +109,7 @@ const ReportFilterList = ({ list = null, onEdit, onChange, showType = true, gene
                     <ActionBtn className="bg-green-600 hover:bg-green-700" onClick={() => handleGenerate(params.row)} title="Generate">
                         <Play size={14} />
                     </ActionBtn>
-                    <ActionBtn className="bg-indigo-600 hover:bg-indigo-700" onClick={() => onEdit?.(params.row.raw)} title="Edit">
+                    <ActionBtn className="bg-green-600 hover:bg-green-700" onClick={() => onEdit?.(params.row.raw)} title="Edit">
                         <Pencil size={14} />
                     </ActionBtn>
                     <ActionBtn className="bg-red-600 hover:bg-red-700" onClick={() => handleDelete(params.row)} title="Delete">

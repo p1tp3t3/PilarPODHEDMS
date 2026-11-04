@@ -12,7 +12,7 @@ import {
   showOutputModal,
   showUserType,
   showWarningModal,
-  toTitleCase, profileUrl } from "../../others/function";
+  toTitleCase, profileUrl, studentProgram, studentYearLevel } from "../../others/function";
 import Switch from "../button/switch-btn";
 import { AccountService } from "@/others/services/account-service";
 import { Link } from "@inertiajs/react";
@@ -22,6 +22,33 @@ import { Box } from "@mui/material";
 import { X, Check } from "lucide-react";
 import LiveActiveSince from "@/Components/other/live-active-since";
 import { LabeledCheckbox, SelectCheckbox, setRowsChecked } from "@/Components/input/select-checkbox";
+
+// Columns shown in place of "Role" when the list is filtered to one role.
+// Stored names like "program_head" are title-cased; "IT Staff" etc. kept as is.
+const label = (v) => (!v ? "N/A" : String(v).includes("_") || String(v) === String(v).toLowerCase() ? toTitleCase(String(v)).replace(/_/g, " ") : v);
+const textColumn = (field, headerName, get, minWidth = 120) => ({
+  field,
+  headerName,
+  flex: 1,
+  minWidth,
+  valueGetter: (_, row) => get(row) ?? "N/A",
+});
+const ROLE_COLUMNS = {
+  student: [
+    textColumn("program_name", "Program", (row) => studentProgram(row), 150),
+    textColumn("year_level", "Year Level", (row) => studentYearLevel(row)),
+  ],
+  teaching_staff: [
+    textColumn("position", "Position", (row) => label(row.teaching_staff?.position)),
+    textColumn("program_name", "Program", (row) => row.teaching_staff?.program?.name, 150),
+  ],
+  non_teaching_staff: [
+    textColumn("position", "Position", (row) => label(row.non_teaching_staff?.position)),
+  ],
+  parent: [
+    textColumn("parent_role", "Parent Role", (row) => label(row.parent?.parent_role)),
+  ],
+};
 
 const AccountList = (props) => {
   const { isUserOnline } = useContext(AuthContext);
@@ -155,12 +182,12 @@ const AccountList = (props) => {
                 renderCell: (params) =>
                   `${params.api.getRowIndexRelativeToVisibleRows(params.id) + 1}.`,
               },
-              { field: "id_number", headerName: "User ID", width: 90 },
+              { field: "id_number", headerName: "User ID", flex: 0.7, minWidth: 90 },
               {
                 field: "user",
                 headerName: "User",
-                flex: 1,
-                minWidth: 160,
+                flex: 2,
+                minWidth: 200,
                 sortable: false,
                 filterable: true,
                 renderCell: ({ row }) => (
@@ -181,16 +208,17 @@ const AccountList = (props) => {
                   </div>
                 ),
               },
-              {
+              // A role filter swaps the Role column for that role's own details.
+              ...(ROLE_COLUMNS[props.selectedRole] ?? [{
                 field: "role",
                 headerName: "Role",
-                width: 100,
+                flex: 1, minWidth: 120,
                 renderCell: ({ row }) => toTitleCase(row.role).replace("_", " "),
-              },
+              }]),
               {
                 field: "created_at",
                 headerName: "Registered Since",
-                width: 130,
+                flex: 1, minWidth: 130,
                 renderCell: ({ row }) => (
                   <div className="flex flex-col leading-tight text-[0.85em]">
                     <span>{readableDate(row.created_at)}</span>
@@ -201,7 +229,7 @@ const AccountList = (props) => {
               {
                 field: "last_seen",
                 headerName: "Active Since",
-                width: 140,
+                flex: 1, minWidth: 130,
                 renderCell: ({ row }) => (
                   <LiveActiveSince userId={row.id} lastSeen={row.last_seen} />
                 ),
@@ -210,7 +238,7 @@ const AccountList = (props) => {
                 field: "actions",
                 type: 'actions',
                 headerName: "Action",
-                width: 205,
+                width: 230,
                 sortable: false,
                 headerAlign: 'left',
                 align: 'left',
@@ -248,7 +276,7 @@ const ActionCell = ({ row, select, deleteUser }) => {
   };
 
   return (
-    <div className="flex gap-2 items-center h-full">
+    <div className="flex gap-1 items-center h-full pr-3">
       <Link href={`${profileUrl(row)}`}>
         <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700">View</ActionBtn>
       </Link>

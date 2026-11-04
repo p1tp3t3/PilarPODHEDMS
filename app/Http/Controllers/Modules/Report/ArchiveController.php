@@ -172,6 +172,7 @@ class ArchiveController extends Controller
             $prefectName = auth()->user()->profile?->first_name.' '.auth()->user()->profile?->middle_name.' '.auth()->user()->profile?->last_name;
             $studentName = $student->user->profile?->first_name.' '.$student->user->profile?->middle_name.' '.$student->user->profile?->last_name;
             $pdfData = [
+                'form_number' => $student->form_number,
                 'sender_name' => $studentName,
                 'prefect_name' => $prefectName,
                 'date_from' => $student->date_from,

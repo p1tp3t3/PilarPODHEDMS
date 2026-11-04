@@ -22,6 +22,7 @@ const DEFAULT_DATA = {
     date_from: '',
     date_to: '',
     school_year: '',
+    semester: '',
     student_id: '',
     report_name: ''
 }
@@ -269,6 +270,7 @@ const GenerateReportModal = (props) => {
                                             date_from: '',
                                             date_to: '',
                                             school_year: '',
+                                            semester: '',
                                         }))
                                     }}
                                 />
@@ -286,15 +288,30 @@ const GenerateReportModal = (props) => {
                                 <FieldError msg={errs.date_range} />
                             </div>}
                             {filterBy === 'school_year' &&
-                            <div className="w-full">
+                            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <DropdownField
                                     default={{ val: '', label: 'Select School Year' }}
-                                    list={(props.schoolYears || []).map((y) => ({ val: y, label: y }))}
-                                    onChange={handleChange}
+                                    list={[{ val: 'all', label: 'All School Years' }, ...(props.schoolYears || []).map((y) => ({ val: y, label: y }))]}
+                                    onChange={(e) => {
+                                        handleChange(e)
+                                        // A semester only narrows one school year.
+                                        if (e.target.value === 'all') setData((prev) => ({ ...prev, semester: '' }))
+                                    }}
                                     name="school_year"
+                                    keepCase
                                     error={errs.school_year}
                                     val={data.school_year}
                                 />
+                                {/* Blank = the whole school year. Not used with All School Years. */}
+                                {data.school_year !== 'all' &&
+                                <DropdownField
+                                    default={{ val: '', label: 'All Semesters' }}
+                                    list={[{ val: '1', label: '1st Semester' }, { val: '2', label: '2nd Semester' }]}
+                                    onChange={handleChange}
+                                    name="semester"
+                                    val={data.semester ? String(data.semester) : ''}
+                                    keepCase
+                                />}
                             </div>}
                             <div>
                                 <RadioButton

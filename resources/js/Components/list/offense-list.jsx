@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import ListSkeleton from "../reload/list-skeleton";
 import SearchBar from "@/Components/input/search-bar";
-import DropdownField from "@/Components/input/dropdown";
+import TabSwitcher from "@/Components/other/tab-switcher";
 import { ViolationService } from "@/others/services/violation-service";
 import { toTitleCase, ordinal } from "@/others/function";
 import { useIsMobile } from "@/others/use-is-mobile";
@@ -18,15 +18,17 @@ import {
     Box,
 } from "@mui/material";
 
-const STATUS_OPTIONS = [
-    { val: "1", label: "Major" },
-    { val: "0", label: "Minor" },
+// Status tabs: "all", or the violation's offense_status ("1" major, "0" minor).
+const STATUS_TABS = [
+    { key: "all", label: "All" },
+    { key: "1", label: "Major" },
+    { key: "0", label: "Minor" },
 ]
 
 const OffenseList = ({ list = null }) => {
     const [offenseList, setOffenseList] = useState(list);
     const [search, setSearch] = useState("");
-    const [status, setStatus] = useState("");
+    const [status, setStatus] = useState("all");
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -54,7 +56,7 @@ const OffenseList = ({ list = null }) => {
         return offenseList.filter((item) => {
             const matchesSearch = !search.trim() ||
                 item.violation_name?.toLowerCase().includes(search.toLowerCase())
-            const matchesStatus = !status || String(item.offense_status) === status
+            const matchesStatus = status === "all" || String(Number(item.offense_status)) === status
 
             return matchesSearch && matchesStatus
         })
@@ -65,10 +67,16 @@ const OffenseList = ({ list = null }) => {
         setCurrentPage(1)
     }
 
-    const handleStatusChange = (e) => {
-        setStatus(e.target.value)
+    const handleStatusChange = (key) => {
+        setStatus(key)
         setCurrentPage(1)
     }
+
+    // Count per tab, after the search, so the numbers match what each tab shows.
+    const countFor = (key) => (offenseList ?? []).filter((item) =>
+        (!search.trim() || item.violation_name?.toLowerCase().includes(search.toLowerCase())) &&
+        (key === "all" || String(Number(item.offense_status)) === key)
+    ).length
 
     // PAGINATION LOGIC
     const indexOfLast = currentPage * itemsPerPage;
@@ -79,8 +87,16 @@ const OffenseList = ({ list = null }) => {
     return (
         <div className="w-full p-4 sm:p-5 bg-white rounded-md shadow">
 
-            {/* SEARCH BAR + STATUS FILTER */}
-            <div className="mb-5 flex flex-col sm:flex-row gap-3">
+            {/* STATUS TABS + SEARCH BAR */}
+            <div className="mb-5 grid gap-4 min-w-0">
+                <TabSwitcher
+                    tabs={STATUS_TABS.map((t) => ({
+                        key: t.key,
+                        label: offenseList ? `${t.label} (${countFor(t.key)})` : t.label,
+                    }))}
+                    value={status}
+                    onChange={handleStatusChange}
+                />
                 <SearchBar
                     plc="Search Offense"
                     w="w-full sm:w-[25rem]"
@@ -88,15 +104,6 @@ const OffenseList = ({ list = null }) => {
                     setSearch={setSearch}
                     handleSearch={handleSearch}
                 />
-                <div className="w-full sm:w-[12rem]">
-                    <DropdownField
-                        default={{ val: "", label: "All Status" }}
-                        list={STATUS_OPTIONS}
-                        onChange={handleStatusChange}
-                        name="status"
-                        val={status}
-                    />
-                </div>
             </div>
 
             {/* LOADING */}
@@ -118,7 +125,9 @@ const OffenseList = ({ list = null }) => {
                 offenseList.length > 0 &&
                 filteredList.length === 0 && (
                     <div className="py-10 text-center text-gray-500 text-sm">
-                        No results found for "<b>{search}</b>"
+                        {search.trim()
+                            ? <>No results found for "<b>{search}</b>"</>
+                            : `No ${status === "1" ? "major" : "minor"} violations.`}
                     </div>
                 )}
 

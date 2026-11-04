@@ -4,6 +4,7 @@ import { useState } from "react"
 import { router } from "@inertiajs/react"
 import StaffList from "@/Components/list/staff-list"
 import DropdownField from "@/Components/input/dropdown"
+import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import ManagePositionsModal from "@/Components/modal/submission-form/manage-positions-modal"
 import Btn from "@/Components/button/normal-btn"
 import { Settings } from "lucide-react"
@@ -80,6 +81,7 @@ const PrefectStaffList = (props) => {
                     </Btn>}
             >
                     <div className="flex flex-col sm:flex-row gap-3 sm:items-center md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
+                        <MobileFilters active={countActive(tab, program, positionFilter)}>
                         <div className="w-full sm:w-[14rem] flex-shrink-0">
                             <DropdownField
                                 list={[
@@ -115,6 +117,7 @@ const PrefectStaffList = (props) => {
                                 />
                             </div>
                         )}
+                        </MobileFilters>
                         <PageActions />
                     </div>
 

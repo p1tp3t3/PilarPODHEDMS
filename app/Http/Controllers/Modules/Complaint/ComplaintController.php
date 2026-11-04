@@ -14,11 +14,13 @@ use App\Models\ActionLog;
 use App\Models\Complaint;
 use App\Models\ComplaintRevision;
 use App\Models\ComplaintSubject;
+use App\Models\ComplaintSubjectViolation;
 use App\Models\Program;
 use App\Models\SchoolYear;
 use App\Models\SchoolYearSemester;
 use App\Models\User;
 use App\Models\Violation;
+use App\Models\ViolationPenalty;
 use App\Traits\GeneratesSequenceCode;
 use Carbon\Carbon;
 use Exception;
@@ -854,51 +856,112 @@ class ComplaintController extends Controller
     }
 
     /**
-     * One complaint = one form, listing every complainee together —
-     * $newComplaint must have complaintSubject.user.profile eager-loaded.
+     * Data for the complaint document (pdf.complaint-subject): page 1 is the
+     * Complaint Form listing every complainee together, page 2 the prefect's
+     * Incident Summary with the violation each complainee was found to have
+     * committed and its penalty at that offense.
      */
     public function getComplaintDocumentField($newComplaint, $summary)
     {
-        // Determine complainant name dynamically
-        $complainantName = null;
+        $newComplaint->loadMissing([
+            'user.profile', 'user.program', 'user.enrollments', 'user.nonTeachingStaff.positionRef',
+            'complaintSubject.user.profile', 'complaintSubject.user.program', 'complaintSubject.user.enrollments',
+            'complaintSubject.user.nonTeachingStaff.positionRef',
+            'complaintSubjectViolation.violation',
+            'violation',
+        ]);
 
-        if (! is_null($newComplaint->user)) {
-            // Registered user in the system
-            $profile = $newComplaint->user->profile;
-            $complainantName = trim(
-                ($profile->first_name ?? '').' '.
-                ($profile->middle_name ?? '').' '.
-                ($profile->last_name ?? '')
-            );
-        } else {
-            // Not in the system — use stored text field
-            $complainantName = $newComplaint->complainant_name ?? 'N/A';
-        }
+        $fullName = fn ($p) => trim(preg_replace('/\s+/', ' ', "{$p?->first_name} {$p?->middle_name} {$p?->last_name}"));
 
-        $subjects = ($newComplaint->complaintSubject ?? collect())->map(function ($cs) {
-            $profile = $cs->user?->profile;
+        // Registered complainant, else the free-text name of an outside one.
+        $complainant = $newComplaint->user;
+        $complainantName = $complainant ? $fullName($complainant->profile) : ($newComplaint->complainant_name ?? 'N/A');
+
+        // Whoever received/handled it for the office: the prefect who filed
+        // it, the prefect resolving it now, or the office's prefect.
+        $prefectUser = $newComplaint->prefect
+            ?? (auth()->user()?->role === 'sub_admin' ? auth()->user() : null)
+            ?? User::with('profile')->whereRole('sub_admin')->first();
+
+        $violationsByStudent = $newComplaint->complaintSubjectViolation->groupBy('student_id');
+
+        $subjects = $newComplaint->complaintSubject->map(function ($cs) use ($fullName, $violationsByStudent, $newComplaint) {
+            $findings = ($violationsByStudent->get($cs->student_id) ?? collect())
+                ->filter(fn ($v) => $v->violation)
+                ->map(function ($v) use ($cs, $newComplaint) {
+                    // This complaint's offense number: earlier resolved offenses
+                    // of the same violation, plus this one.
+                    $occurrence = ComplaintSubjectViolation::where('student_id', $cs->student_id)
+                        ->where('violation_id', $v->violation_id)
+                        ->where('complaint_id', '!=', $newComplaint->id)
+                        ->whereHas('complaint', fn ($q) => $q->whereNotNull('offense_issued_at')
+                            ->where('offense_issued_at', '<', $newComplaint->offense_issued_at ?? now()))
+                        ->count() + 1;
+                    $penalty = ViolationPenalty::with('penalty')
+                        ->where('violation_id', $v->violation_id)
+                        ->where('occurrence', '<=', $occurrence)
+                        ->orderByDesc('occurrence')
+                        ->first()?->penalty;
+
+                    return [
+                        'violation' => $v->violation->violation_name,
+                        'occurrence' => self::ordinal($occurrence).' Offense',
+                        'penalty' => $penalty?->name ?? '—',
+                    ];
+                })->values()->all();
 
             return [
-                'name' => trim(
-                    ($profile->first_name ?? '').' '.
-                    ($profile->middle_name ?? '').' '.
-                    ($profile->last_name ?? '')
-                ),
-                'user_type' => strtoupper($cs->user?->role ?? 'STUDENT'),
+                'name' => $fullName($cs->user?->profile),
+                'designation' => self::designation($cs->user),
+                'findings' => $findings,
             ];
         })->values()->all();
+
+        $dateOf = fn ($d) => $d ? Carbon::parse($d)->format('F j, Y') : null;
 
         return [
             'id' => $newComplaint->id,
             'complaint_number' => $newComplaint->complaint_number,
             'case_number' => $newComplaint->case_number,
+            'date_filed' => $dateOf($newComplaint->created_at),
+            'date_resolved' => $dateOf($newComplaint->offense_issued_at ?? now()),
             'complainant_name' => $complainantName,
-            'complainant_user_type' => strtoupper(optional($newComplaint->user)->role ?? 'EXTERNAL'),
+            'nature' => $newComplaint->violation?->violation_name ?? 'N/A',
             'subjects' => $subjects,
-            'incident' => $newComplaint->violation?->violation_name,
+            'complaint_description' => $newComplaint->complaint_description,
             'incident_summary' => $summary,
-            'date_issued' => Carbon::parse($newComplaint->created_at)->format('F j, Y'),
+            'received_by' => $fullName($prefectUser?->profile),
         ];
+    }
+
+    // "Student — BSIT, 3rd Year", "Teaching Staff", a staff member's position...
+    private static function designation(?User $user): string
+    {
+        if (! $user) {
+            return '—';
+        }
+
+        if ($user->role === 'student') {
+            $year = (int) ($user->enrollments?->sortByDesc('id')->first()?->year_level ?? 0);
+            $course = implode(', ', array_filter([$user->program?->name, $year ? self::ordinal($year).' Year' : null]));
+
+            return 'Student'.($course ? " — {$course}" : '');
+        }
+
+        return match ($user->role) {
+            'sub_admin' => 'Prefect of Discipline',
+            'teaching_staff' => 'Teaching Staff',
+            'non_teaching_staff' => $user->nonTeachingStaff?->positionRef?->name ?? 'Non-Teaching Staff',
+            'parent' => 'Parent',
+            default => 'Staff',
+        };
+    }
+
+    private static function ordinal(int $n): string
+    {
+        $suffix = in_array($n % 100, [11, 12, 13]) ? 'th' : (['th', 'st', 'nd', 'rd'][$n % 10] ?? 'th');
+
+        return $n.$suffix;
     }
 
     private function getComplaintNotifMessageReportFields($request, $prefect, $complaintId, $complaintNotif)

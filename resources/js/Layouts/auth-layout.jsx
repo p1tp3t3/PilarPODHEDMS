@@ -64,7 +64,7 @@ const AuthLayout = ({ children, program = '' }) => {
                         />
                     </div>
                     <PageTitleSlotContext.Provider value={titleSlot}>
-                    <div className="w-full md:w-[95%] px-3 md:px-0 pb-24 md:pb-0 min-w-0 overflow-x-hidden [&_.grid>*]:min-w-0" style={{margin: '0 auto'}}>
+                    <div className="w-full md:w-[95%] px-3 md:px-0 pb-40 md:pb-0 min-w-0 overflow-x-hidden [&_.grid>*]:min-w-0" style={{margin: '0 auto'}}>
                         {children}
                     </div>
                     </PageTitleSlotContext.Provider>

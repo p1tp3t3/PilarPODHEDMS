@@ -48,13 +48,16 @@ class AccountController extends Controller
     {
         $account = new User;
 
-        return Inertia::render('itrc/accounts',
+        return Inertia::render('super-admin/accounts',
             array_merge($account->allUserAccount(), [
                 'program_name' => is_program_head(),
                 'program' => Program::all(['id', 'name']),
                 'account_files' => FileController::scopedAccountFiles(),
                 'roles' => Role::orderBy('id')->get(['id', 'name', 'label', 'is_active']),
                 'school_years' => \App\Models\SchoolYear::orderByDesc('year')->pluck('year'),
+                // For the role-specific filters (teaching vs non-teaching positions).
+                'positions' => Position::orderBy('name')->get(['id', 'name'])
+                    ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'teaching' => in_array($p->name, self::TEACHING_POSITIONS, true)]),
             ]));
     }
 
@@ -836,7 +839,7 @@ class AccountController extends Controller
             abort(403);
         }
 
-        return Inertia::render('other/program-account-files', [
+        return Inertia::render('shared/program-account-files', [
             'program_name' => is_program_head(),
             'students' => ['data' => self::getStudent()],
             'faculty' => self::getFaculty(),
@@ -859,7 +862,7 @@ class AccountController extends Controller
 
     public function userRequestMonitoring()
     {
-        return Inertia::render('itrc/user-request-monitoring', []);
+        return Inertia::render('super-admin/user-request-monitoring', []);
     }
 
     public function accountSettingsIndex($id)
@@ -877,7 +880,7 @@ class AccountController extends Controller
             $props['programs'] = Program::orderBy('id')->get(['id', 'name']);
         }
 
-        return Inertia::render('itrc/account-settings', $props);
+        return Inertia::render('shared/account-settings', $props);
     }
 
     public function update(UpdateAccountRequest $request)
@@ -1026,7 +1029,7 @@ class AccountController extends Controller
 
     public function accountSettings()
     {
-        return Inertia::render('other/account-settings', []);
+        return Inertia::render('shared/account-settings', []);
     }
 
     public function toggle($username, Request $request)
@@ -1768,7 +1771,7 @@ class AccountController extends Controller
         }
 
         return UserSearchResource::collection(
-            $query->latest('users.created_at')->limit(10)->get()
+            $query->latest('users.created_at')->limit(6)->get()
         );
     }
 

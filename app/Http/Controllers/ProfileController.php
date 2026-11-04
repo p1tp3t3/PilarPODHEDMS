@@ -95,6 +95,12 @@ class ProfileController extends Controller
             ], $parentStudent->getParentAndStudent());
         }
 
+        // The prefect and the IT admin can change a student's program from
+        // the Edit Profile form, which needs the list of programs.
+        if ($account->role === 'student' && in_array(auth()->user()->role, ['super_admin', 'sub_admin'], true)) {
+            $props['program'] = Program::latest('created_at')->get(['id', 'description']);
+        }
+
         // Incidents/violations follow ViolationController::canViewStudent():
         // the prefect, the student's program head, the student themselves
         // and the student's own parent. Not computed for anyone else (not
@@ -132,7 +138,7 @@ class ProfileController extends Controller
             $props['gatepass_requested'] = (new GatePassController)->getUserGatePassRequests($account->id);
         }
 
-        return Inertia::render('other/profile', $props);
+        return Inertia::render('shared/profile', $props);
     }
 
     /**
@@ -512,7 +518,10 @@ class ProfileController extends Controller
         $programId = self::isKeyUndefined($educationBackground, 'college_program');
         $program = Program::where('id', $programId)->value('description');
 
-        if (auth()->user()->role != 'student') {
+        // Only the prefect and the IT admin change the program (the field
+        // isn't on anyone else's form, so keep the current one for them).
+        $canChangeProgram = in_array(auth()->user()->role, ['super_admin', 'sub_admin'], true) && $program !== null;
+        if ($canChangeProgram) {
             $latestEnrollment = Enrollment::where('student_id', $educationBackground['student_id'])
                 ->latest('id')
                 ->first();
@@ -534,8 +543,7 @@ class ProfileController extends Controller
                 'school_name' => EducationBackground::CURRENT_SCHOOL_NAME,
                 'school_address' => EducationBackground::CURRENT_SCHOOL_ADDRESS,
                 'year_graduated' => self::isKeyUndefined($educationBackground, 'college_year_graduated'),
-                'program' => $program,
-            ]);
+            ] + ($canChangeProgram ? ['program' => $program] : []));
         EducationBackground::where('education_type', 'college')
             ->where('student_id', $educationBackground['student_id'])
             ->where('transferee', 1)

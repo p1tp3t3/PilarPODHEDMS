@@ -2,6 +2,7 @@ import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import { useState } from "react"
 import DropdownField from "@/Components/input/dropdown"
+import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import RequestAbsentFormModal from "@/Components/modal/submission-form/request-absent-form-modal"
 import Btn from "@/Components/button/normal-btn"
 import AbsentFormList from "@/Components/list/absent-form-list"
@@ -29,6 +30,12 @@ const PrefectAbsentForm = (props) => {
     const [absent_form_list, setAbsentFormRequestList] = useState(props.absent_form_request_list)
     const [schoolYear, setSchoolYear] = useState(url.get('school-year') || 'all')
     const [semester, setSemester] = useState(url.get('semester') || 'all')
+    const [program, setProgram] = useState(url.get('program') || 'all')
+    // Keeps the filters in the URL when switching tabs or reloading.
+    const filterQuery = (over = {}) => {
+        const f = { 'school-year': schoolYear, semester, program, ...over }
+        return `school-year=${f['school-year']}&semester=${f.semester}&program=${f.program}`
+    }
     const [viewAbsentForm, openViewAbsentForm] = useState(false)
     const [noteAbsent, openNoteAbsent] = useState(false)
     const [issueAbsent, openIssueAbsent] = useState(false)
@@ -48,14 +55,12 @@ const PrefectAbsentForm = (props) => {
     const handleOption = (type) => {
         setLstOption(type)
         const link = window.location.pathname
-        router.visit(`${link}?status=${type}&school-year=${schoolYear}&semester=${semester}`)
+        router.visit(`${link}?status=${type}&${filterQuery()}`)
     }
 
     const handleFilterChange = (field, value) => {
         const link = window.location.pathname
-        const newSchoolYear = field === 'school-year' ? value : schoolYear
-        const newSemester = field === 'semester' ? value : semester
-        router.visit(`${link}?status=${lstOption}&school-year=${newSchoolYear}&semester=${newSemester}`)
+        router.visit(`${link}?status=${lstOption}&${filterQuery({ [field]: value })}`)
     }
 
     const setEvents = (i, type) => {
@@ -125,7 +130,7 @@ const PrefectAbsentForm = (props) => {
                     isEnableOuterClose={true}
                     reload={loadRegister}
                     issue={true}
-                    onIssued={() => router.visit(`${window.location.pathname}?status=all&school-year=${schoolYear}&semester=${semester}`)}
+                    onIssued={() => router.visit(`${window.location.pathname}?status=all&${filterQuery()}`)}
                 />
                 <PageLayout actionsWithFilters
                     title="STUDENT ABSENT FORMS"
@@ -137,6 +142,17 @@ const PrefectAbsentForm = (props) => {
                 >
                         {/* Filters */}
                         <div className="flex flex-wrap gap-3 md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
+                            <MobileFilters active={countActive(program, schoolYear, semester)}>
+                            <div className="w-full sm:w-56">
+                                <DropdownField
+                                    default={{ val: 'all', label: 'All Programs' }}
+                                    list={(props.programs || []).map((p) => ({ val: p.id, label: p.name }))}
+                                    val={program === 'all' ? 'all' : Number(program)}
+                                    onChange={(e) => handleFilterChange('program', e.target.value)}
+                                    name="program"
+                                    keepCase={true}
+                                />
+                            </div>
                             <div className="w-full sm:w-56">
                                 <DropdownField
                                     default={{ val: 'all', label: 'All School Years' }}
@@ -156,6 +172,7 @@ const PrefectAbsentForm = (props) => {
                                     onChange={(e) => handleFilterChange('semester', e.target.value)}
                                 />
                             </div>
+                            </MobileFilters>
                             <PageActions />
                         </div>
 
