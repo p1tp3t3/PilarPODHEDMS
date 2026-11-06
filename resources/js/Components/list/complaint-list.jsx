@@ -242,7 +242,7 @@ const ComplaintList = ({
                     Resolve
                 </ActionBtn>
                 )}
-                {obj.complainant_id === user?.id && obj.complaint_status === "pending" && !obj.edited_at && (
+                {obj.complainant_id === user?.id && user?.role !== "sub_admin" && obj.complaint_status === "pending" && !obj.edited_at && (
                 <ActionBtn
                     onClick={() => actionEvent("edit", obj.encrypted_id)}
                     className="bg-green-600 text-white hover:bg-green-700"

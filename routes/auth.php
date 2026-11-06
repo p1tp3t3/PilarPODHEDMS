@@ -309,13 +309,16 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/dashboard/my-current-semester-records', [DashboardController::class, 'myCurrentSemesterRecords']);
      Route::get('/dashboard/all-current-semester-records', [DashboardController::class, 'allCurrentSemesterRecords']);
 
-     Route::get('/chat', [ChatController::class, 'index']);
-     Route::get('/chat/thread/{userId}', [ChatController::class, 'getThread']);
-     Route::post('/chat/send', [ChatController::class, 'store']);
-     Route::post('/chat/message/{id}/unsend', [ChatController::class, 'unsendMessage']);
-     Route::post('/chat/message/{id}/edit', [ChatController::class, 'editMessage']);
-     Route::get('/chat/message/{id}/history', [ChatController::class, 'getEditHistory']);
-     Route::get('/chat/unread-count', [ChatController::class, 'unreadCount']);
+     // Chat: every role but parents.
+     Route::middleware('role:super_admin,sub_admin,student,teaching_staff,non_teaching_staff')->group(function () {
+          Route::get('/chat', [ChatController::class, 'index']);
+          Route::get('/chat/thread/{userId}', [ChatController::class, 'getThread']);
+          Route::post('/chat/send', [ChatController::class, 'store']);
+          Route::post('/chat/message/{id}/unsend', [ChatController::class, 'unsendMessage']);
+          Route::post('/chat/message/{id}/edit', [ChatController::class, 'editMessage']);
+          Route::get('/chat/message/{id}/history', [ChatController::class, 'getEditHistory']);
+          Route::get('/chat/unread-count', [ChatController::class, 'unreadCount']);
+     });
 
      // Prefect weekly availability: everyone reads it, only a prefect saves (their own).
      Route::get('/prefect-availability', [\App\Http\Controllers\Modules\Appointment\PrefectAvailabilityController::class, 'index']);
@@ -410,6 +413,9 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
 */
 Route::middleware(['auth', 'activate'])->group(function() {
      Route::post('/account/update', [AccountController::class, 'update']);
+     // A complaint / referral / absent form's PDF, opened in a new tab
+     // (ArchiveController::viewDocument checks who may open it).
+     Route::get('/document/pdf/{type}/{id}', [\App\Http\Controllers\Modules\Report\ArchiveController::class, 'viewDocument']);
      Route::get('/api/password/verify/{value}/{id}', [AccountController::class, 'checkCurrentPassword']);
      Route::post('/account-setup/complete', [\App\Http\Controllers\AccountSetupController::class, 'complete']);
      Route::get('/force-change/{key}', [\App\Http\Controllers\AccountSetupController::class, 'showStep']);

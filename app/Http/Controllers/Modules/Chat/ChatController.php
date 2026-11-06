@@ -30,7 +30,7 @@ class ChatController extends Controller
      * - teaching staff (faculty): the prefect and the IT admin (not their
      *   program head, each other, or students);
      * - non-teaching staff: the prefect and the IT admin;
-     * - parent: the prefect and the IT admin.
+     * - parent: no chat at all (the routes are closed to them too).
      */
     private function canChat(User $a, User $b): bool
     {
@@ -39,6 +39,10 @@ class ChatController extends Controller
         }
 
         $roles = [$a->role, $b->role];
+
+        if (in_array('parent', $roles, true)) {
+            return false;
+        }
 
         // Anyone may start a chat with the IT admin; the IT admin may only
         // answer (any admin aside).

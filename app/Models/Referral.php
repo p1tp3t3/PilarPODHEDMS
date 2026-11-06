@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasDerivedSchoolYearSemester;
+use App\Models\Concerns\HasDocumentPdf;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,7 +15,22 @@ use Illuminate\Support\Facades\File;
 
 class Referral extends Model
 {
-    use HasFactory, HasDerivedSchoolYearSemester;
+    use HasFactory, HasDerivedSchoolYearSemester, HasDocumentPdf;
+
+    protected function documentFolder(): string
+    {
+        return "referrals/referral-{$this->referral_number}";
+    }
+
+    protected function documentOwnerId(): ?int
+    {
+        return $this->teaching_staff_id;
+    }
+
+    public function documentType(): string
+    {
+        return 'referral';
+    }
 
     protected $table = 'referral';
 

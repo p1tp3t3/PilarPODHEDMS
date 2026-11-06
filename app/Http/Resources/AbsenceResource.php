@@ -16,6 +16,8 @@ class AbsenceResource extends JsonResource
         return [
             'id' => $this->id,
             'encrypted_id' => encrypt_id($this->id),
+            // Opens this record's PDF in a new tab; null if none or not allowed.
+            'pdf_url' => $this->resource->pdfUrl($request->user()),
             'form_number' => $this->form_number,
             'student_id' => $this->student_id,
             'prefect_id' => $this->prefect_id,

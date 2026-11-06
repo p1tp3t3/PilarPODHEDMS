@@ -84,7 +84,11 @@ const AuthHeader = (props) => {
     );
   }, []);
 
+  // Parents have no chat.
+  const hasChat = props.user?.role !== "parent";
+
   useEffect(() => {
+    if (!hasChat) return;
     ChatService.getUnreadCount((e) => setChatUnread(e.unread_count), () => {});
 
     new Broadcast(
@@ -202,7 +206,7 @@ const AuthHeader = (props) => {
                   )}
                 </IconButton>
               )}
-              <a href="/chat" className="hidden md:block">
+              {hasChat && <a href="/chat" className="hidden md:block">
                 <IconButton sx={btnSx}>
                   <MessageCircle size={18} />
                   {(chatUnread != 0) && (
@@ -211,7 +215,7 @@ const AuthHeader = (props) => {
                     </div>
                   )}
                 </IconButton>
-              </a>
+              </a>}
               <div className="h-full grid">
                 <IconButton
                   sx={pane == "notif" ? activeBtnSx : btnSx}

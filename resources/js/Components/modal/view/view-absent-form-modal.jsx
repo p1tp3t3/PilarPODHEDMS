@@ -83,6 +83,7 @@ const Body = ({ data }) => {
             <ModalHeader
                 title={title}
                 reference={data.form_number}
+                pdfUrl={data.pdf_url}
                 status={status}
                 styles={STATUS_STYLES}
             />

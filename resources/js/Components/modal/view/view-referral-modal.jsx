@@ -72,6 +72,7 @@ const Body = ({ data }) => {
             <ModalHeader
                 title={title}
                 reference={data.referral_number}
+                pdfUrl={data.pdf_url}
                 status={data.referral_status}
                 styles={STATUS_STYLES}
             />

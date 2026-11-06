@@ -84,18 +84,20 @@ const MobileBottomNav = ({ chatUnread = 0 }) => {
                     href="/dashboard"
                     sx={actionSx}
                 />
-                <BottomNavigationAction
-                    value="chat"
-                    label="Chat"
-                    icon={
-                        <Badge badgeContent={chatUnread} color="error" max={9}>
-                            <MessageCircle size={21} />
-                        </Badge>
-                    }
-                    component={Link}
-                    href="/chat"
-                    sx={actionSx}
-                />
+                {usr.role !== "parent" && (
+                    <BottomNavigationAction
+                        value="chat"
+                        label="Chat"
+                        icon={
+                            <Badge badgeContent={chatUnread} color="error" max={9}>
+                                <MessageCircle size={21} />
+                            </Badge>
+                        }
+                        component={Link}
+                        href="/chat"
+                        sx={actionSx}
+                    />
+                )}
                 {primary && (
                     <BottomNavigationAction
                         value="primary"

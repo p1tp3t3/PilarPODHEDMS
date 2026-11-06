@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasDerivedSchoolYearSemester;
+use App\Models\Concerns\HasDocumentPdf;
 use Database\Factories\ComplaintFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,7 +14,22 @@ use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 class Complaint extends Model
 {
     /** @use HasFactory<ComplaintFactory> */
-    use HasFactory, HasDerivedSchoolYearSemester;
+    use HasFactory, HasDerivedSchoolYearSemester, HasDocumentPdf;
+
+    protected function documentFolder(): string
+    {
+        return "complaints/complaint-{$this->complaint_number}";
+    }
+
+    protected function documentOwnerId(): ?int
+    {
+        return $this->complainant_id;
+    }
+
+    public function documentType(): string
+    {
+        return 'complaint';
+    }
 
     protected $table = 'complaint';
 

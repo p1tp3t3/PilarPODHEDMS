@@ -54,6 +54,31 @@ class ArchiveController extends Controller
         };
     }
 
+    /**
+     * Opens the record's PDF in the browser (a new tab), instead of
+     * downloading the whole folder as a ZIP. Used by the archive and by the
+     * complaint, referral and absent form pages; HasDocumentPdf::canViewPdf
+     * says who may open it.
+     */
+    public function viewDocument($type, $id)
+    {
+        $id = decrypt_id($id) ?? abort(404);
+        $record = match ($type) {
+            'complaint' => Complaint::findOrFail($id),
+            'referral' => Referral::findOrFail($id),
+            'absent form' => Absence::findOrFail($id),
+            default => abort(404, 'Invalid type.'),
+        };
+
+        abort_unless($record->canViewPdf(auth()->user()), 403);
+        $path = $record->documentPdfPath() ?? abort(404, 'This record has no PDF document.');
+
+        return response()->file($path, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.basename($path).'"',
+        ]);
+    }
+
     public function index()
     {
         return Inertia::render('prefect/archive', [

@@ -1,6 +1,7 @@
 import { getProfilePic, toTitleCase, profileUrl } from "../../../others/function"
 import SelectedUser from "../../other/selected-user"
 import { Link, usePage } from "@inertiajs/react"
+import ViewPdfBtn from "../../button/view-pdf-btn"
 
 // Shared building blocks for the "view [record]" modals (complaint, referral,
 // absent form, gate pass, ...) — one consistent card/timeline/status-badge
@@ -22,7 +23,9 @@ export const useIsOwner = (ownerId) => {
 export const useOwnerTitle = (ownerId, name, noun, fallback = "Student") =>
     useIsOwner(ownerId) ? `Your ${noun}` : `${name || fallback}'s ${noun}`
 
-export const ModalHeader = ({ title, reference, status, styles }) => (
+// pdfUrl: the record's PDF (server's pdf_url), opened in a new tab; the
+// button is hidden when there is none or the viewer can't open it.
+export const ModalHeader = ({ title, reference, status, styles, pdfUrl }) => (
     <div className="rounded-t-md bg-gray-50 border-b px-6 py-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
@@ -33,7 +36,10 @@ export const ModalHeader = ({ title, reference, status, styles }) => (
                     </div>
                 )}
             </div>
-            {status !== undefined && <StatusBadge status={status} styles={styles} />}
+            <div className="flex items-center gap-2">
+                {status !== undefined && <StatusBadge status={status} styles={styles} />}
+                <ViewPdfBtn url={pdfUrl} />
+            </div>
         </div>
     </div>
 )

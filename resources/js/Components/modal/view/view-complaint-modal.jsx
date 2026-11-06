@@ -100,6 +100,7 @@ const Body = ({ data, usr }) => {
             <ModalHeader
                 title={title}
                 reference={data.complaint_number}
+                pdfUrl={data.pdf_url}
                 status={data.complaint_status}
                 styles={STATUS_STYLES}
             />

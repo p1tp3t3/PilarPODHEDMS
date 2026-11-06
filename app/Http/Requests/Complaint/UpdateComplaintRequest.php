@@ -6,9 +6,10 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateComplaintRequest extends FormRequest
 {
+    // The prefect can't edit a complaint, even one they filed.
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->role !== 'sub_admin';
     }
 
     public function rules(): array

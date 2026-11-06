@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasDerivedSchoolYearSemester;
+use App\Models\Concerns\HasDocumentPdf;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,22 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Absence extends Model
 {
-    use HasFactory, HasDerivedSchoolYearSemester;
+    use HasFactory, HasDerivedSchoolYearSemester, HasDocumentPdf;
+
+    protected function documentFolder(): string
+    {
+        return "absent-forms/absent-form-{$this->form_number}";
+    }
+
+    protected function documentOwnerId(): ?int
+    {
+        return $this->student_id;
+    }
+
+    public function documentType(): string
+    {
+        return 'absent form';
+    }
 
     protected $table = 'absent_form';
 
