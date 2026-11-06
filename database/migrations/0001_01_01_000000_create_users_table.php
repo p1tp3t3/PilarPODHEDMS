@@ -21,6 +21,9 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->boolean('already_update_profile')->default(false);
             $table->boolean('already_update_password')->default(false);
+            // Set when the super admin changes this user's password: the next
+            // login must set a new one before anything else.
+            $table->boolean('must_change_password')->default(false);
             $table->text('password')->nullable();
             $table->boolean('activate')->default(false);
             $table->dateTime('last_seen')->nullable();

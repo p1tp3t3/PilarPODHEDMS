@@ -898,17 +898,22 @@ class AccountController extends Controller
 
     public function update(UpdateAccountRequest $request)
     {
-        // This endpoint only ever updates the authenticated user's own account —
-        // never trust an id from the request for the target row (that was the
-        // account-takeover bug: a client-supplied user_id let anyone overwrite
-        // anyone else's credentials).
+        // Updates the authenticated user's own account. Only the super admin
+        // may name another account (user_id), from that user's account
+        // settings; anyone else's user_id is ignored (a client-supplied
+        // user_id must never let a user overwrite another's credentials).
         $user = auth()->user();
+        $byAdmin = false;
+        if ($user->role === 'super_admin' && $request->filled('user_id') && (int) $request->user_id !== $user->id) {
+            $user = User::findOrFail($request->user_id);
+            $byAdmin = true;
+        }
 
         // During forced first-login setup, the password is saved together
         // with the profile by AccountSetupController::complete() — this
         // endpoint must not persist a password change on its own until that
         // combined step happens, even if hit directly.
-        if (session('force_account_setup')) {
+        if (! $byAdmin && (session('force_account_setup') || session('force_password_change'))) {
             return response()->json([
                 'error' => 'Complete account setup (profile and password together) before changing your password here.',
             ], 422);
@@ -936,7 +941,8 @@ class AccountController extends Controller
         // 🔹 If password change is requested
         // ============================================================
         if ($wantsPasswordChange) {
-            if (! Hash::check($request->current_password, $user->password)) {
+            // The admin doesn't know the user's password, so isn't asked for it.
+            if (! $byAdmin && ! Hash::check($request->current_password, $user->password)) {
                 return response()->json([
                     'error' => 'Current password is incorrect',
                 ], 422);
@@ -945,7 +951,11 @@ class AccountController extends Controller
             // Add new password to update array
             $fields['password'] = Hash::make($request->password);
 
-            if (! $user->already_update_password) {
+            if ($byAdmin) {
+                // The admin knows this password, so the user must replace it
+                // the next time they log in (AuthenticatedSessionController).
+                $fields['must_change_password'] = true;
+            } elseif (! $user->already_update_password) {
                 $fields['already_update_password'] = true;
             }
         }
@@ -975,7 +985,11 @@ class AccountController extends Controller
             $changes['password'] = ['from' => '••••••••', 'to' => '••••••••'];
         }
 
-        ActionLog::log($user->id, 'account_update', 'Updated user account credentials', $changes);
+        if ($byAdmin) {
+            ActionLog::log(auth()->id(), 'account_update', "Updated {$user->username}'s account credentials", $changes);
+        } else {
+            ActionLog::log($user->id, 'account_update', 'Updated user account credentials', $changes);
+        }
 
         // Return updated fields (excluding password)
         return response()->json([

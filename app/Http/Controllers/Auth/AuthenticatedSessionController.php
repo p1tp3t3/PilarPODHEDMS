@@ -131,6 +131,13 @@ class AuthenticatedSessionController extends Controller
                 }
             }
 
+            // The super admin changed this account's password: the user sets
+            // their own before using the app (ForceAccountSetup). The full
+            // account setup above already ends with a new password.
+            if ($user->must_change_password && ! $request->session()->get('force_account_setup')) {
+                $request->session()->put('force_password_change', true);
+            }
+
             ActionLog::create([
                 'user_id' => $user->id,
                 'action_type' => 'login',

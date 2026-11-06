@@ -31,12 +31,28 @@ class ForceAccountSetup
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!auth()->check() || !session('force_account_setup')) {
+        if (!auth()->check()) {
             return $next($request);
         }
 
         $user = auth()->user();
         $path = '/' . ltrim($request->path(), '/');
+
+        // Password changed by the super admin: only the new-password page
+        // (AccountSetupController::forcePassword) until a new one is set.
+        if (session('force_password_change') && !session('force_account_setup')) {
+            foreach (['/force-password', '/api/password/verify', '/log-out'] as $prefix) {
+                if (str_starts_with($path, $prefix)) {
+                    return $next($request);
+                }
+            }
+
+            return Inertia::location('/force-password');
+        }
+
+        if (!session('force_account_setup')) {
+            return $next($request);
+        }
 
         if (!$user->hasVerifiedEmail()) {
             $emailStepAllowed = [

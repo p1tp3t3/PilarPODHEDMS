@@ -50,6 +50,64 @@ class AccountSetupController extends Controller
         return (new ProfileController)->edit(encrypt_id(auth()->id()));
     }
 
+    /**
+     * The super admin changed this user's password: they set their own before
+     * using the app. Only while the session is flagged at login.
+     */
+    public function forcePassword()
+    {
+        if (! session('force_password_change')) {
+            return redirect()->route('auth.dashboard');
+        }
+
+        $user = auth()->user()->load('profile');
+
+        return Inertia::render('shared/force-password', [
+            'user' => $user,
+            'targetAccount' => [
+                'id' => $user->id,
+                'id_number' => $user->id_number,
+                'encrypted_id' => encrypt_id($user->id),
+                'username' => $user->username,
+                'email' => $user->email,
+                'role' => $user->role,
+                'profile' => $user->profile,
+            ],
+        ]);
+    }
+
+    public function forcePasswordUpdate(Request $request)
+    {
+        if (! session('force_password_change')) {
+            abort(404);
+        }
+
+        $user = auth()->user();
+        $request->validate([
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        if (! Hash::check($request->current_password, $user->password)) {
+            return response()->json(['error' => 'Current password is incorrect'], 422);
+        }
+        if (Hash::check($request->password, $user->password)) {
+            return response()->json(['error' => 'Choose a password different from the one the administrator set.'], 422);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->password),
+            'already_update_password' => true,
+            'must_change_password' => false,
+        ]);
+        session()->forget('force_password_change');
+
+        ActionLog::log($user->id, 'account_update', 'Set a new password after an administrator changed it',
+            ['password' => ['from' => '••••••••', 'to' => '••••••••']]);
+
+        return response()->json(['message' => 'successfully']);
+    }
+
     public function resendVerificationEmail()
     {
         $user = auth()->user();
@@ -112,10 +170,11 @@ class AccountSetupController extends Controller
                 'password' => Hash::make($request->password),
                 'already_update_profile' => true,
                 'already_update_password' => true,
+                'must_change_password' => false,
             ]);
         });
 
-        session()->forget('force_account_setup');
+        session()->forget(['force_account_setup', 'force_password_change']);
 
         ActionLog::create([
             'user_id' => $user->id,

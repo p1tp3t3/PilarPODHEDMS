@@ -40,7 +40,7 @@ export const StepHeading = ({ icon: Icon, title, desc }) => (
     </div>
 )
 
-const SetupLayout = ({ children }) => {
+const SetupLayout = ({ children, passwordOnly = false }) => {
     // Profile and password are only actually saved together, at the very
     // end (AccountSetupController::complete) — the profile→password
     // transition is a local view change within the same page
@@ -56,7 +56,9 @@ const SetupLayout = ({ children }) => {
     const stateOf = (i) => (i < current ? 'done' : i === current ? 'current' : 'upcoming')
 
     const firstName = usePage().props.auth?.user?.profile?.first_name
-    const greeting = firstName ? `Welcome, ${toTitleCase(firstName)}!` : 'Welcome!'
+    const greeting = passwordOnly
+        ? (firstName ? `Hi, ${toTitleCase(firstName)}` : 'Set a new password')
+        : (firstName ? `Welcome, ${toTitleCase(firstName)}!` : 'Welcome!')
 
 
     return (
@@ -85,15 +87,22 @@ const SetupLayout = ({ children }) => {
                         </button>
                     </div>
                     <div className="mt-6 sm:mt-8">
-                        <p className="text-[0.8em] uppercase tracking-wider text-white/70 font-semibold">Account setup</p>
+                        <p className="text-[0.8em] uppercase tracking-wider text-white/70 font-semibold">{passwordOnly ? 'Password change required' : 'Account setup'}</p>
                         <h2 className="text-[1.4em] sm:text-[1.7em] font-bold leading-tight mt-1">{greeting}</h2>
                         <p className="text-[0.9em] text-white/80 mt-1 max-w-[36rem]">
-                            Your account was created with default details. Finish these three steps to start using the system.
+                            {passwordOnly
+                                ? 'Your password was changed by the administrator. Set a new one to continue using the system.'
+                                : 'Your account was created with default details. Finish these three steps to start using the system.'}
                         </p>
                     </div>
                 </div>
             </header>
 
+            {passwordOnly ? (
+                <div className="w-full max-w-2xl mx-auto px-4 -mt-4 sm:-mt-5 pb-10 relative z-10">
+                    <main className="min-w-0">{children}</main>
+                </div>
+            ) : (
             <div className="w-full max-w-6xl mx-auto px-4 -mt-4 sm:-mt-5 pb-10 relative z-10 grid gap-5 lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start">
                 {/* Phone / tablet: a compact stepper above the form */}
                 <div className="lg:hidden bg-white rounded-xl shadow-sm shadow-black/10 px-4 py-4">
@@ -142,6 +151,7 @@ const SetupLayout = ({ children }) => {
                     {cloneElement(children, { setupStep, setSetupStep })}
                 </main>
             </div>
+            )}
         </div>
         </ReloadProvider>
     )

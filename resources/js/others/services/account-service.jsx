@@ -32,6 +32,11 @@ export const AccountService = {
         api.setHeaders({ "Content-Type": "application/json" });
         api.sendPostData();
     },
+    submitForcedPassword(data, success, error) {
+        const api = new APIRequest("/force-password", "post", data, () => {}, success, error);
+        api.setHeaders({ "Content-Type": "application/json" });
+        api.sendPostData();
+    },
     submitPasswordChange(isForceSetup, data, success, error) {
         const url = isForceSetup ? "/account-setup/complete" : "/account/update";
         const api = new APIRequest(url, "post", data, () => {}, success, error);

@@ -188,7 +188,7 @@ const PasswordChecklist = ({ password = "", confirmation = "" }) => {
     );
 };
 
-const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, reload, isForceSetup = false, onBackToProfile }) => {
+export const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, reload, isForceSetup = false, onBackToProfile, isForcePassword = false }) => {
     const PROFILE_CACHE_KEY = accountSetupCacheKey("account-setup-profile", targetAccount.id);
     const PASSWORD_CACHE_KEY = accountSetupCacheKey("account-setup-password", targetAccount.id);
     const [commonPasswordList, setCommonPasswordList] = useState([]);
@@ -288,6 +288,11 @@ const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, r
             }
         }
 
+        if (isForcePassword) {
+            submitForcedPassword();
+            return;
+        }
+
         if (isForceSetup && !FormCache.load(PROFILE_CACHE_KEY)) {
             showOutputModal(
                 "Please complete your profile information first.",
@@ -310,6 +315,26 @@ const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, r
         } else {
             openOtp(true);
         }
+    };
+
+    // Password changed by the super admin: set a new one, then continue.
+    const submitForcedPassword = () => {
+        reload(true, "text-wait", "Saving your new password...");
+        AccountService.submitForcedPassword(
+            data,
+            () => {
+                reload(true, "");
+                showOutputModal("Password Updated Successfully", "s", () => {
+                    reload(false);
+                    window.location.href = "/dashboard";
+                });
+            },
+            (e) => {
+                reload(true, "");
+                const err = e?.response?.data?.error || e?.response?.data?.message;
+                showOutputModal(err || "Failed to Update Password", "e", () => reload(false));
+            }
+        );
     };
 
     const submitPasswordChange = () => {
@@ -354,7 +379,7 @@ const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, r
 
     return (
         <>
-            {!isForceSetup && (
+            {!isForceSetup && !isForcePassword && (
                 <OtpModal
                     close={otp}
                     isEnableOuterClose={false}
@@ -372,8 +397,16 @@ const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, r
                 />
             )}
 
-            <div className={isForceSetup ? "bg-white px-5 sm:px-8 py-6 rounded-xl shadow-sm shadow-black/10" : "bg-white px-5 md:px-10 py-8 rounded-lg shadow-sm shadow-black/20"}>
-                {isForceSetup ? (
+            <div className={isForceSetup || isForcePassword ? "bg-white px-5 sm:px-8 py-6 rounded-xl shadow-sm shadow-black/10" : "bg-white px-5 md:px-10 py-8 rounded-lg shadow-sm shadow-black/20"}>
+                {isForcePassword ? (
+                    <div className="mb-6">
+                        <StepHeading
+                            icon={KeyRound}
+                            title="Set a New Password"
+                            desc="The administrator changed your password. Enter the password you just logged in with, then choose your own."
+                        />
+                    </div>
+                ) : isForceSetup ? (
                     <div className="mb-6">
                         <StepHeading
                             icon={KeyRound}
@@ -387,7 +420,7 @@ const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, r
                 <form onSubmit={handleSubmit} className="grid gap-6">
                     {showCurrentPassword && (
                         <FormTextfield
-                            label="Enter Your Current Password"
+                            label={isForcePassword ? "Password Given by the Administrator" : "Enter Your Current Password"}
                             name="current_password"
                             id="current_password"
                             type="password"
@@ -426,9 +459,13 @@ const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, r
                         errorAsterisk={error.password_confirmationAsterisk}
                     />
 
-                    {isForceSetup && <PasswordChecklist password={data.password} confirmation={data.password_confirmation} />}
+                    {(isForceSetup || isForcePassword) && <PasswordChecklist password={data.password} confirmation={data.password_confirmation} />}
 
-                    {isForceSetup ? (
+                    {isForcePassword ? (
+                        <div className="grid sm:justify-end pt-2">
+                            <FormButton type="submit" label="Save New Password" />
+                        </div>
+                    ) : isForceSetup ? (
                         <div className="flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-3 pt-2">
                             <button
                                 type="button"

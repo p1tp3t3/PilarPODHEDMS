@@ -55,6 +55,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'app_name' => config('app.name'),
             'force_account_setup' => (bool) session('force_account_setup'),
+            'force_password_change' => (bool) session('force_password_change'),
             // Shared (not per-dashboard-controller) so every dashboard page
             // can show it without each one needing to remember to query and
             // pass it separately.

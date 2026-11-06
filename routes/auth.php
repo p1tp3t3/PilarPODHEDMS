@@ -413,6 +413,8 @@ Route::middleware(['auth', 'activate'])->group(function() {
      Route::get('/api/password/verify/{value}/{id}', [AccountController::class, 'checkCurrentPassword']);
      Route::post('/account-setup/complete', [\App\Http\Controllers\AccountSetupController::class, 'complete']);
      Route::get('/force-change/{key}', [\App\Http\Controllers\AccountSetupController::class, 'showStep']);
+     Route::get('/force-password', [\App\Http\Controllers\AccountSetupController::class, 'forcePassword']);
+     Route::post('/force-password', [\App\Http\Controllers\AccountSetupController::class, 'forcePasswordUpdate']);
 
      Route::get('/verify-email', [\App\Http\Controllers\AccountSetupController::class, 'verifyEmailPrompt'])
           ->name('verification.notice');
