@@ -29,7 +29,6 @@ const UploadGuidelines = (props) => {
           { field: "email", value: "Email", example: "email123@gmail.com" },
           { field: "program", value: "Program enrolled, by name (e.g. BSIT, BEED)", example: "BSIT" },
           { field: "year_level", value: "Year level", example: "2" },
-          { field: "enrolled_at", value: "Date enrolled (YYYY-MM-DD)", example: "2024-08-15" },
         ];
       case "faculty":
         return baseFields.concat([
@@ -55,7 +54,6 @@ const UploadGuidelines = (props) => {
           { field: "id", value: "School I.D of an already-registered student", example: "c2210213" },
           { field: "program", value: "Program enrolled, by name (e.g. BSIT, BEED)", example: "BSIT" },
           { field: "year_level", value: "Year level", example: "2" },
-          { field: "enrolled_at", value: "Date enrolled (YYYY-MM-DD)", example: "2024-08-15" },
         ];
       default:
         return baseFields;

@@ -89,6 +89,10 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
     }, [list])
 
     const columns = useMemo(() => {
+        // Without the prefect's extra columns, the reference and date stretch
+        // to fill the table instead of leaving an empty gap on the right.
+        const stretch = type === "sub_admin" ? {} : { flex: 1 }
+
         const cols = [
             {
                 field: "index",
@@ -100,6 +104,8 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
                 field: "referral_number",
                 headerName: "Reference No.",
                 width: 130,
+                ...stretch,
+                minWidth: 130,
             },
         ]
 
@@ -151,6 +157,8 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
             field: "created_at",
             headerName: "Reported Since",
             width: 180,
+            ...stretch,
+            minWidth: 180,
             renderCell: (params) => (
                 <div className="leading-tight py-2">
                     <div>{`${readableDate(params.value)} (${readableTime(params.value)})`}</div>

@@ -45,7 +45,12 @@ const ViewAppointmentModal = ({ close, closeModal, id }) => {
         <UpModal close={close} closeModal={closeModal} isEnableOuterClose={true} cntr={true} pd={["px-6", "py-6"]} bgColor="bg-white" w="w-[26rem]">
             <div className="grid gap-4">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-[1.1em] font-bold pr-6">{name}</h1>
+                    <div className="min-w-0 pr-6">
+                        <h1 className="text-[1.1em] font-bold">{name}</h1>
+                        {data.appointment_number && (
+                            <p className="text-[0.8em] text-gray-500">Ref. No. {data.appointment_number}</p>
+                        )}
+                    </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                         {isAccepted && (
                             <Chip

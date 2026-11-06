@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react"
 import { Clock } from "lucide-react"
+import { InfoSegment } from "./info-segment"
 
-// Ticks every second on the client — deliberately not server-driven (no
+// Ticks on the client — deliberately not server-driven (no
 // prop/shared-inertia-data), since a dashboard left open for a while should
 // keep showing the real current time, not the moment the page first loaded.
 // The timezone is hardcoded to Asia/Manila (matching config/app.php's
@@ -19,28 +20,25 @@ const CurrentDateTime = () => {
         return () => clearInterval(interval)
     }, [])
 
-    const dateStr = now.toLocaleDateString(undefined, {
+    const dateStr = now.toLocaleDateString("en-US", {
         timeZone: DISPLAY_TIMEZONE,
-        weekday: "long",
+        weekday: "short",
         year: "numeric",
-        month: "long",
+        month: "short",
         day: "numeric",
     })
-    const timeStr = now.toLocaleTimeString(undefined, {
+    const timeStr = now.toLocaleTimeString("en-US", {
         timeZone: DISPLAY_TIMEZONE,
         hour: "numeric",
         minute: "2-digit",
-        second: "2-digit",
     })
 
     return (
-        <div className="w-full flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-md px-4 py-3 mb-6">
-            <Clock className="text-gray-500 flex-shrink-0" size={20} />
-            <p className="text-[0.85em] text-gray-700">
-                <span className="font-semibold">{dateStr}</span>
-                <span className="text-gray-500"> &middot; {timeStr} (Manila Time)</span>
-            </p>
-        </div>
+        <InfoSegment
+            icon={<Clock size={17} />}
+            title={dateStr}
+            subtitle={`${timeStr} · Manila time`}
+        />
     )
 }
 

@@ -31,6 +31,52 @@ const statusFor = (e) => {
   return "pending";
 };
 
+// Date over its school year / semester.
+const sinceCell = (date, sys) => (
+  <div className="text-[0.8em] leading-tight py-2">
+    <div>{date ? `${readableDate(date)} (${readableTime(date)})` : "—"}</div>
+    {date && formatSchoolYearSemester(sys) && (
+      <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(sys)}</div>
+    )}
+  </div>
+);
+
+// # | Reference No. | Status | Submitted Since | Action
+const compactColumns = (events) => [
+  { field: "index", headerName: "#", width: 60 },
+  { field: "form_number", headerName: "Reference No.", flex: 1, minWidth: 140 },
+  {
+    field: "status",
+    headerName: "Status",
+    width: 130,
+    renderCell: ({ value }) => (
+      <span className={`px-2 py-0.5 rounded-full text-[0.8em] font-medium ${STATUS_STYLES[value]}`}>
+        {toTitleCase(value)}
+      </span>
+    ),
+  },
+  {
+    field: "created_at",
+    headerName: "Submitted Since",
+    flex: 1,
+    minWidth: 180,
+    renderCell: ({ row }) => sinceCell(row.created_at, row.school_year_semester),
+  },
+  {
+    field: "actions",
+    type: "actions",
+    headerName: "Action",
+    width: 110,
+    headerAlign: "left",
+    align: "left",
+    renderCell: ({ row }) => (
+      <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => events(row.encrypted_id, "view")}>
+        View
+      </ActionBtn>
+    ),
+  },
+];
+
 const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
   const { usr } = useContext(AuthContext);
   const urlStatus = new URLSearchParams(window.location.search).get("status");
@@ -63,7 +109,13 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
     }));
   }, [list]);
 
+  // Everyone but the prefect (e.g. a student on their own profile) gets a
+  // compact table about the forms themselves: no student columns, no reason.
+  const compact = usr?.role !== "sub_admin";
+
   const columns = useMemo(() => {
+    if (compact) return compactColumns(events);
+
     const cols = [
       { field: "index", headerName: "#", width: 60 },
       { field: "form_number", headerName: "Reference No.", width: 130 },
@@ -205,7 +257,7 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
     });
 
     return cols;
-  }, [events, noted, usr, urlStatus]);
+  }, [events, noted, usr, urlStatus, compact]);
 
   // Phones show cards that grow with the page instead of scrolling inside
   // a fixed-height box.
@@ -233,7 +285,12 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
         localeText={{ noRowsLabel: "No Absent Forms Found" }}
         showToolbar
         // Phones: student + "#ref · status"; tap for dates and actions.
-        mobileSummary={(row) => ({
+        // (compact: "Ref. No. …" · status instead of the student.)
+        mobileSummary={(row) => compact ? ({
+          name: `Ref. No. ${row.form_number}`,
+          role: statusLabel(row.status),
+          hide: ["form_number", "status"],
+        }) : ({
           name: [row.user?.profile?.first_name, row.user?.profile?.middle_name, row.user?.profile?.last_name].filter(Boolean).join(" "),
           role: `#${row.form_number} · ${statusLabel(row.status)}`,
           picture: row.user?.profile?.profile_picture,

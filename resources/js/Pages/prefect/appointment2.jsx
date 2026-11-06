@@ -12,6 +12,7 @@ import { Paper, Popover, List, ListItemButton } from "@mui/material";
 import { CalendarPlus, Eye, CalendarDays, PhoneCall } from "lucide-react";
 import { Head } from "@inertiajs/react";
 import TabSwitcher from "@/Components/other/tab-switcher";
+import PageLayout from "@/Layouts/page-layout";
 import CallInHistoryList from "@/Components/list/call-in-history-list";
 
 const PAGE_TABS = [
@@ -240,14 +241,8 @@ const PrefectAppointment2 = (props) => {
         )}
       </Popover>
 
-      <div className="w-full py-4">
-        <div className="flex flex-col pb-3 sm:flex-row w-full justify-between items-start gap-3">
-          <h1 className="text-[1.3em] sm:text-[1.5em] font-bold">APPOINTMENT</h1>
-        </div>
-
-        <div className="mb-4">
-          <TabSwitcher tabs={PAGE_TABS} value={tab} onChange={changeTab} />
-        </div>
+      <PageLayout title="APPOINTMENT">
+        <TabSwitcher tabs={PAGE_TABS} value={tab} onChange={changeTab} />
 
         <Paper elevation={2} sx={{ p: { xs: 1.25, sm: 2.5 }, borderRadius: "0.5rem", width: "100%", minWidth: 0, overflow: "hidden" }}>
           {tab === "calendar" ? (
@@ -258,10 +253,10 @@ const PrefectAppointment2 = (props) => {
               selectedDate={dayMenuDate}
             />
           ) : (
-            <CallInHistoryList />
+            <CallInHistoryList schoolYears={props.school_years ?? []} programs={props.programs ?? []} />
           )}
         </Paper>
-      </div>
+      </PageLayout>
     </>
   );
 };

@@ -96,7 +96,7 @@ class EarlyInterventionViolationPredictor:
         self.last_eval = None
 
         # Loads (and downloads, on first run) the recommendation model right
-        # away instead of on the first /python/model/predict request, so
+        # away instead of on the first /api/model/predict request, so
         # that request doesn't unexpectedly eat the ~60-90s weight-loading
         # cost — it's paid once, up front, when the Flask app boots (this
         # class is instantiated once as a singleton in config_model.py).

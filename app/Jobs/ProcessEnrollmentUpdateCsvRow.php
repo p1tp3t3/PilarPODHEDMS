@@ -76,7 +76,6 @@ class ProcessEnrollmentUpdateCsvRow implements ShouldQueue
                 [
                     'semester' => $currentSemester->semester,
                     'year_level' => $row['year_level'],
-                    'enrolled_at' => $row['enrolled_at'],
                     'status' => 'enrolled',
                 ]
             );
@@ -90,7 +89,6 @@ class ProcessEnrollmentUpdateCsvRow implements ShouldQueue
                 'year_level' => $row['year_level'],
                 'semester' => $currentSemester->semester,
                 'school_year' => $currentSemester->schoolYear?->year,
-                'enrolled_at' => $row['enrolled_at'],
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();

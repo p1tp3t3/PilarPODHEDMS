@@ -18,7 +18,7 @@ return new class extends Migration
             $table->dateTime('date_time_appoint')->nullable();
             // Set once the reminder is sent; cleared when rescheduled.
             $table->dateTime('reminder_notified_at')->nullable();
-            $table->enum('appointment_status', ['pending', 'rejected', 'accepted'])->default('pending');
+            $table->enum('appointment_status', ['pending', 'rejected', 'accepted', 'cancelled'])->default('pending');
             $table->enum('attendance_status', ['not_marked', 'present', 'absent'])->default('not_marked');
             $table->text('rejected_reason')->nullable();
             $table->dateTime('confirmed_at')->nullable();

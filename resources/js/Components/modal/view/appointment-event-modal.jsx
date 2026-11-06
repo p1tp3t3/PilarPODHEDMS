@@ -1,12 +1,8 @@
 import UpModal from "../up-modal"
 import { Button, Chip } from "@mui/material"
+import { appointmentStatusOf } from "@/others/appointment-status"
 import { CalendarDays } from "lucide-react"
 
-const ATTENDANCE_META = {
-    present: { label: "Present", backgroundColor: "#dcfce7", color: "#15803d" },
-    absent: { label: "Absent", backgroundColor: "#fee2e2", color: "#b91c1c" },
-    not_marked: { label: "Attendance Not Marked", backgroundColor: "var(--dm-raised, #f3f4f6)", color: "var(--dm-text-soft, #6b7280)" },
-}
 
 const AppointmentEventModal = ({ close, closeModal, event, onCancel, onReschedule, onMarkAttendance }) => {
     if (!event) {
@@ -15,30 +11,25 @@ const AppointmentEventModal = ({ close, closeModal, event, onCancel, onReschedul
 
     const { title, start, extendedProps } = event
     const isAccepted = extendedProps.status === "accepted"
+    const statusMeta = appointmentStatusOf(extendedProps)
     const attendance = extendedProps.attendance_status || "not_marked"
-    const attendanceMeta = ATTENDANCE_META[attendance] || ATTENDANCE_META.not_marked
 
     return (
         <UpModal close={close} closeModal={closeModal} isEnableOuterClose={true} pd={["px-6", "py-6"]} bgColor="bg-white" w="w-[26rem]">
             <div className="grid gap-4">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-[1.1em] font-bold pr-6">{title.replace(" (Pending)", "")}</h1>
+                    <div className="min-w-0 pr-6">
+                        <h1 className="text-[1.1em] font-bold">{title.replace(" (Pending)", "")}</h1>
+                        {/* A pending invitation gets its number once it's accepted. */}
+                        <p className="text-[0.8em] text-gray-500">
+                            {extendedProps.appointment_number ? `Ref. No. ${extendedProps.appointment_number}` : "Ref. No. assigned once accepted"}
+                        </p>
+                    </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {isAccepted && (
-                            <Chip
-                                label={attendanceMeta.label}
-                                size="small"
-                                sx={{ fontWeight: 600, backgroundColor: attendanceMeta.backgroundColor, color: attendanceMeta.color }}
-                            />
-                        )}
                         <Chip
-                            label={isAccepted ? "Accepted" : "Pending"}
+                            label={statusMeta.label}
                             size="small"
-                            sx={{
-                                fontWeight: 600,
-                                backgroundColor: isAccepted ? "#dcfce7" : "#fef3c7",
-                                color: isAccepted ? "#15803d" : "#b45309",
-                            }}
+                            sx={{ fontWeight: 600, backgroundColor: statusMeta.bg, color: statusMeta.text }}
                         />
                     </div>
                 </div>
@@ -118,6 +109,14 @@ const AppointmentEventModal = ({ close, closeModal, event, onCancel, onReschedul
                             Attendance has already been recorded for this appointment — it can no longer be rescheduled, cancelled, or re-marked.
                         </p>
                     )
+                ) : extendedProps.status === "rejected" ? (
+                    <p className="text-[0.8em] text-gray-500 italic">
+                        This appointment was rejected.
+                    </p>
+                ) : extendedProps.status === "cancelled" ? (
+                    <p className="text-[0.8em] text-gray-500 italic">
+                        This appointment was cancelled.
+                    </p>
                 ) : (
                     <p className="text-[0.8em] text-gray-500 italic">
                         Waiting for the recipient to accept or decline this appointment.

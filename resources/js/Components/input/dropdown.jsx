@@ -34,7 +34,7 @@ const DropdownField = (props) => {
 
     return (
         <div className="w-full">
-            <FormControl size="small" fullWidth error={!!props.error} required={props.req}>
+            <FormControl size="small" fullWidth error={!!props.error} required={props.req} disabled={!!props.disabled}>
                 <Select
                     name={props.name}
                     value={value}

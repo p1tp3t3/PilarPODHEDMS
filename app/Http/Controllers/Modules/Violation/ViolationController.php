@@ -572,7 +572,7 @@ class ViolationController extends Controller
     }
 
     /**
-     * Thin proxy to the Python AI/ML API's /python/model/predict — the model
+     * Thin proxy to the Python AI/ML API's /api/model/predict — the model
      * host is a private Hugging Face Space, so the browser can't call it
      * directly (it'd need the access key exposed client-side). The frontend
      * still builds the model-input row itself (already computed and handed
@@ -597,7 +597,7 @@ class ViolationController extends Controller
             $response = Http::withoutVerifying()
                 ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
                 ->timeout(120)
-                ->post(config('services.python_api.url').'/python/model/predict', $request->model_input);
+                ->post(config('services.python_api.url').'/api/model/predict', $request->model_input);
 
             if (! $response->successful()) {
                 return response()->json(['message' => 'Prediction service unavailable.'], 502);

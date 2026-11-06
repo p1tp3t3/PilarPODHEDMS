@@ -6,16 +6,26 @@ import { router } from "@inertiajs/react"
 // actions beside them (use with <PageLayout actionsWithFilters>). Choosing a
 // value reloads the page with ?school-year=&semester= (other query params,
 // e.g. the current tab, are kept); the server filters the list.
-export const useSchoolYearSemester = () => {
+// `defaults` ({ schoolYear, semester }): what to show while the URL has
+// neither, e.g. the current period on a list the server opens on it.
+export const useSchoolYearSemester = (defaults = null) => {
     const url = new URLSearchParams(window.location.search)
-    return { schoolYear: url.get("school-year") || "all", semester: url.get("semester") || "all" }
+    const unset = !url.has("school-year") && !url.has("semester")
+    return {
+        schoolYear: url.get("school-year") || (unset && defaults?.schoolYear) || "all",
+        semester: url.get("semester") || (unset && defaults?.semester ? String(defaults.semester) : "all"),
+    }
 }
 
-const SchoolYearSemesterFilter = ({ schoolYears = [] }) => {
-    const { schoolYear, semester } = useSchoolYearSemester()
+// `allowAll` false: no "All School Years" / "All Semesters" options, so a
+// specific period is always selected (used with `defaults`).
+const SchoolYearSemesterFilter = ({ schoolYears = [], defaults = null, allowAll = true }) => {
+    const { schoolYear, semester } = useSchoolYearSemester(defaults)
 
     const change = (field, value) => {
         const url = new URLSearchParams(window.location.search)
+        url.set("school-year", schoolYear)
+        url.set("semester", semester)
         url.set(field, value)
         router.get(`${window.location.pathname}?${url.toString()}`, {}, { preserveState: true, preserveScroll: true })
     }
@@ -24,7 +34,7 @@ const SchoolYearSemesterFilter = ({ schoolYears = [] }) => {
         <div className="flex flex-wrap gap-3 md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
             <div className="w-full sm:w-56">
                 <DropdownField
-                    default={{ val: "all", label: "All School Years" }}
+                    default={allowAll ? { val: "all", label: "All School Years" } : null}
                     list={schoolYears.map((y) => ({ val: y, label: y }))}
                     val={schoolYear}
                     onChange={(e) => change("school-year", e.target.value)}
@@ -32,7 +42,7 @@ const SchoolYearSemesterFilter = ({ schoolYears = [] }) => {
             </div>
             <div className="w-full sm:w-56">
                 <DropdownField
-                    default={{ val: "all", label: "All Semesters" }}
+                    default={allowAll ? { val: "all", label: "All Semesters" } : null}
                     list={[
                         { val: 1, label: "1st Semester" },
                         { val: 2, label: "2nd Semester" },

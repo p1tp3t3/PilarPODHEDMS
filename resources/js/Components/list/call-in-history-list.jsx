@@ -4,6 +4,8 @@ import Box from "@mui/material/Box"
 import { DataGrid } from "@/Components/other/data-grid"
 import ProfilePic from "@/Components/other/profile-pic"
 import ActionBtn from "@/Components/button/action-btn"
+import DropdownField from "@/Components/input/dropdown"
+import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import { AppointmentService } from "@/others/services/appointment-service"
 import { getProfilePic, profileUrl, readableDate, readableTime } from "@/others/function"
 
@@ -12,14 +14,34 @@ import { getProfilePic, profileUrl, readableDate, readableTime } from "@/others/
  * whom, when, and whether the student has opened it yet. Loaded when the
  * tab is opened; `refreshKey` reloads it (e.g. after a new call-in).
  */
-const CallInHistoryList = ({ refreshKey = 0 }) => {
+const FILTER_KEYS = ["school-year", "semester", "program"]
+const semesterList = [
+    { val: 1, label: "1st Semester" },
+    { val: 2, label: "2nd Semester" },
+]
+
+const CallInHistoryList = ({ refreshKey = 0, schoolYears = [], programs = [] }) => {
     const [list, setList] = useState(null)
     const [failed, setFailed] = useState(false)
 
+    // School year / semester / program, read from and kept in the URL.
+    const [filters, setFilters] = useState(() => {
+        const url = new URLSearchParams(window.location.search)
+        return Object.fromEntries(FILTER_KEYS.map((k) => [k, url.get(k) || "all"]))
+    })
+    const changeFilter = (key, value) => {
+        setFilters((prev) => ({ ...prev, [key]: value }))
+        const url = new URL(window.location.href)
+        if (value && value !== "all") url.searchParams.set(key, value)
+        else url.searchParams.delete(key)
+        window.history.replaceState(window.history.state, "", url)
+    }
+
     useEffect(() => {
+        setList(null)
         setFailed(false)
-        AppointmentService.getCallInHistory(setList, () => setFailed(true))
-    }, [refreshKey])
+        AppointmentService.getCallInHistory(filters, setList, () => setFailed(true))
+    }, [refreshKey, filters])
 
     const rows = useMemo(() => (list ?? []).map((e, i) => ({ ...e, i: i + 1 })), [list])
 
@@ -85,6 +107,39 @@ const CallInHistoryList = ({ refreshKey = 0 }) => {
     ], [])
 
     return (
+        <div className="grid gap-4 min-w-0">
+        <div className="w-full flex flex-col sm:flex-row sm:flex-wrap gap-3">
+            <MobileFilters active={countActive(filters["school-year"], filters.semester, filters.program)}>
+                <div className="w-full sm:w-48">
+                    <DropdownField
+                        default={{ val: "all", label: "All School Years" }}
+                        list={schoolYears.map((y) => ({ val: y, label: y }))}
+                        val={filters["school-year"]}
+                        onChange={(e) => changeFilter("school-year", e.target.value)}
+                        name="call_in_school_year"
+                    />
+                </div>
+                <div className="w-full sm:w-44">
+                    <DropdownField
+                        default={{ val: "all", label: "All Semesters" }}
+                        list={semesterList}
+                        val={filters.semester === "all" ? "all" : Number(filters.semester)}
+                        onChange={(e) => changeFilter("semester", e.target.value)}
+                        name="call_in_semester"
+                    />
+                </div>
+                <div className="w-full sm:w-56">
+                    <DropdownField
+                        default={{ val: "all", label: "All Programs" }}
+                        list={programs.map((p) => ({ val: p.id, label: p.name }))}
+                        val={filters.program === "all" ? "all" : Number(filters.program)}
+                        onChange={(e) => changeFilter("program", e.target.value)}
+                        name="call_in_program"
+                        keepCase={true}
+                    />
+                </div>
+            </MobileFilters>
+        </div>
         <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
             <DataGrid
                 rows={rows}
@@ -106,6 +161,7 @@ const CallInHistoryList = ({ refreshKey = 0 }) => {
                 localeText={{ noRowsLabel: failed ? "Failed to load the call-in history." : "No call-ins yet." }}
             />
         </Box>
+        </div>
     )
 }
 

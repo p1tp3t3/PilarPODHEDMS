@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Events\NotifyUser;
 use App\Mail\CallInMail;
 use App\Models\ActionLog;
+use App\Models\Enrollment;
 use App\Models\Notifications;
+use App\Models\SchoolYearSemester;
 use App\Models\User;
 use Carbon\Carbon;
 use Exception;
@@ -156,11 +158,22 @@ class NotificationController extends Controller
      * Call-In History (Appointment page). A call-in is stored as a
      * 'call_in' notification: the reason is in its content, and
      * read_since tells whether the student has opened it.
+     * ?school-year= / ?semester= keep the call-ins sent within that period;
+     * ?program= the ones sent to students of that program (latest enrollment).
      */
     public function callInHistory()
     {
-        return Notifications::with(['sender.profile', 'receiver.profile', 'receiver.latestEnrollment.program'])
-            ->where('notif_type', 'call_in')
+        $query = Notifications::with(['sender.profile', 'receiver.profile', 'receiver.latestEnrollment.program'])
+            ->where('notif_type', 'call_in');
+
+        SchoolYearSemester::applyFilter($query, 'created_at', request('school-year'), request('semester'));
+
+        $program = request('program');
+        if ($program && $program !== 'all') {
+            $query->whereIn('receiver_id', Enrollment::studentIdsInProgram($program));
+        }
+
+        return $query
             ->latest('created_at')
             ->latest('id')
             ->get()

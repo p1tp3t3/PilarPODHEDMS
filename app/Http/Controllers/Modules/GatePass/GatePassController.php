@@ -32,7 +32,7 @@ class GatePassController extends Controller
 
     public function index()
     {
-        $isPrefect = self::isPrefect() ? 'prefect' : 'other';
+        $isPrefect = self::isPrefect() ? 'prefect' : 'shared';
 
         $gatepass = '';
         if (isset($_GET['status'])) {

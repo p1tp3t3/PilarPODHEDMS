@@ -24,6 +24,51 @@ const statusFor = (e) => {
     return "pending"
 }
 
+// Everyone but the prefect (e.g. a student on their own profile):
+// # | Reference No. | Status | Request Since | Action — no requester
+// columns and no rejection reason.
+const compactColumns = (view) => [
+    { field: "i", headerName: "#", width: 60 },
+    { field: "gatepass_number", headerName: "Reference No.", flex: 1, minWidth: 140 },
+    {
+        field: "status",
+        headerName: "Status",
+        width: 130,
+        renderCell: ({ value }) => (
+            <span className={`px-2 py-0.5 rounded-full text-[0.8em] font-medium ${STATUS_STYLES[value]}`}>
+                {toTitleCase(value)}
+            </span>
+        ),
+    },
+    {
+        field: "created_at",
+        headerName: "Request Since",
+        flex: 1,
+        minWidth: 180,
+        renderCell: ({ row }) => (
+            <div className="text-[0.85em] leading-tight py-2">
+                <div>{row.created_at ? `${readableDate(row.created_at)} (${readableTime(row.created_at)})` : "-"}</div>
+                {formatSchoolYearSemester(row.school_year_semester) && (
+                    <div className="text-[0.75em] text-gray-500">{formatSchoolYearSemester(row.school_year_semester)}</div>
+                )}
+            </div>
+        ),
+    },
+    {
+        field: "actions",
+        type: "actions",
+        headerName: "Action",
+        width: 110,
+        headerAlign: "left",
+        align: "left",
+        renderCell: ({ row }) => (
+            <ActionBtn className="bg-blue-700 hover:bg-blue-800" onClick={() => view(row.encrypted_id)}>
+                View
+            </ActionBtn>
+        ),
+    },
+]
+
 const GatePassRequestList = (props) => {
     const { usr } = useContext(AuthContext)
     const urlStatus = new URLSearchParams(window.location.search).get("status")
@@ -53,7 +98,11 @@ const GatePassRequestList = (props) => {
         }))
     }, [props.list])
 
+    const compact = usr?.role !== "sub_admin"
+
     const columns = useMemo(() => {
+        if (compact) return compactColumns(props.view)
+
         return [
             {
                 field: 'i',
@@ -190,7 +239,7 @@ const GatePassRequestList = (props) => {
                 ),
             },
         ]
-    }, [usr?.role, props, urlStatus])
+    }, [usr?.role, props, urlStatus, compact])
 
     // Loading state (props.list === null)
     if (props.list === null) {
@@ -226,7 +275,12 @@ const GatePassRequestList = (props) => {
                 localeText={{ noRowsLabel: "No Gate Pass Request Yet" }}
                 showToolbar
                 // Phones: requester + "#ref · status"; tap for the rest.
-                mobileSummary={(row) => ({
+                // (compact: "Ref. No. …" · status instead of the requester.)
+                mobileSummary={(row) => compact ? ({
+                    name: `Ref. No. ${row.gatepass_number}`,
+                    role: statusLabel(row.status),
+                    hide: ["gatepass_number", "status"],
+                }) : ({
                     name: [row.user?.profile?.first_name, row.user?.profile?.middle_name, row.user?.profile?.last_name].filter(Boolean).join(" "),
                     role: `#${row.gatepass_number} · ${statusLabel(row.status)}`,
                     picture: row.user?.profile?.profile_picture,

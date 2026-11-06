@@ -126,7 +126,6 @@ class ProcessStudentCsvRow implements ShouldQueue
                 [
                     'semester' => $currentSemester->semester,
                     'year_level' => $row['year_level'],
-                    'enrolled_at' => $row['enrolled_at'],
                 ]
             );
 

@@ -13,7 +13,7 @@ def index():
 
 
 #------------------------------------------Model Routes-------------------------------------------
-@app.route('/python/violation/add', methods=['POST'])
+@app.route('/api/violation/add', methods=['POST'])
 def add_violation():
     data = request.get_json()
     if not data or 'violation' not in data:
@@ -26,7 +26,7 @@ def add_violation():
         'message': 'Violation added successfully'
     })
 
-@app.route('/python/violation/update', methods=['POST'])
+@app.route('/api/violation/update', methods=['POST'])
 def update_violation():
     data = request.get_json()
     if not data or 'id' not in data or 'violation' not in data:
@@ -39,7 +39,7 @@ def update_violation():
         'message': 'Violation updated successfully'
     })
 
-@app.route('/python/violation/delete', methods=['POST'])
+@app.route('/api/violation/delete', methods=['POST'])
 def delete_violation():
     data = request.get_json()
     if not data or 'id' not in data:
@@ -53,7 +53,7 @@ def delete_violation():
     })
 
 
-@app.route('/python/complaint/context', methods=['POST'])
+@app.route('/api/complaint/context', methods=['POST'])
 def analyze_complaint_context():
     data = request.get_json()
     if not data or 'complaint_text' not in data:
@@ -66,7 +66,7 @@ def analyze_complaint_context():
         'data': results
     })
     
-@app.route('/python/model/data/append', methods=['POST'])
+@app.route('/api/model/data/append', methods=['POST'])
 def append_logistic_test_data():
     data = request.get_json()
     
@@ -78,7 +78,7 @@ def append_logistic_test_data():
         'message': 'Test data appended successfully'
     })
 
-@app.route('/python/model/train', methods=['POST'])
+@app.route('/api/model/train', methods=['POST'])
 def train_model():
     evaluation = model_eivp.train_model(True)
     return jsonify({
@@ -90,7 +90,7 @@ def train_model():
 
 # Many rows at once, probability only (no insights/recommendations) — the
 # prefect dashboard's watch list scores every enrolled student this way.
-@app.route('/python/model/predict/batch', methods=['POST'])
+@app.route('/api/model/predict/batch', methods=['POST'])
 def predict_batch():
     data = request.get_json(silent=True) or {}
     rows = data.get('rows')
@@ -99,21 +99,21 @@ def predict_batch():
     return jsonify({'results': model_eivp.predict_batch(rows)})
 
 # --- Maintenance page: status + management of both models ---
-@app.route('/python/model/status', methods=['GET'])
+@app.route('/api/model/status', methods=['GET'])
 def models_status():
     return jsonify({
         'eivp': model_eivp.status(),
         'cca': model_cca.status(),
     })
 
-@app.route('/python/model/eivp/dataset', methods=['GET'])
+@app.route('/api/model/eivp/dataset', methods=['GET'])
 def download_eivp_dataset():
     with open(model_eivp.csv_path(), encoding='utf-8') as f:
         csv_text = f.read()
     return Response(csv_text, mimetype='text/csv',
                     headers={'Content-Disposition': 'attachment; filename=student_violations.csv'})
 
-@app.route('/python/model/eivp/dataset', methods=['POST'])
+@app.route('/api/model/eivp/dataset', methods=['POST'])
 def upload_eivp_dataset():
     file = request.files.get('file')
     if file is None:
@@ -130,7 +130,7 @@ def upload_eivp_dataset():
         'model': model_eivp.status(),
     })
 
-@app.route('/python/model/cca/rebuild', methods=['POST'])
+@app.route('/api/model/cca/rebuild', methods=['POST'])
 def rebuild_cca():
     return jsonify({
         'status': 'success',
@@ -138,7 +138,7 @@ def rebuild_cca():
         'model': model_cca.rebuild(),
     })
 
-@app.route('/python/model/predict', methods=['POST'])
+@app.route('/api/model/predict', methods=['POST'])
 def incident_risk():
     data = request.get_json()
     print(data)

@@ -8,6 +8,7 @@ import TabSwitcher from "@/Components/other/tab-switcher";
 import DropdownField from "@/Components/input/dropdown";
 import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import EditUserInfoModal from "@/Components/modal/submission-form/edit-user-information-modal";
+import EditEnrollmentModal from "@/Components/modal/submission-form/edit-enrollment-modal";
 import { useReload } from "@/context-provider/reload-provider";
 import { AccountService } from "@/others/services/account-service";
 import { getYearLevel, showOutputModal, showWarningModal, toTitleCase } from "@/others/function";
@@ -20,6 +21,15 @@ const Accounts = (props) => {
     [clickedOk, setClickOk] = useState(false);
 
   const { loadRegister, setReload, setOnClose } = useReload();
+
+  // Student filter: each row gets Edit Enrollment, so the super admin can
+  // update a student's enrollment right from the User List.
+  const [editEnrollment, openEditEnrollment] = useState(false);
+  const [enrollmentTarget, setEnrollmentTarget] = useState(null);
+  const handleEditEnrollment = (user) => {
+    setEnrollmentTarget(user);
+    openEditEnrollment(true);
+  };
 
   useEffect(() => {
     setOnClose((e) => {
@@ -190,6 +200,15 @@ const Accounts = (props) => {
         reload={loadRegister}
       />
 
+      <EditEnrollmentModal
+        close={editEnrollment}
+        closeModal={openEditEnrollment}
+        data={enrollmentTarget}
+        program={props.program}
+        schoolYears={props.school_years_full}
+        reload={loadRegister}
+      />
+
       <PageLayout title="USER LIST">
         {/* Tabs */}
         <TabSwitcher
@@ -211,6 +230,7 @@ const Accounts = (props) => {
               roles={props.roles}
               program={props.program}
               selectedRole={roleFilter}
+              onEditEnrollment={roleFilter === "student" ? handleEditEnrollment : null}
               reload={loadRegister}
             />
           </div>

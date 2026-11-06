@@ -16,24 +16,14 @@ const DEFAULT_COLUMNS = [
     { field: "email", headerName: "Email", width: 200 },
     { field: "program", headerName: "Program", width: 150 },
     { field: "year_level", headerName: "Year Level", width: 110 },
-    { field: "enrolled_at", headerName: "Enrolled Since", width: 140 },
 ]
 
-const dateFromISO = (value) => (value ? new Date(`${value}T00:00:00`) : null)
-const isoFromDate = (value) => (value instanceof Date && !isNaN(value) ? value.toLocaleDateString("en-CA") : "")
 
 // Any field with a fixed/known set of valid values becomes a picker
 // (MUI DataGrid's date editor or a singleSelect dropdown) instead of free
 // text — fields not listed here (name, email, etc.) stay plain text edits.
 const withFieldEditor = (column, { programOptions }) => {
     switch (column.field) {
-        case "enrolled_at":
-            return {
-                ...column,
-                type: "date",
-                valueGetter: (value) => dateFromISO(value),
-                valueFormatter: (value) => (value ? value.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : ""),
-            }
         case "year_level":
             return { ...column, type: "singleSelect", valueOptions: [1, 2, 3, 4] }
         case "program":
@@ -82,7 +72,6 @@ const CsvStudentPreviewPage = ({
     // upload found.
     const processRowUpdate = useCallback((newRow) => {
         const data = { ...newRow, id: newRow.student_id }
-        if (data.enrolled_at instanceof Date) data.enrolled_at = isoFromDate(data.enrolled_at)
         delete data.student_id
         delete data.index
         delete data.valid

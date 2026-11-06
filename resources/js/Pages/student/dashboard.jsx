@@ -1,9 +1,7 @@
 import QuantityCard from "@/Components/card/qntty-statistic-card";
+import DashboardInfoBar from "@/Components/other/dashboard-info-bar"
 import AuthLayout from "@/Layouts/auth-layout";
-import CurrentSemesterBanner from "@/Components/other/current-semester-banner";
-import { PrefectAvailabilityCard } from "@/Components/other/prefect-availability";
 import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder";
-import CurrentDateTime from "@/Components/other/current-datetime";
 import "../style.css";
 import AppointmentScheduleList from "@/Components/list/upcoming-sched-list";
 import TabSwitcher from "@/Components/other/tab-switcher";
@@ -48,11 +46,8 @@ const StudentDashboard = (props) => {
         {/* === OVERVIEW TAB === */}
         {choose === "overview" && (
           <div className="w-full flex flex-col gap-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 [&>*]:!mb-0 [&>*]:h-full">
-              <CurrentDateTime />
-              <CurrentSemesterBanner />
-            </div>
-            <PrefectAvailabilityCard />
+            {/* Date/time, current semester and prefect availability in one card. */}
+            <DashboardInfoBar />
 
             {/* === Complaint / Gate Pass / Absent Form Summary === */}
             <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -95,7 +90,6 @@ const StudentDashboard = (props) => {
             <div className="w-full">
               <AppointmentScheduleList
                 list={props.upcoming_appointment[0].appointment}
-                previous={props.previous_appointment ?? []}
                 showAction={false}
               />
             </div>

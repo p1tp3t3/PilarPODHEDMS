@@ -27,7 +27,6 @@ class EnrollmentFactory extends Factory
             'semester' => 1,
             'year_level' => $this->faker->numberBetween(1, 4),
             'status' => 'enrolled',
-            'enrolled_at' => $this->faker->dateTimeBetween('-6 months', 'now')->format('Y-m-d'),
             'dropped_at' => null,
         ];
     }

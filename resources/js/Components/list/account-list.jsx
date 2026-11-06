@@ -238,7 +238,7 @@ const AccountList = (props) => {
                 field: "actions",
                 type: 'actions',
                 headerName: "Action",
-                width: 230,
+                width: props.onEditEnrollment ? 340 : 230,
                 sortable: false,
                 headerAlign: 'left',
                 align: 'left',
@@ -247,6 +247,7 @@ const AccountList = (props) => {
                     row={params.row}
                     select={select}
                     deleteUser={props.deleteUser}
+                    onEditEnrollment={props.onEditEnrollment}
                   />
                 ),
               },
@@ -263,7 +264,7 @@ const AccountList = (props) => {
 // ========================
 // ACTION CELL COMPONENT
 // ========================
-const ActionCell = ({ row, select, deleteUser }) => {
+const ActionCell = ({ row, select, deleteUser, onEditEnrollment }) => {
   const [activate, setActivate] = useState(row.activate);
 
   useEffect(() => {
@@ -280,6 +281,13 @@ const ActionCell = ({ row, select, deleteUser }) => {
       <Link href={`${profileUrl(row)}`}>
         <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700">View</ActionBtn>
       </Link>
+
+      {/* Student filter only (the same green as the other edit buttons). */}
+      {onEditEnrollment && row.role === "student" && !select && (
+        <ActionBtn className="bg-green-600 text-white hover:bg-green-700" onClick={() => onEditEnrollment(row)}>
+          Edit Program
+        </ActionBtn>
+      )}
 
       {select ? (
         <SelectCheckbox value={row.id} label={`Select ${row.username ?? "account"}`} />

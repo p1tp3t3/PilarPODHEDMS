@@ -22,7 +22,7 @@ class TrainLogisticModelCommand extends Command
         $response = Http::withoutVerifying()
             ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
             ->timeout(120)
-            ->post(config('services.python_api.url').'/python/model/train');
+            ->post(config('services.python_api.url').'/api/model/train');
 
         if ($response->failed()) {
             $this->error('Failed to train the logistic model: '.$response->body());

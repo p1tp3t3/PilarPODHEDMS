@@ -2,13 +2,10 @@ import UpModal from "../up-modal"
 import { useEffect, useState } from "react"
 import axios from "axios"
 import { Chip } from "@mui/material"
+import { appointmentStatusOf } from "@/others/appointment-status"
 import { CalendarPlus, ChevronRight } from "lucide-react"
 import { ViewModalSkeleton } from "./view-modal-parts"
 
-const ATTENDANCE_META = {
-    present: { label: "Present", backgroundColor: "#dcfce7", color: "#15803d" },
-    absent: { label: "Absent", backgroundColor: "#fee2e2", color: "#b91c1c" },
-}
 
 // `.toISOString()` converts to UTC first, which rolls the date backward a
 // day for any positive UTC offset (e.g. Asia/Manila, UTC+8) — a local
@@ -73,8 +70,7 @@ const ViewDayAppointmentsModal = ({ close, closeModal, date, onSelectEvent, onSc
                 ) : (
                     <div className="grid gap-2 max-h-[28rem] overflow-y-auto">
                         {events.map((item) => {
-                            const isAccepted = item.extendedProps?.status === "accepted"
-                            const attendanceMeta = ATTENDANCE_META[item.extendedProps?.attendance_status]
+                            const statusMeta = appointmentStatusOf(item.extendedProps)
                             return (
                                 <button
                                     key={item.id}
@@ -85,24 +81,14 @@ const ViewDayAppointmentsModal = ({ close, closeModal, date, onSelectEvent, onSc
                                         <div className="text-[0.85em] font-medium">{item.title.replace(" (Pending)", "")}</div>
                                         <div className="text-[0.75em] text-gray-500">
                                             {new Date(item.start).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                                            {item.extendedProps?.appointment_number && ` · Ref. No. ${item.extendedProps.appointment_number}`}
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1.5">
-                                        {attendanceMeta && (
-                                            <Chip
-                                                label={attendanceMeta.label}
-                                                size="small"
-                                                sx={{ fontWeight: 600, backgroundColor: attendanceMeta.backgroundColor, color: attendanceMeta.color }}
-                                            />
-                                        )}
                                         <Chip
-                                            label={isAccepted ? "Accepted" : "Pending"}
+                                            label={statusMeta.label}
                                             size="small"
-                                            sx={{
-                                                fontWeight: 600,
-                                                backgroundColor: isAccepted ? "#dcfce7" : "#fef3c7",
-                                                color: isAccepted ? "#15803d" : "#b45309",
-                                            }}
+                                            sx={{ fontWeight: 600, backgroundColor: statusMeta.bg, color: statusMeta.text }}
                                         />
                                         <ChevronRight size={16} className="text-gray-400" />
                                     </div>

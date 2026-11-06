@@ -31,8 +31,12 @@ export const AppointmentService = {
         api.sendPostData();
     },
     // Every call-in sent to students (prefect's Call-In History).
-    getCallInHistory(setter, error = () => {}) {
-        const api = new APIRequest("/prefect/call-in/history", "get", {}, setter, () => {}, error);
+    // `filters`: { "school-year", semester, program } ("all" = not set).
+    getCallInHistory(filters, setter, error = () => {}) {
+        const query = new URLSearchParams(
+            Object.entries(filters ?? {}).filter(([, v]) => v && v !== "all")
+        ).toString();
+        const api = new APIRequest(`/prefect/call-in/history${query ? `?${query}` : ""}`, "get", {}, setter, () => {}, error);
         api.fetchData();
     },
     getAppointmentInfo(id, setter) {

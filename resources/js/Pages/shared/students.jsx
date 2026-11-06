@@ -3,7 +3,6 @@ import Btn from "@/Components/button/normal-btn"
 import StudentList from "@/Components/list/student-list"
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
-import EditEnrollmentModal from "@/Components/modal/submission-form/edit-enrollment-modal"
 import CsvStudentPreviewPage from "@/Components/other/csv-student-preview-page"
 import CsvStudentProgressModal from "@/Components/modal/view/csv-student-progress-modal"
 import UploadGuidelines from "@/Components/other/upload-guidelines"
@@ -20,19 +19,17 @@ const enrollmentCsvColumns = [
     { field: "student_id", headerName: "ID", width: 110 },
     { field: "program", headerName: "Program", width: 150 },
     { field: "year_level", headerName: "Year Level", width: 110 },
-    { field: "enrolled_at", headerName: "Enrolled Since", width: 140 },
 ]
 
 const Students = (props) => {
     const fileName = props.file_name
     const isSuperAdmin = props.auth?.user?.role === "super_admin"
+    const currentSys = props.current_school_year_semester
     const { loadRegister } = useReload()
 
     const [activeTab, setActiveTab] = useState("list")
     const [agreedGuidelines, setAgreedGuidelines] = useState(false)
 
-    const [editEnrollment, openEditEnrollment] = useState(false)
-    const [enrollmentTarget, setEnrollmentTarget] = useState(null)
 
     const fileInputRef = useRef(null)
     const [csvPreview, openCsvPreview] = useState(false)
@@ -40,11 +37,6 @@ const Students = (props) => {
     const [csvProgress, openCsvProgress] = useState(false)
     const [csvBatchId, setCsvBatchId] = useState(null)
     const [csvBatchTotal, setCsvBatchTotal] = useState(0)
-
-    const handleEditEnrollment = (user) => {
-        setEnrollmentTarget(user)
-        openEditEnrollment(true)
-    }
 
     const handleCsvFileChange = (e) => {
         const file = e.target.files[0]
@@ -126,14 +118,6 @@ const Students = (props) => {
     return (
         <>
         <Head title="Student List" />
-        <EditEnrollmentModal
-            close={editEnrollment}
-            closeModal={openEditEnrollment}
-            data={enrollmentTarget}
-            program={props.program}
-            schoolYears={props.school_years_full}
-            reload={loadRegister}
-        />
         <CsvStudentProgressModal
             close={csvProgress}
             closeModal={openCsvProgress}
@@ -166,14 +150,22 @@ const Students = (props) => {
                     />
                 ) : null}
 
-                {/* School year / semester: students enrolled in that period. */}
-                {activeTab === "list" && <SchoolYearSemesterFilter schoolYears={props.school_years} />}
+                {/* School year / semester: students enrolled in that period. The
+                    super admin's list opens on the current period. */}
+                {activeTab === "list" && (
+                    <SchoolYearSemesterFilter
+                        schoolYears={props.school_years}
+                        defaults={isSuperAdmin && currentSys?.school_year?.year
+                            ? { schoolYear: currentSys.school_year.year, semester: currentSys.semester }
+                            : null}
+                        // Always one period for the super admin (no "All").
+                        allowAll={!(isSuperAdmin && currentSys?.school_year?.year)}
+                    />
+                )}
 
                 {activeTab === "list" && (
                     <StudentList
                         list={props.students}
-                        canEditEnrollment={isSuperAdmin}
-                        onEditEnrollment={handleEditEnrollment}
                     />
                 )}
 

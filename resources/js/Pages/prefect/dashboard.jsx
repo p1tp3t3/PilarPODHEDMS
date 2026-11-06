@@ -1,4 +1,5 @@
 import AuthLayout from "@/Layouts/auth-layout"
+import DashboardInfoBar from "@/Components/other/dashboard-info-bar"
 import QuantityCard from "@/Components/card/qntty-statistic-card"
 import "../style.css"
 import LineGraph from "@/Components/card/line-graph-statistic"
@@ -17,10 +18,7 @@ import StudentNotificationList from "@/Components/list/student-notification-list
 import WatchList from "@/Components/list/watch-list"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import UnresolvedComplaintModal from "@/Components/modal/validation/unresolved-complaint-modal"
-import CurrentSemesterBanner from "@/Components/other/current-semester-banner"
-import { PrefectAvailabilityCard } from "@/Components/other/prefect-availability";
 import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder"
-import CurrentDateTime from "@/Components/other/current-datetime"
 import { Head, Link, router } from "@inertiajs/react"
 import LatestActiveAccountList from "@/Components/list/latest-active-user-list"
 import OffenseList from "@/Components/list/offense-list"
@@ -220,11 +218,8 @@ const PrefectDashBoard = (props) => {
               transition={{ duration: 0.4, ease: "easeOut" }}
             >
               <div className="flex flex-col gap-5 pt-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 [&>*]:!mb-0 [&>*]:h-full">
-                  <CurrentDateTime />
-                  <CurrentSemesterBanner />
-                </div>
-                <PrefectAvailabilityCard />
+                {/* Date/time, current semester and prefect availability in one card. */}
+                <DashboardInfoBar />
 
                 {/* Statistic Cards */}
                 <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">

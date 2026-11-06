@@ -1,9 +1,7 @@
 import AuthLayout from "@/Layouts/auth-layout";
+import DashboardInfoBar from "@/Components/other/dashboard-info-bar"
 import QuantityCard from "@/Components/card/qntty-statistic-card";
-import CurrentSemesterBanner from "@/Components/other/current-semester-banner";
-import { PrefectAvailabilityCard } from "@/Components/other/prefect-availability";
 import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder";
-import CurrentDateTime from "@/Components/other/current-datetime";
 import SystemInfoPanel from "@/Components/other/system-info-panel";
 import "../style.css";
 import LineGraph from "@/Components/card/line-graph-statistic";
@@ -125,13 +123,8 @@ const ITRCDashboard = (props) => {
 
           {activeTab === "overview" && (
           <div className="w-full flex flex-col gap-5">
-          {/* Date/time and current school year side by side; both banners
-              carry their own bottom margin elsewhere, cancelled here. */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 [&>*]:!mb-0 [&>*]:h-full">
-            <CurrentDateTime />
-            <CurrentSemesterBanner />
-          </div>
-          <PrefectAvailabilityCard />
+          {/* Date/time, current semester and prefect availability in one card. */}
+          <DashboardInfoBar />
 
           {/* === TOP SECTION === */}
           <div className="w-full grid gap-5">

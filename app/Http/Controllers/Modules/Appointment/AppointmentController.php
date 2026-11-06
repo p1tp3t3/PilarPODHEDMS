@@ -35,17 +35,22 @@ class AppointmentController extends Controller
 
     public function index(Request $request)
     {
-        $isPrefect = (auth()->user()->role == 'sub_admin') ? 'prefect' : 'other';
+        $isPrefect = (auth()->user()->role == 'sub_admin') ? 'prefect' : 'shared';
         $props = [];
         if (auth()->user()->role == 'sub_admin') {
             $props = array_merge($props, [
                 'appointment_request_list' => null,
                 'student_parent_list' => User::with('profile')->whereRole(['student', 'parent'])->get(),
+                // For the Call-In History's filter dropdowns.
+                'school_years' => \App\Models\SchoolYear::orderByDesc('year')->pluck('year'),
+                'programs' => \App\Models\Program::orderBy('name')->get(['id', 'name']),
             ]);
         } else {
             $props = array_merge($props, [
                 'appointment_history' => self::getAppointmentHistory(auth()->user()->id),
                 'call_in_history' => self::getCallInHistory(auth()->user()->id),
+                // For the School Year / Semester dropdowns.
+                'school_years' => \App\Models\SchoolYear::orderByDesc('year')->pluck('year'),
             ]);
         }
 
@@ -59,15 +64,24 @@ class AppointmentController extends Controller
      */
     private function getAppointmentHistory($userId)
     {
-        return Notifications::where('notif_type', 'appointment')
-            ->where('receiver_id', $userId)
-            ->latest('created_at')
-            ->get()
-            ->map(function ($n) {
-                $content = json_decode($n->content, true) ?? [];
+        $query = Notifications::where('notif_type', 'appointment')->where('receiver_id', $userId);
+        // ?school-year= / ?semester=: the ones sent during that period.
+        \App\Models\SchoolYearSemester::applyFilter($query, 'created_at', request('school-year'), request('semester'));
+        $notifs = $query->latest('created_at')->get();
+
+        // Accepted invitations remember their appointment's id; look up the
+        // reference numbers in one query.
+        $content = fn ($n) => json_decode($n->content, true) ?? [];
+        $numbers = Appointment::whereIn('id', $notifs->map(fn ($n) => $content($n)['appointment_id'] ?? null)->filter())
+            ->pluck('appointment_number', 'id');
+
+        return $notifs
+            ->map(function ($n) use ($content, $numbers) {
+                $content = $content($n);
 
                 return [
                     'id' => $n->id,
+                    'appointment_number' => $numbers[$content['appointment_id'] ?? 0] ?? null,
                     'type' => $content['type'] ?? 'sched',
                     'date_appoint' => $content['date_appoint'] ?? null,
                     'time_appoint' => $content['time_appoint'] ?? null,
@@ -85,9 +99,10 @@ class AppointmentController extends Controller
      */
     private function getCallInHistory($userId)
     {
-        return Notifications::where('notif_type', 'call_in')
-            ->where('receiver_id', $userId)
-            ->latest('created_at')
+        $query = Notifications::where('notif_type', 'call_in')->where('receiver_id', $userId);
+        \App\Models\SchoolYearSemester::applyFilter($query, 'created_at', request('school-year'), request('semester'));
+
+        return $query->latest('created_at')
             ->get()
             ->map(function ($n) {
                 $content = json_decode($n->content, true) ?? [];
@@ -267,6 +282,18 @@ class AppointmentController extends Controller
 
                         notify_single_user($notifMessage);
                     }
+
+                    // Remember which appointment this invitation became, so the
+                    // invitee's history can show its reference number.
+                    if (! empty($data['id'])) {
+                        $parsed['appointment_id'] = (int) $data['id'];
+                        if (isset($content['parse'])) {
+                            $content['parse'] = json_encode($parsed);
+                        } else {
+                            $content = $parsed;
+                        }
+                        $notif->update(['content' => json_encode($content)]);
+                    }
                     DB::commit();
 
                     return response()->json($notifData);
@@ -416,13 +443,15 @@ class AppointmentController extends Controller
         $date = $appointment->first()->date_time_appoint;
 
         $type = User::find($appointment->first()->user_id)->role;
+        $from = $appointment->first()->appointment_status;
         ActionLog::log(
             auth()->user()->id,
             'appointment',
             'Cancelled an appointment for the '.$type,
-            ['status' => ['from' => 'pending', 'to' => 'cancelled']]
+            ['status' => ['from' => $from, 'to' => 'cancelled']]
         );
-        $appointment->delete();
+        // Kept as "cancelled" (shown on the calendar) instead of deleted.
+        $appointment->update(['appointment_status' => 'cancelled']);
 
         return self::get($date);
     }
@@ -454,6 +483,7 @@ class AppointmentController extends Controller
                             SELECT COUNT(*)
                             FROM appointment
                             WHERE DATE_FORMAT(appointment.date_time_appoint, '%Y-%m-%d') = DATE_FORMAT(appointment_slot.date_available, '%Y-%m-%d')
+                              AND appointment.appointment_status != 'cancelled'
                         ) AS slots_remaining
                     ")
         )
@@ -508,7 +538,7 @@ class AppointmentController extends Controller
     /**
      * The user's past appointments (most recent first), with an encrypted id
      * so the dashboard can link to /appointment?view=… for the details.
-     * Cancelled appointments are deleted, so they never show here.
+     * Cancelled appointments are left out (Appointment's not_cancelled scope).
      */
     public function getPreviousAppointmentList($id, int $limit = 50)
     {
@@ -552,27 +582,53 @@ class AppointmentController extends Controller
      * their JSON content) into one list for the requested [start, end]
      * range FullCalendar passes on every view/date change.
      */
+    // Calendar colour per status (the legend on the calendar matches).
+    private const CALENDAR_COLORS = [
+        'pending' => '#d97706',
+        'accepted' => '#16a34a',
+        'attended' => '#2563eb',
+        'absent' => '#9333ea',
+        'rejected' => '#dc2626',
+        'cancelled' => '#64748b',
+    ];
+
     public function calendarEvents(Request $request)
     {
         $start = Carbon::parse($request->start)->startOfDay();
         $end = Carbon::parse($request->end)->endOfDay();
 
-        $accepted = Appointment::with(['user.profile'])
+        // Cancelled ones too: the calendar shows them as Cancelled.
+        $accepted = Appointment::withoutGlobalScope('not_cancelled')->with(['user.profile'])
             ->whereBetween('date_time_appoint', [$start, $end])
             ->whereNull('archived_at')
             ->get()
             ->map(function ($appointment) {
                 $name = trim(($appointment->user->profile->first_name ?? '').' '.($appointment->user->profile->last_name ?? ''));
 
+                // Its real status (every row used to show as "accepted"):
+                // pending / rejected, or once accepted, attended / absent by
+                // the attendance marked, else accepted.
+                $status = $appointment->appointment_status ?? 'pending';
+                $display = match (true) {
+                    $status === 'cancelled' => 'cancelled',
+                    $status === 'rejected' => 'rejected',
+                    $status === 'pending' => 'pending',
+                    $appointment->attendance_status === 'present' => 'attended',
+                    $appointment->attendance_status === 'absent' => 'absent',
+                    default => 'accepted',
+                };
+
                 return [
                     'id' => 'appt-'.$appointment->id,
                     'title' => $name ?: 'Appointment',
                     'start' => $appointment->date_time_appoint,
-                    'backgroundColor' => '#16a34a',
-                    'borderColor' => '#16a34a',
+                    'backgroundColor' => self::CALENDAR_COLORS[$display],
+                    'borderColor' => self::CALENDAR_COLORS[$display],
                     'extendedProps' => [
-                        'status' => 'accepted',
+                        'status' => $status,
+                        'display_status' => $display,
                         'appointment_id' => $appointment->id,
+                        'appointment_number' => $appointment->appointment_number,
                         'attendance_status' => $appointment->attendance_status,
                         'user_id' => $appointment->user_id,
                         'description' => $appointment->description,
@@ -614,10 +670,11 @@ class AppointmentController extends Controller
                     'id' => 'notif-'.$item->id,
                     'title' => ($name ?: 'Appointment').' (Pending)',
                     'start' => $date->toDateTimeString(),
-                    'backgroundColor' => '#d97706',
-                    'borderColor' => '#d97706',
+                    'backgroundColor' => self::CALENDAR_COLORS['pending'],
+                    'borderColor' => self::CALENDAR_COLORS['pending'],
                     'extendedProps' => [
                         'status' => 'pending',
+                        'display_status' => 'pending',
                         'notif_id' => $item->id,
                         'user_id' => $item->receiver_id,
                         'reason' => $content['reason'] ?? null,

@@ -60,7 +60,7 @@ class ModelTrainingController extends Controller
     public function status()
     {
         try {
-            return self::relay(self::python()->get(self::url('/python/model/status')), 'Could not load the model status.');
+            return self::relay(self::python()->get(self::url('/api/model/status')), 'Could not load the model status.');
         } catch (ConnectionException) {
             return self::unreachable();
         }
@@ -69,7 +69,7 @@ class ModelTrainingController extends Controller
     public function trainPredictor()
     {
         try {
-            $response = self::python(300)->post(self::url('/python/model/train'));
+            $response = self::python(300)->post(self::url('/api/model/train'));
         } catch (ConnectionException) {
             return self::unreachable();
         }
@@ -91,7 +91,7 @@ class ModelTrainingController extends Controller
         try {
             $response = self::python(300)
                 ->attach('file', fopen($request->file('file')->getRealPath(), 'r'), 'student_violations.csv')
-                ->post(self::url('/python/model/eivp/dataset'));
+                ->post(self::url('/api/model/eivp/dataset'));
         } catch (ConnectionException) {
             return self::unreachable();
         }
@@ -110,7 +110,7 @@ class ModelTrainingController extends Controller
     public function downloadPredictorDataset()
     {
         try {
-            $response = self::python(60)->get(self::url('/python/model/eivp/dataset'));
+            $response = self::python(60)->get(self::url('/api/model/eivp/dataset'));
         } catch (ConnectionException) {
             return self::unreachable();
         }
@@ -128,7 +128,7 @@ class ModelTrainingController extends Controller
     public function rebuildAnalyzer()
     {
         try {
-            $response = self::python(300)->post(self::url('/python/model/cca/rebuild'));
+            $response = self::python(300)->post(self::url('/api/model/cca/rebuild'));
         } catch (ConnectionException) {
             return self::unreachable();
         }
@@ -147,7 +147,7 @@ class ModelTrainingController extends Controller
 
         try {
             return self::relay(
-                self::python(60)->post(self::url('/python/complaint/context'), ['complaint_text' => $data['complaint_text']]),
+                self::python(60)->post(self::url('/api/complaint/context'), ['complaint_text' => $data['complaint_text']]),
                 'The analyzer could not process this text.'
             );
         } catch (ConnectionException) {

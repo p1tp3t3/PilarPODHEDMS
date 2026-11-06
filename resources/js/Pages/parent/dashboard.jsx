@@ -1,9 +1,7 @@
 import AuthLayout from "@/Layouts/auth-layout";
+import DashboardInfoBar from "@/Components/other/dashboard-info-bar"
 import QuantityCard from "@/Components/card/qntty-statistic-card";
-import CurrentSemesterBanner from "@/Components/other/current-semester-banner";
-import { PrefectAvailabilityCard } from "@/Components/other/prefect-availability";
 import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder";
-import CurrentDateTime from "@/Components/other/current-datetime";
 import '../style.css'
 import DashboardTabs from "@/Components/other/dashboard-tabs";
 import { Head, Link } from "@inertiajs/react";
@@ -18,12 +16,8 @@ const ParentDashboard = (props) => {
             <div className="w-full pt-5 pb-6 sm:pb-10">
                 <MaintenanceScheduleReminder />
                 <DashboardTabs>
-                {/* Same as the super admin: date/time and school year side by side. */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 [&>*]:!mb-0 [&>*]:h-full">
-                    <CurrentDateTime />
-                    <CurrentSemesterBanner />
-                </div>
-                <div className="mt-3"><PrefectAvailabilityCard /></div>
+                {/* Date/time, current semester and prefect availability in one card. */}
+                <DashboardInfoBar />
 
                 <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 pt-6">
                     <Link href="/children/monitor">

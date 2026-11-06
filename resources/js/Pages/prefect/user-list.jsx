@@ -13,6 +13,7 @@ import { router } from "@inertiajs/react"
 import { GraduationCap, UserRoundCog, Users, Settings, X } from "lucide-react"
 import { Head } from "@inertiajs/react"
 import { PageActions } from "@/context-provider/page-title-provider"
+import { getYearLevel } from "@/others/function"
 
 const userTabs = [
     { key: "student", label: "Student List", icon: GraduationCap },
@@ -59,9 +60,44 @@ const PrefectUserList = (props) => {
     const [managePositionsModal, openManagePositionsModal] = useState(false)
 
     const studentProgram = params.get("program")
-    const studentSchoolYear = params.get("school-year")
-    const studentSemester = params.get("semester")
+    const studentYearLevel = params.get("year-level")
     const onlyEnrolled = ["1", "true"].includes(params.get("is-enrolled") ?? "")
+    // Opens on the current school year / semester (the server does the
+    // same), the dashboard's "Total Enrolled Students" link included.
+    const currentSys = props.current_school_year_semester
+    const onDefaultPeriod = !params.has("school-year") && !params.has("semester") && !!currentSys?.school_year?.year
+    const studentSchoolYear = params.get("school-year") ?? (onDefaultPeriod ? currentSys.school_year.year : null)
+    const studentSemester = params.get("semester") ?? (onDefaultPeriod ? String(currentSys.semester) : null)
+
+    // Staff / Parent tabs: accounts registered in that school year / semester.
+    const listSchoolYear = params.get("school-year") ?? "all"
+    const listSemester = params.get("semester") ?? "all"
+    const parentRole = params.get("parent-role") ?? "all"
+    const periodDropdowns = (tabKey) => (
+        <>
+            <div className="w-full sm:w-[14rem] flex-shrink-0">
+                <DropdownField
+                    default={{ val: "all", label: "All School Years" }}
+                    list={(props.school_years || []).map((y) => ({ val: y, label: y }))}
+                    val={listSchoolYear}
+                    onChange={(e) => updateQuery({ tab: tabKey, "school-year": e.target.value })}
+                    name={`${tabKey}_school_year`}
+                />
+            </div>
+            <div className="w-full sm:w-[14rem] flex-shrink-0">
+                <DropdownField
+                    default={{ val: "all", label: "All Semesters" }}
+                    list={[
+                        { val: 1, label: "1st Semester" },
+                        { val: 2, label: "2nd Semester" },
+                    ]}
+                    val={listSemester === "all" ? "all" : Number(listSemester)}
+                    onChange={(e) => updateQuery({ tab: tabKey, semester: e.target.value })}
+                    name={`${tabKey}_semester`}
+                />
+            </div>
+        </>
+    )
 
     const handleStudentFilter = (field, value) => {
         updateQuery({
@@ -69,6 +105,7 @@ const PrefectUserList = (props) => {
             program: field === "program" ? value : (studentProgram || "all"),
             "school-year": field === "school-year" ? value : (studentSchoolYear || "all"),
             semester: field === "semester" ? value : (studentSemester || "all"),
+            "year-level": field === "year-level" ? value : (studentYearLevel || "all"),
         })
     }
 
@@ -109,7 +146,7 @@ const PrefectUserList = (props) => {
                         </div>
                     )}
                     <div className="flex flex-col sm:flex-row flex-wrap gap-3">
-                        <MobileFilters active={countActive(studentProgram, studentSchoolYear, studentSemester)}>
+                        <MobileFilters active={countActive(studentProgram, studentYearLevel, studentSchoolYear, studentSemester)}>
                         <div className="w-full sm:w-[14rem] flex-shrink-0">
                             <DropdownField
                                 default={{ val: "all", label: "All Programs" }}
@@ -120,7 +157,17 @@ const PrefectUserList = (props) => {
                         </div>
                         <div className="w-full sm:w-[14rem] flex-shrink-0">
                             <DropdownField
-                                default={{ val: "all", label: "Select School Year" }}
+                                default={{ val: "all", label: "All Year Levels" }}
+                                list={[1, 2, 3, 4].map((y) => ({ val: y, label: getYearLevel(y) }))}
+                                val={studentYearLevel ? Number(studentYearLevel) || studentYearLevel : "all"}
+                                onChange={(e) => handleStudentFilter("year-level", e.target.value)}
+                                name="year_level_filter"
+                                keepCase={true}
+                            />
+                        </div>
+                        <div className="w-full sm:w-[14rem] flex-shrink-0">
+                            <DropdownField
+                                default={{ val: "all", label: "All School Years" }}
                                 list={(props.school_years || []).map((y) => ({ val: y, label: y }))}
                                 val={studentSchoolYear}
                                 onChange={(e) => handleStudentFilter("school-year", e.target.value)}
@@ -133,7 +180,7 @@ const PrefectUserList = (props) => {
                                     { val: 1, label: "1st Semester" },
                                     { val: 2, label: "2nd Semester" },
                                 ]}
-                                val={studentSemester}
+                                val={studentSemester && studentSemester !== "all" ? Number(studentSemester) : "all"}
                                 onChange={(e) => handleStudentFilter("semester", e.target.value)}
                             />
                         </div>
@@ -147,7 +194,7 @@ const PrefectUserList = (props) => {
                 {tab === "staff" &&
                 <>
                     <div className="flex flex-col sm:flex-row gap-3 sm:items-center md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
-                        <MobileFilters active={countActive(staffType, staffProgram, staffPosition)}>
+                        <MobileFilters active={countActive(staffType, staffProgram, staffPosition, listSchoolYear, listSemester)}>
                         <div className="w-full sm:w-[14rem] flex-shrink-0">
                             <DropdownField
                                 list={[
@@ -183,6 +230,7 @@ const PrefectUserList = (props) => {
                                 />
                             </div>
                         )}
+                        {periodDropdowns("staff")}
                         </MobileFilters>
                         <PageActions />
                     </div>
@@ -193,7 +241,28 @@ const PrefectUserList = (props) => {
                 </>}
 
                 {tab === "parent" &&
-                <ParentList list={props.parents} />}
+                <>
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+                        <MobileFilters active={countActive(parentRole, listSchoolYear, listSemester)}>
+                            <div className="w-full sm:w-[14rem] flex-shrink-0">
+                                <DropdownField
+                                    default={{ val: "all", label: "All Parent Roles" }}
+                                    list={[
+                                        { val: "father", label: "Father" },
+                                        { val: "mother", label: "Mother" },
+                                        { val: "guardian", label: "Guardian" },
+                                    ]}
+                                    val={parentRole}
+                                    onChange={(e) => updateQuery({ tab: "parent", "parent-role": e.target.value })}
+                                    name="parent_role_filter"
+                                    keepCase={true}
+                                />
+                            </div>
+                            {periodDropdowns("parent")}
+                        </MobileFilters>
+                    </div>
+                    <ParentList list={props.parents} />
+                </>}
             </PageLayout>
         </>
     )

@@ -848,7 +848,7 @@ class MaintenanceController extends Controller
 
         Http::withoutVerifying()
             ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
-            ->post(config('services.python_api.url').'/python/violation/add', [
+            ->post(config('services.python_api.url').'/api/violation/add', [
                 'violation' => preg_replace('/[^\w\s]/', ' ', $data['violation_name']),
                 'keywords' => self::flattenKeywords($data['keywords'] ?? []),
                 'id' => $violation->id,
@@ -880,7 +880,7 @@ class MaintenanceController extends Controller
         // never reached the Word2Vec matching feature at all.
         Http::withoutVerifying()
             ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
-            ->post(config('services.python_api.url').'/python/violation/update', [
+            ->post(config('services.python_api.url').'/api/violation/update', [
                 'violation' => preg_replace('/[^\w\s]/', ' ', $data['violation_name']),
                 'keywords' => self::flattenKeywords($data['keywords'] ?? []),
                 'id' => $request->id,
@@ -933,7 +933,7 @@ class MaintenanceController extends Controller
 
         Http::withoutVerifying()
             ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
-            ->post(config('services.python_api.url').'/python/violation/delete', [
+            ->post(config('services.python_api.url').'/api/violation/delete', [
                 'id' => $violation->id,
             ]);
         // Delete violation

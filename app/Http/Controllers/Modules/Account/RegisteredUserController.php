@@ -219,7 +219,6 @@ class RegisteredUserController extends Controller
                         'school_year_id' => $request->school_year_id,
                         'semester' => $request->semester ?? 1,
                         'year_level' => $yearLevel,
-                        'enrolled_at' => $request->enrolled_at ?? now(),
                     ]);
 
                     EducationBackground::insert([
@@ -563,7 +562,7 @@ class RegisteredUserController extends Controller
     public static function validateStudentCsvRow(array $row): array
     {
         $errors = [];
-        $required = ['id', 'first_name', 'middle_name', 'last_name', 'sex', 'email', 'program', 'year_level', 'enrolled_at'];
+        $required = ['id', 'first_name', 'middle_name', 'last_name', 'sex', 'email', 'program', 'year_level'];
 
         foreach ($required as $col) {
             if (! isset($row[$col]) || trim((string) $row[$col]) === '') {
@@ -591,9 +590,6 @@ class RegisteredUserController extends Controller
             }
             if (! is_numeric($row['year_level']) || $row['year_level'] < 1 || $row['year_level'] > 4) {
                 $errors[] = 'Year level must be 1–4.';
-            }
-            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $row['enrolled_at']) || ! strtotime($row['enrolled_at'])) {
-                $errors[] = 'enrolled_at must be a valid date in YYYY-MM-DD format.';
             }
             if (isset($row['suffix']) && trim($row['suffix']) !== '' && ! preg_match('/^[A-Za-z.\s]+$/', trim($row['suffix']))) {
                 $errors[] = "'suffix' must contain letters, periods, and spaces only.";

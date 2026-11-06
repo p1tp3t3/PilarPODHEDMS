@@ -188,8 +188,15 @@ class DashboardController extends Controller
 
         $referral = Referral::count();
         $appointment = Appointment::count();
-        // Same set the card links to: /prefect/user-list?is-enrolled=1.
-        $student = User::whereRole('student')->currentlyEnrolled()->count();
+        // Same set the card links to: /prefect/user-list?is-enrolled=1, which
+        // opens on the current school year and semester.
+        $current = \App\Models\SchoolYearSemester::current();
+        $student = User::whereRole('student')->currentlyEnrolled()
+            ->when($current, fn ($q) => $q->whereHas('enrollments', fn ($e) => $e
+                ->where('status', 'enrolled')
+                ->where('semester', $current->semester)
+                ->whereHas('schoolYear', fn ($sy) => $sy->where('year', $current->schoolYear?->year))))
+            ->count();
         $majorMinorCount = 0;
 
         // This week's complaints (Mon-Sun, same week as the "New Students" list).
@@ -298,7 +305,6 @@ class DashboardController extends Controller
             'gatepass' => $gatepass,
             'absent_form' => $absentForm,
             'upcoming_appointment' => $appointment->getUpcomingAppointmentList($id),
-            'previous_appointment' => $appointment->getPreviousAppointmentList($id),
         ];
     }
 
@@ -639,6 +645,36 @@ class DashboardController extends Controller
         ]);
     }
 
+    /**
+     * The "records this semester" modal lists only what still needs
+     * attention or was turned down: complaints that are pending, ongoing or
+     * rejected; appointments only pending; every other type pending or
+     * rejected. Approved, resolved and revoked records are left out.
+     *
+     * Absent forms and gate passes have no status column, so their status
+     * comes from the timestamps, in the same order the modal reads them:
+     * revoked, then rejected, then confirmed (approved), otherwise pending.
+     */
+    private static function pendingOrRejected(string $type, $query)
+    {
+        return match ($type) {
+            'complaint' => $query->whereIn('complaint_status', ['pending', 'ongoing', 'rejected']),
+            'referral' => $query->whereIn('referral_status', ['pending', 'rejected']),
+            'appointment' => $query->where('appointment_status', 'pending'),
+            'absent_form', 'gate_pass' => $query->whereNull('revoked_at')
+                ->where(fn ($q) => $q->whereNotNull('rejected_at')->orWhereNull('confirmed_at')),
+        };
+    }
+
+    /** This semester's pending/rejected records of one type, newest first. */
+    private static function semesterRecords(string $type, $query)
+    {
+        return self::scopeToCurrentSemester(self::pendingOrRejected($type, $query))
+            ->latest('created_at')
+            ->get()
+            ->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
+    }
+
     public function myCurrentSemesterRecords()
     {
         $user = auth()->user();
@@ -656,33 +692,28 @@ class DashboardController extends Controller
         $can = fn (string $type) => in_array($type, $types, true);
 
         if ($permissions?->allow_complaint && $can('complaint')) {
-            $records['complaint'] = self::scopeToCurrentSemester(
-                Complaint::with(['user.profile', 'subject.profile'])->where('complainant_id', $user->id)
-            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
+            $records['complaint'] = self::semesterRecords('complaint',
+                Complaint::with(['user.profile', 'subject.profile'])->where('complainant_id', $user->id));
         }
 
         if ($permissions?->allow_referral && $can('referral')) {
-            $records['referral'] = self::scopeToCurrentSemester(
-                Referral::with(['user.profile', 'referredStudent.profile'])->where('teaching_staff_id', $user->id)
-            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
+            $records['referral'] = self::semesterRecords('referral',
+                Referral::with(['user.profile', 'referredStudent.profile'])->where('teaching_staff_id', $user->id));
         }
 
         if ($permissions?->allow_absent_form && $can('absent_form')) {
-            $records['absent_form'] = self::scopeToCurrentSemester(
-                Absence::where('student_id', $user->id)
-            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
+            $records['absent_form'] = self::semesterRecords('absent_form',
+                Absence::where('student_id', $user->id));
         }
 
         if ($permissions?->allow_gatepass && $can('gate_pass')) {
-            $records['gate_pass'] = self::scopeToCurrentSemester(
-                GatePass::where('user_id', $user->id)
-            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
+            $records['gate_pass'] = self::semesterRecords('gate_pass',
+                GatePass::where('user_id', $user->id));
         }
 
         if ($permissions?->allow_appointment && $can('appointment')) {
-            $records['appointment'] = self::scopeToCurrentSemester(
-                Appointment::where('user_id', $user->id)
-            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
+            $records['appointment'] = self::semesterRecords('appointment',
+                Appointment::where('user_id', $user->id));
         }
 
         return response()->json($records);
@@ -700,21 +731,11 @@ class DashboardController extends Controller
         abort_unless(auth()->user()->role === 'sub_admin', 403);
 
         return response()->json([
-            'complaint' => self::scopeToCurrentSemester(
-                Complaint::with(['user.profile', 'subject.profile'])
-            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id)),
-            'referral' => self::scopeToCurrentSemester(
-                Referral::with(['user.profile', 'referredStudent.profile'])
-            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id)),
-            'absent_form' => self::scopeToCurrentSemester(
-                Absence::with('user.profile')
-            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id)),
-            'gate_pass' => self::scopeToCurrentSemester(
-                GatePass::with('user.profile')
-            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id)),
-            'appointment' => self::scopeToCurrentSemester(
-                Appointment::with('user.profile')
-            )->latest('created_at')->get()->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id)),
+            'complaint' => self::semesterRecords('complaint', Complaint::with(['user.profile', 'subject.profile'])),
+            'referral' => self::semesterRecords('referral', Referral::with(['user.profile', 'referredStudent.profile'])),
+            'absent_form' => self::semesterRecords('absent_form', Absence::with('user.profile')),
+            'gate_pass' => self::semesterRecords('gate_pass', GatePass::with('user.profile')),
+            'appointment' => self::semesterRecords('appointment', Appointment::with('user.profile')),
         ]);
     }
 }

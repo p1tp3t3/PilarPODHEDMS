@@ -119,7 +119,7 @@ class ComplaintFactory extends Factory
      * through a rich text editor (real HTML in the DB) and is the exact
      * field Word2Vec complaint-context matching analyzes
      * (ComplaintController::viewComplaint() posts it as `complaint_text`
-     * to /python/complaint/context). Lorem-ipsum has no real English words
+     * to /api/complaint/context). Lorem-ipsum has no real English words
      * for the pretrained Word2Vec vocabulary to embed, so that feature had
      * nothing meaningful to match against in seeded data. These templates
      * are real English/Tagalog/Taglish sentences (a Philippine school's

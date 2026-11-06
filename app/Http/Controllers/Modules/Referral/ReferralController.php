@@ -61,7 +61,7 @@ class ReferralController extends Controller
     public function index()
     {
         self::denyStudents();
-        $isPrefect = self::isPrefect() ? 'prefect' : 'other';
+        $isPrefect = self::isPrefect() ? 'prefect' : 'shared';
         $user = auth()->user();
         $user->allow_referral = $user->permissions?->allow_referral;
         $props = [

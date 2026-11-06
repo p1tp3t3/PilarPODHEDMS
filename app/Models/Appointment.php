@@ -16,6 +16,14 @@ class Appointment extends Model
 
     public $timestamps = false;
 
+    // A cancelled appointment is kept (the prefect's calendar shows it as
+    // Cancelled) but left out of every other list, count and reminder.
+    // Include it with Appointment::withoutGlobalScope('not_cancelled').
+    protected static function booted(): void
+    {
+        static::addGlobalScope('not_cancelled', fn ($q) => $q->where($q->qualifyColumn('appointment_status'), '!=', 'cancelled'));
+    }
+
     protected function casts(): array
     {
         return [

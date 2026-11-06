@@ -88,9 +88,6 @@ const AccountModal = (props) => {
                         gap: 1.5,
                         px: 2,
                         py: 2,
-                        background: (t) => t.palette.mode === "dark"
-                            ? "linear-gradient(135deg, rgba(59,130,246,0.18), transparent)"
-                            : "linear-gradient(135deg, #eff6ff, #fff)",
                     }}
                 >
                     <Avatar

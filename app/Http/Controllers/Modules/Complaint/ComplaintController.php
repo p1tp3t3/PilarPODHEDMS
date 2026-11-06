@@ -37,7 +37,7 @@ class ComplaintController extends Controller
 
     public function index()
     {
-        $prefect = (! self::isPrefect()) ? 'other' : 'prefect';
+        $prefect = (! self::isPrefect()) ? 'shared' : 'prefect';
         $complaints = self::isPrefect()
                     ? self::allComplaints()
                     : self::allUserComplaint();
@@ -796,7 +796,7 @@ class ComplaintController extends Controller
                 $api = Http::withoutVerifying()
                     ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
                     ->timeout(10)
-                    ->post(config('services.python_api.url').'/python/complaint/context', [
+                    ->post(config('services.python_api.url').'/api/complaint/context', [
                         'complaint_text' => $complaint->complaint_description,
                     ]);
                 $predictions = $api->successful() ? $api->json() : [];

@@ -22,7 +22,7 @@ import ViewGatePassModal from "@/Components/modal/view/view-gatepass-modal";
 import AuthLayout from "@/Layouts/auth-layout";
 import TabSwitcher from "@/Components/other/tab-switcher";
 import { Head } from "@inertiajs/react";
-import { motion } from "framer-motion";
+import { Button } from "@mui/material";
 import { User as UserIcon, ShieldAlert, GraduationCap, FileWarning, FileText, CalendarX, DoorOpen, UserPen, Settings } from "lucide-react";
 
 const calculateAge = (dateOfBirth) => {
@@ -610,51 +610,53 @@ const EditProfileAccountBtn = ({
     if (!canEditProfile && !showAccount) return null
 
     return (
-        <div className="flex bg-gray-100 p-2 rounded-full w-fit items-center gap-3 shadow-inner">
+        <div className="flex w-fit items-center gap-3">
 
             {/* ----------------- Edit Profile Button ----------------- */}
             {canEditProfile && (
                 <>
-                    {user.role === "student" ? (
-                        <Link href={`${profileUrl(user)}/edit`}>
-                            <button
-                                className="flex items-center gap-2 px-5 py-2.5
-                                           rounded-full bg-green-600 text-white font-medium
-                                           shadow-md hover:bg-green-700 transition-all"
-                            >
-                                <UserPen size={16} />
-                                Edit Profile
-                            </button>
-                        </Link>
-                    ) : (
-                        <button
-                            onClick={() => closeEditProfile(!close)}
-                            className="flex items-center gap-2 px-5 py-2.5
-                                       rounded-full bg-green-600 text-white font-medium
-                                       shadow-md hover:bg-green-700 transition-all"
-                        >
-                            <UserPen size={16} />
-                            Edit Profile
-                        </button>
-                    )}
+                    {/* Students edit on their own page; everyone else in a modal. */}
+                    <Button
+                        variant="contained"
+                        startIcon={<UserPen size={16} />}
+                        {...(user.role === "student"
+                            ? { component: Link, href: `${profileUrl(user)}/edit` }
+                            : { onClick: () => closeEditProfile(!close) })}
+                        sx={{
+                            borderRadius: 9999,
+                            px: 2.5,
+                            py: 1,
+                            textTransform: "none",
+                            fontWeight: 500,
+                            bgcolor: "#16a34a",
+                            "&:hover": { bgcolor: "#15803d" },
+                        }}
+                    >
+                        Edit Profile
+                    </Button>
                 </>
             )}
 
             {/* ----------------- Account Settings Button ----------------- */}
             {(canEditAccount && (acc.role != 'super_admin' || user.role != 'super_admin')) && (
-                <Link href={`/settings/${user.username}`}>
-                    <motion.button
-                        className="flex items-center gap-2 px-5 py-2.5
-                                   rounded-full bg-white text-gray-700 font-medium
-                                   border border-gray-300 shadow-md
-                                   hover:bg-gray-200 hover:shadow-lg"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                    >
-                        <Settings size={16} />
-                        Account Settings
-                    </motion.button>
-                </Link>
+                <Button
+                    component={Link}
+                    href={`/settings/${user.username}`}
+                    variant="outlined"
+                    startIcon={<Settings size={16} />}
+                    sx={{
+                        borderRadius: 9999,
+                        px: 2.5,
+                        py: 1,
+                        textTransform: "none",
+                        fontWeight: 500,
+                        color: "text.primary",
+                        borderColor: "divider",
+                        "&:hover": { borderColor: "text.secondary", bgcolor: "action.hover" },
+                    }}
+                >
+                    Account Settings
+                </Button>
             )}
         </div>
     );

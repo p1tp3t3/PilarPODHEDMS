@@ -123,7 +123,6 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
                         [
                             'semester' => $csv['semester'] ?? 1,
                             'year_level' => $csv['year_level'],
-                            'enrolled_at' => now(),
                         ]
                     );
 

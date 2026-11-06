@@ -325,8 +325,8 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
 
      Route::post('/appointment/request', [AppointmentController::class, 'store']);
      Route::post('/appointment/update/{id}', [AppointmentController::class, 'update']);
-     Route::post('/appointment/cancel', [AppointmentController::class, 'cancelAppointment']);
-     Route::get('/appointment/cancel', [AppointmentController::class, 'cancelAppointment']);
+     // Prefect only (CancelAppointmentRequest::authorize, and the role check here).
+     Route::post('/appointment/cancel', [AppointmentController::class, 'cancelAppointment'])->middleware('role:sub_admin');
      Route::post('/appointment/attendance', [AppointmentController::class, 'markAttendance']);
      Route::post('/appointment/action', [AppointmentController::class, 'action']);
      Route::post('/calendar/appointment/get/list', [AppointmentController::class, 'getAppointment']);

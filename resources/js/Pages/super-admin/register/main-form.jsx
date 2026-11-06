@@ -46,7 +46,7 @@ const RegistrationForm = ({
   const newField = () => {
     switch (baseData.user_type) {
       case "student":
-        return { program: "", year_level: "", school_year_id: "", semester: "", enrolled_at: "" };
+        return { program: "", year_level: "", school_year_id: "", semester: "" };
       case "faculty":
         return { program: "" };
       case "program_head":

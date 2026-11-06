@@ -20,7 +20,6 @@ return new class extends Migration
             $table->unsignedTinyInteger('semester');
             $table->unsignedTinyInteger('year_level');
             $table->enum('status', ['enrolled', 'dropped'])->default('enrolled');
-            $table->date('enrolled_at');
             $table->date('dropped_at')->nullable();
             $table->timestamp('created_at')->useCurrent();
         });

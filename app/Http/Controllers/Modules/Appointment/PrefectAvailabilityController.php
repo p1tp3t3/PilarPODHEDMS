@@ -31,6 +31,8 @@ class PrefectAvailabilityController extends Controller
             'prefects' => $prefects->map(fn ($p) => [
                 'id' => $p->id,
                 'name' => trim(($p->profile?->first_name ?? '').' '.($p->profile?->last_name ?? '')) ?: 'Prefect',
+                // For the dashboards' "Offline · Last active …" badge.
+                'last_seen' => $p->last_seen,
                 'slots' => ($slots[$p->id] ?? collect())->map(fn ($s) => self::slotShape($s))->values(),
             ])->values(),
         ]);

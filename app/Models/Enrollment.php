@@ -12,7 +12,7 @@ class Enrollment extends Model
 
     protected $table = 'enrollment';
 
-    protected $fillable = ['student_id', 'program_id', 'school_year_id', 'semester', 'year_level', 'status', 'enrolled_at', 'dropped_at'];
+    protected $fillable = ['student_id', 'program_id', 'school_year_id', 'semester', 'year_level', 'status', 'dropped_at'];
 
     public $timestamps = false;
 

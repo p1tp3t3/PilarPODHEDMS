@@ -281,7 +281,7 @@ const Register = (props) => {
             // 3️⃣ Define required columns
             const commonCol = ["id", "first_name", "middle_name", "last_name", "sex", "email"];
             const col = {
-                student: ["id", "first_name", "middle_name", "last_name", "suffix", "sex", "email", "program", "year_level", "school_year", "enrolled_at"],
+                student: ["id", "first_name", "middle_name", "last_name", "suffix", "sex", "email", "program", "year_level", "school_year"],
                 faculty: commonCol.concat(["program"]),
                 administrative: commonCol.concat(["program"]),
                 staff: commonCol.concat(["position"]),

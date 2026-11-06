@@ -92,7 +92,7 @@ class WatchListService
             $response = Http::withoutVerifying()
                 ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
                 ->timeout(45)
-                ->post(rtrim(config('services.python_api.url'), '/').'/python/model/predict/batch', ['rows' => $rows]);
+                ->post(rtrim(config('services.python_api.url'), '/').'/api/model/predict/batch', ['rows' => $rows]);
         } catch (ConnectionException $e) {
             Log::warning('Watch list: prediction service unreachable', ['error' => $e->getMessage()]);
 

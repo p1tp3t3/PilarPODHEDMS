@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from "react"
-import { Clock, ChevronRight, Plus, Trash2, CalendarClock } from "lucide-react"
+import { useContext, useEffect, useMemo, useState } from "react"
+import AuthContext from "@/context-provider/auth-provider"
+import { usePage } from "@inertiajs/react"
+import { Clock, ChevronRight, Plus, Trash2, CalendarClock, UserCheck } from "lucide-react"
+import { InfoSegment } from "./info-segment"
 import FormButton from "@/Components/button/button"
 import UpModal from "@/Components/modal/up-modal"
 import { showOutputModal } from "@/others/function"
@@ -37,47 +40,78 @@ const manilaNow = () => {
 
 const fetchAvailability = () => window.axios.get("/prefect-availability").then((r) => r.data.prefects ?? [])
 
+// Same rule as the user lists' online dots: active within the last 5 minutes.
+const ACTIVE_MINUTES = 5
+const seenRecently = (when) => {
+    if (!when) return false
+    // last_seen comes as "2026-11-05 00:45:17" in Manila time with no zone.
+    let str = String(when).replace(" ", "T")
+    if (!/[zZ]|[+-]\d\d:?\d\d$/.test(str)) str += "+08:00"
+    const d = new Date(str)
+    return !isNaN(d) && Date.now() - d.getTime() <= ACTIVE_MINUTES * 60_000
+}
+
 // ---------------------------------------------------------------------------
 // Dashboard card (every role)
 // ---------------------------------------------------------------------------
 export const PrefectAvailabilityCard = () => {
+    const { isUserOnline, lastSeenOf } = useContext(AuthContext)
+    // The super admin's and the prefect's own dashboards show the schedule
+    // only, no online status (a prefect would just see themselves online).
+    const showOnline = !["super_admin", "sub_admin"].includes(usePage().props.auth?.user?.role)
     const [prefects, setPrefects] = useState(null)
     const [open, setOpen] = useState(false)
     const [now, setNow] = useState(manilaNow)
 
     useEffect(() => {
         fetchAvailability().then(setPrefects).catch(() => setPrefects([]))
-        const t = setInterval(() => setNow(manilaNow()), 60_000)
+        // Every minute: the clock for "available now", and the prefects'
+        // last_seen for the online check (works even without Reverb).
+        const t = setInterval(() => {
+            setNow(manilaNow())
+            fetchAvailability().then(setPrefects).catch(() => {})
+        }, 60_000)
         return () => clearInterval(t)
     }, [])
 
     if (prefects === null) {
-        return <div className="w-full h-10 rounded-lg bg-white border border-gray-200 animate-pulse" />
+        return <InfoSegment icon={<UserCheck size={17} />} title="Prefect" subtitle="Loading availability…" />
     }
 
     const many = prefects.length > 1
     const availableNow = prefects.some((p) => isAvailableNow(p.slots, now))
+    // Online when connected live (Reverb presence, flips instantly), else
+    // when active in the last 5 minutes. A prefect who left while this page
+    // was open is offline right away (lastSeenOf(id, null) is that moment).
+    const isOnline = (p) => {
+        if (isUserOnline?.(p.id)) return true
+        if (lastSeenOf?.(p.id, null)) return false
+        return seenRecently(p.last_seen)
+    }
+    const online = prefects.some(isOnline)
 
     return (
         <>
-        {/* One slim line: status, today's hours, and a link to the week. */}
-        <button
-            type="button"
+        {/* Online status, then the schedule: available now + today's hours. */}
+        <InfoSegment
+            icon={<UserCheck size={17} />}
+            title={
+                <span className="flex items-center gap-2">
+                    Prefect
+                    {showOnline &&
+                    <span
+                        className={`inline-flex items-center gap-1 px-1.5 py-px rounded-full text-[0.85em] font-medium ${
+                            online ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                        }`}
+                    >
+                        <span className={`w-1.5 h-1.5 rounded-full ${online ? "bg-green-500" : "bg-gray-400"}`} />
+                        {online ? "Online" : "Offline"}
+                    </span>}
+                </span>
+            }
+            subtitle={`${availableNow ? "Available now" : "Not available now"} · ${todayText(prefects, now)}`}
             onClick={() => setOpen(true)}
-            className="group w-full flex items-center gap-2.5 rounded-lg bg-white border border-gray-200 px-4 py-2.5 text-left text-[0.85em] hover:border-blue-200 transition-colors"
-        >
-            <span className={`w-2 h-2 shrink-0 rounded-full ${availableNow ? "bg-green-500" : "bg-gray-300"}`} />
-            <span className="shrink-0 font-semibold text-gray-800">Prefect</span>
-            <span className={`shrink-0 ${availableNow ? "text-green-700" : "text-gray-500"}`}>
-                {availableNow ? "Available now" : "Not available now"}
-            </span>
-            <span className="text-gray-300">·</span>
-            <span className="min-w-0 flex-1 truncate text-gray-600">{todayText(prefects, now)}</span>
-            <span className="shrink-0 flex items-center gap-0.5 text-blue-700 group-hover:text-blue-900">
-                <span className="hidden sm:inline">View week</span>
-                <ChevronRight size={15} />
-            </span>
-        </button>
+        />
 
         {/* The week's schedule opens in a modal instead of expanding the card. */}
         <UpModal

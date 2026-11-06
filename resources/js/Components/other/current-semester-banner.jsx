@@ -1,6 +1,18 @@
-import { usePage, Link } from "@inertiajs/react"
-import { formatSchoolYearSemester, readableDate } from "@/others/function"
-import { CalendarDays, ChevronRight } from "lucide-react"
+import { usePage } from "@inertiajs/react"
+import { ordinal } from "@/others/function"
+import { CalendarDays } from "lucide-react"
+import { InfoSegment } from "./info-segment"
+
+// "Aug 1 – Dec 31, 2026"; the year is written once when both dates share it.
+const dateRange = (start, end) => {
+    if (!start || !end) return null
+    const s = new Date(start), e = new Date(end)
+    const md = { month: "short", day: "numeric" }
+    const full = { ...md, year: "numeric" }
+    return s.getFullYear() === e.getFullYear()
+        ? `${s.toLocaleDateString("en-US", md)} – ${e.toLocaleDateString("en-US", full)}`
+        : `${s.toLocaleDateString("en-US", full)} – ${e.toLocaleDateString("en-US", full)}`
+}
 import { useState } from "react"
 import MyCurrentSemesterRecordsModal from "@/Components/modal/view/my-current-semester-records-modal"
 
@@ -22,32 +34,21 @@ const CurrentSemesterBanner = () => {
     const isPrefect = role === "sub_admin"
     const [recordsModal, openRecordsModal] = useState(false)
 
-    const content = (
-        <>
-            <CalendarDays className="text-blue-600 flex-shrink-0" size={20} />
-            {sys ? (
-                <p className="text-[0.85em] text-blue-900">
-                    <span className="font-semibold">{formatSchoolYearSemester(sys)}</span>
-                    <span className="text-blue-700"> &middot; {readableDate(sys.date_start)} - {readableDate(sys.date_end)}</span>
-                </p>
-            ) : (
-                <p className="text-[0.85em] font-semibold text-blue-900">
-                    No active school year/semester is currently set.
-                </p>
-            )}
-            <ChevronRight className="text-blue-400 flex-shrink-0 ml-auto" size={18} />
-        </>
-    )
+    // Spelled out: "School Year 2026–2027" over "1st Semester · Aug 1 – Dec 31, 2026".
+    const segment = {
+        icon: <CalendarDays size={17} />,
+        title: sys?.school_year?.year
+            ? `School Year ${sys.school_year.year.replace("-", "–")}`
+            : "No active school year",
+        subtitle: sys
+            ? [sys.semester && `${ordinal(sys.semester)} Semester`, dateRange(sys.date_start, sys.date_end)].filter(Boolean).join(" · ")
+            : (isSuperAdmin ? "Set one in School Year" : "Not set yet"),
+    }
 
+    // The super admin manages school years; everyone else sees this
+    // semester's records.
     if (isSuperAdmin) {
-        return (
-            <Link
-                href="/super-admin/school-year"
-                className="w-full flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-md px-4 py-3 mb-6 hover:bg-blue-100 transition-colors"
-            >
-                {content}
-            </Link>
-        )
+        return <InfoSegment {...segment} href="/super-admin/school-year" />
     }
 
     return (
@@ -57,13 +58,7 @@ const CurrentSemesterBanner = () => {
                 closeModal={openRecordsModal}
                 mode={isPrefect ? "all" : "mine"}
             />
-            <button
-                type="button"
-                onClick={() => openRecordsModal(true)}
-                className="w-full flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-md px-4 py-3 mb-6 hover:bg-blue-100 transition-colors text-left"
-            >
-                {content}
-            </button>
+            <InfoSegment {...segment} onClick={() => openRecordsModal(true)} />
         </>
     )
 }

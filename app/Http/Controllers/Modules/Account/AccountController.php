@@ -6,7 +6,6 @@ use App\Events\CsvBatchCompleted;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Resource\FileController;
 use App\Http\Requests\Account\UpdateAccountRequest;
-use App\Http\Resources\TeachingStaffResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\UserSearchResource;
 use App\Jobs\ProcessEnrollmentUpdateCsvRow;
@@ -55,6 +54,8 @@ class AccountController extends Controller
                 'account_files' => FileController::scopedAccountFiles(),
                 'roles' => Role::orderBy('id')->get(['id', 'name', 'label', 'is_active']),
                 'school_years' => \App\Models\SchoolYear::orderByDesc('year')->pluck('year'),
+                // For the Edit Enrollment modal (Student filter).
+                'school_years_full' => \App\Models\SchoolYear::orderByDesc('year')->get(['id', 'year']),
                 // For the role-specific filters (teaching vs non-teaching positions).
                 'positions' => Position::orderBy('name')->get(['id', 'name'])
                     ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'teaching' => in_array($p->name, self::TEACHING_POSITIONS, true)]),
@@ -214,7 +215,6 @@ class AccountController extends Controller
                         'program_id' => $request->program_id,
                         'year_level' => $request->year_level,
                         'status' => 'enrolled',
-                        'enrolled_at' => now(),
                         'dropped_at' => null,
                     ]
                 );
@@ -316,7 +316,7 @@ class AccountController extends Controller
             ->where('position_id', Position::idFor('program_head'))
             ->first();
 
-        $isPrefect = (auth()->user()->role === 'sub_admin') ? 'prefect' : 'other';
+        $isPrefect = (auth()->user()->role === 'sub_admin') ? 'prefect' : 'shared';
 
         $schoolYears = SchoolYear::orderByDesc('year')->pluck('year');
         $schoolYearsFull = SchoolYear::orderByDesc('year')->get(['id', 'year']);
@@ -359,11 +359,17 @@ class AccountController extends Controller
         $data = $request->validate([
             'student_id' => 'required|exists:users,id',
             'program_id' => 'required|exists:program,id',
-            'school_year_id' => 'required|exists:school_year,id',
-            'semester' => 'required|integer|between:1,2',
             'year_level' => 'required|integer|between:1,4',
-            'enrolled_at' => 'required|date',
         ]);
+
+        // Always the current school year / semester (the modal shows them
+        // read-only); whatever else is sent is ignored.
+        $current = \App\Models\SchoolYearSemester::current();
+        if (! $current) {
+            return response()->json(['message' => 'There is no active school year and semester to enroll the student in.'], 422);
+        }
+        $data['school_year_id'] = $current->school_year_id;
+        $data['semester'] = $current->semester;
 
         $student = User::where('id', $data['student_id'])->whereRole('student')->firstOrFail();
 
@@ -381,13 +387,12 @@ class AccountController extends Controller
             [
                 'semester' => $data['semester'],
                 'year_level' => $data['year_level'],
-                'enrolled_at' => $data['enrolled_at'],
                 'status' => 'enrolled',
             ]
         );
 
         $changes = [];
-        foreach (['semester', 'year_level', 'enrolled_at'] as $field) {
+        foreach (['semester', 'year_level'] as $field) {
             $from = $existing?->{$field};
             $to = $data[$field];
             if ((string) $from !== (string) $to) {
@@ -503,7 +508,7 @@ class AccountController extends Controller
     public static function validateEnrollmentUpdateCsvRow(array $row): array
     {
         $errors = [];
-        $required = ['id', 'program', 'year_level', 'enrolled_at'];
+        $required = ['id', 'program', 'year_level'];
 
         foreach ($required as $col) {
             if (! isset($row[$col]) || trim((string) $row[$col]) === '') {
@@ -523,9 +528,6 @@ class AccountController extends Controller
             if (! is_numeric($row['year_level']) || $row['year_level'] < 1 || $row['year_level'] > 4) {
                 $errors[] = 'Year level must be 1–4.';
             }
-            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $row['enrolled_at']) || ! strtotime($row['enrolled_at'])) {
-                $errors[] = 'enrolled_at must be a valid date in YYYY-MM-DD format.';
-            }
         }
 
         return $errors;
@@ -533,7 +535,7 @@ class AccountController extends Controller
 
     public function facultyListIndex()
     {
-        $isPrefect = (auth()->user()->role === 'sub_admin') ? 'prefect' : 'other';
+        $isPrefect = (auth()->user()->role === 'sub_admin') ? 'prefect' : 'shared';
         $programHead = TeachingStaff::with('program')
             ->where('user_id', auth()->user()->id)
             ->where('position_id', Position::idFor('program_head'))
@@ -601,6 +603,9 @@ class AccountController extends Controller
         if (isset($_GET['search']) && $_GET['search'] !== '') {
             $data->where('id_number', 'like', "%{$_GET['search']}%");
         }
+
+        // School year / semester: staff accounts registered in that period.
+        \App\Models\SchoolYearSemester::applyFilter($data, 'users.created_at', request('school-year'), request('semester'));
 
         return UserResource::collection(
             $data->latest('created_at')
@@ -672,6 +677,14 @@ class AccountController extends Controller
 
         if (isset($_GET['search']) && $_GET['search'] !== '') {
             $data->where('id_number', 'like', "%{$_GET['search']}%");
+        }
+
+        // School year / semester: parent accounts registered in that period.
+        \App\Models\SchoolYearSemester::applyFilter($data, 'users.created_at', request('school-year'), request('semester'));
+
+        // Parent role: father / mother / guardian.
+        if (request('parent-role') && request('parent-role') !== 'all') {
+            $data->whereHas('parent', fn ($q) => $q->where('parent_role', request('parent-role')));
         }
 
         return UserResource::collection(
@@ -1438,13 +1451,15 @@ class AccountController extends Controller
 
             return UserResource::collection($data);
         } else {
+            // A faculty member sees the faculty of their own program — as
+            // users, the same shape as the branch above (the faculty list
+            // reads id / profile / teaching_staff from each row).
             $programId = $myTeachingStaff?->program_id;
 
-            self::setId($programId);
-
-            return TeachingStaffResource::collection(TeachingStaff::with(['program', 'user.profile'])
-                ->where('program_id', self::getId())
-                ->paginate(10));
+            return UserResource::collection($data
+                ->whereHas('teachingStaff', fn ($q) => $q->where('program_id', $programId))
+                ->latest('created_at')
+                ->paginate(100));
         }
     }
 
@@ -1461,34 +1476,51 @@ class AccountController extends Controller
                 $q->where('status', 'enrolled');
             });
 
+        // The super admin's and the prefect's student lists open on the
+        // current school year and semester (their dropdowns show them);
+        // choosing a value, "all" included, is sent explicitly and replaces
+        // that default. The dashboard's "Total Enrolled Students" link
+        // (?is-enrolled=1) gets the same default.
+        $schoolYear = request('school-year');
+        $semester = request('semester');
+        $onDefaultPeriod = false;
+        $isEnrolledLink = filter_var(request('is-enrolled'), FILTER_VALIDATE_BOOLEAN);
+        if (in_array(auth()->user()->role, ['super_admin', 'sub_admin'], true)
+            && ! request()->has('school-year') && ! request()->has('semester')
+            && ($current = \App\Models\SchoolYearSemester::current())) {
+            $schoolYear = $current->schoolYear?->year;
+            $semester = $current->semester;
+            $onDefaultPeriod = true;
+        }
+        $schoolYear = $schoolYear && $schoolYear !== 'all' ? $schoolYear : null;
+        $semester = $semester && $semester !== 'all' ? $semester : null;
+        $yearLevel = request('year-level');
+        $yearLevel = $yearLevel && $yearLevel !== 'all' ? (int) $yearLevel : null;
+
         // ?is-enrolled=1 (e.g. from the dashboard's "Total Enrolled Students"
-        // card): only students whose latest enrollment is still "enrolled".
-        if (filter_var(request('is-enrolled'), FILTER_VALIDATE_BOOLEAN)) {
+        // card), and the super admin's default view: only students whose
+        // latest enrollment is still "enrolled". A period picked by hand shows
+        // that period's students, dropped ones included.
+        if ($isEnrolledLink || $onDefaultPeriod
+            || (auth()->user()->role === 'super_admin' && ! $schoolYear && ! $semester)) {
             $data->currentlyEnrolled();
         }
 
         if (in_array(auth()->user()->role, ['sub_admin', 'super_admin']) || $isProgramHead) {
             // Filter by program if not "all"
-            if (isset($_GET['program']) && $_GET['program'] != 'all') {
-                $data->whereHas('enrollments', function ($q) {
-                    $q->where('program_id', $_GET['program']);
-                });
+            if (request('program') && request('program') !== 'all') {
+                $data->whereHas('enrollments', fn ($q) => $q->where('program_id', request('program')));
             }
 
-            // Filter by year level if not "all"
-            if (isset($_GET['school-year']) && $_GET['school-year'] != 'all') {
-                $data->whereHas('enrollments', function ($q) {
-                    $q->whereHas('schoolYear', function ($sq) {
-                        $sq->where('year', $_GET['school-year']);
-                    });
-                });
-            }
-
-            // Filter by semester if not "all"
-            if (isset($_GET['semester']) && $_GET['semester'] != 'all') {
-                $data->whereHas('enrollments', function ($q) {
-                    $q->where('semester', $_GET['semester']);
-                });
+            // School year, semester and year level, on the same enrollment.
+            // With no period picked, the year level is the latest enrollment's.
+            if ($schoolYear || $semester) {
+                $data->whereHas('enrollments', fn ($q) => $q
+                    ->when($schoolYear, fn ($q) => $q->whereHas('schoolYear', fn ($sq) => $sq->where('year', $schoolYear)))
+                    ->when($semester, fn ($q) => $q->where('semester', $semester))
+                    ->when($yearLevel, fn ($q) => $q->where('year_level', $yearLevel)));
+            } elseif ($yearLevel) {
+                $data->whereHas('latestEnrollment', fn ($q) => $q->where('year_level', $yearLevel));
             }
 
             // Apply search filter if present

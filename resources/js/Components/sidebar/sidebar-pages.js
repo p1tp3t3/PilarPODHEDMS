@@ -133,6 +133,9 @@ export const sidebarPages = [
     { type: "link", id: "absent-form", href: "/absent-form", icon: CalendarX, label: "Absent Form", roles: ["student"] },
     { type: "link", id: "gatepass", href: "/gatepass", icon: DoorOpen, label: "Gate-Pass", roles: ["student"] },
 
+    // ---- shared: appointment (the prefect schedules them for students and parents) ----
+    { type: "link", id: "appointment", href: "/appointment", icon: Calendar, label: "Appointment", roles: ["student", "parent"] },
+
     // ---- teaching_staff ----
     // Account Files (other/program-account-files.jsx) already shows Faculty
     // and Student as tabs on the same page — separate "Faculty"/"Student"

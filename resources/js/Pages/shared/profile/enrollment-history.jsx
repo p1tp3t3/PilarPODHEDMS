@@ -32,10 +32,9 @@ const EnrollmentHistory = ({ enrollments = [] }) => {
                                     {e.program?.name ?? 'N/A'}
                                     {e.year_level != null ? ` · ${getYearLevel(e.year_level)}` : ''}
                                 </div>
-                                {(e.enrolled_at || e.dropped_at) &&
+                                {e.dropped_at &&
                                 <div className="text-gray-500 mt-1 text-[0.9em]">
-                                    {e.enrolled_at ? `Enrolled ${readableDate(e.enrolled_at)}` : ''}
-                                    {e.dropped_at ? ` · Dropped ${readableDate(e.dropped_at)}` : ''}
+                                    Dropped {readableDate(e.dropped_at)}
                                 </div>}
                             </div>
                         ))}

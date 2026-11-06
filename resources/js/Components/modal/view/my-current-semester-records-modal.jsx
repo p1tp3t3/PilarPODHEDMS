@@ -1,7 +1,7 @@
 import UpModal from "../up-modal"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import { DashboardService } from "@/others/services/dashboard-service"
-import { readableDate, readableTime, toTitleCase, formatSchoolYearSemester } from "@/others/function"
+import { readableDate, readableTime, toTitleCase, ordinal } from "@/others/function"
 import { Link, usePage } from "@inertiajs/react"
 import { useEffect, useState } from "react"
 import { FileText, Send, CalendarX, DoorOpen, CalendarClock } from "lucide-react"
@@ -13,7 +13,7 @@ const TAB_META = {
     referral: { label: "Referrals", icon: Send, number: "referral_number", status: "referral_status", route: "/referral" },
     absent_form: { label: "Absent Forms", icon: CalendarX, number: "form_number", route: "/absent-form" },
     gate_pass: { label: "Gate Passes", icon: DoorOpen, number: "gatepass_number", route: "/gatepass" },
-    appointment: { label: "Appointments", icon: CalendarClock, number: null, route: "/appointment" },
+    appointment: { label: "Appointments", icon: CalendarClock, number: "appointment_number", route: "/appointment" },
 }
 
 const STATUS_STYLES = {
@@ -81,13 +81,14 @@ const MyCurrentSemesterRecordsModal = ({ close, closeModal, mode = "mine" }) => 
                     </h2>
                     {sys && (
                         <p className="text-[0.8em] font-medium text-blue-700">
-                            {formatSchoolYearSemester(sys)} &middot; {readableDate(sys.date_start)} - {readableDate(sys.date_end)}
+                            School Year {sys.school_year?.year?.replace("-", "–")} &middot; {ordinal(sys.semester)} Semester &middot; {readableDate(sys.date_start)} – {readableDate(sys.date_end)}
                         </p>
                     )}
                     <p className="text-[0.85em] text-gray-500">
                         {isAll
                             ? "Every complaint, referral, absent form, gate pass, and appointment filed during the currently active semester."
                             : "Everything you've filed during the currently active semester."}
+                        {" "}Only pending and rejected records are shown (also ongoing complaints; appointments: pending only).
                     </p>
                 </div>
 
