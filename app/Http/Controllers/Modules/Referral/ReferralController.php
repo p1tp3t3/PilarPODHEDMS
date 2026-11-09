@@ -33,14 +33,14 @@ class ReferralController extends Controller
 {
     use GeneratesSequenceCode;
 
-    // Teaching staff may only refer students of their own program(s) — the
+    // Program heads and faculty may only refer students of their own program(s) — the
     // prefect can refer anyone. Returns an error response, or null if fine.
     private static function outsideProgramResponse($studentIds)
     {
-        if (auth()->user()->role !== 'teaching_staff') {
+        if (! auth()->user()->isTeacher()) {
             return null;
         }
-        $programIds = \App\Models\TeachingStaff::programIdsFor(auth()->id());
+        $programIds = \App\Models\User::teachingProgramIdsFor(auth()->id());
         $allowed = User::whereIn('id', collect($studentIds))
             ->whereHas('latestEnrollment', fn ($q) => $q->whereIn('program_id', $programIds))
             ->pluck('id');
@@ -117,7 +117,7 @@ class ReferralController extends Controller
             }
 
             $field = [
-                'teaching_staff_id' => $request->referrer_id,
+                'referrer_id' => $request->referrer_id,
                 'reason_description' => $request->referral_reason,
                 'referral_number' => $this->generateSequenceCode(Referral::class, 'referral_number'),
             ];
@@ -232,14 +232,14 @@ class ReferralController extends Controller
 
         $referrals = Referral::with([
             'user.profile',
-            'user.teachingStaff.program',
+            'user.faculty.program', 'user.headships.program',
             'referredStudent.program',
         ]);
 
         // Prefect sees everything; so does guidance (a non_teaching_staff
         // position, not a role) — everyone else only sees what they filed.
         if (auth()->user()->role != 'sub_admin' && ! self::isGuidance()) {
-            $referrals->where('teaching_staff_id', auth()->user()->id);
+            $referrals->where('referrer_id', auth()->user()->id);
         }
 
         // A referral has no in-between "ongoing" phase like a complaint
@@ -280,7 +280,7 @@ class ReferralController extends Controller
     }
 
     /**
-     * Every referral a teaching staff member (faculty or program head) has
+     * Every referral a program head or faculty member has
      * filed as the referrer — surfaced as the "Referral Filed" tab on their
      * own profile, mirroring ComplaintController::getComplainantComplaint().
      */
@@ -288,7 +288,7 @@ class ReferralController extends Controller
     {
         return ['data' => ReferralResource::collection(
             Referral::with(['user.profile', 'referredStudent.profile', 'referredStudent.program'])
-                ->where('teaching_staff_id', $id)
+                ->where('referrer_id', $id)
                 ->latest('created_at')
                 ->get()
         )];
@@ -298,7 +298,7 @@ class ReferralController extends Controller
     {
         return ReferralResource::collection(Referral::with([
             'user.profile',
-            'user.teachingStaff.program',
+            'user.faculty.program', 'user.headships.program',
             'referredStudent.profile',
             'referredStudent.program',
         ])
@@ -352,7 +352,7 @@ class ReferralController extends Controller
         if (auth()->user()->role === 'sub_admin') {
             return response()->json(['message' => 'The prefect cannot revoke referrals.'], 403);
         }
-        if ($referral->teaching_staff_id !== auth()->id()) {
+        if ($referral->referrer_id !== auth()->id()) {
             return response()->json(['message' => 'You can only revoke a referral you filed yourself.'], 403);
         }
 
@@ -394,7 +394,7 @@ class ReferralController extends Controller
         if (! $referral) {
             return response()->json(['message' => 'Referral not found.'], 404);
         }
-        if ($referral->teaching_staff_id !== auth()->id()) {
+        if ($referral->referrer_id !== auth()->id()) {
             return response()->json(['message' => 'You can only edit a referral you filed yourself.'], 403);
         }
         if ($referral->referral_status !== 'pending' || $referral->confirmed_at !== null) {
@@ -533,6 +533,13 @@ class ReferralController extends Controller
         $id = decrypt_id($id) ?? abort(404);
 
         $referral = Referral::findOrFail($id);
+
+        // A referral's PDF is only kept once it's approved, so only an
+        // approved referral can be sent on (and get its form saved).
+        if (! $referral->confirmed_at || $referral->rejected_at || $referral->revoked_at) {
+            return response()->json(['message' => 'Only an approved referral can be sent.'], 422);
+        }
+
         $referredStudents = ReferralReferredStudent::with(['referral', 'user.profile', 'user.program', 'user.enrollments'])
             ->where('referral_id', $id)
             ->get();
@@ -582,7 +589,7 @@ class ReferralController extends Controller
 
         return new ReferralResource(Referral::with([
             'user.profile',
-            'user.teachingStaff.program',
+            'user.faculty.program', 'user.headships.program',
             'referredStudent.profile',
             'referredStudent.program',
             'referralReferredStudent.user.profile',

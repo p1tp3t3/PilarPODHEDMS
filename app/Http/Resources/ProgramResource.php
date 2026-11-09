@@ -17,8 +17,10 @@ class ProgramResource extends JsonResource
             'color_code' => $this->color_code,
             'logo' => $this->logo,
             'created_at' => $this->created_at,
-            'program_head' => TeachingStaffResource::make($this->whenLoaded('programHead')),
-            'users_count' => ($this->students_count ?? 0) + ($this->teaching_staff_count ?? 0),
+            'program_head' => ProgramHeadResource::make($this->whenLoaded('programHead')),
+            'users_count' => ($this->students_count ?? 0) + ($this->faculty_count ?? 0) + ($this->program_head_count ?? 0),
+            'archived_at' => $this->archived_at,
+            'has_records' => (bool) ($this->has_records ?? false),
         ];
     }
 }

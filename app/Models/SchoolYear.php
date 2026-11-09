@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class SchoolYear extends Model
 {
@@ -36,9 +37,12 @@ class SchoolYear extends Model
 
     /**
      * The school year that comes after the latest one on record, with its
-     * default semester dates and the day it gets added (the day after the
-     * latest school year's 2nd semester ends). With no school years at
-     * all, it's the one covering today, added immediately.
+     * semester dates and the day it gets added (the day after the latest
+     * school year's 2nd semester ends — which is also when its 1st
+     * semester starts). Its 2nd semester starts the day after the 1st
+     * ends. The two end dates are the defaults unless planned ahead
+     * (upcoming_school_year_dates). With no school years at all, it's the
+     * one covering today, added immediately.
      */
     public static function upcoming(): array
     {
@@ -55,15 +59,37 @@ class SchoolYear extends Model
             $addsOn = today();
         }
 
+        $year = $startYear.'-'.($startYear + 1);
+        $planned = DB::table('upcoming_school_year_dates')->where('year', $year)->first();
+
+        [$start1, $end1] = SchoolYearSemester::defaultDateRange($startYear, 1);
+        [, $end2] = SchoolYearSemester::defaultDateRange($startYear, 2);
+        if ($planned) {
+            $end1 = Carbon::parse($planned->first_sem_end);
+            $end2 = Carbon::parse($planned->second_sem_end);
+        }
+        // Back to back: 1st Sem right after the latest school year, 2nd Sem
+        // right after the 1st.
+        if ($latest) {
+            $start1 = $addsOn->copy();
+        }
+        if ($start1->gte($end1)) {
+            $end1 = $start1->copy()->addMonths(4)->endOfMonth();
+        }
+        $start2 = $end1->copy()->addDay();
+        if ($start2->gte($end2)) {
+            $end2 = $start2->copy()->addMonths(6)->endOfMonth();
+        }
+
         return [
-            'year' => $startYear.'-'.($startYear + 1),
+            'year' => $year,
             'adds_on' => $addsOn->toDateString(),
             'after_year' => $latest?->year,
-            'semesters' => collect([1, 2])->map(function ($n) use ($startYear) {
-                [$start, $end] = SchoolYearSemester::defaultDateRange($startYear, $n);
-
-                return ['semester' => $n, 'date_start' => $start->toDateString(), 'date_end' => $end->toDateString()];
-            })->all(),
+            'planned' => (bool) $planned,
+            'semesters' => [
+                ['semester' => 1, 'date_start' => $start1->toDateString(), 'date_end' => $end1->toDateString()],
+                ['semester' => 2, 'date_start' => $start2->toDateString(), 'date_end' => $end2->toDateString()],
+            ],
         ];
     }
 
@@ -86,6 +112,8 @@ class SchoolYear extends Model
             foreach ($next['semesters'] as $s) {
                 $schoolYear->semesters()->create($s);
             }
+            // Its planned dates are now its real ones.
+            DB::table('upcoming_school_year_dates')->where('year', $next['year'])->delete();
             $created[] = $schoolYear;
         }
 

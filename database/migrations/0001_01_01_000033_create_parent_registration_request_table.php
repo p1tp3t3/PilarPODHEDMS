@@ -12,11 +12,17 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('parent_registration_request', function (Blueprint $table) {
+            // Primary key (auto-increment).
             $table->increments('id');
+            // The parent's account, set once the request is approved and the
+            // account is generated; null while pending.
+            $table->foreignId('parent_id')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
             $table->string('name')->nullable();
             $table->string('email')->unique();
             $table->longText('parent_details')->nullable();
             $table->text('reason')->nullable();
+            // The parent agreed to the Terms and Conditions when registering.
+            $table->boolean('is_agreed')->default(false);
             $table->timestamp('created_at')->useCurrent();
         });
     }

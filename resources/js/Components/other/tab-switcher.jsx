@@ -6,6 +6,9 @@ import { Tabs, Tab } from "@mui/material";
  * `onChange(key)`. Renders only the tab bar itself — each page still owns
  * rendering whatever content belongs to the active tab.
  */
+// A tab's count is left off when it's zero: "Archived (0)" shows as "Archived".
+const tabLabel = (label) => (typeof label === "string" ? label.replace(/\s*\(0\)$/, "") : label);
+
 const TabSwitcher = ({ tabs, value, onChange, fullWidth = false }) => {
     return (
         <Tabs
@@ -21,7 +24,7 @@ const TabSwitcher = ({ tabs, value, onChange, fullWidth = false }) => {
                 <Tab
                     key={tab.key}
                     value={tab.key}
-                    label={tab.label}
+                    label={tabLabel(tab.label)}
                     icon={tab.icon ? <tab.icon size={16} /> : undefined}
                     iconPosition="start"
                     sx={{

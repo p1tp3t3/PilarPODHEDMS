@@ -17,9 +17,7 @@ use App\Models\Parents;
 use App\Models\Position;
 use App\Models\Profile;
 use App\Models\Program;
-use App\Models\ProgramHeadProgram;
 use App\Models\SchoolYear;
-use App\Models\TeachingStaff;
 use App\Models\User;
 use App\Models\UserPermission;
 use Exception;
@@ -45,16 +43,17 @@ class RegisteredUserController extends Controller
         return Inertia::render('super-admin/register', [
             'authType' => auth()->user()->role,
             'student' => $student->getAllStudent(),
-            'program' => Program::select('id', 'name', 'description')->get(),
+            // Disabled programs aren't offered for new accounts.
+            'program' => Program::active()->select('id', 'name', 'description')->get(),
             'program_name' => is_program_head(),
             'school_years' => SchoolYear::orderByDesc('year')->get(['id', 'year']),
-            'positions' => Position::whereNotIn('name', ['faculty', 'program_head'])->orderBy('name')->get(),
+            'positions' => Position::orderBy('name')->get(),
         ]);
     }
 
     public function parentRegistrationIndex()
     {
-        $programs = Program::all(['id', 'name']);
+        $programs = Program::active()->get(['id', 'name']);
 
         return Inertia::render('guest/parent-registration', [
             'programs' => $programs,
@@ -117,7 +116,7 @@ class RegisteredUserController extends Controller
 
                     return response()->json(['message' => "There's Already a $type Account."], 400);
 
-                } elseif ($role === 'teaching_staff' && $position === 'program_head') {
+                } elseif ($role === 'program_head') {
                     $program = Program::with('programHead')
                         ->where('id', request('program'))
                         ->first();
@@ -278,8 +277,9 @@ class RegisteredUserController extends Controller
 
                     return response()->json(['message' => 'Student Registered and CSV Updated Successfully']);
 
-                    /** ================= TEACHING STAFF (faculty / program head) ================= */
-                case 'teaching_staff':
+                    /** ================= PROGRAM HEAD / FACULTY ================= */
+                case 'program_head':
+                case 'faculty':
                     $programId = $request->program;
                     $programName = Program::where('id', $programId)->value('name');
                     $csvPath = storage_path("app/private/zips/faculty-account-{$programId}-{$programName}.csv");
@@ -292,23 +292,10 @@ class RegisteredUserController extends Controller
                     Profile::create(array_merge(['user_id' => $user->id], $profileFields));
                     UserPermission::create(array_merge(['user_id' => $user->id], get_user_access_field([], $role)));
 
-                    TeachingStaff::create([
-                        'user_id' => $user->id,
-                        'program_id' => $programId,
-                        'position_id' => Position::idFor($position ?? 'faculty'),
-                    ]);
-
-                    // Every program head is tracked in program_head_program
-                    // (the single source of truth Program::programHead()
-                    // reads from) — a program head can be assigned 2+
-                    // programs later, but registration always starts them
-                    // off heading the one program picked here.
-                    if ($position === 'program_head') {
-                        ProgramHeadProgram::create([
-                            'user_id' => $user->id,
-                            'program_id' => $programId,
-                        ]);
-                    }
+                    // Faculty go in the faculty table; a program head gets a
+                    // program_head row for the program picked here (more
+                    // programs can be added later).
+                    $user->assignTeaching($role, $programId);
 
                     $row = [
                         $user->id_number,
@@ -330,7 +317,7 @@ class RegisteredUserController extends Controller
                     }
                     fclose($fp);
 
-                    return response()->json(['message' => 'Teaching Staff Registered and CSV Updated Successfully']);
+                    return response()->json(['message' => 'Account Registered and CSV Updated Successfully']);
 
                     /** ================= NON-TEACHING STAFF ================= */
                 case 'non_teaching_staff':
@@ -585,8 +572,8 @@ class RegisteredUserController extends Controller
             if (! filter_var($row['email'], FILTER_VALIDATE_EMAIL)) {
                 $errors[] = 'Invalid email format.';
             }
-            if (! Program::whereRaw('LOWER(name) = ?', [strtolower(trim($row['program']))])->exists()) {
-                $errors[] = 'Program must match an existing program name (e.g. BSIT, BEED, BSN).';
+            if (! Program::active()->whereRaw('LOWER(name) = ?', [strtolower(trim($row['program']))])->exists()) {
+                $errors[] = 'Program must match an existing, enabled program name (e.g. BSIT, BEED, BSN).';
             }
             if (! is_numeric($row['year_level']) || $row['year_level'] < 1 || $row['year_level'] > 4) {
                 $errors[] = 'Year level must be 1–4.';
@@ -630,7 +617,7 @@ class RegisteredUserController extends Controller
                 },
             ],
 
-            'teaching_staff' => [
+            'faculty' => [
                 'required' => [
                     'id', 'first_name', 'middle_name', 'last_name',
                     'sex', 'email', 'program',
@@ -808,7 +795,7 @@ class RegisteredUserController extends Controller
         $hasAnomalies = false;
 
         $expectedColumns = [
-            'teaching_staff' => ['id', 'first_name', 'middle_name', 'last_name', 'sex', 'program'],
+            'faculty' => ['id', 'first_name', 'middle_name', 'last_name', 'sex', 'program'],
             'student' => ['id', 'first_name', 'middle_name', 'last_name', 'sex', 'program', 'year_level', 'semester'],
             'non_teaching_staff' => ['id', 'first_name', 'middle_name', 'last_name', 'sex', 'work_type'],
         ];
@@ -850,7 +837,7 @@ class RegisteredUserController extends Controller
         $hasAnomalies = false;
 
         $expectedColumns = [
-            'teaching_staff' => ['id', 'first_name', 'middle_name', 'last_name', 'sex', 'program'],
+            'faculty' => ['id', 'first_name', 'middle_name', 'last_name', 'sex', 'program'],
             'student' => ['id', 'first_name', 'middle_name', 'last_name', 'sex', 'program', 'year_level', 'semester'],
             'non_teaching_staff' => ['id', 'first_name', 'middle_name', 'last_name', 'sex', 'work_type'],
         ];

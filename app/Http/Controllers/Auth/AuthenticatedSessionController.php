@@ -120,7 +120,7 @@ class AuthenticatedSessionController extends Controller
             // (checked by ForceAccountSetup), not re-derived on every request.
             // "guard"/"guidance" aren't separate roles — every
             // non_teaching_staff position is already covered by that entry.
-            $forcedRoles = ['student', 'teaching_staff', 'non_teaching_staff'];
+            $forcedRoles = ['student', 'program_head', 'faculty', 'non_teaching_staff'];
             if (in_array($user->role, $forcedRoles, true) && (! $user->already_update_profile || ! $user->already_update_password)) {
                 $request->session()->put('force_account_setup', true);
 

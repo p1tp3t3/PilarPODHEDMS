@@ -57,11 +57,11 @@ const Body = (props) => {
     [validationErr, setValidationError] = useState({}),
     [existUserId, setExistUserId] = useState(false);
 
-  // Teaching and non-teaching staff only need picture, sex, contact number,
+  // Program heads, faculty and non-teaching staff only need picture, sex, contact number,
   // and address — religion/citizenship/date of birth/place of birth/civil
   // status are hidden entirely for these roles (see
   // Validator.validateUpdateProfileForm for the matching required-field set).
-  const isStaffRole = ['teaching_staff', 'non_teaching_staff'].includes(props.data.user_type);
+  const isStaffRole = ['program_head', 'faculty', 'non_teaching_staff'].includes(props.data.user_type);
   // The IT admin's profile only has a picture, contact number and address.
   const isSuperAdminProfile = props.data.user_type === 'super_admin';
   const hidePersonal = isStaffRole || isSuperAdminProfile;
@@ -138,7 +138,8 @@ const Body = (props) => {
         return requestType.filter(
           (e) => e.val == "complaint" || e.val == "absent_form" || e.val == "gatepass"
         );
-      case "teaching_staff":
+      case "program_head":
+      case "faculty":
         return requestType.filter(
           (e) => e.val == "complaint" || e.val == "gatepass"
         );

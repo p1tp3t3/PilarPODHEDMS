@@ -68,10 +68,10 @@ class ProfileController extends Controller
         }
 
         $props = [
-            // teachingStaff loaded so the frontend can tell a program head
+            // teaching loaded so the frontend can tell a program head
             // apart from regular faculty (position === 'program_head'),
             // used to gate seeing a student's enrollment history below.
-            'user' => User::with('teachingStaff')->find(auth()->id()),
+            'user' => User::with(User::TEACHING_RELATIONS)->find(auth()->id()),
             'otherUserProfile' => $account,
             // Earlier ID numbers (e.g. the student ID of someone now staff).
             'previous_id_numbers' => $hideContact ? [] : \App\Models\UserIdNumber::where('user_id', $account->id)
@@ -128,8 +128,8 @@ class ProfileController extends Controller
 
         // Referrals, absent forms and gate passes follow the complaint rule:
         // the prefect or the person who filed them, never super_admin.
-        // Teaching staff and the prefect (sub_admin) can both refer students.
-        if ($canViewOwnComplaints && in_array($account->role, ['teaching_staff', 'sub_admin'], true)) {
+        // Program heads and faculty and the prefect (sub_admin) can both refer students.
+        if ($canViewOwnComplaints && in_array($account->role, ['program_head', 'faculty', 'sub_admin'], true)) {
             $props['referrals_filed'] = (new ReferralController)->getReferrerReferral($account->id);
         }
 

@@ -24,7 +24,7 @@ class Referral extends Model
 
     protected function documentOwnerId(): ?int
     {
-        return $this->teaching_staff_id;
+        return $this->referrer_id;
     }
 
     public function documentType(): string
@@ -39,7 +39,7 @@ class Referral extends Model
     // can show "Filed By (Prefect)" without each query having to ask.
     protected $with = ['prefect.profile'];
     protected $fillable = [
-        'teaching_staff_id',
+        'referrer_id',
         'prefect_id',
         'referral_number',
         'reason_description',
@@ -57,7 +57,7 @@ class Referral extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'teaching_staff_id', 'id');
+        return $this->belongsTo(User::class, 'referrer_id', 'id');
     }
 
     public function referredStudent(): HasOneThrough
@@ -105,6 +105,29 @@ class Referral extends Model
         File::ensureDirectoryExists($folder);
         File::delete(File::glob("{$folder}/referral-student-*.pdf"));
 
+        $filePath = "{$folder}/referral-form-{$this->referral_number}.pdf";
+        $this->referralFormPdf($fallbackReferrer)->save($filePath);
+
+        return $filePath;
+    }
+
+    protected function canRenderDocumentPdf(): bool
+    {
+        return true;
+    }
+
+    /** The referral form as the referral stands now (not saved). */
+    public function renderDocumentPdf(): ?\Barryvdh\DomPDF\PDF
+    {
+        $prefect = $this->prefect?->profile
+            ?? User::with('profile')->whereRole('sub_admin')->first()?->profile;
+
+        return $this->referralFormPdf(trim("{$prefect?->first_name} {$prefect?->last_name}"));
+    }
+
+    /** The referral form PDF (the form's data, laid out). */
+    private function referralFormPdf(string $fallbackReferrer = ''): \Barryvdh\DomPDF\PDF
+    {
         $fullName = fn ($p) => trim(preg_replace('/\s+/', ' ', "{$p?->first_name} {$p?->middle_name} {$p?->last_name}"));
 
         $students = $this->referralReferredStudent()
@@ -128,14 +151,11 @@ class Referral extends Model
         $this->loadMissing('user.profile');
         $referrer = $this->user?->profile;
 
-        $filePath = "{$folder}/referral-form-{$this->referral_number}.pdf";
-        Pdf::loadView('pdf.referral-guidance', [
+        return Pdf::loadView('pdf.referral-guidance', [
             'date_time' => Carbon::parse($this->created_at)->format('F d, Y (h:i A)'),
             'students' => $students,
             'referral_reason' => $this->reason_description,
             'referrer_name' => $referrer ? $fullName($referrer) : $fallbackReferrer,
-        ])->setPaper('a4')->save($filePath);
-
-        return $filePath;
+        ])->setPaper('a4');
     }
 }

@@ -12,7 +12,7 @@ class RoleAuthenticable
     /**
      * Handle an incoming request.
      *
-     * Usage: ->middleware('role:super_admin') or ->middleware('role:teaching_staff,sub_admin')
+     * Usage: ->middleware('role:super_admin') or ->middleware('role:program_head,faculty,sub_admin')
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */

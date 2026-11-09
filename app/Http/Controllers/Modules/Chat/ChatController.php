@@ -8,7 +8,7 @@ use App\Events\MessagesRead;
 use App\Events\MessageUnsent;
 use App\Http\Controllers\Controller;
 use App\Models\Enrollment;
-use App\Models\ProgramHeadProgram;
+use App\Models\ProgramHead;
 use App\Models\Message;
 use App\Models\MessageEdit;
 use App\Models\User;
@@ -27,7 +27,7 @@ class ChatController extends Controller
      * - prefect (sub_admin): everyone (parents included);
      * - program head: the students of the program(s) they head;
      * - student: their program head, the prefect and the IT admin;
-     * - teaching staff (faculty): the prefect and the IT admin (not their
+     * - faculty: the prefect and the IT admin (not their
      *   program head, each other, or students);
      * - non-teaching staff: the prefect and the IT admin;
      * - parent: no chat at all (the routes are closed to them too).
@@ -70,7 +70,7 @@ class ChatController extends Controller
     // (a student's latest-enrollment program, or a teacher's program).
     private function headsProgramOf(User $head, User $other): bool
     {
-        if ($head->role !== 'teaching_staff') {
+        if ($head->role !== 'program_head') {
             return false;
         }
 
@@ -90,13 +90,13 @@ class ChatController extends Controller
     // Programs this user is the program head of.
     private function headedProgramIds(User $user)
     {
-        return ProgramHeadProgram::where('user_id', $user->id)->pluck('program_id');
+        return ProgramHead::where('user_id', $user->id)->pluck('program_id');
     }
 
     // Program heads of these programs.
     private function headsOfPrograms($programIds)
     {
-        return ProgramHeadProgram::whereIn('program_id', $programIds)->pluck('user_id');
+        return ProgramHead::whereIn('program_id', $programIds)->pluck('user_id');
     }
 
     private function latestProgramIds($studentIds)
@@ -144,7 +144,7 @@ class ChatController extends Controller
 
         if ($me->role === 'student') {
             $suggestedIds = $suggestedIds->merge($this->headsOfPrograms($this->latestProgramIds(collect([$me->id]))));
-        } elseif ($me->role === 'teaching_staff') {
+        } elseif ($me->isTeacher()) {
             $headed = $this->headedProgramIds($me);
             // A program head is suggested their program's students (not its faculty).
             $suggestedIds = $suggestedIds->merge($this->studentsInPrograms($headed));
@@ -155,7 +155,7 @@ class ChatController extends Controller
             ->reject(fn ($id) => $id === $me->id)
             ->values();
 
-        $contacts = User::with(['profile', 'program', 'enrollments', 'teachingStaff.program', 'nonTeachingStaff'])
+        $contacts = User::with(['profile', 'program', 'enrollments', 'faculty.program', 'headships.program', 'nonTeachingStaff'])
             ->whereIn('id', $contactIds)->get()
             ->filter(fn (User $contact) => $this->canChat($me, $contact));
 
@@ -177,7 +177,7 @@ class ChatController extends Controller
                 'profile' => $contact->profile,
                 'program' => $contact->program,
                 'enrollments' => $contact->enrollments,
-                'teaching_staff' => $contact->teachingStaff,
+                'teaching' => $contact->teaching,
                 'non_teaching_staff' => $contact->nonTeachingStaff,
                 'last_seen' => $contact->last_seen,
                 'last_message' => $lastMessage
@@ -197,7 +197,7 @@ class ChatController extends Controller
         $userId = decrypt_id($userId) ?? abort(404);
 
         $me = auth()->user();
-        $contact = User::with(['profile', 'program', 'enrollments', 'teachingStaff.program', 'nonTeachingStaff'])->findOrFail($userId);
+        $contact = User::with(['profile', 'program', 'enrollments', 'faculty.program', 'headships.program', 'nonTeachingStaff'])->findOrFail($userId);
 
         if (! $this->canChat($me, $contact)) {
             return response()->json(['message' => 'You cannot message this user.'], 403);

@@ -15,7 +15,6 @@ import ViewComplaintModal from "@/Components/modal/view/view-complaint-modal";
 import AppointmentModal from "@/Components/modal/submission-form/set-appointment-modal";
 import Btn from "@/Components/button/normal-btn";
 import { useReload } from "@/context-provider/reload-provider";
-import { DashboardService } from "@/others/services/dashboard-service";
 import BreadcrumbNav from "@/Components/other/breadcrumb-nav";
 
 // offense_issued_at is only set once a prefect actually issues the offense —
@@ -40,14 +39,6 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
   const isPrefect = viewer?.role === 'sub_admin'
   const [appointOpen, setAppointOpen] = useState(false)
   const { loadRegister } = useReload()
-  // The button only appears when the model says this student is likely to
-  // repeat a violation; it stays hidden while that's checked, or if it can't be.
-  const [risk, setRisk] = useState(null)
-  useEffect(() => {
-    if (!isPrefect || !props.student?.encrypted_id) return
-    DashboardService.getStudentRisk(props.student.encrypted_id, setRisk, () => setRisk(null))
-  }, [props.student?.encrypted_id])
-  const canAppoint = isPrefect && risk?.likely === true
 
   // Path back to where this page was opened from: the dashboard's Watch
   // List, a violation's student list, or (default) Violation Management.
@@ -88,19 +79,6 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
         </div>
         <PageLayout
           title="STUDENT VIOLATION"
-          rightSideComponent={canAppoint ? (
-            <div className="flex items-center gap-3">
-              <span
-                className="text-[0.8em] font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-3 py-1 whitespace-nowrap"
-                title={`Likely to repeat a violation (${Math.round((risk.top_probability ?? 0) * 100)}%)`}
-              >
-                <span className="hidden md:inline">Likely to repeat · </span>
-                <span className="md:hidden">Risk </span>
-                {Math.round((risk.top_probability ?? 0) * 100)}%
-              </span>
-              <Btn onclick={() => setAppointOpen(true)} icon={<CalendarPlus size={19} />}>Set Appointment</Btn>
-            </div>
-          ) : null}
         >
                 <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm p-5">
                     {/* Phones: photo, name and details centred in a column;
@@ -146,6 +124,9 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
                                 violation_list={props.violations}
                                 model_inputs={props.model_inputs}
                                 violation_timelines={props.violation_timelines}
+                                // Set Appointment sits in the verdict card,
+                                // for the prefect, when it says "Likely".
+                                onAppoint={isPrefect ? () => setAppointOpen(true) : null}
                             />
                         )}
                     </div>
@@ -353,9 +334,11 @@ const RecentViolation = ({ violations, user }) => {
 // The Python AI/ML API is a private Hugging Face Space now — the browser
 // can't reach it directly without exposing its access key, so this goes
 // through Laravel's own proxy instead (ViolationController::predictViolationRisk()).
+// Verdict + insights first (quick), then the AI recommendations (slow).
 const PREDICT_URL = "/api/student/violation/predict";
+const RECOMMEND_URL = "/api/student/violation/recommend";
 
-const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_timelines }) => {
+const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_timelines, onAppoint }) => {
   // -----------------------------
   // State
   // -----------------------------
@@ -405,13 +388,26 @@ const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_
         if (cancelled) return;
         if (!json || !("prediction" in json)) throw new Error("Malformed prediction response");
 
+        // Show the verdict and insights now; recommendations: null means
+        // they're still being written.
         setData({
           prediction: json.prediction == 1 ? "Likely to Commit Again" : "Unlikely to Commit Again",
           binary: json.prediction,
           insights: json.insights,
-          recommendations: json.reco,
+          recommendations: null,
           violation_timeline: timeline,
         })
+
+        axios.post(RECOMMEND_URL, { model_input: modelInput })
+          .then(({ data: r }) => {
+            if (cancelled) return;
+            const ok = Array.isArray(r?.reco)
+            setData((d) => d && { ...d, recommendations: ok ? r.reco : [], recoFailed: !ok })
+          })
+          .catch(() => {
+            if (cancelled) return;
+            setData((d) => d && { ...d, recommendations: [], recoFailed: true })
+          })
       })
       .catch(() => {
         if (cancelled) return;
@@ -478,17 +474,24 @@ const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_
         <>
         <div className="grid gap-4">
           {/* Verdict header */}
-          <div className={`border rounded-xl p-6 ${riskUI.bg} ${riskUI.border} flex items-center gap-4`}>
-            <div className={`h-16 w-16 rounded-full bg-white flex items-center justify-center ring-4 ${riskUI.ring} flex-shrink-0`}>
-              <ShieldHalf size={24} className={riskUI.iconColor} />
-            </div>
-            <div>
-              <div className={`text-xl font-extrabold ${riskUI.titleColor}`}>{data.prediction}</div>
-              <div className="text-sm text-slate-600 mt-0.5">
-                Prediction for repeating{" "}
-                <span className="font-semibold">"{violation}"</span> based on behavioral analysis.
+          <div className={`border rounded-xl p-6 ${riskUI.bg} ${riskUI.border} flex flex-col sm:flex-row sm:items-center gap-4`}>
+            <div className="flex items-center gap-4 min-w-0 flex-1">
+              <div className={`h-16 w-16 rounded-full bg-white flex items-center justify-center ring-4 ${riskUI.ring} flex-shrink-0`}>
+                <ShieldHalf size={24} className={riskUI.iconColor} />
+              </div>
+              <div className="min-w-0">
+                <div className={`text-xl font-extrabold ${riskUI.titleColor}`}>{data.prediction}</div>
+                <div className="text-sm text-slate-600 mt-0.5">
+                  Prediction for repeating{" "}
+                  <span className="font-semibold">"{violation}"</span> based on behavioral analysis.
+                </div>
               </div>
             </div>
+            {onAppoint && data.binary == 1 && (
+              <div className="shrink-0 self-end sm:self-auto">
+                <Btn onclick={onAppoint} icon={<CalendarPlus size={19} />}>Set Appointment</Btn>
+              </div>
+            )}
           </div>
 
           {/* Factors + Recommendations */}
@@ -511,6 +514,22 @@ const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_
               <div className="text-xs font-bold tracking-wide text-slate-500 uppercase mb-3">
                 Recommendations
               </div>
+              {data.recommendations == null ? (
+                // Still being written by the AI: placeholder lines.
+                <div className="space-y-3" aria-label="Loading recommendations">
+                  <div className="text-xs text-slate-500">Writing recommendations…</div>
+                  {[90, 75, 82].map((w, i) => (
+                    <div key={i} className="flex items-start gap-2.5">
+                      <span className="flex-shrink-0 h-5 w-5 rounded-full bg-gray-200 animate-pulse" />
+                      <span className="h-4 rounded bg-gray-200 animate-pulse" style={{ width: w + "%" }} />
+                    </div>
+                  ))}
+                </div>
+              ) : data.recoFailed || data.recommendations.length === 0 ? (
+                <div className="text-sm text-slate-500 italic">
+                  {data.recoFailed ? "Recommendations couldn't be loaded. Please try again later." : "No recommendations."}
+                </div>
+              ) : (
               <ul className="space-y-3">
                 {data.recommendations.map((f, i) => (
                   <li key={i} className="flex items-start gap-2.5 text-sm text-slate-700">
@@ -521,6 +540,7 @@ const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_
                   </li>
                 ))}
               </ul>
+              )}
             </div>
           </div>
         </div>

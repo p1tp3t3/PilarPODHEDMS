@@ -9,7 +9,6 @@ use App\Http\Controllers\Modules\Account\RegisteredUserController;
 use App\Http\Controllers\Auth\DashboardController;
 use App\Http\Controllers\Modules\Account\AccountController;
 use App\Http\Controllers\Modules\Violation\ViolationController;
-use App\Http\Controllers\Modules\Violation\ViolationAccessController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Modules\Appointment\AppointmentController;
@@ -37,6 +36,8 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      Route::post('/maintenance/program/create', [MaintenanceController::class, 'programStore']);
      Route::post('/maintenance/program/update', [MaintenanceController::class, 'updateProgram']);
      Route::post('/maintenance/program/delete', [MaintenanceController::class, 'destroyProgram']);
+     Route::post('/maintenance/program/archive', [MaintenanceController::class, 'archiveProgram']);
+     Route::post('/maintenance/program/restore', [MaintenanceController::class, 'restoreProgram']);
      Route::post('/maintenance/mode/toggle', [MaintenanceController::class, 'toggleMaintenanceMode']);
      Route::post('/maintenance/mode/schedule', [MaintenanceController::class, 'scheduleMaintenanceMode']);
      Route::post('/maintenance/mode/schedule/cancel', [MaintenanceController::class, 'cancelScheduledMaintenanceMode']);
@@ -103,6 +104,7 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
 
      Route::get('/super-admin/school-year', [SchoolYearController::class, 'index']);
      Route::post('/super-admin/school-year/semester/update-dates', [SchoolYearController::class, 'updateSemesterDates']);
+     Route::post('/super-admin/school-year/upcoming/update-dates', [SchoolYearController::class, 'updateUpcomingDates']);
 
      Route::get('/super-admin/program', [MaintenanceController::class, 'programIndex']);
      Route::get('/super-admin/program/{id}/users', [MaintenanceController::class, 'programUsersIndex']);
@@ -138,45 +140,42 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
 |--------------------------------------------------------------------------
 */
 Route::middleware(['role:super_admin,sub_admin', 'activate', 'user-activity'])->group(function() {
-     // Accessibility (allowed submissions) for students and teaching staff.
+     // Accessibility (allowed submissions) for students and program heads and faculty.
      Route::post('/super-admin/account/update', [AccountController::class, 'updateUserInformation']);
-     // Violation Management is a sidebar group of pages (like Incident
-     // Management): violations, penalties, student violations (prefect
-     // only) and access requests. The old single page redirects to the
-     // first one, keeping any query string (e.g. a notification's ?id=).
-     Route::get('/violation-management', fn () => redirect('/violation-management/violations'.(request()->getQueryString() ? '?'.request()->getQueryString() : '')));
-     Route::get('/violation-management/violations', [MaintenanceController::class, 'violationManagementIndex'])->defaults('section', 'violations');
-     Route::get('/violation-management/penalties', [MaintenanceController::class, 'violationManagementIndex'])->defaults('section', 'penalties');
-     Route::get('/violation-management/student-violations', [MaintenanceController::class, 'violationManagementIndex'])->defaults('section', 'student-violations');
-     Route::get('/violation-management/access', [MaintenanceController::class, 'violationManagementIndex'])->defaults('section', 'access');
-     Route::get('/violation-management/{id}/students', [ViolationController::class, 'violationStudentsIndex']);
-
-     Route::middleware(['violation-edit-authorized:violation,add'])
-          ->post('/maintenance/violation/create', [MaintenanceController::class, 'offenseStore']);
-     Route::middleware(['violation-edit-authorized:violation,edit'])
-          ->post('/maintenance/violation/update', [MaintenanceController::class, 'updateOffense']);
-     Route::middleware(['violation-edit-authorized:violation,delete'])
-          ->post('/maintenance/violation/delete', [MaintenanceController::class, 'destroyOffense']);
-     Route::middleware(['violation-edit-authorized:penalty,add'])
-          ->post('/maintenance/penalty/create', [MaintenanceController::class, 'penaltyStore']);
-     Route::middleware(['violation-edit-authorized:penalty,delete'])
-          ->post('/maintenance/penalty/delete', [MaintenanceController::class, 'destroyPenalty']);
-
-     Route::post('/violation-access/request', [ViolationAccessController::class, 'request']);
-     Route::get('/violation-access/status', [ViolationAccessController::class, 'status']);
-     Route::get('/violation-access', [ViolationAccessController::class, 'index']);
-     Route::post('/violation-access/grant', [ViolationAccessController::class, 'grant']);
-     Route::post('/violation-access/{id}/approve', [ViolationAccessController::class, 'approve']);
-     Route::post('/violation-access/{id}/deny', [ViolationAccessController::class, 'deny']);
-     Route::post('/violation-access/{id}/revoke', [ViolationAccessController::class, 'revoke']);
 });
 
 /*
 |--------------------------------------------------------------------------
-| role:super_admin,sub_admin,teaching_staff
+| Violation Management: the prefect (sub_admin) only
+|--------------------------------------------------------------------------
+| A sidebar group of pages (like Incident Management): violations,
+| penalties and student violations. The old Edit Access link lands on
+| Violations. The old single page redirects to the first one, keeping any
+| query string.
+*/
+Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(function() {
+     Route::get('/violation-management', fn () => redirect('/violation-management/violations'.(request()->getQueryString() ? '?'.request()->getQueryString() : '')));
+     Route::get('/violation-management/violations', [MaintenanceController::class, 'violationManagementIndex'])->defaults('section', 'violations');
+     Route::get('/violation-management/penalties', [MaintenanceController::class, 'violationManagementIndex'])->defaults('section', 'penalties');
+     Route::get('/violation-management/student-violations', [MaintenanceController::class, 'violationManagementIndex'])->defaults('section', 'student-violations');
+     Route::get('/violation-management/access', fn () => redirect('/violation-management/violations'));
+     Route::get('/violation-management/{id}/students', [ViolationController::class, 'violationStudentsIndex']);
+
+     Route::post('/maintenance/violation/create', [MaintenanceController::class, 'offenseStore']);
+     Route::post('/maintenance/violation/update', [MaintenanceController::class, 'updateOffense']);
+     Route::post('/maintenance/violation/delete', [MaintenanceController::class, 'destroyOffense']);
+     Route::post('/maintenance/violation/archive', [MaintenanceController::class, 'archiveOffense']);
+     Route::post('/maintenance/violation/restore', [MaintenanceController::class, 'restoreOffense']);
+     Route::post('/maintenance/penalty/create', [MaintenanceController::class, 'penaltyStore']);
+     Route::post('/maintenance/penalty/delete', [MaintenanceController::class, 'destroyPenalty']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| role:super_admin,sub_admin,program_head,faculty
 |--------------------------------------------------------------------------
 */
-Route::middleware(['role:super_admin,sub_admin,teaching_staff', 'activate', 'user-activity'])
+Route::middleware(['role:super_admin,sub_admin,program_head,faculty', 'activate', 'user-activity'])
      ->get('/download/user/account/{fileName}', [FileController::class, 'downloadAccountFile']);
 
 /*
@@ -199,7 +198,6 @@ Route::middleware(['role:student', 'activate', 'user-activity'])->group(function
 |--------------------------------------------------------------------------
 */
 Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(function() {
-     Route::get('/prefect/student-risk/{id}', [\App\Http\Controllers\Auth\DashboardController::class, 'getStudentRisk']);
      Route::get('/prefect/watch-list', [\App\Http\Controllers\Auth\DashboardController::class, 'getWatchList']);
     Route::get('/prefect/student-list', [AccountController::class, 'studentListIndex']);
     Route::get('/prefect/staff-list', [AccountController::class, 'staffListIndex']);
@@ -262,15 +260,19 @@ Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(functi
 
 /*
 |--------------------------------------------------------------------------
-| role:teaching_staff
+| role:program_head,faculty
 |--------------------------------------------------------------------------
 */
-Route::middleware(['role:teaching_staff', 'activate', 'user-activity'])->group(function() {
-    Route::get('/teaching-staff/profile/{id}', [ProfileController::class, 'index']);
-    Route::get('/teaching-staff/student-list', [AccountController::class, 'studentListIndex']);
-    Route::get('/teaching-staff/faculty-list', [AccountController::class, 'facultyListIndex']);
-    Route::get('/teaching-staff/account-files', [AccountController::class, 'programAccountFilesIndex']);
+Route::middleware(['role:program_head,faculty', 'activate', 'user-activity'])->group(function() {
+    // A program head's / faculty member's own program.
+    Route::get('/program/profile/{id}', [ProfileController::class, 'index']);
+    Route::get('/program/student-list', [AccountController::class, 'studentListIndex']);
+    Route::get('/program/faculty-list', [AccountController::class, 'facultyListIndex']);
+    Route::get('/program/account-files', [AccountController::class, 'programAccountFilesIndex']);
 });
+// Old addresses (before the teaching_staff role was split) keep working.
+Route::get('/teaching-staff/{path}', fn (string $path) => redirect('/program/'.$path.(request()->getQueryString() ? '?'.request()->getQueryString() : ''), 301))
+    ->where('path', '.*');
 
 /*
 |--------------------------------------------------------------------------
@@ -310,7 +312,7 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/dashboard/all-current-semester-records', [DashboardController::class, 'allCurrentSemesterRecords']);
 
      // Chat: every role but parents.
-     Route::middleware('role:super_admin,sub_admin,student,teaching_staff,non_teaching_staff')->group(function () {
+     Route::middleware('role:super_admin,sub_admin,student,program_head,faculty,non_teaching_staff')->group(function () {
           Route::get('/chat', [ChatController::class, 'index']);
           Route::get('/chat/thread/{userId}', [ChatController::class, 'getThread']);
           Route::post('/chat/send', [ChatController::class, 'store']);
@@ -386,6 +388,7 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/api/offense-list', [ViolationController::class, 'getOffenseList']);
      Route::get('/api/penalty-list', [ViolationController::class, 'getPenaltyList']);
      Route::post('/api/student/violation/predict', [ViolationController::class, 'predictViolationRisk']);
+     Route::post('/api/student/violation/recommend', [ViolationController::class, 'recommendViolationAction']);
 
      Route::post('/profile/{username}/edit', [ProfileController::class, 'update']);
      Route::get('/profile/{username}/edit', [ProfileController::class, 'edit']);

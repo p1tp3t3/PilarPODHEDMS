@@ -71,7 +71,15 @@ class ArchiveController extends Controller
         };
 
         abort_unless($record->canViewPdf(auth()->user()), 403);
-        $path = $record->documentPdfPath() ?? abort(404, 'This record has no PDF document.');
+        $path = $record->documentPdfPath();
+
+        // Not final yet (pending, rejected, revoked...): built now, not saved.
+        if (! $path) {
+            $pdf = $record->renderDocumentPdf() ?? abort(404, 'This record has no PDF document.');
+            $number = $record->complaint_number ?? $record->referral_number ?? $record->id;
+
+            return $pdf->stream("{$type}-{$number}.pdf");
+        }
 
         return response()->file($path, [
             'Content-Type' => 'application/pdf',
@@ -266,16 +274,16 @@ class ArchiveController extends Controller
             'user.profile',
             'user.program',
             'user.enrollments',
-            'user.teachingStaff.program',
+            'user.faculty.program', 'user.headships.program',
             'user.nonTeachingStaff',
             'subject.profile',
             'subject.program',
             'subject.enrollments',
-            'subject.teachingStaff.program',
+            'subject.faculty.program', 'subject.headships.program',
             'complaintSubject.user.profile',
             'complaintSubject.user.program',
             'complaintSubject.user.enrollments',
-            'complaintSubject.user.teachingStaff.program',
+            'complaintSubject.user.faculty.program', 'complaintSubject.user.headships.program',
         ])
             ->whereNotNull('archived_at')
             ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
@@ -300,7 +308,7 @@ class ArchiveController extends Controller
             'user.profile',
             'user.program',
             'user.enrollments',
-            'user.teachingStaff.program',
+            'user.faculty.program', 'user.headships.program',
             'user.nonTeachingStaff',
             'referredStudent.profile',
             'referredStudent.program',

@@ -1,10 +1,14 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Action Log Report</title>
-  <style>
+@extends('pdf.layouts.report')
+
+@section('title', 'Action Log Report')
+
+@section('period')
+
+        <strong>{{ $period }}</strong>
+@endsection
+
+@section('styles')
+<style>
     :root{
       --brand:#0b5ed7;
       --muted:#666;
@@ -56,16 +60,16 @@
       font-size:13px;
     }
 
-    .report-title {
+    .report-title-old {
       text-align:center;
       margin:18px 0 22px;
     }
-    .report-title h2 {
+    .report-title-old h2 {
       margin:0;
       font-size:20px;
       color:#123a7a;
     }
-    .report-title .subtitle {
+    .report-title-old .subtitle {
       color:var(--muted);
       font-size:13px;
       margin-top:6px;
@@ -171,9 +175,9 @@
        Margins live on @page so every page gets them, not just the first
        and last; content then fits inside the printable width and wraps
        instead of running off the edge. */
-    @page { margin: 18mm 14mm 20mm 14mm; }
+    /* Page margins: pdf/layouts/report (narrow). */
     body { margin: 0 !important; padding: 0 !important; height: auto !important; }
-    html { height: auto !important; margin: 18mm 14mm 20mm 14mm !important; }
+    html { height: auto !important; }
     .page { max-width: none !important; width: auto !important; margin: 0 !important; padding: 0 !important; }
     table { width: 100% !important; max-width: 100%; }
     th, td { word-wrap: break-word; overflow-wrap: break-word; }
@@ -181,23 +185,11 @@
     tr { page-break-inside: avoid; }
     img { max-width: 100%; }
   </style>
-</head>
-<body>
+@endsection
+
+@section('content')
 
   <main class="page" role="main" aria-label="Incident report">
-    <header>
-        <img src="{{ public_path('default-pic/pilar-pdf.png') }}" width="90" alt="">
-        <h1>Pilar College of Zamboanga City, Inc.</h1>
-        <p>R.T. Lim Boulevard, Zamboanga City</p>
-        <p>Higher Education</p>
-    </header>
-
-    <section class="report-title" aria-labelledby="reportTitle">
-      <h2>Action Log Report</h2>
-      <div style="font-size: 11px; color: #555;">
-        <strong>{{ $period }}</strong>
-      </div>
-    </section>
 
     <table role="table" aria-label="Incident details">
       <thead>
@@ -226,5 +218,4 @@
       </tbody>
     </table>
   </main>
-</body>
-</html>
+@endsection

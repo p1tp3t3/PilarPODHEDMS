@@ -132,14 +132,13 @@ const Register = (props) => {
     }
     const roleMap = {
         student: 'student',
-        faculty: 'teaching_staff',
+        faculty: 'faculty',
         staff: 'non_teaching_staff',
     }
     const handleSubmit = (f) => {
         const data = {
             file: f,
             role: roleMap[type] ?? type,
-            ...(type === 'faculty' ? { position: 'faculty' } : {}),
             activate: activate
         }
         openUserListCSV(false)

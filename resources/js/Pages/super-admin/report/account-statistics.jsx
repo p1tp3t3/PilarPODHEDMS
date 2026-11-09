@@ -70,7 +70,8 @@ const AccountStatistics = ({ initial, schoolYears, userId }) => {
 
     const cards = [
         { label: "Students", value: stats.students, icon: GraduationCap },
-        { label: "Teaching Staff", value: stats.teaching_staff, icon: Presentation },
+        { label: "Program Heads", value: stats.program_head, icon: Presentation },
+        { label: "Faculty", value: stats.faculty, icon: Presentation },
         { label: "Non-Teaching Staff", value: stats.non_teaching_staff, icon: Briefcase },
         { label: "Parents", value: stats.parents, icon: Users },
     ]

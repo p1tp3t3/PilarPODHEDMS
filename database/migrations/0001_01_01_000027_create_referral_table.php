@@ -9,16 +9,15 @@ return new class extends Migration
     /**
      * Run the migrations.
      *
-     * teaching_staff_id: the referrer on a referral is any teaching staff
-     * member (faculty included), not only program heads — originally named
-     * program_head_id.
+     * referrer_id: who the referral is from, a program head or faculty
+     * member (originally program_head_id, then teaching_staff_id).
      */
     public function up(): void
     {
         Schema::create('referral', function (Blueprint $table) {
             $table->id();
             $table->string('referral_number')->unique();
-            $table->foreignId('teaching_staff_id')->constrained('users', 'id', 'referral_program_head_id_foreign')->restrictOnDelete()->cascadeOnUpdate();
+            $table->foreignId('referrer_id')->constrained('users')->restrictOnDelete()->cascadeOnUpdate();
             // The prefect who filed it for the referrer; null when the referrer filed it.
             $table->foreignId('prefect_id')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
             $table->longText('reason_description');

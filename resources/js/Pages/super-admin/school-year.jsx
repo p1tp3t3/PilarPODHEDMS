@@ -7,7 +7,7 @@ import { readableDate, readableTime } from "@/others/function"
 import { SchoolYearService } from "@/others/services/school-year-service"
 import { DataGrid } from "@/Components/other/data-grid"
 import { Box } from "@mui/material"
-import { CalendarRange, CalendarClock, Pencil } from "lucide-react"
+import { CalendarRange, CalendarClock, Pencil, Lock } from "lucide-react"
 import { Head, router } from "@inertiajs/react"
 
 function CustomNoRowsOverlay() {
@@ -41,7 +41,7 @@ const isSchoolYearCurrent = (row) => !!row.is_current
 // The next school year isn't stored until the current one ends — it's
 // shown here as a preview, then added automatically (scheduled job, or on
 // this page's next load) the day after the current school year's last day.
-const UpcomingSchoolYear = ({ upcoming }) => {
+const UpcomingSchoolYear = ({ upcoming, onEdit }) => {
     if (!upcoming) return null
     const addsToday = upcoming.adds_on <= new Date().toISOString().slice(0, 10)
     return (
@@ -57,16 +57,24 @@ const UpcomingSchoolYear = ({ upcoming }) => {
             </div>
             <div className="grid sm:grid-cols-2 gap-2">
                 {upcoming.semesters.map((s) => (
-                    <div key={s.semester} className="rounded-md bg-white border border-blue-100 px-3 py-2 text-[0.8em]">
+                    <div key={s.semester} className="rounded-md bg-white border border-blue-100 px-3 py-2 text-[0.8em] flex items-center gap-2">
                         <span className="font-semibold text-gray-700">{s.semester === 1 ? "1st Sem" : "2nd Sem"}</span>
                         <span className="text-gray-500"> · {readableDate(s.date_start)} - {readableDate(s.date_end)}</span>
+                        <button
+                            type="button"
+                            title={`Edit SY ${upcoming.year} ${s.semester === 1 ? "1st" : "2nd"} Semester dates`}
+                            onClick={() => onEdit({ ...s, upcoming: true, year: upcoming.year, start_locked: s.semester === 1 && !!upcoming.after_year })}
+                            className="ml-auto text-gray-400 hover:text-blue-600 transition-colors"
+                        >
+                            <Pencil size={12} />
+                        </button>
                     </div>
                 ))}
             </div>
             <p className="text-[0.8em] text-blue-900">
                 {addsToday
                     ? "This school year will be added automatically today."
-                    : <>Added automatically on <b>{readableDate(upcoming.adds_on)}</b>{upcoming.after_year ? <>, after SY {upcoming.after_year} ends</> : null}. Its semester dates can be adjusted once it's added.</>}
+                    : <>Added automatically on <b>{readableDate(upcoming.adds_on)}</b>{upcoming.after_year ? <>, the day after SY {upcoming.after_year} ends, which is when its 1st Sem starts (changing SY {upcoming.after_year}'s 2nd Sem end moves it)</> : null}. Its other dates can be planned now and are used when it's added.</>}
             </p>
         </div>
     )
@@ -112,7 +120,7 @@ const ITRCSchoolYear = (props) => {
             sortable: false,
             renderCell: ({ row }) => (
                 <span className={`font-semibold ${isSchoolYearCurrent(row) ? "text-green-600" : "text-gray-500"}`}>
-                    {isSchoolYearCurrent(row) ? "Active" : "Inactive"}
+                    {isSchoolYearCurrent(row) ? "Active" : row.is_past ? "Ended" : "Inactive"}
                 </span>
             ),
         },
@@ -136,6 +144,12 @@ const ITRCSchoolYear = (props) => {
                                     <span className={`text-[0.75em] ${isCurrent ? "text-blue-600 font-semibold" : "text-gray-500"}`}>
                                         {start && end ? `${readableDate(start)} - ${readableDate(end)}` : "Not set"}
                                     </span>
+                                    {/* A past school year can't be edited anymore. */}
+                                    {row.is_past ? (
+                                        <span title={`SY ${row.year} has ended and can't be edited anymore.`} className="text-gray-300">
+                                            <Lock size={12} />
+                                        </span>
+                                    ) : (
                                     <button
                                         type="button"
                                         title={`Edit ${s.semester === 1 ? "1st" : "2nd"} Semester dates`}
@@ -144,6 +158,7 @@ const ITRCSchoolYear = (props) => {
                                     >
                                         <Pencil size={12} />
                                     </button>
+                                    )}
                                 </div>
                             )
                         })}
@@ -172,7 +187,10 @@ const ITRCSchoolYear = (props) => {
                 setter={setSchoolYearList}
             />
             <PageLayout title="School Year Management">
-                        <UpcomingSchoolYear upcoming={props.upcoming} />
+                        <UpcomingSchoolYear
+                            upcoming={props.upcoming}
+                            onEdit={(s) => { setSemesterToEdit(s); setSiblingSemester(null); openEditSemester(true) }}
+                        />
                         <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
                             <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", px: 2.5, py: 1.5 }}>
                                 <DataGrid

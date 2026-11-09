@@ -23,6 +23,7 @@ export const reportFilterSummary = (f, schoolYears = []) => {
         const fmt = (d) => new Date(d + "T00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
         return `${fmt(f.date_from)} – ${fmt(f.date_to)}`
     }
+    if (f.school_year_id === "all") return "All School Years"
     const year = schoolYears.find((y) => String(y.id) === String(f.school_year_id))?.year
     const sem = semesterList.find((s) => String(s.val) === String(f.semester))?.label ?? "All Semesters"
     return `SY ${year ?? ""} · ${sem}`
@@ -111,18 +112,21 @@ const ReportFilterModal = ({ close, closeModal, value, schoolYears = [], onApply
                 <div className="grid sm:grid-cols-2 gap-3">
                     <DropdownField
                         default={{ val: "", label: schoolYearLabel }}
-                        list={schoolYears.map((y) => ({ val: y.id, label: y.year }))}
-                        onChange={(e) => setDraft((prev) => ({ ...prev, school_year_id: e.target.value }))}
+                        list={[{ val: "all", label: "All School Years" }, ...schoolYears.map((y) => ({ val: y.id, label: y.year }))]}
+                        onChange={(e) => setDraft((prev) => ({ ...prev, school_year_id: e.target.value, ...(e.target.value === "all" ? { semester: "" } : {}) }))}
                         name="school_year_id"
                         val={draft.school_year_id}
+                        keepCase
                     />
+                    {/* A semester only narrows one school year. */}
+                    {draft.school_year_id !== "all" &&
                     <DropdownField
                         default={{ val: "", label: allSemestersLabel }}
                         list={semesterList}
                         onChange={(e) => setDraft((prev) => ({ ...prev, semester: e.target.value }))}
                         name="semester"
                         val={draft.semester}
-                    />
+                    />}
                 </div>}
 
                 <div className="flex flex-wrap items-center justify-end gap-2 pt-1">

@@ -60,11 +60,20 @@ const GenerateActionLogReportMoodal = (props) => {
         else if (data.date_from && data.date_to && new Date(data.date_to) < new Date(data.date_from)) { found.date_range = "The end date can't be before the start date."; }
         setErrs(found)
         if (hasErrors(found)) return
-        setReload(true)
-        const f = data.file_type == 'excel' ? 'action-log-report.xlsx' : 'action-log-report.pdf'
         const payload = data.filter_by === 'date'
             ? { ...data, school_year_id: '', semester: '' }
             : { ...data, date_from: '', date_to: '' }
+        // PDF: generated and shown in a new tab instead of downloaded.
+        if (data.file_type !== 'excel') {
+            if (ReportArchiveService.openActionLogReportTab(payload)) {
+                props.closeModal(false)
+            } else {
+                showOutputModal('Allow pop-ups for this site so the report can open in a new tab.', 'e')
+            }
+            return
+        }
+        setReload(true)
+        const f = 'action-log-report.xlsx'
         ReportArchiveService.downloadActionLogReport(payload, f, () => {
             setReload(false)
             showOutputModal(
@@ -212,20 +221,23 @@ const GenerateActionLogReportMoodal = (props) => {
                                 <div className="flex flex-col sm:flex-row gap-2">
                                     <DropdownField
                                         default={{ val: '', label: 'Select School Year' }}
-                                        list={(props.schoolYears ?? []).map((y) => ({ val: y.id, label: y.year }))}
-                                        onChange={handleChange}
+                                        list={[{ val: 'all', label: 'All School Years' }, ...(props.schoolYears ?? []).map((y) => ({ val: y.id, label: y.year }))]}
+                                        onChange={(e) => setData((prev) => ({ ...prev, school_year_id: e.target.value, ...(e.target.value === 'all' ? { semester: '' } : {}) }))}
                                         name="school_year_id"
                                         error={errs.school_year_id}
                                         val={data.school_year_id}
                                         req={true}
+                                        keepCase
                                     />
+                                    {/* A semester only narrows one school year. */}
+                                    {data.school_year_id !== 'all' &&
                                     <DropdownField
                                         default={{ val: '', label: 'All Semesters' }}
                                         list={semesterList}
                                         onChange={handleChange}
                                         name="semester"
                                         val={data.semester}
-                                    />
+                                    />}
                                 </div>}
                             </div>
                             <div>

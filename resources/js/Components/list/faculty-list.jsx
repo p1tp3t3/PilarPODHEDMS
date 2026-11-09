@@ -29,8 +29,8 @@ const FacultyList = ({ list, style = true, type = 'prefect', paginate = true }) 
         name: `${e.profile?.first_name ?? ""} ${e.profile?.last_name ?? ""}`,
         profile_picture: e.profile?.profile_picture,
         sex: e.profile?.sex,
-        program: e.teaching_staff?.program?.name ?? "",
-        role_label: showUserType({ role: "teaching_staff", ...e }),
+        program: e.teaching?.program?.name ?? "",
+        role_label: showUserType(e),
         created_at: e.created_at,
         last_seen: e.last_seen,
     })), [l])

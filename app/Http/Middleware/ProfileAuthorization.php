@@ -30,7 +30,7 @@ class ProfileAuthorization
 
         // Student data privacy: a student's profile is only for the student,
         // the prefect / IT admin, their own parent, their siblings, and
-        // teaching staff of the student's own program. That rule alone decides
+        // program heads and faculty of the student's own program. That rule alone decides
         // student profiles; everyone else is sent home.
         if ($targetRole === 'student') {
             return self::canViewStudentProfile($targetUser)
@@ -52,9 +52,10 @@ class ProfileAuthorization
     {
         $allowedRoles = [
             'student'            => ['super_admin', 'sub_admin', 'parent'],
-            'sub_admin'          => ['sub_admin', 'super_admin', 'teaching_staff', 'student', 'parent'],
-            'super_admin'        => ['super_admin', 'sub_admin', 'teaching_staff', 'student', 'parent'],
-            'teaching_staff'     => ['teaching_staff', 'super_admin', 'sub_admin', 'student'],
+            'sub_admin'          => ['sub_admin', 'super_admin', 'program_head', 'faculty', 'student', 'parent'],
+            'super_admin'        => ['super_admin', 'sub_admin', 'program_head', 'faculty', 'student', 'parent'],
+            'program_head'       => ['program_head', 'faculty', 'super_admin', 'sub_admin', 'student'],
+            'faculty'            => ['program_head', 'faculty', 'super_admin', 'sub_admin', 'student'],
             'parent'             => ['parent', 'student', 'super_admin', 'sub_admin'],
             // "guard"/"guidance" aren't separate roles — every
             // non_teaching_staff position (including those two) shares this
@@ -78,10 +79,10 @@ class ProfileAuthorization
             return $viewer->sharesFamilyWith($student);
         }
 
-        if ($viewer->role === 'teaching_staff') {
+        if ($viewer->isTeacher()) {
             $programId = \App\Models\Enrollment::where('student_id', $student->id)->latest('id')->value('program_id');
 
-            return $programId && \App\Models\TeachingStaff::programIdsFor($viewer->id)->contains($programId);
+            return $programId && \App\Models\User::teachingProgramIdsFor($viewer->id)->contains($programId);
         }
 
         return false;
@@ -93,7 +94,7 @@ class ProfileAuthorization
         $authRole = auth()->user()->role;
 
         // 🔹 These roles can ONLY see their own profile
-        if (in_array($authRole, ['student', 'parent', 'teaching_staff'])) {
+        if (in_array($authRole, ['student', 'parent', 'program_head', 'faculty'])) {
             return $authUsername !== $target;
         }
 

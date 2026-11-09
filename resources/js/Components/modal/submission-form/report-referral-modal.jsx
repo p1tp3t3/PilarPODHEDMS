@@ -112,7 +112,7 @@ const ReportReferralModal = (props) => {
                                 def="Student Not Found"
                                 withLink={false}
                                 click={getSelectedStudent}
-                                apiLink={`/api/all-users/${props.user?.role === "teaching_staff" ? "program_student" : "student"}`}
+                                apiLink={`/api/all-users/${["program_head", "faculty"].includes(props.user?.role) ? "program_student" : "student"}`}
                                 user={props.user}
                             />
                         </div>

@@ -16,7 +16,7 @@ const StudentViolationList = ({ list = [], fromKey = null }) => {
       const latestEnrollment = e.user?.enrollments?.[e.user.enrollments.length - 1]
       const programName = isStudent
         ? studentProgram(e.user)
-        : e.user?.teaching_staff?.program?.name
+        : e.user?.teaching?.program?.name
       return {
         id: i,
         rowIndex: i,
@@ -72,7 +72,7 @@ const StudentViolationList = ({ list = [], fromKey = null }) => {
                 <p className="text-[0.7em]">
                     {user.role === "student"
                     ? showUserType(user)
-                    : `${user.teaching_staff?.program?.name ?? ""} ${user.teaching_staff?.position === "program_head" ? "(Program Head)" : "(Faculty)"}`.trim()}
+                    : `${user.teaching?.program?.name ?? ""} ${user?.role === "program_head" ? "(Program Head)" : "(Faculty)"}`.trim()}
                 </p>
                 </div>
             </div>
@@ -144,7 +144,7 @@ const StudentViolationList = ({ list = [], fromKey = null }) => {
         // Phones: picture + name + program; tap for counts and View.
         mobileSummary={(row) => ({
           name: [row.user?.profile?.first_name, row.user?.profile?.middle_name, row.user?.profile?.last_name].filter(Boolean).join(" "),
-          role: row.user?.role === "student" ? showUserType(row.user) : row.user?.teaching_staff?.program?.name,
+          role: row.user?.role === "student" ? showUserType(row.user) : row.user?.teaching?.program?.name,
           picture: row.user?.profile?.profile_picture,
           sex: row.user?.profile?.sex,
           hide: ["studentText"],

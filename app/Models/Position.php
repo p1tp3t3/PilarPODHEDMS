@@ -12,7 +12,7 @@ class Position extends Model
     protected $fillable = ['name'];
 
     /**
-     * Several places filter teaching_staff/non_teaching_staff by a fixed
+     * Several places filter non_teaching_staff by a fixed
      * position name ('program_head', 'Guard', 'Guidance', ...) — this
      * resolves that name to the row's id once per request instead of every
      * call site repeating its own Position::where('name', ...)->value('id').

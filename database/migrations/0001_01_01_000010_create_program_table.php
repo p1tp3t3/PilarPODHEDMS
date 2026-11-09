@@ -18,6 +18,10 @@ return new class extends Migration
             $table->string('logo')->nullable();
             $table->string('color_code')->nullable();
             $table->tinyInteger('is_deleted')->default(0);
+            // A program with users/enrollments can't be deleted, only
+            // archived: not offered for new registrations, kept for history.
+            // Null = active; set = when it was archived.
+            $table->timestamp('archived_at')->nullable();
             $table->timestamp('created_at')->useCurrent();
         });
     }

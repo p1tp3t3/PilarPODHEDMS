@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Resource;
 
 use App\Http\Controllers\Controller;
 use App\Models\Position;
-use App\Models\TeachingStaff;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -184,7 +183,7 @@ class FileController extends Controller
             return;
         }
 
-        if ($user->role === 'teaching_staff') {
+        if ($user->role === 'program_head') {
             $programIds = self::programHeadProgramIds($user);
 
             if (! empty($programIds)) {
@@ -200,17 +199,12 @@ class FileController extends Controller
     }
 
     /**
-     * Every program_id the caller heads (a program head can now be
-     * responsible for 2+ programs, see program_head_program), else an
-     * empty array.
+     * Every program_id the caller heads (a head can lead 2+ programs, one
+     * program_head row each), else an empty array.
      */
     private function programHeadProgramIds($user)
     {
-        $teachingStaff = TeachingStaff::where('user_id', $user->id)
-            ->where('position_id', Position::idFor('program_head'))
-            ->first();
-
-        return $teachingStaff?->programsHandled->pluck('id')->all() ?? [];
+        return \App\Models\User::headedProgramIdsFor($user->id)->all();
     }
 
     private function addFolderToZip($folder, $zip, $parentFolder = '')
@@ -249,13 +243,13 @@ class FileController extends Controller
     {
         $user = auth()->user();
 
-        if (! in_array($user->role, ['super_admin', 'sub_admin', 'teaching_staff'])) {
+        if (! in_array($user->role, ['super_admin', 'sub_admin', 'program_head'])) {
             abort(403);
         }
 
-        $programIds = ($user->role === 'teaching_staff') ? (new self)->programHeadProgramIds($user) : null;
+        $programIds = ($user->role === 'program_head') ? (new self)->programHeadProgramIds($user) : null;
 
-        if ($user->role === 'teaching_staff' && empty($programIds)) {
+        if ($user->role === 'program_head' && empty($programIds)) {
             abort(403);
         }
 

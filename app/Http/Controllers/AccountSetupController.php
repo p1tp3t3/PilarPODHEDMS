@@ -137,7 +137,7 @@ class AccountSetupController extends Controller
         // hides religion/citizenship/civil status/date & place of birth for
         // these roles) — requiring them here too would reject every staff
         // submission outright.
-        $isStaffRole = in_array($user->role, ['teaching_staff', 'non_teaching_staff']);
+        $isStaffRole = in_array($user->role, ['program_head', 'faculty', 'non_teaching_staff']);
 
         $request->validate([
             'current_password' => 'required|string',

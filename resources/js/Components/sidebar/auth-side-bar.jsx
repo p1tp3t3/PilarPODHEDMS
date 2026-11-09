@@ -27,8 +27,10 @@ const AuthSideBar = ({ usr }) => {
         return "Prefect"
       case "student":
         return "Student"
-      case "teaching_staff":
-        return identity.teaching_staff?.position === "program_head" ? "Program Head" : "Faculty"
+      case "program_head":
+        return "Program Head"
+      case "faculty":
+        return "Faculty"
       case "non_teaching_staff":
         return identity.non_teaching_staff?.position || "Staff"
       case "guard":
@@ -100,7 +102,7 @@ const AuthSideBar = ({ usr }) => {
           <div className="grid grid-cols-[minmax(0,1fr)] gap-2 overflow-hidden overflow-y-auto">
             <SidebarNav onNavigate={closeSidebarDrawer} list={getSidebarPages({
               ...usr,
-              teaching_staff: identity.teaching_staff,
+              teaching: identity.teaching,
               non_teaching_staff: identity.non_teaching_staff,
             })} />
           </div>

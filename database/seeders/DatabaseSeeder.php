@@ -24,7 +24,7 @@ class DatabaseSeeder extends Seeder
             ProgramSeeder::class,
             ViolationSeeder::class,
             StudentSeeder::class,
-            TeachingStaffSeeder::class,
+            ProgramHeadAndFacultySeeder::class,
             NonTeachingStaffSeeder::class,
             FamilySeeder::class,
             ComplaintSeeder::class,

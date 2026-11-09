@@ -23,7 +23,6 @@ use App\Models\Program;
 use App\Models\Referral;
 use App\Models\Role;
 use App\Models\SchoolYear;
-use App\Models\TeachingStaff;
 use App\Models\User;
 use App\Models\UserPermission;
 use Exception;
@@ -56,14 +55,10 @@ class AccountController extends Controller
                 'school_years' => \App\Models\SchoolYear::orderByDesc('year')->pluck('year'),
                 // For the Edit Enrollment modal (Student filter).
                 'school_years_full' => \App\Models\SchoolYear::orderByDesc('year')->get(['id', 'year']),
-                // For the role-specific filters (teaching vs non-teaching positions).
-                'positions' => Position::orderBy('name')->get(['id', 'name'])
-                    ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'teaching' => in_array($p->name, self::TEACHING_POSITIONS, true)]),
+                // Non-teaching staff positions, for that role's filter.
+                'positions' => Position::orderBy('name')->get(['id', 'name']),
             ]));
     }
-
-    // Teaching positions; every other position belongs to non-teaching staff.
-    private const TEACHING_POSITIONS = ['faculty', 'program_head'];
 
     /**
      * Changes a user's current role. Adds a user_roles row instead of
@@ -80,15 +75,14 @@ class AccountController extends Controller
         ]);
         $to = $request->role;
 
-        $nonTeachingPositions = Position::whereNotIn('name', self::TEACHING_POSITIONS)->pluck('name')->all();
+        $nonTeachingPositions = Position::pluck('name')->all();
         $request->validate(match ($to) {
             'student' => [
                 'program_id' => 'required|exists:program,id',
                 'year_level' => 'required|integer|min:1|max:5',
             ],
-            'teaching_staff' => [
+            'program_head', 'faculty' => [
                 'program_id' => 'required|exists:program,id',
-                'position' => 'required|in:'.implode(',', self::TEACHING_POSITIONS),
             ],
             'non_teaching_staff' => [
                 'position' => 'required|in:'.implode(',', $nonTeachingPositions),
@@ -110,11 +104,11 @@ class AccountController extends Controller
             return response()->json(['message' => 'The user already has this role.'], 422);
         }
         // IT Admin / Prefect accounts come from the school's staff: only
-        // teaching or non-teaching staff (or an existing admin moving
-        // between the two admin roles) can be given either admin role.
+        // program heads, faculty or non-teaching staff (or an existing admin
+        // moving between the two admin roles) can be given either admin role.
         $adminRoles = ['super_admin', 'sub_admin'];
-        if (in_array($to, $adminRoles, true) && ! in_array($from, ['teaching_staff', 'non_teaching_staff', ...$adminRoles], true)) {
-            return response()->json(['message' => 'Only teaching or non-teaching staff can be assigned as IT Admin or Prefect.'], 422);
+        if (in_array($to, $adminRoles, true) && ! in_array($from, ['program_head', 'faculty', 'non_teaching_staff', ...$adminRoles], true)) {
+            return response()->json(['message' => 'Only program heads, faculty or non-teaching staff can be assigned as IT Admin or Prefect.'], 422);
         }
 
         // A role change can come with a new ID number (e.g. a student who
@@ -123,7 +117,7 @@ class AccountController extends Controller
         // always needs one.
         $newId = trim((string) $request->input('id_number', ''));
         $idChanges = $newId !== '' && strcasecmp($newId, (string) $user->id_number) !== 0;
-        $staffRoles = ['teaching_staff', 'non_teaching_staff'];
+        $staffRoles = ['program_head', 'faculty', 'non_teaching_staff'];
         $studentStaffSwitch = ($from === 'student' && in_array($to, $staffRoles, true))
             || (in_array($from, $staffRoles, true) && $to === 'student');
         if ($studentStaffSwitch && ! $idChanges) {
@@ -136,8 +130,8 @@ class AccountController extends Controller
             return response()->json(['message' => 'This is the only IT Admin account — assign another IT Admin first.'], 422);
         }
 
-        if ($to === 'teaching_staff' && $request->position === 'program_head') {
-            $head = \App\Models\ProgramHeadProgram::with('program')
+        if ($to === 'program_head') {
+            $head = \App\Models\ProgramHead::with('program')
                 ->where('program_id', $request->program_id)
                 ->where('user_id', '!=', $user->id)
                 ->first();
@@ -165,8 +159,10 @@ class AccountController extends Controller
             $user->assignRole($to);
             $this->saveRoleData($user, $to, $request, $currentSemester);
 
-            if ($from === 'teaching_staff') {
-                \App\Models\ProgramHeadProgram::where('user_id', $user->id)->delete();
+            // A program head leaving the role frees the program(s) they
+            // headed. A faculty row is kept so switching back can prefill it.
+            if ($from === 'program_head') {
+                \App\Models\ProgramHead::where('user_id', $user->id)->delete();
             }
 
             // user_permissions has no `id` key, so a query-level upsert
@@ -228,15 +224,10 @@ class AccountController extends Controller
                 }
                 break;
 
-            case 'teaching_staff':
-                TeachingStaff::updateOrCreate(
-                    ['user_id' => $user->id],
-                    ['program_id' => $request->program_id, 'position_id' => Position::idFor($request->position)]
-                );
-                \App\Models\ProgramHeadProgram::where('user_id', $user->id)->delete();
-                if ($request->position === 'program_head') {
-                    \App\Models\ProgramHeadProgram::create(['user_id' => $user->id, 'program_id' => $request->program_id]);
-                }
+            case 'program_head':
+            case 'faculty':
+                // A program_head row for this program, or a faculty row.
+                $user->assignTeaching($role, (int) $request->program_id);
                 break;
 
             case 'non_teaching_staff':
@@ -265,7 +256,7 @@ class AccountController extends Controller
         $id = decrypt_id($id) ?? abort(404);
         $user = User::findOrFail($id);
 
-        $teaching = TeachingStaff::with('positionRef')->where('user_id', $id)->first();
+        $teaching = $user->load(User::TEACHING_RELATIONS)->teaching;
         $nonTeaching = NonTeachingStaff::with('positionRef')->where('user_id', $id)->first();
         \App\Models\UserIdNumber::ensureCurrent($user);
 
@@ -274,13 +265,13 @@ class AccountController extends Controller
             'id_numbers' => $user->idNumbers()->get(),
             'existing' => [
                 'student' => Enrollment::where('student_id', $id)->latest('id')->first(['program_id', 'year_level']),
-                'teaching_staff' => $teaching ? ['program_id' => $teaching->program_id, 'position' => $teaching->position] : null,
+                'program_head' => $teaching ? ['program_id' => $teaching->program_id] : null,
+                'faculty' => $teaching ? ['program_id' => $teaching->program_id] : null,
                 'non_teaching_staff' => $nonTeaching ? ['position' => $nonTeaching->position] : null,
                 'parent' => \App\Models\Parents::where('user_id', $id)->first(['parent_role', 'work_occupation']),
             ],
             'positions' => [
-                'teaching_staff' => self::TEACHING_POSITIONS,
-                'non_teaching_staff' => Position::whereNotIn('name', self::TEACHING_POSITIONS)->orderBy('name')->pluck('name'),
+                'non_teaching_staff' => Position::orderBy('name')->pluck('name'),
             ],
             'current_semester' => \App\Models\SchoolYearSemester::current()?->load('schoolYear'),
         ]);
@@ -289,7 +280,8 @@ class AccountController extends Controller
     // What the IT admin / prefect may switch on or off per role.
     private const ACCESS_FIELDS = [
         'student' => ['allow_complaint', 'allow_absent_form', 'allow_gatepass'],
-        'teaching_staff' => ['allow_complaint', 'allow_referral'],
+        'program_head' => ['allow_complaint', 'allow_referral'],
+        'faculty' => ['allow_complaint', 'allow_referral'],
     ];
 
     public function updateUserInformation(Request $request)
@@ -298,7 +290,7 @@ class AccountController extends Controller
         $fields = self::ACCESS_FIELDS[$target->role] ?? null;
 
         if (! $fields || $target->id === auth()->id()) {
-            return response()->json(['message' => 'Accessibility can only be set for students and teaching staff.'], 403);
+            return response()->json(['message' => 'Accessibility can only be set for students, program heads and faculty.'], 403);
         }
 
         UserPermission::updateOrCreate(
@@ -311,9 +303,10 @@ class AccountController extends Controller
 
     public function studentListIndex()
     {
-        $programHead = TeachingStaff::with('program')
-            ->where('user_id', auth()->user()->id)
-            ->where('position_id', Position::idFor('program_head'))
+        // The first program they head (null if they aren't a program head).
+        $programHead = \App\Models\ProgramHead::with('program')
+            ->where('user_id', auth()->id())
+            ->orderBy('program_id')
             ->first();
 
         $isPrefect = (auth()->user()->role === 'sub_admin') ? 'prefect' : 'shared';
@@ -522,8 +515,8 @@ class AccountController extends Controller
             } elseif (! User::where('id_number', strtolower($row['id']))->whereRole('student')->exists()) {
                 $errors[] = "No existing student found with ID '{$row['id']}'.";
             }
-            if (! Program::whereRaw('LOWER(name) = ?', [strtolower(trim($row['program']))])->exists()) {
-                $errors[] = 'Program must match an existing program name (e.g. BSIT, BEED, BSN).';
+            if (! Program::active()->whereRaw('LOWER(name) = ?', [strtolower(trim($row['program']))])->exists()) {
+                $errors[] = 'Program must match an existing, enabled program name (e.g. BSIT, BEED, BSN).';
             }
             if (! is_numeric($row['year_level']) || $row['year_level'] < 1 || $row['year_level'] > 4) {
                 $errors[] = 'Year level must be 1–4.';
@@ -536,9 +529,10 @@ class AccountController extends Controller
     public function facultyListIndex()
     {
         $isPrefect = (auth()->user()->role === 'sub_admin') ? 'prefect' : 'shared';
-        $programHead = TeachingStaff::with('program')
-            ->where('user_id', auth()->user()->id)
-            ->where('position_id', Position::idFor('program_head'))
+        // The first program they head (null if they aren't a program head).
+        $programHead = \App\Models\ProgramHead::with('program')
+            ->where('user_id', auth()->id())
+            ->orderBy('program_id')
             ->first();
 
         $props = $programHead
@@ -558,7 +552,7 @@ class AccountController extends Controller
 
     /**
      * Prefect only: a roster covering both staff roles, split by tab —
-     * unlike getFaculty() (teaching_staff only, program-scoped for program
+     * unlike getFaculty() (program heads and faculty only, program-scoped for program
      * heads), this is unscoped and lets the caller pick teaching vs.
      * non-teaching via ?type=.
      */
@@ -567,37 +561,26 @@ class AccountController extends Controller
         $type = $_GET['type'] ?? 'teaching';
         $roles = match ($type) {
             'non_teaching' => ['non_teaching_staff'],
-            'all' => ['teaching_staff', 'non_teaching_staff'],
-            default => ['teaching_staff'],
+            'all' => ['program_head', 'faculty', 'non_teaching_staff'],
+            default => ['program_head', 'faculty'],
         };
 
-        $data = User::with(['profile', 'teachingStaff.program', 'nonTeachingStaff'])
+        $data = User::with(['profile', 'faculty.program', 'headships.program', 'nonTeachingStaff'])
             ->whereRole($roles);
 
         // Program only makes sense for teaching staff — non-teaching staff
         // aren't attached to a program at all, and "All Staff" mixes both
         // together so a single program can't scope the whole list.
         if ($type === 'teaching' && isset($_GET['program']) && $_GET['program'] !== 'all') {
-            $data->whereHas('teachingStaff', function ($q) {
-                $q->where('program_id', $_GET['program']);
-            });
+            $data->teachingInPrograms([$_GET['program']]);
         }
 
-        // Position applies to both staff types (teachingStaff and
-        // nonTeachingStaff both reference the same positions table) — under
-        // "All Staff" a row only ever has one of the two relations, so this
-        // matches whichever one it actually has.
-        if (isset($_GET['position']) && $_GET['position'] !== 'all') {
-            if ($type === 'non_teaching') {
-                $data->whereHas('nonTeachingStaff', function ($q) {
-                    $q->where('position_id', $_GET['position']);
-                });
-            } elseif ($type === 'all') {
-                $data->where(function ($q) {
-                    $q->whereHas('teachingStaff', fn ($sq) => $sq->where('position_id', $_GET['position']))
-                        ->orWhereHas('nonTeachingStaff', fn ($sq) => $sq->where('position_id', $_GET['position']));
-                });
-            }
+        // Position (the positions table) belongs to non-teaching staff only,
+        // so under "All Staff" it narrows the list to non-teaching staff.
+        if (isset($_GET['position']) && $_GET['position'] !== 'all' && in_array($type, ['non_teaching', 'all'], true)) {
+            $data->whereHas('nonTeachingStaff', function ($q) {
+                $q->where('position_id', $_GET['position']);
+            });
         }
 
         if (isset($_GET['search']) && $_GET['search'] !== '') {
@@ -699,10 +682,10 @@ class AccountController extends Controller
      * positions itself (see positionStore/updatePosition/destroyPosition
      * below) — this used to be a fixed 8-entry const here, now backed by
      * the `positions` table so an admin can add/rename/remove options
-     * without a code change. Both non_teaching_staff and teaching_staff
-     * reference this table via position_id, so renaming a position here
-     * updates every staff member already assigned it (unlike the old
-     * fixed-string setup).
+     * without a code change. non_teaching_staff references this table via
+     * position_id, so renaming a position here updates every staff member
+     * already assigned it. (Program heads and faculty have no position row: they're
+     * in the faculty or program_head table.)
      */
     public function positionIndex()
     {
@@ -724,14 +707,11 @@ class AccountController extends Controller
      * "Guard"/"Guidance"/"IT Staff" (gate pass verification routing,
      * referral intake/forwarding — see NonTeachingStaff-position checks in
      * DashboardController, GatePassController, ReferralController,
-     * sidebar-pages.js) and "faculty"/"program_head" (the whole
-     * teaching_staff role hierarchy — is_program_head(),
-     * Program::programHead(), dashboard/report routing) are load-bearing:
-     * renaming or deleting any of them would silently break the feature
-     * that keys off that exact string. Every other position is a
-     * free-form label with no such dependency.
+     * sidebar-pages.js) are load-bearing: renaming or deleting any of them
+     * would silently break the feature that keys off that exact string.
+     * Every other position is a free-form label with no such dependency.
      */
-    private const PROTECTED_POSITIONS = ['Guard', 'Guidance', 'IT Staff', 'faculty', 'program_head'];
+    private const PROTECTED_POSITIONS = ['Guard', 'Guidance', 'IT Staff'];
 
     public function updatePosition(Request $request)
     {
@@ -779,15 +759,9 @@ class AccountController extends Controller
      * non_teaching_staff account ever gets a position, since registration
      * doesn't collect one.
      */
-    // 'faculty'/'program_head' live in the same `positions` table (so
-    // teaching_staff.position_id and non_teaching_staff.position_id share
-    // one foreign key target) but are teaching_staff-only — never
-    // assignable to a non-teaching-staff account.
-    private const TEACHING_ONLY_POSITIONS = ['faculty', 'program_head'];
-
     public function assignStaffPosition(Request $request)
     {
-        $assignable = Position::whereNotIn('name', self::TEACHING_ONLY_POSITIONS)->pluck('name');
+        $assignable = Position::pluck('name');
 
         $request->validate([
             'user_id' => 'required|exists:users,id',
@@ -843,9 +817,10 @@ class AccountController extends Controller
      */
     public function programAccountFilesIndex()
     {
-        $programHead = TeachingStaff::with('program')
-            ->where('user_id', auth()->user()->id)
-            ->where('position_id', Position::idFor('program_head'))
+        // The first program they head (null if they aren't a program head).
+        $programHead = \App\Models\ProgramHead::with('program')
+            ->where('user_id', auth()->id())
+            ->orderBy('program_id')
             ->first();
 
         if (! $programHead) {
@@ -1148,7 +1123,7 @@ class AccountController extends Controller
                     ->orWhereHas('complaintSubject', fn ($q) => $q->where('student_id', $userId))
                     ->exists();
 
-                $hasReferral = Referral::where('teaching_staff_id', $userId)
+                $hasReferral = Referral::where('referrer_id', $userId)
                     ->orWhereHas('referralReferredStudent', fn ($q) => $q->where('student_id', $userId))
                     ->exists();
 
@@ -1238,7 +1213,7 @@ class AccountController extends Controller
             return self::removeStudentFromZip($user);
         }
 
-        if (in_array($user->role, ['teaching_staff', 'non_teaching_staff'])) {
+        if (in_array($user->role, ['program_head', 'faculty', 'non_teaching_staff'])) {
             Log::info('teaching or non-teaching staff');
 
             return self::removeEmployeeFromCsv($user);
@@ -1321,16 +1296,16 @@ class AccountController extends Controller
             $programId = null;
             $programName = null;
 
-            // ✅ Get teaching-staff program if applicable
-            if ($user->role === 'teaching_staff') {
-                $teachingStaff = $user->teachingStaff()->with('program')->first();
+            // ✅ Get the program head / faculty program if applicable
+            if ($user->isTeacher()) {
+                $teacher = $user->load(User::TEACHING_RELATIONS)->teaching;
 
                 // 🩹 Safely access related program
-                if ($teachingStaff && $teachingStaff->program) {
-                    $programId = $teachingStaff->program->id;
-                    $programName = Str::slug($teachingStaff->program->name, '-');
+                if ($teacher && $teacher->program) {
+                    $programId = $teacher->program->id;
+                    $programName = Str::slug($teacher->program->name, '-');
                 } else {
-                    Log::warning("Teaching staff {$user->id_number} has no program relationship.");
+                    Log::warning("Program head / faculty {$user->id_number} has no program relationship.");
 
                     return false;
                 }
@@ -1338,7 +1313,7 @@ class AccountController extends Controller
 
             // ✅ Build CSV path safely
             $csvPath = match ($user->role) {
-                'teaching_staff' => storage_path("app/private/zips/faculty-account-{$programId}-{$programName}.csv"),
+                'program_head', 'faculty' => storage_path("app/private/zips/faculty-account-{$programId}-{$programName}.csv"),
                 'non_teaching_staff' => storage_path('app/private/zips/staff-account.csv'),
                 default => null,
             };
@@ -1416,18 +1391,16 @@ class AccountController extends Controller
 
     public function getFaculty()
     {
-        $myTeachingStaff = TeachingStaff::where('user_id', auth()->user()->id)->first();
-        $isProgramHead = $myTeachingStaff && $myTeachingStaff->position === 'program_head';
+        $myTeaching = auth()->user()->teaching;
+        $isProgramHead = (bool) $myTeaching?->isProgramHead();
 
-        $data = User::with(['profile', 'teachingStaff.program'])
-            ->whereRole('teaching_staff');
+        $data = User::with(['profile', 'faculty.program', 'headships.program'])
+            ->whereRole(User::TEACHING_ROLES);
 
         if (in_array(auth()->user()->role, ['super_admin', 'sub_admin']) || $isProgramHead) {
             // Filter by program if not "all"
             if (isset($_GET['program']) && $_GET['program'] != 'all') {
-                $data->whereHas('teachingStaff', function ($q) {
-                    $q->where('program_id', $_GET['program']);
-                });
+                $data->teachingInPrograms([$_GET['program']]);
             }
 
             // School year / semester: faculty accounts registered in that period
@@ -1443,7 +1416,7 @@ class AccountController extends Controller
                         'search' => $_GET['search'],
                     ]);
             } else {
-                $programIds = $isProgramHead ? $myTeachingStaff->programsHandled->pluck('id') : collect();
+                $programIds = $isProgramHead ? $myTeaching->programs_handled->pluck('id') : collect();
 
                 $data = $programIds->isEmpty()
                         ?
@@ -1454,9 +1427,7 @@ class AccountController extends Controller
                             ])
                         :
                         $data->latest('created_at')
-                            ->whereHas('teachingStaff', function ($q) use ($programIds) {
-                                $q->whereIn('program_id', $programIds);
-                            })
+                            ->teachingInPrograms($programIds)
                             ->paginate(100)
                             ->appends([
                                 'program' => $_GET['program'] ?? 'all',
@@ -1467,11 +1438,11 @@ class AccountController extends Controller
         } else {
             // A faculty member sees the faculty of their own program — as
             // users, the same shape as the branch above (the faculty list
-            // reads id / profile / teaching_staff from each row).
-            $programId = $myTeachingStaff?->program_id;
+            // reads id / profile / teaching from each row).
+            $programId = $myTeaching?->program_id;
 
             return UserResource::collection($data
-                ->whereHas('teachingStaff', fn ($q) => $q->where('program_id', $programId))
+                ->teachingInPrograms([$programId])
                 ->latest('created_at')
                 ->paginate(100));
         }
@@ -1479,10 +1450,10 @@ class AccountController extends Controller
 
     public function getStudent()
     {
-        $myTeachingStaff = auth()->user()->role === 'teaching_staff'
-                         ? TeachingStaff::where('user_id', auth()->user()->id)->first()
+        $myTeaching = auth()->user()->isTeacher()
+                         ? auth()->user()->teaching
                          : null;
-        $isProgramHead = $myTeachingStaff && $myTeachingStaff->position === 'program_head';
+        $isProgramHead = (bool) $myTeaching?->isProgramHead();
 
         $data = User::with(['profile', 'program', 'enrollments.schoolYear'])
             ->whereRole('student')
@@ -1543,7 +1514,7 @@ class AccountController extends Controller
                     ->latest('created_at')
                     ->get();
             } else {
-                $programIds = $isProgramHead ? $myTeachingStaff->programsHandled->pluck('id') : collect();
+                $programIds = $isProgramHead ? $myTeaching->programs_handled->pluck('id') : collect();
 
                 $data = $programIds->isEmpty()
                         ?
@@ -1558,7 +1529,7 @@ class AccountController extends Controller
 
             return UserResource::collection($data);
         } else {
-            $programId = $myTeachingStaff?->program_id;
+            $programId = $myTeaching?->program_id;
 
             self::setId($programId);
 
@@ -1601,8 +1572,8 @@ class AccountController extends Controller
 
         switch ($type) {
             case 'student':
-                $myTeachingStaff = TeachingStaff::where('user_id', $authId)->first();
-                $hasId = $myTeachingStaff?->program_id ?? '';
+                $myTeaching = auth()->user()->teaching;
+                $hasId = $myTeaching?->program_id ?? '';
 
                 $data = User::with(['profile', 'program'])
                     ->whereRole('student')
@@ -1619,8 +1590,8 @@ class AccountController extends Controller
 
                 break;
             case 'program_student':
-                $myTeachingStaff = TeachingStaff::where('user_id', $authId)->first();
-                $hasId = $myTeachingStaff?->program_id;
+                $myTeaching = auth()->user()->teaching;
+                $hasId = $myTeaching?->program_id;
 
                 $data = User::with(['profile', 'program'])
                     ->whereRole('student')
@@ -1635,20 +1606,18 @@ class AccountController extends Controller
                 }
                 break;
             case 'faculty':
-                $myTeachingStaff = TeachingStaff::where('user_id', $authId)->first();
-                $isProgramHead = $myTeachingStaff && $myTeachingStaff->position === 'program_head';
+                $myTeaching = auth()->user()->teaching;
+                $isProgramHead = (bool) $myTeaching?->isProgramHead();
 
                 $data = (! $isProgramHead)
                         ?
-                        $user->with(['profile', 'teachingStaff.program'])
-                            ->whereRole('teaching_staff')
+                        $user->with(['profile', 'faculty.program', 'headships.program'])
+                            ->whereRole(User::TEACHING_ROLES)
                             ->where('id', '!=', $authId)
                         :
-                        $user->with(['profile', 'teachingStaff.program'])
-                            ->whereRole('teaching_staff')
-                            ->whereHas('teachingStaff', function ($q) use ($myTeachingStaff) {
-                                $q->where('program_id', $myTeachingStaff->program_id);
-                            })
+                        $user->with(['profile', 'faculty.program', 'headships.program'])
+                            ->whereRole(User::TEACHING_ROLES)
+                            ->teachingInPrograms($myTeaching->programIds())
                             ->where('id', '!=', $authId);
                 break;
             case 'student_parent':
@@ -1664,11 +1633,11 @@ class AccountController extends Controller
                     });
                 break;
             case 'all':
-                $data = $user->with(['profile', 'program', 'teachingStaff.program', 'parent'])
+                $data = $user->with(['profile', 'program', 'faculty.program', 'headships.program', 'parent'])
                     ->where('id', '!=', $authId);
                 break;
             case 'all-2':
-                $data = $user->with(['profile', 'program', 'teachingStaff.program', 'parent']);
+                $data = $user->with(['profile', 'program', 'faculty.program', 'headships.program', 'parent']);
                 break;
             case 'family':
                 $data = Family::where('family_code', 'like', "%$search%")->limit(5)->get()->map(function ($d) {
@@ -1741,15 +1710,16 @@ class AccountController extends Controller
     {
         $search = trim($request->query('search', ''));
 
-        $query = User::with(['profile', 'program', 'enrollments', 'parent', 'teachingStaff.program', 'nonTeachingStaff'])->where('id', '!=', auth()->id());
+        $query = User::with(['profile', 'program', 'enrollments', 'parent', 'faculty.program', 'headships.program', 'nonTeachingStaff'])->where('id', '!=', auth()->id());
 
         switch ($type) {
             case 'faculty':
-                $query->whereRole('teaching_staff');
+                // Program heads and faculty.
+                $query->whereRole(User::TEACHING_ROLES);
                 break;
             case 'non-teaching-staff':
                 // Prefect's Staff List "Non-Teaching Staff" tab — the
-                // counterpart to 'faculty' (teaching_staff only).
+                // counterpart to 'faculty' (program heads and faculty).
                 $query->whereRole('non_teaching_staff');
                 break;
             case 'student':
@@ -1770,14 +1740,14 @@ class AccountController extends Controller
                 $query->whereRole('student');
                 break;
             case 'program_student':
-                // Teaching staff referring a student: only active, currently
+                // Program heads and faculty referring a student: only active, currently
                 // enrolled students whose latest enrollment is in the
                 // teacher's own program(s) (their program + any they head).
                 $query->whereRole('student')
                     ->where('activate', true)
                     ->whereHas('enrollment');
-                if (auth()->user()->role === 'teaching_staff') {
-                    $programIds = TeachingStaff::programIdsFor(auth()->id());
+                if (auth()->user()->isTeacher()) {
+                    $programIds = \App\Models\User::teachingProgramIdsFor(auth()->id());
                     $query->whereHas('latestEnrollment', fn ($q) => $q->whereIn('program_id', $programIds));
                 }
                 break;

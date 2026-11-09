@@ -18,7 +18,8 @@ const ROLE_LABEL = {
     super_admin: "IT Admin",
     sub_admin: "Prefect",
     student: "Student",
-    teaching_staff: "Teaching Staff",
+    program_head: "Program Head",
+    faculty: "Faculty",
     non_teaching_staff: "Non-Teaching Staff",
     parent: "Parent",
 }

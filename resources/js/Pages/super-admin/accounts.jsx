@@ -67,8 +67,7 @@ const Accounts = (props) => {
   const position = url.get("position") || "all";
   const parentRole = url.get("parent-role") || "all";
   const positionLabel = (name = "") => (name.includes("_") || name === name.toLowerCase() ? toTitleCase(name).replace(/_/g, " ") : name);
-  const positionsFor = (teaching) =>
-    (props.positions ?? []).filter((p) => p.teaching === teaching).map((p) => ({ val: p.id, label: positionLabel(p.name) }));
+  const positions = (props.positions ?? []).map((p) => ({ val: p.id, label: positionLabel(p.name) }));
 
   const dropdown = (key, value, label, list, name) => (
     <div className="w-full sm:w-48" key={key}>
@@ -88,18 +87,20 @@ const Accounts = (props) => {
       dropdown("program", program, "All Programs", programList, "program_filter"),
       dropdown("year-level", yearLevel, "All Year Levels", [1, 2, 3, 4].map((y) => ({ val: y, label: getYearLevel(y) })), "year_level_filter"),
     ],
-    teaching_staff: [
-      dropdown("position", position, "All Positions", positionsFor(true), "position_filter"),
+    program_head: [
+      dropdown("program", program, "All Programs", programList, "program_filter"),
+    ],
+    faculty: [
       dropdown("program", program, "All Programs", programList, "program_filter"),
     ],
     non_teaching_staff: [
-      dropdown("position", position, "All Positions", positionsFor(false), "position_filter"),
+      dropdown("position", position, "All Positions", positions, "position_filter"),
     ],
     parent: [
       dropdown("parent-role", parentRole, "All Parent Roles", ["father", "mother", "guardian"].map((r) => ({ val: r, label: toTitleCase(r) })), "parent_role_filter"),
     ],
   }[roleFilter] ?? [];
-  const roleFilterValues = { student: [program, yearLevel], teaching_staff: [position, program], non_teaching_staff: [position], parent: [parentRole] }[roleFilter] ?? [];
+  const roleFilterValues = { student: [program, yearLevel], program_head: [program], faculty: [program], non_teaching_staff: [position], parent: [parentRole] }[roleFilter] ?? [];
 
   const showEditUserInfo = (data) => {
     openEditUserInfo(true);

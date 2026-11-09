@@ -11,10 +11,6 @@ import { Settings } from "lucide-react"
 import { Head } from "@inertiajs/react"
 import { PageActions } from "@/context-provider/page-title-provider"
 
-// 'faculty'/'program_head' live in the same shared positions table but are
-// teaching_staff-only — never assigned to a non_teaching_staff account, so
-// they'd never actually filter anything on this tab.
-const TEACHING_ONLY_POSITIONS = ["faculty", "program_head"]
 
 const PrefectStaffList = (props) => {
     const url = new URLSearchParams(window.location.search)
@@ -86,7 +82,7 @@ const PrefectStaffList = (props) => {
                             <DropdownField
                                 list={[
                                     { val: "all", label: "All Staff" },
-                                    { val: "teaching", label: "Teaching Staff" },
+                                    { val: "teaching", label: "Program Heads & Faculty" },
                                     { val: "non_teaching", label: "Non-Teaching Staff" },
                                 ]}
                                 val={tab}
@@ -109,7 +105,6 @@ const PrefectStaffList = (props) => {
                                 <DropdownField
                                     default={{ val: "", label: "All Positions" }}
                                     list={positions
-                                        .filter((p) => tab === "all" || !TEACHING_ONLY_POSITIONS.includes(p.name))
                                         .map((p) => ({ val: p.id, label: p.name }))}
                                     onChange={handlePositionFilterChange}
                                     name="position"

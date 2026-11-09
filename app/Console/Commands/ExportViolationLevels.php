@@ -21,6 +21,8 @@ class ExportViolationLevels extends Command
     {
         $rows = DB::table('violation as v')
             ->leftJoin('violation_penalty as vp', 'vp.violation_id', '=', 'v.id')
+            // Archived violations are no longer committed, so not trained on.
+            ->whereNull('v.archived_at')
             ->groupBy('v.id', 'v.violation_name')
             ->orderBy('v.id')
             ->selectRaw('v.violation_name, MAX(vp.occurrence) AS max_level')

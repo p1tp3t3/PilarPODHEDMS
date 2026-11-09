@@ -58,7 +58,8 @@ class ComplaintController extends Controller
             // Object.values() positionally as [value, label], so val/label
             // must stay the first two selected columns; keywords is read by
             // name (not position) in the modal, so it's safe appended last.
-            'incident_list' => Violation::select([DB::raw('id AS val'), DB::raw('violation_name AS label'), 'keywords'])->get(),
+            // Disabled violations can't be picked for complaints.
+            'incident_list' => Violation::active()->select([DB::raw('id AS val'), DB::raw('violation_name AS label'), 'keywords'])->get(),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
         ];
         if (self::isPrefect()) {
@@ -67,7 +68,7 @@ class ComplaintController extends Controller
                     ->where('confirmed_at', null)
                     ->latest('created_at')
                     ->get(),
-                'violation_list' => Violation::select('id', 'violation_name', 'offense_status')
+                'violation_list' => Violation::active()->select('id', 'violation_name', 'offense_status')
                     ->latest('created_at')
                     ->get(),
                 'all_users' => User::with('profile')->get(),
@@ -625,7 +626,7 @@ class ComplaintController extends Controller
     {
         $status = isset($_GET['status']) ? $_GET['status'] : 'ongoing';
         $data = Complaint::whereIn('complaint_status', ['pending', 'ongoing', 'resolved', 'rejected', 'revoked'])
-            ->with(['user.profile', 'user.program', 'user.enrollments', 'user.teachingStaff.program', 'user.nonTeachingStaff', 'subject.profile', 'subject.program', 'subject.enrollments', 'complaintSubject.user.profile', 'complaintSubject.user.program', 'complaintSubject.user.enrollments']);
+            ->with(['user.profile', 'user.program', 'user.enrollments', 'user.faculty.program', 'user.headships.program', 'user.nonTeachingStaff', 'subject.profile', 'subject.program', 'subject.enrollments', 'complaintSubject.user.profile', 'complaintSubject.user.program', 'complaintSubject.user.enrollments']);
         $search = $_GET['search'] ?? null;
         $date = $_GET['date'] ?? null;
         $role = $_GET['role'] ?? null;  // ✅ new filter
@@ -749,7 +750,7 @@ class ComplaintController extends Controller
             // COMPLAINT OWNER (User)
             'user.profile',
             'user.program',
-            'user.teachingStaff.program',
+            'user.faculty.program', 'user.headships.program',
             'user.parent',
 
             // PREFECT WHO FILED IT ON THE COMPLAINANT'S BEHALF (if any)
@@ -758,10 +759,10 @@ class ComplaintController extends Controller
             // SUBJECTS + USER + STUDENT + PROGRAM
             'subject.profile',
             'subject.program',
-            'subject.teachingStaff.program',
+            'subject.faculty.program', 'subject.headships.program',
             'complaintSubject.user.profile',
             'complaintSubject.user.program',
-            'complaintSubject.user.teachingStaff.program',
+            'complaintSubject.user.faculty.program', 'complaintSubject.user.headships.program',
 
             'violation',
 
@@ -934,7 +935,7 @@ class ComplaintController extends Controller
         ];
     }
 
-    // "Student — BSIT, 3rd Year", "Teaching Staff", a staff member's position...
+    // "Student — BSIT, 3rd Year", "Program Head", "Faculty", a staff member's position...
     private static function designation(?User $user): string
     {
         if (! $user) {
@@ -950,7 +951,8 @@ class ComplaintController extends Controller
 
         return match ($user->role) {
             'sub_admin' => 'Prefect of Discipline',
-            'teaching_staff' => 'Teaching Staff',
+            'program_head' => 'Program Head',
+            'faculty' => 'Faculty',
             'non_teaching_staff' => $user->nonTeachingStaff?->positionRef?->name ?? 'Non-Teaching Staff',
             'parent' => 'Parent',
             default => 'Staff',

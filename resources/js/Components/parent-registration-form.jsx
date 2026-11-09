@@ -5,6 +5,13 @@ import { Link } from "@inertiajs/react";
 import FormButton from "./button/button";
 import DropdownField from "./input/dropdown";
 import RadioButton from "./input/radio";
+import { useState } from "react";
+import ParentTermsModal from "./modal/parent-terms-modal";
+import { Checkbox } from "@mui/material";
+import { getYearLevel } from "@/others/function";
+
+// 1st to 4th Year, as stored on enrollments (1-4).
+const YEAR_LEVELS = [1, 2, 3, 4].map((y) => ({ val: String(y), label: getYearLevel(y) }));
 
 const ParentRegistrationForm = (props) => {
   const handleChildChange = (index, field, value) => {
@@ -31,6 +38,7 @@ const ParentRegistrationForm = (props) => {
           middle_name: "",
           last_name: "",
           program: "",
+          year_level: "",
           sex: "m",
         },
       ],
@@ -46,6 +54,8 @@ const ParentRegistrationForm = (props) => {
       children: updatedChildren,
     }));
   };
+
+  const [termsOpen, setTermsOpen] = useState(false);
 
   return (
     <div className="frm relative w-full max-w-[34rem] flex flex-col items-center gap-3">
@@ -172,7 +182,7 @@ const ParentRegistrationForm = (props) => {
                               errorAsterisk={props.validationErr[`child_${index}_last_nameAsterisk`]}
                             />
                           </div>
-                          <div className="flex flex-col sm:flex-row gap-5">
+                          <div className="grid gap-3">
                             <RadioButton
                               name={`child_sex_${index}`}
                               label={<b>Sex</b>}
@@ -185,16 +195,29 @@ const ParentRegistrationForm = (props) => {
                                 { value: "f", label: "Female" },
                               ]}
                             />
-                            <DropdownField
-                              default={{ val: '', label: 'Select Program' }}
-                              name='program'
-                              label='Program'
-                              id={`program_${index}`}
-                              onChange={(e) => handleChildChange(index, 'program', e.target.value)}
-                              val={child.program}
-                              error={props.validationErr[`child_${index}_program`]}
-                              list={props.programs}
-                            />
+                            {/* Program and year level side by side, under Sex. */}
+                            <div className="min-w-0 grid grid-cols-1 sm:grid-cols-[3fr_2fr] gap-3">
+                              <DropdownField
+                                default={{ val: '', label: 'Select Program' }}
+                                name='program'
+                                label='Program'
+                                id={`program_${index}`}
+                                onChange={(e) => handleChildChange(index, 'program', e.target.value)}
+                                val={child.program}
+                                error={props.validationErr[`child_${index}_program`]}
+                                list={props.programs}
+                              />
+                              <DropdownField
+                                default={{ val: '', label: 'Select Year Level' }}
+                                name='year_level'
+                                label='Year Level'
+                                id={`year_level_${index}`}
+                                onChange={(e) => handleChildChange(index, 'year_level', e.target.value)}
+                                val={child.year_level ?? ''}
+                                error={props.validationErr[`child_${index}_year_level`]}
+                                list={YEAR_LEVELS}
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -281,6 +304,33 @@ const ParentRegistrationForm = (props) => {
                   minHeight="10rem"
                 />
               </div>
+              {/* Must agree to the Terms and Conditions to register. */}
+              <div id="agree_terms" className="grid gap-1">
+                <label className="flex items-start gap-1 text-[0.85em] text-gray-700 cursor-pointer">
+                  <Checkbox
+                    name="agree_terms"
+                    size="small"
+                    checked={!!props.data.agree_terms}
+                    onChange={(e) => props.onchange({ target: { name: "agree_terms", value: e.target.checked } })}
+                    sx={{ p: 0.25, mt: "-1px", ...(props.validationErr.agree_terms && !props.data.agree_terms ? { color: "#dc2626" } : {}) }}
+                    slotProps={{ input: { "aria-invalid": !!props.validationErr.agree_terms } }}
+                  />
+                  <span className="pt-[1px]">
+                    I have read and agree to the{" "}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); setTermsOpen(true); }}
+                      className="text-blue-700 font-semibold hover:underline"
+                    >
+                      Terms and Conditions
+                    </button>
+                    , including the use of my and my child's information as described there.
+                  </span>
+                </label>
+                {props.validationErr.agree_terms && (
+                  <div className="text-[0.8em] text-red-600 pl-6">{props.validationErr.agree_terms}</div>
+                )}
+              </div>
               <div className="w-full grid gap-1">
                 <FormButton label="Register" type="submit" />
                 <div className="text-[13px] text-center hover:underline text-blue-700 z-10">
@@ -291,6 +341,14 @@ const ParentRegistrationForm = (props) => {
           </div>
         </div>
       </form>
+      <ParentTermsModal
+        open={termsOpen}
+        onClose={() => setTermsOpen(false)}
+        onAgree={() => {
+          props.onchange({ target: { name: "agree_terms", value: true } });
+          setTermsOpen(false);
+        }}
+      />
     </div>
   );
 };

@@ -16,6 +16,7 @@ import {
   showWarningModal,
   toTitleCase,
 } from "@/others/function";
+import GeneratePassword from "@/Components/input/generate-password";
 import { RegisterService } from "@/others/services/register-service";
 import UploadFileBtn from "@/Components/button/upload-file-btn";
 import Switch from "@/Components/button/switch-btn";
@@ -108,8 +109,8 @@ const RegistrationForm = ({
     student: 'student',
     itrc: 'super_admin',
     prefect: 'sub_admin',
-    faculty: 'teaching_staff',
-    program_head: 'teaching_staff',
+    faculty: 'faculty',
+    program_head: 'program_head',
     staff: 'non_teaching_staff',
     parent: 'parent',
   };
@@ -119,8 +120,6 @@ const RegistrationForm = ({
     formData.append("activate", activateManual ? 1 : 0);
     const d = Object.fromEntries(formData.entries());
     d.role = roleMap[data.user_type] ?? data.user_type;
-    if (data.user_type === 'faculty') d.position = 'faculty';
-    if (data.user_type === 'program_head') d.position = 'program_head';
     d.id_number = d.user_id;
     const validator = new Validator(d, data.user_type);
     const errors = validator.validateRegistrationForm(commonPasswordList);
@@ -172,15 +171,6 @@ const RegistrationForm = ({
     )
   };
 
-  const generatePassword = (length) => {
-    const chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*_+<>?";
-    let result = "";
-    for (let i = 0; i < length; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setData((prev) => ({ ...prev, password: result }));
-  };
 
   return (
     <div className="w-full grid gap-6 sm:gap-8">
@@ -334,27 +324,24 @@ const RegistrationForm = ({
         />
       </div>
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
-        <div className="w-full">
-          <FormTextfield
-            label="Password"
-            name="password"
-            id="password"
-            type="password"
-            val={data.password}
-            change={handleChange}
-            enableShowPassword={true}
-            error={validationErr.password}
-            errorAsterisk={validationErr.passwordAsterisk}
-          />
-        </div>
-        <button
-          type="button"
-          onClick={() => generatePassword(15)}
-          className="bg-gray-200 hover:bg-gray-300 rounded text-[0.8em] px-4 py-2 mt-1 sm:mt-0"
-        >
-          Generate Password
-        </button>
+      <div className="grid gap-3">
+        <FormTextfield
+          label="Password"
+          name="password"
+          id="password"
+          type="password"
+          val={data.password}
+          change={handleChange}
+          enableShowPassword={true}
+          error={validationErr.password}
+          errorAsterisk={validationErr.passwordAsterisk}
+        />
+        {/* Same button and box as Account Settings' password. */}
+        <GeneratePassword
+          value={data.password}
+          onGenerate={(password) => setData((prev) => ({ ...prev, password }))}
+          note="Copy it so you can give it to the new user."
+        />
       </div>
       
 

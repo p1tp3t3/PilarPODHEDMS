@@ -1,4 +1,5 @@
 import { DataGrid } from "@/Components/other/data-grid"
+import StatusPill from "@/Components/list/status-pill";
 import Box from "@mui/material/Box"
 import { useContext, useMemo } from "react"
 import AuthContext from "@/context-provider/auth-provider"
@@ -8,14 +9,7 @@ import ProfilePic from "../other/profile-pic"
 import ActionBtn from "../button/action-btn"
 import ListSkeleton from "../reload/list-skeleton"
 import { statusLabel } from "@/Components/other/mobile-card-list"
-import { filedByColumn } from "@/Components/list/filed-by-column"
 
-const STATUS_STYLES = {
-    pending: "bg-yellow-100 text-yellow-700",
-    approved: "bg-green-100 text-green-700",
-    rejected: "bg-red-100 text-red-700",
-    revoked: "bg-gray-200 text-gray-700",
-}
 
 const statusFor = (e) => {
     if (e.revoked_at) return "revoked"
@@ -35,9 +29,7 @@ const compactColumns = (view) => [
         headerName: "Status",
         width: 130,
         renderCell: ({ value }) => (
-            <span className={`px-2 py-0.5 rounded-full text-[0.8em] font-medium ${STATUS_STYLES[value]}`}>
-                {toTitleCase(value)}
-            </span>
+            <StatusPill status={value} />
         ),
     },
     {
@@ -154,13 +146,10 @@ const GatePassRequestList = (props) => {
                 width: 120,
                 renderCell: (params) => (
                     <div className="h-full flex items-center">
-                        <span className={`px-2 py-0.5 rounded-full text-[0.75em] font-medium ${STATUS_STYLES[params.row.status]}`}>
-                            {toTitleCase(params.row.status)}
-                        </span>
+                        <StatusPill status={params.row.status} />
                     </div>
                 ),
             },
-            ...(usr?.role === "sub_admin" ? [filedByColumn((r) => r.prefect)] : []),
             {
                 field: "created_at",
                 headerName: "Request Since",

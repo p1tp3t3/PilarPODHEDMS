@@ -435,11 +435,11 @@ export class Validator {
     }
 
     // =====================================================================
-    //  TEACHING / NON-TEACHING STAFF PROFILE VALIDATION — only picture, sex,
+    //  PROGRAM HEAD / FACULTY / NON-TEACHING STAFF PROFILE VALIDATION — only picture, sex,
     //  contact number, and address are required; religion/citizenship/date
     //  of birth/place of birth are left optional for these roles.
     // =====================================================================
-    if (['teaching_staff', 'non_teaching_staff'].includes(this.role)) {
+    if (['program_head', 'faculty', 'non_teaching_staff'].includes(this.role)) {
         if (!field.profile_picture) {
             errorMessage.profile_picture = 'Profile Picture is required';
         } else {

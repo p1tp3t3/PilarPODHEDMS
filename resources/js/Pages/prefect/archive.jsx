@@ -80,14 +80,8 @@ const PrefectArchive = (props) => {
             openViewGatepass(true)
         }
     }
-    // Only absent form still has a recovery action (Approve) — complaint and
-    // referral archives are one-way now, no Unarchive button triggers this.
-    const recoverDocument = (i, t) => {
-        if(t == 'absent form') {
-            setId(i)
-            openNoteAbsent(true)
-        }
-    }
+    // The archive is read-only: records can be viewed, downloaded and
+    // deleted, but not approved from here.
     const deleteDocument = (docType, docId) => {
         const label = `Are You Sure You Want To Permanently Remove ${toTitleCase(docType)} No. ${docId}?`
         const buttonLabel = `Delete ${toTitleCase(docType)} No. ${docId}`
@@ -202,7 +196,6 @@ const PrefectArchive = (props) => {
                         <ArchiveList
                             list={archive_list}
                             viewDocument={setId}
-                            recoverDocument={recoverDocument}
                             deleteDocument={deleteDocument}
                         />
                     </div>

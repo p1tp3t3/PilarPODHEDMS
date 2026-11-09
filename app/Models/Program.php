@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOneThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Program extends Model
 {
@@ -13,31 +13,48 @@ class Program extends Model
 
     protected $table = 'program';
 
-    protected $fillable = ['name', 'description', 'logo', 'color_code', 'is_deleted'];
+    protected $fillable = ['name', 'description', 'logo', 'color_code', 'is_deleted', 'archived_at'];
 
     public $timestamps = false;
 
-    public function teachingStaff(): HasMany
+    protected function casts(): array
     {
-        return $this->hasMany(TeachingStaff::class, 'program_id', 'id');
+        return ['archived_at' => 'datetime'];
+    }
+
+    /** Only programs offered for new registrations / enrollments (not archived). */
+    public function scopeActive($query)
+    {
+        return $query->whereNull('archived_at');
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
     }
 
     /**
-     * The one head assigned to this program, resolved via
-     * program_head_program — a head can be responsible for 2+ programs
-     * (see TeachingStaff::programsHandled()), but each program still has at
-     * most one head (enforced by the pivot's unique(program_id)).
+     * Whether any data points to this program (an enrollment, past or
+     * current, a faculty member or a program head). With data it can only
+     * be archived; without, it's deleted outright.
      */
-    public function programHead(): HasOneThrough
+    public function hasLinkedRecords(): bool
     {
-        return $this->hasOneThrough(
-            TeachingStaff::class,
-            ProgramHeadProgram::class,
-            'program_id', // FK on program_head_program referencing this program
-            'user_id',    // FK on teaching_staff (its own key column)
-            'id',         // local key on Program
-            'user_id'     // local key on program_head_program referencing teaching_staff
-        );
+        return $this->enrollments()->exists()
+            || $this->faculty()->exists()
+            || $this->programHead()->exists();
+    }
+
+    /** Faculty members who teach in this program. */
+    public function faculty(): HasMany
+    {
+        return $this->hasMany(Faculty::class, 'program_id', 'id');
+    }
+
+    /** This program's head (a program has at most one). */
+    public function programHead(): HasOne
+    {
+        return $this->hasOne(ProgramHead::class, 'program_id', 'id');
     }
 
     public function enrollments(): HasMany

@@ -9,14 +9,11 @@ import { readableTime, showUserType } from "@/others/function"
 // Prefect dashboard "Watch List": currently enrolled students the logistic
 // model predicts will repeat a violation (risk of 50% or more), highest
 // risk first. Loaded when the tab opens; each row opens the student's
-// Behavioural Analysis.
+// Behavioural Analysis. Shows only "Likely to Commit", never the percentage.
 
-const pct = (p) => `${Math.round(p * 100)}%`
 // Opens the student's Behavioural Analysis with that violation selected.
 const analysisUrl = (student, violationId) =>
     `/student-violation/${student.encrypted_id}?tab=analysis&violation=${violationId}&from=dashboard`
-
-const riskClass = (p) => (p >= 0.75 ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700")
 
 const WatchList = () => {
     const [data, setData] = useState(null)
@@ -86,8 +83,8 @@ const WatchList = () => {
                                 user={s}
                                 sub={`${s.id_number ? `${s.id_number.toUpperCase()} · ` : ""}${showUserType(s)}`}
                                 right={
-                                    <span className={`px-2 py-0.5 rounded-full text-[0.72em] font-bold ${riskClass(s.top_probability)}`}>
-                                        {pct(s.top_probability)} risk
+                                    <span className="px-2 py-0.5 rounded-full text-[0.72em] font-bold whitespace-nowrap bg-red-100 text-red-700">
+                                        Likely to Commit
                                     </span>
                                 }
                                 footer={
@@ -105,7 +102,7 @@ const WatchList = () => {
                                                 className="max-w-full truncate text-[0.66em] px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700 cursor-pointer"
                                                 title={`${v.past} time(s), ${v.recent} in the last 90 days — open this violation`}
                                             >
-                                                {v.violation} · {pct(v.probability)}
+                                                {v.violation}
                                             </span>
                                         ))}
                                     </div>

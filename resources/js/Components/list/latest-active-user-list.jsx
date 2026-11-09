@@ -15,7 +15,8 @@ const ROLE_OPTIONS = [
     { val: "super_admin", label: "IT Admin" },
     { val: "sub_admin", label: "Prefect" },
     { val: "student", label: "Student" },
-    { val: "teaching_staff", label: "Teaching Staff" },
+    { val: "program_head", label: "Program Head" },
+    { val: "faculty", label: "Faculty" },
     { val: "non_teaching_staff", label: "Non-Teaching Staff" },
     { val: "parent", label: "Parent" },
 ]
@@ -26,10 +27,10 @@ const LatestActiveAccountList = ({ dataKey = 'active', ...props }) => {
     const [user_list, setUserList] = useState(props.list);
     const [search, setSearch] = useState("");
     const [roleFilter, setRoleFilter] = useState("all");
-    const showRoleFilter = ['super_admin', 'sub_admin', 'teaching_staff'].includes(usr?.role);
-    // Teaching staff only ever see students and fellow teachers.
-    const roleOptions = usr?.role === 'teaching_staff'
-        ? ROLE_OPTIONS.filter((r) => ['student', 'teaching_staff'].includes(r.val))
+    const showRoleFilter = ['super_admin', 'sub_admin', 'program_head', 'faculty'].includes(usr?.role);
+    // Program heads and faculty only ever see students and fellow teachers.
+    const roleOptions = ['program_head', 'faculty'].includes(usr?.role)
+        ? ROLE_OPTIONS.filter((r) => ['student', 'program_head', 'faculty'].includes(r.val))
         : ROLE_OPTIONS;
     const debounceRef = useRef(null);
 
@@ -66,7 +67,8 @@ const LatestActiveAccountList = ({ dataKey = 'active', ...props }) => {
                 return 'Users'
             case 'sub_admin':
                 return 'Users'
-            case 'teaching_staff':
+            case 'program_head':
+            case 'faculty':
                 return 'Users'
             default:
                 return props.type

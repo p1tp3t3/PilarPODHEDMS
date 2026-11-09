@@ -16,6 +16,10 @@ return new class extends Migration
             $table->string('violation_name');
             $table->text('keywords')->nullable();
             $table->boolean('offense_status');
+            // A violation with records (complaints) can't be deleted, only
+            // archived: hidden from new complaints, kept for history.
+            // Null = active; set = when it was archived.
+            $table->timestamp('archived_at')->nullable();
             $table->tinyInteger('is_deleted')->default(0);
             $table->timestamp('created_at')->useCurrent();
         });

@@ -207,17 +207,6 @@ const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
                        ? checkBox
                        : ''}
                    </NotificationWrapper>
-        case 'violation_access':
-            return <NotificationWrapper link={`/violation-management/access?id=${obj.encrypted_id}`}>
-                       <NormalNotif obj={obj} />
-                       {(enableDel && !select)
-                       ?
-                       d
-                       :
-                       (select)
-                       ? checkBox
-                       : ''}
-                   </NotificationWrapper>
         case 'call_in':
             return <NotificationWrapper link={`/notifications?id=${obj.encrypted_id}`}>
                        <CallInNotif obj={obj} />

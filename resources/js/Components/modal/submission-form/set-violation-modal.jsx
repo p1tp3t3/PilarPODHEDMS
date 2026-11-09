@@ -224,7 +224,7 @@ const SetViolationModal = (props) => {
                         props.reload(true, '')
                         showOutputModal(
                             "Failed. " + (e.response?.data?.message || ""),
-                            's',
+                            'e',
                             () => props.reload(false)
                         )
                     }

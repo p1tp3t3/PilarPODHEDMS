@@ -189,6 +189,7 @@ const AppointmentModal = (props) => {
                             name={[locked.profile?.first_name, locked.profile?.last_name]}
                             src={getProfilePic(locked.profile?.profile_picture, locked.profile?.sex)}
                             user_type={locked.role}
+                            user={locked}
                             unselect={null}
                         />}
                         {(props.user_type == 'sub_admin' && !isResched && !locked) &&
@@ -212,6 +213,7 @@ const AppointmentModal = (props) => {
                                     name={[searchedStudentParent[0].profile?.first_name, searchedStudentParent[0].profile?.last_name]}
                                     src={getProfilePic(searchedStudentParent[0].profile?.profile_picture, searchedStudentParent[0].profile?.sex)}
                                     user_type={(searchedStudentParent[0].role)}
+                                    user={searchedStudentParent[0]}
                                     unselect={unselect}
                                 />}
                             </div>
@@ -223,6 +225,7 @@ const AppointmentModal = (props) => {
                                 name={[searchedStudentParent[0].profile?.first_name, searchedStudentParent[0].profile?.last_name]}
                                 src={getProfilePic(searchedStudentParent[0].profile?.profile_picture, searchedStudentParent[0].profile?.sex)}
                                 user_type={searchedStudentParent[0].role}
+                                user={searchedStudentParent[0]}
                                 unselect={null}
                             />}
                         </div>}
@@ -306,7 +309,8 @@ const AppointedUser = (props) => {
                 </div>
                 <div className="text-[0.8em]">
                     <h1 className="text-[1.2em]"><b>{`${props.name[0]} ${props.name[1]}`}</b></h1>
-                    <h1 className="text-[0.9em]">{`${toTitleCase(props.user_type)}`}</h1>
+                    {/* Students: program and year level; parents: their role. */}
+                    <h1 className="text-[0.9em]">{props.user ? showUserType(props.user, true) : toTitleCase(props.user_type)}</h1>
                 </div>
             </div>
         </div>

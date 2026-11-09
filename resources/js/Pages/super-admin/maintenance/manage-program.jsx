@@ -5,10 +5,16 @@ import { useState } from "react";
 import { DataGrid } from "@/Components/other/data-grid";
 import { AlertCircle } from "lucide-react";
 import ActionBtn from "@/Components/button/action-btn";
+import TabSwitcher from "@/Components/other/tab-switcher";
 import { router } from "@inertiajs/react";
 
 const ManageProgram = ({ list, original_list, events, reload, setter }) => {
   const [search, setSearch] = useState('');
+  // Active programs by default; archived ones sit in their own tab.
+  const [view, setView] = useState("active");
+  const all = list ?? [];
+  const archivedCount = all.filter((p) => p.archived_at).length;
+  const rows = all.filter((p) => (view === "archived") === !!p.archived_at);
 
   const handleSearch = (e) => {
     const value = e.target.value;
@@ -53,6 +59,41 @@ const ManageProgram = ({ list, original_list, events, reload, setter }) => {
     );
   };
 
+  // A program with users or records is archived instead of deleted.
+  const archiveProgram = (row) => {
+    showWarningModal(
+      `Archive ${row.description}? It won't be offered for new accounts or enrollments. Its users and records stay, and you can restore it from the Archived tab.`,
+      "Archive Program",
+      "Cancel",
+      () => {
+        reload(true, "text-wait", "Archiving Program...");
+        ProgramService.archive(
+          row.id,
+          setter,
+          () => reload(true, "success", "Program Archived"),
+          (e) => reload(true, "error", e.response?.data?.message ?? "Something went wrong.")
+        );
+      }
+    );
+  };
+
+  const restoreProgram = (row) => {
+    showWarningModal(
+      `Restore ${row.description}? It will be offered for new accounts and enrollments again.`,
+      "Restore Program",
+      "Cancel",
+      () => {
+        reload(true, "text-wait", "Restoring Program...");
+        ProgramService.restore(
+          row.id,
+          setter,
+          () => reload(true, "success", "Program Restored"),
+          (e) => reload(true, "error", e.response?.data?.message ?? "Something went wrong.")
+        );
+      }
+    );
+  };
+
   const columns = [
     {
       field: "index",
@@ -72,7 +113,12 @@ const ManageProgram = ({ list, original_list, events, reload, setter }) => {
         <div className="flex items-center gap-3 h-full">
           <img src={getProgramLogo(row.logo)} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
           <div className="flex flex-col justify-center leading-tight">
-            <div className="text-[0.8em] font-bold">{row.name}</div>
+            <div className="text-[0.8em] font-bold flex items-center gap-1.5">
+              {row.name}
+              {row.archived_at && (
+                <span className="px-1.5 py-0.5 rounded-full text-[0.85em] font-semibold bg-gray-200 text-gray-600">Archived</span>
+              )}
+            </div>
             <div className="text-[0.7em]">{row.description}</div>
           </div>
         </div>
@@ -108,28 +154,51 @@ const ManageProgram = ({ list, original_list, events, reload, setter }) => {
           >
             View
           </ActionBtn>
+          {/* Archived: read-only until restored. */}
+          {!row.archived_at && (
           <ActionBtn
             onClick={() => events[0]("program", "edit", row)}
             className="bg-green-600 text-white hover:bg-green-700"
           >
             Edit
           </ActionBtn>
+          )}
+          {/* Archived: Restore. With users/records: Archive. Without: Delete. */}
+          {row.archived_at ? (
+          <ActionBtn
+            onClick={() => restoreProgram(row)}
+            className="bg-indigo-600 text-white hover:bg-indigo-700"
+          >
+            Restore
+          </ActionBtn>
+          ) : row.has_records ? (
+          <ActionBtn
+            onClick={() => archiveProgram(row)}
+            className="bg-amber-600 text-white hover:bg-amber-700"
+            title="This program has users or records, so it can be archived but not deleted."
+          >
+            Archive
+          </ActionBtn>
+          ) : (
           <ActionBtn
             onClick={() => deleteProgram(row)}
             className="bg-red-600 text-white hover:bg-red-700"
           >
             Delete
           </ActionBtn>
+          )}
         </div>
       ),
     },
   ];
 
   return (
+    <div className="w-full grid gap-3 min-w-0">
+    <TabSwitcher value={view} onChange={setView} tabs={[{ key: "active", label: `Active (${all.length - archivedCount})` }, { key: "archived", label: `Archived (${archivedCount})` }]} />
     <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
       <div className="w-full px-5 py-3 min-w-0 overflow-hidden">
         <DataGrid
-          rows={list}
+          rows={rows}
           getRowId={(row) => row.id}
           columns={columns}
           pagination
@@ -150,6 +219,7 @@ const ManageProgram = ({ list, original_list, events, reload, setter }) => {
           }}
         />
       </div>
+    </div>
     </div>
   );
 };

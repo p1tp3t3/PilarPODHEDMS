@@ -12,7 +12,7 @@ class Violation extends Model
 
     protected $table = 'violation';
 
-    protected $fillable = ['id', 'violation_name', 'offense_status', 'keywords'];
+    protected $fillable = ['id', 'violation_name', 'offense_status', 'keywords', 'archived_at'];
 
     public $timestamps = false;
 
@@ -23,7 +23,40 @@ class Violation extends Model
     {
         return [
             'keywords' => 'array',
+            'archived_at' => 'datetime',
         ];
+    }
+
+    /** Only violations that can be picked for new complaints (not archived). */
+    public function scopeActive($query)
+    {
+        return $query->whereNull('archived_at');
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
+    }
+
+    /** Students' records of this violation (complaint subjects). */
+    public function subjectViolations(): HasMany
+    {
+        return $this->hasMany(ComplaintSubjectViolation::class, 'violation_id');
+    }
+
+    /** Complaints filed under this violation as their incident. */
+    public function complaints(): HasMany
+    {
+        return $this->hasMany(Complaint::class, 'incident_id');
+    }
+
+    /**
+     * Whether any data points to this violation. With data it can only be
+     * archived; without, it's deleted outright.
+     */
+    public function hasLinkedRecords(): bool
+    {
+        return $this->subjectViolations()->exists() || $this->complaints()->exists();
     }
 
     public function penalties(): HasMany

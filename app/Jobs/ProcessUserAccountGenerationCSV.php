@@ -10,7 +10,7 @@ use App\Models\Position;
 use App\Models\Profile;
 use App\Models\Program;
 use App\Models\SchoolYear;
-use App\Models\TeachingStaff;
+use App\Models\Faculty;
 use App\Models\User;
 use App\Models\UserPermission;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -51,7 +51,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
 
         try {
 
-            $userType = $this->userType; // 'student' | 'teaching_staff' | 'non_teaching_staff'
+            $userType = $this->userType; // 'student' | 'faculty' | 'non_teaching_staff'
             $activate = $this->activate;
             $csvArr = get_user_df($this->csvPath);
             $grouped = [];
@@ -150,11 +150,11 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
                     $grouped[$groupKey][] = $this->getUserTypeRow('student', $csv, $username, $plainPassword);
                 }
 
-                // === TEACHING STAFF (bulk upload only ever creates 'faculty' position) ===
-                elseif ($userType === 'teaching_staff') {
-                    TeachingStaff::updateOrInsert(
+                // === FACULTY (bulk upload creates faculty; program heads are registered one by one) ===
+                elseif ($userType === 'faculty') {
+                    Faculty::updateOrInsert(
                         ['user_id' => $user->id],
-                        ['program_id' => $csv['program'], 'position_id' => Position::idFor('faculty')]
+                        ['program_id' => $csv['program']]
                     );
                     $programId = $csv['program'];
 
@@ -162,7 +162,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
                         $grouped[$programId] = [['id', 'name', 'program', 'username', 'password']];
                     }
 
-                    $grouped[$programId][] = $this->getUserTypeRow('teaching_staff', $csv, $username, $plainPassword);
+                    $grouped[$programId][] = $this->getUserTypeRow('faculty', $csv, $username, $plainPassword);
                 }
                 // === NON-TEACHING STAFF or OTHER TYPES ===
                 else {
@@ -180,7 +180,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
             // ✅ Export & zip per user type
             if ($userType === 'student') {
                 $this->exportStudentZipped($grouped);
-            } elseif ($userType === 'teaching_staff') {
+            } elseif ($userType === 'faculty') {
                 $this->exportFacultyGrouped($grouped);
             } else {
                 $fileName = $this->userTypeFileName($userType, $csvArr[0] ?? []);
@@ -226,7 +226,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
         // Non-teaching-assignable position names — computed once up front
         // rather than per-row, since it never changes during a single
         // validation pass.
-        $assignablePositions = Position::whereNotIn('name', ['faculty', 'program_head'])->pluck('name');
+        $assignablePositions = Position::pluck('name');
 
         // RULES PER ROLE
         $rules = [
@@ -254,7 +254,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
                 }
             ],
 
-            'teaching_staff' => [
+            'faculty' => [
                 'required' => [
                     'id', 'first_name', 'middle_name', 'last_name',
                     'sex', 'email', 'program'
@@ -268,7 +268,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
 
             'non_teaching_staff' => [
                 // Email isn't required here — some non-teaching staff (e.g.
-                // guards) don't have one, unlike students/teaching staff.
+                // guards) don't have one, unlike students/program heads and faculty.
                 'required' => [
                     'id', 'first_name', 'middle_name', 'last_name',
                     'sex', 'position'
@@ -425,11 +425,11 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
             if ($userType === 'student') {
                 $zipPath = storage_path("app/private/zips/student-{$programId}-{$programName}.zip");
                 $csvName = "student-account-{$programId}-{$programName}-year-{$yearLevel}.csv";
-            } elseif ($userType === 'teaching_staff') {
+            } elseif ($userType === 'faculty') {
                 $zipPath = storage_path("app/private/zips/faculty-account-{$programId}-{$programName}.csv");
                 $csvName = "faculty-account-{$programId}-{$programName}.csv";
             } else {
-                // Non-student/teaching-staff users → always new random password
+                // Users other than students/faculty → always new random password
                 User::where('id_number', $userId)->update(['password' => Hash::make($randomPassword)]);
                 return $randomPassword;
             }
@@ -498,7 +498,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
         }
     }
 
-    /** ✅ Export grouped teaching-staff files */
+    /** ✅ Export grouped faculty files */
     private function exportFacultyGrouped($grouped)
     {
         foreach ($grouped as $programId => $columnData) {
@@ -517,7 +517,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
             case 'student':
                 $program = Program::where('id', $file['program'])->value('name') ?? 'unknown';
                 return [$id, $name, $program, $file['year_level'], $username, $password];
-            case 'teaching_staff':
+            case 'faculty':
                 $program = Program::where('id', $file['program'])->value('name') ?? 'unknown';
                 return [$id, $name, $program, $username, $password];
             default:
@@ -533,7 +533,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
 
         return match ($type) {
             'student' => "student-account-{$uniqueAtt['program']}-$programName-year-{$uniqueAtt['year_level']}.csv",
-            'teaching_staff' => "faculty-account-{$uniqueAtt['program']}-$programName.csv",
+            'faculty' => "faculty-account-{$uniqueAtt['program']}-$programName.csv",
             'non_teaching_staff' => "staff-account.csv",
             'parent' => "parent-account.csv",
             default => "{$type}-account.csv"

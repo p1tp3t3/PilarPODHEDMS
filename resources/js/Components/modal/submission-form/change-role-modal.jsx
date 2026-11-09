@@ -19,7 +19,8 @@ const positionLabel = (p) => (p === "program_head" ? "Program Head" : toTitleCas
 // What each role needs on record besides the role itself.
 const requiredFields = {
     student: ["program_id", "year_level"],
-    teaching_staff: ["program_id", "position"],
+    program_head: ["program_id"],
+    faculty: ["program_id"],
     non_teaching_staff: ["position"],
     parent: ["parent_role"],
 }
@@ -32,7 +33,7 @@ const fieldLabels = {
 }
 
 const ADMIN_ROLES = ["super_admin", "sub_admin"]
-const STAFF_ROLES = ["teaching_staff", "non_teaching_staff"]
+const STAFF_ROLES = ["program_head", "faculty", "non_teaching_staff"]
 
 // Moving between a student and a staff role always comes with a new ID
 // number (the old one stays in the ID history) — mirrors the server.
@@ -59,9 +60,9 @@ const ChangeRoleModal = ({ close, closeModal, user, roles = [], programs = [], o
     if (!user) return null
 
     const labelOf = (name) => roles.find((r) => r.name === name)?.label ?? name
-    // IT Admin / Prefect can only go to teaching or non-teaching staff (or
+    // IT Admin / Prefect can only come from program heads, faculty or non-teaching staff (or
     // an existing admin switching between the two) — mirrors the server.
-    const canBeAdmin = ["teaching_staff", "non_teaching_staff", ...ADMIN_ROLES].includes(user?.role)
+    const canBeAdmin = [...STAFF_ROLES, ...ADMIN_ROLES].includes(user?.role)
     const name = `${user.profile?.first_name ?? ""} ${user.profile?.last_name ?? ""}`.trim() || user.username
 
     // Prefill from whatever this user already has on record for the role.
@@ -176,7 +177,7 @@ const ChangeRoleModal = ({ close, closeModal, user, roles = [], programs = [], o
                     <div className="grid gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
                         <h2 className="text-[0.85em] font-semibold">{labelOf(role)} Details</h2>
 
-                        {(role === "student" || role === "teaching_staff") && (
+                        {["student", "program_head", "faculty"].includes(role) && (
                             <div className="grid gap-1">
                                 <DropdownField
                                     default={{ val: "", label: "Select Program" }}
@@ -208,7 +209,7 @@ const ChangeRoleModal = ({ close, closeModal, user, roles = [], programs = [], o
                             </div>
                         )}
 
-                        {(role === "teaching_staff" || role === "non_teaching_staff") && (
+                        {role === "non_teaching_staff" && (
                             <div className="grid gap-1">
                                 <DropdownField
                                     default={{ val: "", label: "Select Position" }}

@@ -51,10 +51,10 @@ const IncidentReportList = ({ list }) => {
                 const latestEnrollment = student?.enrollments?.[student.enrollments.length - 1]
                 const programName = isStudent
                     ? studentProgram(student)
-                    : student?.teaching_staff?.program?.name
+                    : student?.teaching?.program?.name
                 const roleDetail = isStudent
                     ? studentYearLevel(student)
-                    : (student?.teaching_staff?.position === "program_head" ? "Program Head" : "Faculty")
+                    : (student?.role === "program_head" ? "Program Head" : "Faculty")
 
                 return (
                     <div className="flex items-center gap-3 h-full">

@@ -1,4 +1,5 @@
 import { DataGrid } from "@/Components/other/data-grid"
+import StatusPill from "@/Components/list/status-pill";
 import Box from "@mui/material/Box"
 import { useContext, useMemo, useState } from "react"
 import { Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material"
@@ -10,14 +11,7 @@ import ListSkeleton from "../reload/list-skeleton"
 import ActionBtn from "../button/action-btn"
 import { StatusAvatar, statusLabel } from "@/Components/other/mobile-card-list"
 import { Send, ChevronDown, HeartHandshake, MonitorCog } from "lucide-react"
-import { filedByColumn } from "@/Components/list/filed-by-column"
 
-const STATUS_STYLES = {
-    pending: "bg-yellow-100 text-yellow-700",
-    approved: "bg-green-100 text-green-700",
-    rejected: "bg-red-100 text-red-700",
-    revoked: "bg-gray-200 text-gray-700",
-}
 
 // One "Send to" button with the offices a referral can be forwarded to,
 // instead of a button per office. Each opens the send page in a new tab.
@@ -119,8 +113,8 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
                     const u = params.row.referrer
 
                     const roleLabel =
-                        u?.role === "teaching_staff"
-                            ? `Teaching Staff (${u?.teaching_staff?.program?.name || "N/A"})`
+                        ["program_head", "faculty"].includes(u?.role)
+                            ? `${u.role === "program_head" ? "Program Head" : "Faculty"} (${u?.teaching?.program?.name || "N/A"})`
                             : "Prefect"
 
                     return (
@@ -140,16 +134,13 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
             })
         }
 
-        if (type === "sub_admin") cols.push(filedByColumn((r) => r.raw?.prefect))
 
         cols.push({
             field: "status",
             headerName: "Status",
             width: 110,
             renderCell: (params) => (
-                <span className={`px-2 py-0.5 rounded-full text-[0.75em] font-medium ${STATUS_STYLES[params.value] ?? "bg-gray-100 text-gray-700"}`}>
-                    {toTitleCase(params.value ?? "pending")}
-                </span>
+                <StatusPill status={params.value} />
             ),
         })
 
@@ -229,7 +220,7 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
             renderCell: (params) => {
                 const row = params.row
                 const canModerate = usr?.role === "sub_admin" && !row.confirmed_at && !row.rejected_at && !row.revoked_at
-                const isOwner = row.raw?.teaching_staff_id === usr?.id
+                const isOwner = row.raw?.referrer_id === usr?.id
                 const isPending = row.raw?.referral_status === "pending" && !row.confirmed_at
                 const canRevoke = isOwner && usr?.role !== "sub_admin" && isPending
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Http\Resources\UserResource;
+use App\Models\Concerns\HasTeachingAssignment;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,7 +17,7 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, \Illuminate\Auth\MustVerifyEmail, Notifiable;
+    use HasFactory, \Illuminate\Auth\MustVerifyEmail, Notifiable, HasTeachingAssignment;
 
     public $timestamps = true;
 
@@ -43,6 +44,10 @@ class User extends Authenticatable implements MustVerifyEmail
      * @var list<string>
      */
     protected $hidden = [
+        // Serialized through `teaching` instead.
+        'faculty',
+        'headships',
+        'programsHeaded',
         'password',
         'currentUserRole',
     ];
@@ -50,7 +55,8 @@ class User extends Authenticatable implements MustVerifyEmail
     // `academic` = a student's program + year level, so every list or profile
     // that shows a student can show "BSIT • 3rd Year" without each query
     // having to eager-load enrollments.
-    protected $appends = ['encrypted_id', 'role', 'academic'];
+    // teaching: see HasTeachingAssignment (faculty / program_head tables).
+    protected $appends = ['encrypted_id', 'role', 'academic', 'teaching'];
 
     protected $with = ['currentUserRole.role'];
 
@@ -234,7 +240,7 @@ class User extends Authenticatable implements MustVerifyEmail
      * Whether this student's uploaded photo is hidden from $viewer (they see
      * the default avatar instead), e.g. in a complaint's student search:
      * - parents, non-teaching staff and other students: always hidden;
-     * - teaching staff: hidden unless the student is in one of their
+     * - program heads and faculty: hidden unless the student is in one of their
      *   programs (their own, or one they head);
      * - the prefect, the IT admin, and the student themselves: visible.
      */
@@ -269,8 +275,8 @@ class User extends Authenticatable implements MustVerifyEmail
             return true;
         }
 
-        if ($viewer->role === 'teaching_staff') {
-            $programs = self::$teacherProgramCache[$viewer->id] ??= TeachingStaff::programIdsFor($viewer->id)->all();
+        if ($viewer->isTeacher()) {
+            $programs = self::$teacherProgramCache[$viewer->id] ??= self::teachingProgramIdsFor($viewer->id)->all();
             $this->loadMissing('latestEnrollment');
 
             return ! in_array($this->latestEnrollment?->program_id, $programs, false);
@@ -325,11 +331,6 @@ class User extends Authenticatable implements MustVerifyEmail
         )->where('enrollment.status', 'enrolled')->latestOfMany('id');
     }
 
-    public function teachingStaff(): HasOne
-    {
-        return $this->hasOne(TeachingStaff::class, 'user_id', 'id');
-    }
-
     public function nonTeachingStaff(): HasOne
     {
         return $this->hasOne(NonTeachingStaff::class, 'user_id', 'id');
@@ -372,7 +373,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function referral(): HasMany
     {
-        return $this->hasMany(Referral::class, 'teaching_staff_id', 'id');
+        return $this->hasMany(Referral::class, 'referrer_id', 'id');
     }
 
     public function referralReferred(): HasManyThrough
@@ -414,7 +415,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return match ($role) {
             'student' => ['program', 'enrollments.program', 'enrollments.schoolYear', 'educationBackground', 'profile', 'permissions'],
-            'teaching_staff' => ['teachingStaff.program', 'teachingStaff.programsHandled', 'profile', 'permissions'],
+            'program_head', 'faculty' => ['faculty.program', 'headships.program', 'profile', 'permissions'],
             'non_teaching_staff' => ['nonTeachingStaff', 'profile', 'permissions'],
             'parent' => ['parent', 'profile', 'permissions'],
             default => ['profile', 'permissions'],
@@ -456,7 +457,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function newUsers()
     {
-        return $this->with(['profile', 'program', 'enrollments.program', 'enrollments.schoolYear', 'teachingStaff.program', 'parent'])
+        return $this->with(['profile', 'program', 'enrollments.program', 'enrollments.schoolYear', 'faculty.program', 'headships.program', 'parent'])
             ->where('id', '!=', auth()->id())
             // This week (Mon–Sun), same week the prefect's "New Students" uses.
             ->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
@@ -474,7 +475,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function allUserAccount()
     {
-        $query = $this->with(['profile', 'program', 'enrollments.program', 'teachingStaff.program', 'nonTeachingStaff', 'parent'])->where('id', '!=', auth()->id());
+        $query = $this->with(['profile', 'program', 'enrollments.program', 'faculty.program', 'headships.program', 'nonTeachingStaff', 'parent'])->where('id', '!=', auth()->id());
 
         $role = request()->query('role', request()->query('user-type'));
         $set = fn ($key) => ($v = request()->query($key)) && $v !== 'all' ? $v : null;
@@ -494,10 +495,8 @@ class User extends Authenticatable implements MustVerifyEmail
                     ->select('student_id'));
             }
 
-            if ($role === 'teaching_staff' && ($program || $position)) {
-                $query->whereHas('teachingStaff', fn ($q) => $q
-                    ->when($program, fn ($q) => $q->where('program_id', $program))
-                    ->when($position, fn ($q) => $q->where('position_id', $position)));
+            if (in_array($role, self::TEACHING_ROLES, true) && $program) {
+                $query->teachingInPrograms([$program]);
             }
 
             if ($role === 'non_teaching_staff' && $position) {

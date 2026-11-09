@@ -62,7 +62,7 @@ const ViewReferralModal = (props) => {
 
 const Body = ({ data }) => {
     const referrerName = toTitleCase(data.user?.profile?.first_name)
-    const ownerId = data.user?.id ?? data.teaching_staff_id
+    const ownerId = data.user?.id ?? data.referrer_id
     const title = useOwnerTitle(ownerId, referrerName, "Referral", "Referrer")
     const isOwner = useIsOwner(ownerId)
     const showOwner = !isOwner || !!data.prefect

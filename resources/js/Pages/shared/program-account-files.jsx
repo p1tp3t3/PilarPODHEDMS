@@ -19,7 +19,7 @@ const ProgramAccountFiles = (props) => {
     const goToTab = (tab) => {
         const q = new URLSearchParams(window.location.search)
         q.set("tab", tab)
-        router.visit(`/teaching-staff/account-files?${q.toString()}`)
+        router.visit(`/program/account-files?${q.toString()}`)
     }
 
     return (

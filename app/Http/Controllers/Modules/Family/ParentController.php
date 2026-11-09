@@ -36,6 +36,9 @@ class ParentController extends Controller
             $request->validate([
                 'name' => 'required|string',
                 'email' => 'required|email',
+                // The parent must agree to the Terms and Conditions.
+                'agree_terms' => 'accepted',
+                'terms_version' => 'nullable|string|max:20',
             ]);
 
             // The submission isn't written to the DB yet — it's held in
@@ -48,7 +51,13 @@ class ParentController extends Controller
                 'name' => $request->name,
                 'email' => $request->email,
                 'reason' => $request->reason,
-                'parent_details' => $request->parent_details,
+                'is_agreed' => $request->boolean('agree_terms'),
+                // When (and which version of) the terms were agreed to is
+                // kept with the request for the admin's review.
+                'parent_details' => array_merge((array) $request->parent_details, [
+                    'terms_accepted_at' => now()->toDateTimeString(),
+                    'terms_version' => $request->terms_version,
+                ]),
             ], now()->addMinutes(60));
 
             $url = URL::temporarySignedRoute(
@@ -90,6 +99,7 @@ class ParentController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'reason' => $data['reason'],
+            'is_agreed' => (bool) ($data['is_agreed'] ?? false),
             'parent_details' => json_encode($data['parent_details']),
         ]);
         cache()->forget($key);

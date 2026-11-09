@@ -31,6 +31,20 @@ class Complaint extends Model
         return 'complaint';
     }
 
+    protected function canRenderDocumentPdf(): bool
+    {
+        return true;
+    }
+
+    /** The complaint form as the complaint stands now (not saved). */
+    public function renderDocumentPdf(): ?\Barryvdh\DomPDF\PDF
+    {
+        $field = (new \App\Http\Controllers\Modules\Complaint\ComplaintController)
+            ->getComplaintDocumentField($this, $this->incident_summary ?? '');
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.complaint-subject', $field);
+    }
+
     protected $table = 'complaint';
 
     public $timestamps = false;

@@ -22,17 +22,17 @@ class ReferralFactory extends Factory
 {
     public function definition(): array
     {
-        $teachingStaff = User::whereRole('teaching_staff')->inRandomOrder()->first();
+        $teacher = User::whereRole(['program_head', 'faculty'])->inRandomOrder()->first();
         $subAdmin = User::whereRole('sub_admin')->inRandomOrder()->first();
 
-        // Most referrals are filed by teaching staff — the normal case,
+        // Most referrals are filed by program heads and faculty — the normal case,
         // going through the prefect's pending -> approve/reject workflow.
         // A prefect filing their own referral is the minority case, and
         // (per ReferralController::store()) is auto-approved the instant
         // it's created, so it can never end up pending/rejected/revoked.
-        $referrer = ($teachingStaff && (! $subAdmin || $this->faker->boolean(85)))
-            ? $teachingStaff
-            : ($subAdmin ?? $teachingStaff ?? User::inRandomOrder()->first());
+        $referrer = ($teacher && (! $subAdmin || $this->faker->boolean(85)))
+            ? $teacher
+            : ($subAdmin ?? $teacher ?? User::inRandomOrder()->first());
 
         $createdAt = $this->faker->dateTimeBetween('-1 year', 'now');
 
@@ -65,7 +65,7 @@ class ReferralFactory extends Factory
         $sequence = Referral::where('referral_number', 'like', "{$prefix}%")->count() + 1;
 
         return [
-            'teaching_staff_id' => $referrer?->id,
+            'referrer_id' => $referrer?->id,
             'referral_number' => $prefix . str_pad($sequence, 2, '0', STR_PAD_LEFT),
             'reason_description' => $this->faker->paragraph(2),
             'referral_status' => $status,

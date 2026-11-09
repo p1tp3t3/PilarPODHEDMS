@@ -18,8 +18,8 @@ class UpdateProgramRequest extends FormRequest
     {
         return [
             'id' => 'required|integer|exists:program,id',
-            'name' => 'required|string',
-            'description' => 'required|string',
+            // The acronym (name) and full name (description) are fixed once
+            // created; only the color and logo can be edited.
             'color' => 'required',
             'logo' => 'nullable|image|max:2048',
         ];

@@ -1,34 +1,23 @@
 import AuthLayout from "@/Layouts/auth-layout";
 import { useEffect, useState } from "react";
-import ManageViolation from "../super-admin/maintenance/manage-violation";
+import ManageViolation from "./violation/manage-violation";
 import SetViolationModal from "@/Components/modal/submission-form/set-violation-modal";
-import ManagePenalty from "../super-admin/maintenance/manage-penalty";
+import ManagePenalty from "./violation/manage-penalty";
 import SetPenaltyModal from "@/Components/modal/submission-form/set-penalty-modal";
 import StudentViolationList from "@/Components/list/student-violation-list";
-import ViolationAccessRequests from "../super-admin/maintenance/violation-access-requests";
 import { useReload } from "@/context-provider/reload-provider";
-import { ViolationAccessService } from "@/others/services/violation-access-service";
 import PageLayout from "@/Layouts/page-layout";
 import { Head } from "@inertiajs/react";
-import Btn from "@/Components/button/normal-btn";
-import { KeyRound } from "lucide-react";
 
+// The prefect's Violation Management pages (prefect only, see routes/auth.php).
 const ViolationManagement = (props) => {
-    const isSuperAdmin = props.auth?.user?.role === 'super_admin';
-    const [giveAccessOpen, setGiveAccessOpen] = useState(false);
-    const [access, setAccess] = useState(
-        isSuperAdmin
-            ? { violation: { add: false, edit: false, delete: false }, penalty: { add: false, delete: false } }
-            : { violation: { add: true, edit: true, delete: true }, penalty: { add: true, delete: true } }
-    );
-    // Which page of the Violation Management group this is (its own URL —
-    // see routes/auth.php): violations, penalties, student-violations, access.
+    // Which page of the group this is (its own URL): violations, penalties,
+    // student-violations.
     const section = props.section ?? 'violations';
     const TITLES = {
         violations: 'Violations',
         penalties: 'Penalties',
         'student-violations': 'Student Violations',
-        access: 'Edit Access',
     };
     const [penalty, openPenalty] = useState(false),
           [violation, openViolation] = useState(false),
@@ -39,12 +28,6 @@ const ViolationManagement = (props) => {
           [clickedOk, setClickOk] = useState(false);
 
     const { loadRegister, setReload, setOnClose } = useReload();
-
-    useEffect(() => {
-        if (isSuperAdmin) {
-            ViolationAccessService.getStatus((data) => setAccess(data.has_access));
-        }
-    }, []);
 
     useEffect(() => {
         setOnClose((e) => {
@@ -95,14 +78,7 @@ const ViolationManagement = (props) => {
             setter={setPenaltyList}
             list={penalty_list}
         />
-        <PageLayout
-            title={TITLES[section].toUpperCase()}
-            // Edit Access: the prefect's "Give Access" sits in the title bar
-            // (a round icon button on phones, like other pages' actions).
-            rightSideComponent={section === "access" && !isSuperAdmin
-                ? <Btn onclick={() => setGiveAccessOpen(true)} icon={<KeyRound size={18} />}>Give Access</Btn>
-                : null}
-        >
+        <PageLayout title={TITLES[section].toUpperCase()}>
             <div className="min-w-0">
                 {section === "violations" && (
                     <ManageViolation
@@ -111,11 +87,10 @@ const ViolationManagement = (props) => {
                         setter={setViolationList}
                         reload={loadRegister}
                         events={[openActionModal]}
-                        canAdd={access.violation.add}
-                        canEditRow={access.violation.edit}
-                        canDelete={access.violation.delete}
-                        // The violation's student page is the prefect's only.
-                        canView={!isSuperAdmin}
+                        canAdd
+                        canEditRow
+                        canDelete
+                        canView
                     />
                 )}
 
@@ -126,19 +101,15 @@ const ViolationManagement = (props) => {
                         setter={setPenaltyList}
                         reload={loadRegister}
                         events={[openActionModal]}
-                        canAdd={access.penalty.add}
-                        canDelete={access.penalty.delete}
+                        canAdd
+                        canDelete
                     />
                 )}
 
-                {section === "student-violations" && !isSuperAdmin && (
+                {section === "student-violations" && (
                     <div className="grid gap-4">
                         <StudentViolationList list={props.student_violation_list} />
                     </div>
-                )}
-
-                {section === "access" && (
-                    <ViolationAccessRequests user={props.auth?.user} giveOpen={giveAccessOpen} setGiveOpen={setGiveAccessOpen} />
                 )}
             </div>
         </PageLayout>

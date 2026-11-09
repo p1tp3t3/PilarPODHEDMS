@@ -1,4 +1,5 @@
 import "./style.css";
+import StatusPill from "@/Components/list/status-pill";
 import ProfilePic from "../other/profile-pic";
 import { getProfilePic, readableDate, readableTime, showUserType, toTitleCase, formatSchoolYearSemester } from "../../others/function";
 import { useMemo, useState } from "react";
@@ -10,7 +11,6 @@ import { FolderOpen, FileWarning } from "lucide-react";
 import { StatusAvatar, statusLabel } from "@/Components/other/mobile-card-list";
 import { useIsMobile } from "@/others/use-is-mobile";
 import { SelectCheckbox } from "@/Components/input/select-checkbox";
-import { filedByColumn } from "@/Components/list/filed-by-column";
 
 function CustomNoRowsOverlay() {
   return (
@@ -131,7 +131,6 @@ const ComplaintList = ({
 }
 
 
-    if (type === "prefect") cols.push(filedByColumn((r) => r.prefect));
 
     cols.push(
       {
@@ -141,16 +140,7 @@ const ComplaintList = ({
         align: 'start',
         headerAlign: 'start',
         renderCell: (params) => {
-          const s = params.value;
-          const bg =
-            s === "rejected" ? "bg-red-500" :
-            s === "pending" ? "bg-yellow-500" :
-            s === "ongoing" ? "bg-orange-500" :
-            s === "resolved" ? "bg-green-500" :
-            s === "revoked" ? "bg-gray-500" : "";
-          return (
-            <span className={`px-2 py-1 text-white rounded-xl ${bg}`}>{toTitleCase(s)}</span>
-          );
+          return <StatusPill status={params.value} />;
         },
       },
       {

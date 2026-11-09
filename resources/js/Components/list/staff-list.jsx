@@ -35,8 +35,8 @@ const StaffList = ({ list, canManagePosition = false }) => {
         profile_picture: e.profile?.profile_picture,
         sex: e.profile?.sex,
         name: `${e.profile?.first_name ?? ""} ${e.profile?.last_name ?? ""}`,
-        position: e.role === "teaching_staff"
-            ? (e.teaching_staff?.position === "program_head" ? "Program Head" : "Faculty")
+        position: ["program_head", "faculty"].includes(e.role)
+            ? (e.role === "program_head" ? "Program Head" : "Faculty")
             : (e.non_teaching_staff?.position ?? null),
         created_at: e.created_at,
         last_seen: e.last_seen,

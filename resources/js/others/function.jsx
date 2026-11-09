@@ -260,9 +260,59 @@ export const formatSchoolYearSemester = (sys) =>
 export function profileUrl(user) {
     return `/profile/${user?.encrypted_id ?? ''}`
 }
+// The two teaching roles: both teach in a program; a program head also leads it.
+export const TEACHING_ROLES = ['program_head', 'faculty'];
+export const isTeacher = (role) => TEACHING_ROLES.includes(role);
+
+// Opens a PDF in a new tab instead of downloading it: the tab shows
+// "Generating…" right away, then the PDF once the server has made it.
+// Call it straight from a click (browsers block pop-ups opened later).
+// Returns false when the tab couldn't be opened (pop-ups blocked).
+export function openPdfTab(url, label = "document") {
+    const tab = window.open("", "_blank");
+    if (!tab) return false;
+    const safe = String(label).replace(/[<>&"]/g, "");
+    tab.document.write(`<!doctype html><meta charset="utf-8"><title>Generating ${safe}…</title>
+<body style="margin:0;height:100vh;display:grid;place-items:center;font-family:system-ui,sans-serif;color:#1f3a5f;background:#f3f4f6">
+<div style="text-align:center"><div style="width:42px;height:42px;margin:0 auto 14px;border:4px solid #c9d2de;border-top-color:#1f3a5f;border-radius:50%;animation:s 1s linear infinite"></div>
+<div style="font-weight:600">Generating the ${safe}…</div><div style="font-size:13px;color:#6b7280;margin-top:4px">It will open here when it's ready.</div></div>
+<style>@keyframes s{to{transform:rotate(360deg)}}</style></body>`);
+    tab.document.close();
+    tab.opener = null;
+    tab.location.href = url;
+    return true;
+}
+
+// A random password that meets the password rules (account-settings-form's
+// PASSWORD_RULES): at least one uppercase, lowercase, number and special
+// character. Uses the browser's secure random source, not Math.random.
+export function generateStrongPassword(length = 16) {
+    const sets = [
+        "ABCDEFGHJKLMNPQRSTUVWXYZ",
+        "abcdefghijkmnopqrstuvwxyz",
+        "23456789",
+        "!@#$%^&*_-+=<>?",
+    ];
+    const all = sets.join("");
+    const pick = (chars) => {
+        const n = new Uint32Array(1);
+        crypto.getRandomValues(n);
+        return chars[n[0] % chars.length];
+    };
+    const chars = sets.map(pick);
+    while (chars.length < Math.max(length, 8)) chars.push(pick(all));
+    // Shuffle so the required characters aren't always first.
+    for (let i = chars.length - 1; i > 0; i--) {
+        const n = new Uint32Array(1);
+        crypto.getRandomValues(n);
+        const j = n[0] % (i + 1);
+        [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+    return chars.join("");
+}
+
 export function canViewEnrollmentHistory(viewer) {
-    return ['super_admin', 'sub_admin'].includes(viewer?.role) ||
-        viewer?.teaching_staff?.position === 'program_head';
+    return ['super_admin', 'sub_admin', 'program_head'].includes(viewer?.role);
 }
 export function toTitleCase(str) {
     if (!str || typeof str !== 'string') return ''
@@ -511,10 +561,10 @@ export const showUserType = (user, showParentRole) => {
             return [studentProgram(user), studentYearLevel(user)].filter(Boolean).join(" • ") || "Student"
         case 'parent':
             return (showParentRole && user.parent?.parent_role) ? toTitleCase(user.parent.parent_role) : 'Parent'
-        case 'teaching_staff':
-            return (user.teaching_staff?.position === 'program_head')
-                ? `Program Head (${user.teaching_staff?.program?.name ?? ''})`
-                : `Faculty (${user.teaching_staff?.program?.name ?? ''})`
+        case 'program_head':
+            return `Program Head (${user.teaching?.program?.name ?? ''})`
+        case 'faculty':
+            return `Faculty (${user.teaching?.program?.name ?? ''})`
         case 'super_admin':
             return `IT Admin`
         case 'non_teaching_staff':
@@ -695,6 +745,13 @@ export function canEdit(targetRole, userRole) {
 export const playNotificationSound = () => {
     try {
         new Audio('/sounds/notif-sound.wav').play().catch(() => {});
+    } catch (e) {}
+}
+
+// Same as playNotificationSound, for a new chat message.
+export const playMessageSound = () => {
+    try {
+        new Audio('/sounds/message-sound.mp3').play().catch(() => {});
     } catch (e) {}
 }
 

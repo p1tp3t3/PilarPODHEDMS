@@ -38,7 +38,7 @@ class HandleInertiaRequests extends Middleware
         // depending on which page happened to be open. Those three always
         // read from here now instead, so the identity display no longer
         // depends on every controller remembering to load the relation.
-        $user = $request->user()?->load(['profile', 'teachingStaff', 'nonTeachingStaff']);
+        $user = $request->user()?->load(['profile', 'faculty.program', 'headships.program', 'nonTeachingStaff']);
 
         return [
             ...parent::share($request),
@@ -49,7 +49,7 @@ class HandleInertiaRequests extends Middleware
                     'username' => $user->username,
                     'role' => $user->role,
                     'profile' => $user->profile,
-                    'teaching_staff' => $user->teachingStaff,
+                    'teaching' => $user->teaching,
                     'non_teaching_staff' => $user->nonTeachingStaff,
                 ] : null,
             ],

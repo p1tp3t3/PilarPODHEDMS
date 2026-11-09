@@ -2,15 +2,14 @@
 
 namespace Database\Seeders;
 
-use App\Models\ProgramHeadProgram;
 use App\Models\Profile;
-use App\Models\TeachingStaff;
 use App\Models\User;
 use App\Models\UserIdNumber;
 use App\Models\UserPermission;
 use Illuminate\Database\Seeder;
 
-class TeachingStaffSeeder extends Seeder
+/** Program heads (one per program) and faculty. */
+class ProgramHeadAndFacultySeeder extends Seeder
 {
     public function run(): void
     {
@@ -18,11 +17,11 @@ class TeachingStaffSeeder extends Seeder
 
         // One program head per program (7 programs), plus a handful of regular faculty.
         for ($programId = 1; $programId <= 7; $programId++) {
-            $this->createTeachingStaff($i++, $programId, true);
+            $this->createProgramHeadOrFaculty($i++, $programId, true);
         }
 
         for ($j = 0; $j < 10; $j++) {
-            $this->createTeachingStaff($i++, random_int(1, 7), false);
+            $this->createProgramHeadOrFaculty($i++, random_int(1, 7), false);
         }
 
         $this->createFormerStudentFaculty($i++, 1);
@@ -30,7 +29,7 @@ class TeachingStaffSeeder extends Seeder
 
     /**
      * A faculty member who used to be a student here: registered with a
-     * student ID, later moved to teaching staff with a staff ID. The
+     * student ID, later moved to faculty with a staff ID. The
      * student ID stays in user_id_numbers as history.
      */
     private function createFormerStudentFaculty(int $i, int $programId): void
@@ -48,17 +47,17 @@ class TeachingStaffSeeder extends Seeder
         UserPermission::factory()->for($user, 'user')->create();
 
         // Became faculty a year ago: new staff ID, student ID kept as history.
-        UserIdNumber::change($user, 'TS-'.str_pad($i, 4, '0', STR_PAD_LEFT), 'teaching_staff');
+        UserIdNumber::change($user, 'TS-'.str_pad($i, 4, '0', STR_PAD_LEFT), 'faculty');
         UserIdNumber::where('user_id', $user->id)->whereNotNull('ended_at')->update(['ended_at' => now()->subYear()]);
         UserIdNumber::where('user_id', $user->id)->whereNull('ended_at')->update(['started_at' => now()->subYear()]);
-        $user->assignRole('teaching_staff');
+        $user->assignRole('faculty');
 
-        TeachingStaff::factory()->for($user, 'user')->create(['program_id' => $programId]);
+        $user->assignTeaching('faculty', $programId);
     }
 
-    private function createTeachingStaff(int $i, int $programId, bool $isProgramHead): void
+    private function createProgramHeadOrFaculty(int $i, int $programId, bool $isProgramHead): void
     {
-        $user = User::factory()->role('teaching_staff')->create([
+        $user = User::factory()->role($isProgramHead ? 'program_head' : 'faculty')->create([
             'id_number' => 'TS-' . str_pad($i, 4, '0', STR_PAD_LEFT),
         ]);
 
@@ -68,19 +67,7 @@ class TeachingStaffSeeder extends Seeder
         ]);
         UserPermission::factory()->for($user, 'user')->create();
 
-        $staff = TeachingStaff::factory()->for($user, 'user');
-        $staff = $isProgramHead ? $staff->programHead() : $staff;
-        $staff->create(['program_id' => $programId]);
-
-        // program_head_program is the single source of truth
-        // Program::programHead() reads from — every program head needs a
-        // row here for the program they were just seeded to head, same as
-        // RegisteredUserController::createUser() does for a real signup.
-        if ($isProgramHead) {
-            ProgramHeadProgram::create([
-                'user_id' => $user->id,
-                'program_id' => $programId,
-            ]);
-        }
+        // A faculty row, or a program_head row for the program they head.
+        $user->assignTeaching($isProgramHead ? 'program_head' : 'faculty', $programId);
     }
 }

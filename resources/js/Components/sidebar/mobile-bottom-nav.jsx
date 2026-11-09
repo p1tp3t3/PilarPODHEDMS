@@ -41,21 +41,21 @@ const MobileBottomNav = ({ chatUnread = 0 }) => {
     const FOURTH_SLOT = {
         sub_admin: { value: "gatepass", label: "Gate Pass", icon: DoorOpen, href: "/prefect/gatepass" },
         student: { value: "absent-form", label: "Absent Form", icon: CalendarX, href: "/absent-form" },
-        teaching_staff: { value: "referral", label: "Referral", icon: Share2, href: "/referral" },
+        program_head: { value: "referral", label: "Referral", icon: Share2, href: "/referral" },
+        faculty: { value: "referral", label: "Referral", icon: Share2, href: "/referral" },
         super_admin: { value: "maintenance", label: "Maintenance", icon: Wrench, href: "/maintenance" },
     }
     const fourth = FOURTH_SLOT[usr.role]
         ?? { value: "profile", label: "Profile", icon: User, href: `${profileUrl(usr)}` }
-    // Teaching staff have nothing else behind "Menu", so their user list
+    // Program heads and faculty have nothing else behind "Menu", so their user list
     // (program head) / student list (faculty) takes that slot instead,
     // just before Referral.
-    const isProgramHead = usr.teaching_staff?.position === "program_head"
     // Parents likewise: their only other page is Children Monitoring, so it
     // takes this slot and there's no "Menu".
-    const listSlot = usr.role === "teaching_staff"
-        ? (isProgramHead
-            ? { value: "account-files", label: "User List", icon: Users, href: "/teaching-staff/account-files" }
-            : { value: "student-list", label: "Student List", icon: GraduationCap, href: "/teaching-staff/student-list" })
+    const listSlot = ["program_head", "faculty"].includes(usr.role)
+        ? (usr.role === "program_head"
+            ? { value: "account-files", label: "User List", icon: Users, href: "/program/account-files" }
+            : { value: "student-list", label: "Student List", icon: GraduationCap, href: "/program/student-list" })
         : usr.role === "parent"
             ? { value: "children", label: "Children", icon: Users, href: "/children/monitor" }
             : null

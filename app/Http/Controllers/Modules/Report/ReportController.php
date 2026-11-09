@@ -65,7 +65,8 @@ class ReportController extends Controller
 
         if ($filterBy === 'date' && $dateFrom && $dateTo) {
             $constrain = fn ($q) => $q->whereBetween($dateColumn, [$dateFrom, "$dateTo 23:59:59"]);
-        } elseif ($filterBy === 'school_year' && $schoolYearId) {
+        } elseif ($filterBy === 'school_year' && $schoolYearId && $schoolYearId !== 'all') {
+            // ('all' = every school year: no limit.)
             $semesters = SchoolYearSemester::allCached()->filter(
                 fn (SchoolYearSemester $s) => $s->date_start && $s->date_end
                     && (string) $s->school_year_id === (string) $schoolYearId
@@ -380,7 +381,7 @@ class ReportController extends Controller
     {
         return Inertia::render('super-admin/report', [
             'section' => $section,
-            'students' => User::with(['profile', 'program', 'teachingStaff.program', 'parent'])->get(),
+            'students' => User::with(['profile', 'program', 'faculty.program', 'headships.program', 'parent'])->get(),
             'action_log_list' => self::getAllActionLogs(),
             'statistics' => self::buildAccountStatistics('date', null, null, null, null),
             'school_years' => SchoolYear::orderByDesc('year')->get(['id', 'year']),
@@ -413,7 +414,7 @@ class ReportController extends Controller
      * "School Year" filters every role by their account's created_at
      * falling within that school year's calendar span (reusing
      * Report::resolveSchoolYearDates()) — the only school-year signal a
-     * teaching_staff/non_teaching_staff/parent account has. "Semester"
+     * program_head/faculty/non_teaching_staff/parent account has. "Semester"
      * additionally narrows the student breakdown via a direct Enrollment
      * match (school_year_id + semester), since only students actually have
      * enrollment records — it has no effect on the other roles.
@@ -422,6 +423,12 @@ class ReportController extends Controller
     {
         $from = $dateFrom;
         $to = $dateTo;
+
+        // All School Years: no limit at all.
+        if ($filterBy === 'school_year' && $schoolYearId === 'all') {
+            $schoolYearId = null;
+            $semester = null;
+        }
 
         if ($filterBy === 'school_year' && $schoolYearId) {
             $year = SchoolYear::where('id', $schoolYearId)->value('year');
@@ -462,7 +469,8 @@ class ReportController extends Controller
 
         return [
             'students' => $studentCount,
-            'teaching_staff' => $countByRole('teaching_staff'),
+            'program_head' => $countByRole('program_head'),
+            'faculty' => $countByRole('faculty'),
             'non_teaching_staff' => $countByRole('non_teaching_staff'),
             'parents' => $countByRole('parent'),
             'students_per_program' => $studentsPerProgram,
@@ -1143,11 +1151,13 @@ class ReportController extends Controller
         switch ($type) {
             case 'pdf':
                 $file = ($individual) ? 'individual-action-log-report' : 'action-log-report';
-                $output = public_path('action-log-report.pdf');
-                $pdf = Pdf::loadView("pdf.reports.$file", $data);
-                $pdf->save($output);
+                $name = $individual
+                    ? 'user-action-log-'.$data['id'].'-'.now()->format('Ymd-His').'.pdf'
+                    : 'action-log-all-'.now()->format('Ymd-His').'.pdf';
 
-                return response()->download($output)->deleteFileAfterSend(true);
+                // Shown in the browser tab it was opened in (not downloaded),
+                // and streamed: no shared file left in public/.
+                return Pdf::loadView("pdf.reports.$file", $data)->stream($name);
             case 'excel':
                 $fileName = $individual
                    ? 'user-action-log-'.$data['id'].'-'.now()->format('Ymd-His').'.xlsx'
@@ -1174,7 +1184,7 @@ class ReportController extends Controller
             'user.profile',
             'user.program',
             'user.enrollments',
-            'user.teachingStaff.program',
+            'user.faculty.program', 'user.headships.program',
             'violation',
             'complaint.user',
             'complaint.violation',
@@ -1214,7 +1224,9 @@ class ReportController extends Controller
         $to = null;
         $label = null;
 
-        if ($request->filter_by === 'school_year') {
+        if ($request->filter_by === 'school_year' && $request->school_year_id === 'all') {
+            $label = 'All School Years';
+        } elseif ($request->filter_by === 'school_year') {
             $year = $request->filled('school_year_id')
                 ? SchoolYear::where('id', $request->school_year_id)->value('year')
                 : null;

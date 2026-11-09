@@ -43,7 +43,6 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'profile-edit-authorized' => \App\Http\Middleware\ProfileUpdateAuthorization::class,
             'children-monitoring-authorized' => \App\Http\Middleware\ChildrenMonitoringAuthorization::class,
             'role' => \App\Http\Middleware\RoleAuthenticable::class,
-            'violation-edit-authorized' => \App\Http\Middleware\EnsureViolationEditAccess::class,
         ]);
     })
     ->withSchedule(function (Schedule $schedule): void {

@@ -9,6 +9,8 @@ import { ProgramService } from "@/others/services/program-service"
 const SetProgramModal = (props) => {
     const action = props.action || 'add'
     const editData = props.data || {}
+    // The acronym and full name are fixed once a program is created.
+    const locked = action === 'edit'
 
     const [data, setData] = useState({
         id: '',
@@ -59,12 +61,12 @@ const SetProgramModal = (props) => {
         }
 
         if (!data.name.trim()) {
-            err.name = "Program name is required."
+            err.name = "Program acronym is required."
             err.nameAsterisk = true
         }
 
         if (!data.description.trim()) {
-            err.description = "Program acronym is required."
+            err.description = "Program name is required."
             err.descriptionAsterisk = true
         }
 
@@ -102,8 +104,10 @@ const SetProgramModal = (props) => {
                 // instance, not a plain object with a File property.
                 const formData = new FormData()
                 formData.append('id', data.id)
-                formData.append('name', data.name)
-                formData.append('description', data.description)
+                if (!locked) {
+                    formData.append('name', data.name)
+                    formData.append('description', data.description)
+                }
                 formData.append('color', data.color)
                 if (data.logo) formData.append('logo', data.logo)
 
@@ -163,14 +167,16 @@ const SetProgramModal = (props) => {
 
                             <div className="grid gap-3">
 
+                                {/* `name` is the acronym (e.g. BSIT). Read-only when editing. */}
                                 <FormTextfield
-                                    label='Program Name'
+                                    label='Program Acronym'
                                     name='name'
                                     val={data.name}
                                     change={handleChange}
-                                    errorEmpty="Please enter program name."
+                                    errorEmpty="Please enter program acronym."
                                     error={validationErr.name}
                                     errorAsterisk={validationErr.nameAsterisk}
+                                    readOnly={locked}
                                 />
 
                                 <div className="flex flex-col gap-1 text-[0.8em]">
@@ -187,15 +193,22 @@ const SetProgramModal = (props) => {
                                     )}
                                 </div>
 
+                                {/* `description` is the full name. Read-only when editing. */}
                                 <FormTextfield
-                                    label='Program Acronym'
+                                    label='Program Name'
                                     name='description'
                                     val={data.description}
                                     change={handleChange}
-                                    errorEmpty="Please enter program acronym."
+                                    errorEmpty="Please enter program name."
                                     error={validationErr.description}
                                     errorAsterisk={validationErr.descriptionAsterisk}
+                                    readOnly={locked}
                                 />
+                                {locked && (
+                                    <p className="text-[0.75em] text-gray-500 -mt-1">
+                                        The acronym and program name can't be changed. Only the logo and color can be edited.
+                                    </p>
+                                )}
 
                             </div>
 

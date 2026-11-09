@@ -1,8 +1,22 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Account & Enrollment Statistics Report</title>
+@extends('pdf.layouts.report')
+
+@section('title', 'Account & Enrollment Statistics Report')
+
+@section('period')
+
+      @if($all_school_years ?? false)
+        <strong>All School Years</strong>
+      @elseif($school_year_label)
+        School Year <strong>{{ $school_year_label }}</strong>@if($semester_label) &mdash; <strong>{{ $semester_label }}</strong>@else (All Semesters)@endif
+      @elseif($from && $to)
+        From <strong>{{ \Carbon\Carbon::parse($from)->format('F d, Y') }}</strong>
+        to <strong>{{ \Carbon\Carbon::parse($to)->format('F d, Y') }}</strong>
+      @else
+        All Time
+      @endif
+@endsection
+
+@section('styles')
 <style>
   body {
     font-family: DejaVu Sans, sans-serif;
@@ -95,9 +109,9 @@
        Margins live on @page so every page gets them, not just the first
        and last; content then fits inside the printable width and wraps
        instead of running off the edge. */
-    @page { margin: 18mm 14mm 20mm 14mm; }
+    /* Page margins: pdf/layouts/report (narrow). */
     body { margin: 0 !important; padding: 0 !important; height: auto !important; }
-    html { height: auto !important; margin: 18mm 14mm 20mm 14mm !important; }
+    html { height: auto !important; }
     .page { max-width: none !important; width: auto !important; margin: 0 !important; padding: 0 !important; }
     table { width: 100% !important; max-width: 100%; }
     th, td { word-wrap: break-word; overflow-wrap: break-word; }
@@ -105,51 +119,29 @@
     tr { page-break-inside: avoid; }
     img { max-width: 100%; }
   </style>
-</head>
-<body>
+@endsection
 
-  {{-- HEADER --}}
-  <table class="report-header">
-    <tr>
-      <td style="width: 90px;">
-        <img src="{{ public_path('default-pic/pilar-pdf.png') }}" alt="Logo">
-      </td>
-      <td>
-        <div class="school-name">PILAR COLLEGE OF ZAMBOANGA CITY, INC.</div>
-        <div class="school-info">R.T. Lim Boulevard, Zamboanga City</div>
-        <div class="school-info">Higher Education Department</div>
-      </td>
-    </tr>
-  </table>
-
-  {{-- TITLE --}}
-  <div class="title-box">
-    <h2>Account & Enrollment Statistics Report</h2>
-    <div style="font-size: 11px; color: #555;">
-      @if($school_year_label)
-        School Year <strong>{{ $school_year_label }}</strong>@if($semester_label) &mdash; <strong>{{ $semester_label }}</strong>@else (All Semesters)@endif
-      @elseif($from && $to)
-        From <strong>{{ \Carbon\Carbon::parse($from)->format('F d, Y') }}</strong>
-        to <strong>{{ \Carbon\Carbon::parse($to)->format('F d, Y') }}</strong>
-      @else
-        All Time
-      @endif
-    </div>
-  </div>
+@section('content')
 
   <div class="summary-box">
     <table class="summary-grid">
       <tr>
         <td class="label">Students:</td>
         <td>{{ $students }}</td>
-        <td class="label">Teaching Staff:</td>
-        <td>{{ $teaching_staff }}</td>
+        <td class="label">Program Heads:</td>
+        <td>{{ $program_head }}</td>
       </tr>
       <tr>
+        <td class="label">Faculty:</td>
+        <td>{{ $faculty }}</td>
         <td class="label">Non-Teaching Staff:</td>
         <td>{{ $non_teaching_staff }}</td>
+      </tr>
+      <tr>
         <td class="label">Parents:</td>
         <td>{{ $parents }}</td>
+        <td></td>
+        <td></td>
       </tr>
     </table>
   </div>
@@ -177,9 +169,4 @@
     </tbody>
   </table>
 
-  <footer>
-    Generated on {{ now()->format('F d, Y g:i A') }}
-  </footer>
-
-</body>
-</html>
+@endsection

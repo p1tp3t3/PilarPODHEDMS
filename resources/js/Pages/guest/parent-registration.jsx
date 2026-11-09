@@ -6,6 +6,7 @@ import { showOutputModal, toTitleCase } from "@/others/function";
 import background from '@/images/bg-pilar2.jpg'
 import { FamilyService } from "@/others/services/family-service";
 import { ReloadProvider, useReload } from "@/context-provider/reload-provider";
+import { PARENT_TERMS_VERSION } from "@/Components/modal/parent-terms-modal";
 import { validateForm, hasErrors, focusFirstError, required, requiredIf, email, phMobile, personName, maxLength, minLength } from "@/others/validation";
 
 const ParentRegistration = (props) => (
@@ -26,6 +27,7 @@ const ParentRegistrationInner = (props) => {
         family_code: "",
         reason: "",
         children: [],
+        agree_terms: false,
     });
 
     const { loadRegister } = useReload();
@@ -52,6 +54,10 @@ const ParentRegistrationInner = (props) => {
             reason: [required("Reason"), minLength(10, "Reason")],
         });
 
+        if (!data.agree_terms) {
+            errors.agree_terms = "You must agree to the Terms and Conditions to register.";
+        }
+
         // A parent links to at least one child, unless they have a family code.
         const children = data.children || [];
         if (children.length === 0 && !data.family_code.trim()) {
@@ -65,6 +71,7 @@ const ParentRegistrationInner = (props) => {
                 last_name: [required("Last name"), personName()],
                 sex: [required("Sex")],
                 program: [required("Program")],
+                year_level: [required("Year level")],
             })).map(([k, v]) => [`child_${i}_${k}`, v])));
         });
 
@@ -92,6 +99,8 @@ const ParentRegistrationInner = (props) => {
                     children: data.children,
                 },
                 reason: data.reason,
+                agree_terms: data.agree_terms,
+                terms_version: PARENT_TERMS_VERSION,
             },
             () => {
                 showOutputModal("A Confirmation Link Has Been Sent To Your Email. Please Click It To Submit Your Request For Admin Approval.", "s", () => {

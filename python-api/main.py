@@ -138,20 +138,33 @@ def rebuild_cca():
         'model': model_cca.rebuild(),
     })
 
+# The model's verdict and its insights: quick, so the Behavioural Analysis
+# page can show them right away.
 @app.route('/api/model/predict', methods=['POST'])
 def incident_risk():
     data = request.get_json()
-    print(data)
-    
+
     pred = model_eivp.predict(data)
     insight = model_eivp.get_insights(data, pred)
-    reco = model_eivp.get_recommendation(data, pred)
-    
-        
+
     return jsonify({
         'prediction': pred,
         'insights': insight,
-        'reco': reco
+    })
+
+# The AI-written recommendations for the same input: slow (a language model),
+# so the page asks for them separately after showing the verdict.
+@app.route('/api/model/recommend', methods=['POST'])
+def incident_recommendation():
+    data = request.get_json()
+
+    pred = model_eivp.predict(data)
+    insight = model_eivp.get_insights(data, pred)
+    reco = model_eivp.get_recommendation(data, pred, insight)
+
+    return jsonify({
+        'prediction': pred,
+        'reco': reco,
     })
     
 #------------------------------------------------------------------------------------------------------

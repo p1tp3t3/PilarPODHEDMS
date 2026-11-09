@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import ManageProgram from "./maintenance/manage-program";
-import ManageViolation from "./maintenance/manage-violation";
 import SetProgramModal from "@/Components/modal/submission-form/set-program-modal";
 import { useReload } from "@/context-provider/reload-provider";
-import SetViolationModal from "@/Components/modal/submission-form/set-violation-modal";
 import AuthLayout from "@/Layouts/auth-layout";
 import PageLayout from "@/Layouts/page-layout";
 import Btn from "@/Components/button/normal-btn";

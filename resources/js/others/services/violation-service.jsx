@@ -14,6 +14,15 @@ export const ViolationService = {
         const api = new APIRequest("/maintenance/violation/delete", "post", { id }, setter, success, error);
         api.fetchData();
     },
+    // Archive a violation that has records (one without is deleted), or restore it.
+    archiveViolation(id, setter, success, error) {
+        const api = new APIRequest("/maintenance/violation/archive", "post", { id }, setter, success, error);
+        api.fetchData();
+    },
+    restoreViolation(id, setter, success, error) {
+        const api = new APIRequest("/maintenance/violation/restore", "post", { id }, setter, success, error);
+        api.fetchData();
+    },
     createPenalty(data, setter, success, error) {
         const api = new APIRequest("/maintenance/penalty/create", "post", data, setter, success, error);
         api.fetchData();

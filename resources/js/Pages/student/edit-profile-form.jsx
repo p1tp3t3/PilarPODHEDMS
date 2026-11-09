@@ -52,7 +52,8 @@ const StudentEditProfileForm = (props) => {
 
     const uniqueAttByRole = {
         student: { program: props.otherUserProfile.program, enrollments: props.otherUserProfile.enrollments },
-        teaching_staff: props.otherUserProfile.teaching_staff,
+        program_head: props.otherUserProfile.teaching,
+        faculty: props.otherUserProfile.teaching,
         parent: props.otherUserProfile.parent,
     };
 

@@ -1,4 +1,5 @@
 import React, { useContext, useMemo, useState, useEffect } from "react";
+import StatusPill from "@/Components/list/status-pill";
 import { Box } from "@mui/material";
 import { DataGrid, GridActionsCellItem } from "@/Components/other/data-grid";
 import ProfilePic from "../other/profile-pic";
@@ -15,14 +16,7 @@ import AuthContext from "@/context-provider/auth-provider";
 import ListSkeleton from "../reload/list-skeleton";
 import { useIsMobile } from "@/others/use-is-mobile";
 import { statusLabel } from "@/Components/other/mobile-card-list";
-import { filedByColumn } from "@/Components/list/filed-by-column";
 
-const STATUS_STYLES = {
-  pending: "bg-yellow-100 text-yellow-700",
-  approved: "bg-green-100 text-green-700",
-  rejected: "bg-red-100 text-red-700",
-  revoked: "bg-gray-200 text-gray-700",
-};
 
 const statusFor = (e) => {
   if (e.revoked_at) return "revoked";
@@ -50,9 +44,7 @@ const compactColumns = (events) => [
     headerName: "Status",
     width: 130,
     renderCell: ({ value }) => (
-      <span className={`px-2 py-0.5 rounded-full text-[0.8em] font-medium ${STATUS_STYLES[value]}`}>
-        {toTitleCase(value)}
-      </span>
+      <StatusPill status={value} />
     ),
   },
   {
@@ -137,12 +129,7 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
                 src={getProfilePic(user.profile?.profile_picture, user.profile?.sex)}
               />
               <div className="flex flex-col text-[0.8em] justify-center leading-tight">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <b>{`${user.profile?.first_name ?? ""} ${user.profile?.middle_name ?? ""} ${user.profile?.last_name ?? ""}`}</b>
-                  <span className={`px-2 py-0.5 rounded-full text-[0.75em] font-medium ${STATUS_STYLES[params.row.status]}`}>
-                    {toTitleCase(params.row.status)}
-                  </span>
-                </div>
+                <b>{`${user.profile?.first_name ?? ""} ${user.profile?.middle_name ?? ""} ${user.profile?.last_name ?? ""}`}</b>
                 <span>{showUserType(user)}</span>
                 {params.row.rejected_reason && (
                   <span className="text-gray-500">Reason: {params.row.rejected_reason}</span>
@@ -152,7 +139,16 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
           );
         },
       },
-      ...(usr?.role === "sub_admin" ? [filedByColumn((r) => r.prefect)] : []),
+      {
+        field: "status",
+        headerName: "Status",
+        width: 120,
+        renderCell: (params) => (
+          <div className="h-full flex items-center">
+            <StatusPill status={params.row.status} />
+          </div>
+        ),
+      },
       {
         field: "created_at",
         headerName: "Submitted Since",

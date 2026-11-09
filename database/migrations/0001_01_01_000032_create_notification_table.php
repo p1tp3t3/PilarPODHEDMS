@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreignId('receiver_id')->constrained('users')->cascadeOnDelete()->cascadeOnUpdate();
             $table->enum('notif_type', [
                 'complaint', 'referral', 'absent', 'violation', 'appointment',
-                'gatepass', 'call_in', 'user', 'violation_access',
+                'gatepass', 'call_in', 'user',
                 'semester_summary', 'maintenance_notice',
             ])->nullable();
             $table->text('content');

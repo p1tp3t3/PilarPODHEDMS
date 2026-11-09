@@ -4,6 +4,7 @@ import OtpModal from "@/Components/modal/validation/show-otp-modal";
 import { useEffect, useState } from "react";
 import { router } from "@inertiajs/react";
 import { change, checkUserExist, checkCurrentPassword, showOutputModal, showWarningModal } from "@/others/function";
+import GeneratePassword from "@/Components/input/generate-password";
 import { AccountService } from "@/others/services/account-service";
 import { Validator } from "@/others/classes/validator";
 import { FormCache, accountSetupCacheKey } from "@/others/classes/form-cache";
@@ -458,6 +459,13 @@ export const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAcc
                         error={error.password_confirmation}
                         errorAsterisk={error.password_confirmationAsterisk}
                     />
+
+                    <div className="-mt-2">
+                        <GeneratePassword
+                            value={data.password}
+                            onGenerate={(password) => setData((prev) => ({ ...prev, password, password_confirmation: password }))}
+                        />
+                    </div>
 
                     {(isForceSetup || isForcePassword) && <PasswordChecklist password={data.password} confirmation={data.password_confirmation} />}
 

@@ -11,7 +11,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * display a name, avatar, and program/year level or role, so sensitive
  * fields (username, email, permissions, education background, ...) never
  * leave the server for a plain user search. Role-specific fields
- * (program/enrollments, parent, teaching_staff) are only present for the
+ * (program/enrollments, parent, teaching) are only present for the
  * role they actually apply to, instead of always showing up null.
  *
  * The id always goes out encrypted and id_number is never included; forms
@@ -45,10 +45,10 @@ class UserSearchResource extends JsonResource
             'parent' => ($this->role === 'parent' && $this->parent)
                 ? ['parent_role' => $this->parent->parent_role]
                 : null,
-            'teaching_staff' => ($this->role === 'teaching_staff' && $this->teachingStaff)
+            'teaching' => ($this->isTeacher() && $this->teaching)
                 ? [
-                    'position' => $this->teachingStaff->position,
-                    'program' => $this->teachingStaff->program ? ['name' => $this->teachingStaff->program->name] : null,
+                    'position' => $this->teaching->position,
+                    'program' => $this->teaching->program ? ['name' => $this->teaching->program->name] : null,
                 ]
                 : null,
             'non_teaching_staff' => ($this->role === 'non_teaching_staff' && $this->nonTeachingStaff)

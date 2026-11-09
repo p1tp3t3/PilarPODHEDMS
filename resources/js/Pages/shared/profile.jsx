@@ -170,7 +170,8 @@ const Profile = (props) => {
 
     const uniqueAttByRole = {
         student: { program: props.otherUserProfile.program, enrollments: props.otherUserProfile.enrollments },
-        teaching_staff: props.otherUserProfile.teaching_staff,
+        program_head: props.otherUserProfile.teaching,
+        faculty: props.otherUserProfile.teaching,
         non_teaching_staff: props.otherUserProfile.non_teaching_staff,
         parent: props.otherUserProfile.parent,
     };
@@ -379,8 +380,8 @@ const Profile = (props) => {
     // The IT admin doesn't file complaints, so their profile has no such tab.
     const showComplaintsFiledTab = canViewOwnComplaints && props.otherUserProfile.role !== 'super_admin';
     // Referrals, absent forms and gate passes follow the same rule.
-    // Teaching staff and the prefect (sub_admin) can both refer students.
-    const showReferralsFiledTab = ['teaching_staff', 'sub_admin'].includes(props.otherUserProfile.role) && canViewOwnComplaints;
+    // Program heads and faculty and the prefect (sub_admin) can both refer students.
+    const showReferralsFiledTab = ['program_head', 'faculty', 'sub_admin'].includes(props.otherUserProfile.role) && canViewOwnComplaints;
     const showAbsentFormsFiledTab = props.otherUserProfile.role === 'student' && canViewOwnComplaints;
     const showGatepassRequestedTab = props.otherUserProfile.role === 'student' && canViewOwnComplaints;
 

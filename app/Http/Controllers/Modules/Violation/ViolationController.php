@@ -9,7 +9,6 @@ use App\Models\Complaint;
 use App\Models\ComplaintSubject;
 use App\Models\ComplaintSubjectViolation;
 use App\Models\Enrollment;
-use App\Models\TeachingStaff;
 use App\Models\User;
 use App\Models\Violation;
 use App\Models\ViolationPenalty;
@@ -37,7 +36,7 @@ class ViolationController extends Controller
     /**
      * Who may see one student's incidents/violations:
      *  - the prefect (sub_admin): every student;
-     *  - teaching staff: only as program head of the student's current program;
+     *  - program heads and faculty: only as program head of the student's current program;
      *  - a student: only themselves;
      *  - a parent: only their own children (same family);
      *  - nobody else — not the super admin, not non-teaching staff.
@@ -49,13 +48,10 @@ class ViolationController extends Controller
         switch ($user->role) {
             case 'sub_admin':
                 return true;
-            case 'teaching_staff':
-                if ($user->teachingStaff?->position !== 'program_head') {
-                    return false;
-                }
+            case 'program_head':
                 $programId = Enrollment::where('student_id', $studentId)->latest('id')->value('program_id');
 
-                return $programId && TeachingStaff::programIdsFor($user->id)->contains($programId);
+                return $programId && \App\Models\User::teachingProgramIdsFor($user->id)->contains($programId);
             case 'student':
                 return (int) $user->id === (int) $studentId;
             case 'parent':
@@ -82,7 +78,7 @@ class ViolationController extends Controller
     public function getOffenseList()
     {
         return response()->json(
-            Violation::with(['penalties.penalty'])->latest('created_at')->get()
+            Violation::active()->with(['penalties.penalty'])->latest('created_at')->get()
                 ->each(fn ($v) => $v->encrypted_id = encrypt_id($v->id))
         );
     }
@@ -105,7 +101,7 @@ class ViolationController extends Controller
 
         $violation = Violation::with(['penalties.penalty'])->findOrFail($id);
 
-        $students = ComplaintSubjectViolation::with(['user.profile', 'user.program', 'user.enrollments', 'user.teachingStaff.program'])
+        $students = ComplaintSubjectViolation::with(['user.profile', 'user.program', 'user.enrollments', 'user.faculty.program', 'user.headships.program'])
             ->where('violation_id', $id)
             ->whereHas('complaint', function ($q) {
                 $q->where('complaint_status', 'resolved');
@@ -579,25 +575,39 @@ class ViolationController extends Controller
      * down as page props), it just posts it here instead of straight to
      * Python now.
      */
+    /**
+     * The model's verdict and insights for one violation (quick). The
+     * Behavioural Analysis page shows these first, then asks
+     * recommendViolationAction() for the slower AI recommendations.
+     */
     public function predictViolationRisk(Request $request)
+    {
+        // The free-tier Space can cold-start, so allow some headroom.
+        return self::forwardToModel($request, '/api/model/predict', 60);
+    }
+
+    /**
+     * AI-written recommendations for the same input. A language model writes
+     * them, which takes ~40s on a CPU, past PHP's default 30s limit.
+     */
+    public function recommendViolationAction(Request $request)
+    {
+        set_time_limit(150);
+
+        return self::forwardToModel($request, '/api/model/recommend', 120);
+    }
+
+    private static function forwardToModel(Request $request, string $path, int $timeout)
     {
         $request->validate([
             'model_input' => 'required|array',
         ]);
 
-        // The prediction also writes AI recommendations with a language
-        // model, which takes ~40s on a CPU — past PHP's default 30s limit.
-        set_time_limit(150);
-
         try {
-            // The free-tier Space can cold-start, and this endpoint runs
-            // actual model inference — the old direct-from-browser fetch()
-            // had no timeout at all, so give this generous headroom rather
-            // than fail a request that would've succeeded a few seconds later.
             $response = Http::withoutVerifying()
                 ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
-                ->timeout(120)
-                ->post(config('services.python_api.url').'/api/model/predict', $request->model_input);
+                ->timeout($timeout)
+                ->post(config('services.python_api.url').$path, $request->model_input);
 
             if (! $response->successful()) {
                 return response()->json(['message' => 'Prediction service unavailable.'], 502);
@@ -605,7 +615,7 @@ class ViolationController extends Controller
 
             return response()->json($response->json());
         } catch (\Exception $e) {
-            Log::error('Failed to reach the violation prediction API', ['error' => $e->getMessage()]);
+            Log::error('Failed to reach the violation prediction API', ['path' => $path, 'error' => $e->getMessage()]);
 
             return response()->json(['message' => 'Prediction service unavailable.'], 502);
         }

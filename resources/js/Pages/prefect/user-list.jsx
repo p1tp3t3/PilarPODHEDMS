@@ -21,10 +21,6 @@ const userTabs = [
     { key: "parent", label: "Parent List", icon: Users },
 ]
 
-// 'faculty'/'program_head' live in the same shared positions table but are
-// teaching_staff-only — never assigned to a non_teaching_staff account, so
-// they'd never actually filter anything on this tab.
-const TEACHING_ONLY_POSITIONS = ["faculty", "program_head"]
 
 // Collapses what used to be three separate sidebar pages (Student List /
 // Staff List / Parent List) into one page with tabs — each tab still hits
@@ -199,7 +195,7 @@ const PrefectUserList = (props) => {
                             <DropdownField
                                 list={[
                                     { val: "all", label: "All Staff" },
-                                    { val: "teaching", label: "Teaching Staff" },
+                                    { val: "teaching", label: "Program Heads & Faculty" },
                                     { val: "non_teaching", label: "Non-Teaching Staff" },
                                 ]}
                                 val={staffType}
@@ -222,7 +218,6 @@ const PrefectUserList = (props) => {
                                 <DropdownField
                                     default={{ val: "", label: "All Positions" }}
                                     list={(props.positions ?? [])
-                                        .filter((p) => staffType === "all" || !TEACHING_ONLY_POSITIONS.includes(p.name))
                                         .map((p) => ({ val: p.id, label: p.name }))}
                                     onChange={(e) => updateQuery({ tab: "staff", type: staffType, position: e.target.value })}
                                     name="position"

@@ -18,7 +18,7 @@ class ReferralResource extends JsonResource
             'encrypted_id' => encrypt_id($this->id),
             // Opens this record's PDF in a new tab; null if none or not allowed.
             'pdf_url' => $this->resource->pdfUrl($request->user()),
-            'teaching_staff_id' => $this->teaching_staff_id,
+            'referrer_id' => $this->referrer_id,
             'prefect_id' => $this->prefect_id,
             'referral_number' => $this->referral_number,
             'reason_description' => $this->reason_description,

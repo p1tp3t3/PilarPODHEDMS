@@ -17,7 +17,6 @@ use App\Models\Program;
 use App\Models\Referral;
 use App\Models\SchoolYearSemester;
 use App\Models\Student;
-use App\Models\TeachingStaff;
 use App\Models\User;
 use App\Models\Violation;
 use Carbon\Carbon;
@@ -36,8 +35,9 @@ class DashboardController extends Controller
                 return self::prefectDashboard();
             case 'student':
                 return self::studentDashboard();
-            case 'teaching_staff':
-                return self::teachingStaffDashboard();
+            case 'program_head':
+            case 'faculty':
+                return self::teacherDashboard();
             case 'non_teaching_staff':
                 // "Guard" and "Guidance" aren't separate roles — they're
                 // positions inside non_teaching_staff, each with their own
@@ -80,9 +80,10 @@ class DashboardController extends Controller
                         ->whereNot('id', auth()->id())
                         ->get(),
                 ]);
-            case 'teaching_staff':
+            case 'program_head':
+            case 'faculty':
                 return response()->json([
-                    'active' => self::programPeopleQuery(TeachingStaff::programIdsFor(auth()->id()))
+                    'active' => self::programPeopleQuery(User::teachingProgramIdsFor(auth()->id()))
                         ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
                         ->get(),
                 ]);
@@ -123,9 +124,9 @@ class DashboardController extends Controller
         return Inertia::render('prefect/dashboard', $prefectProps);
     }
 
-    public function teachingStaffDashboard()
+    public function teacherDashboard()
     {
-        return Inertia::render('teaching-staff/dashboard', self::getTeachingStaffStatistics());
+        return Inertia::render('program/dashboard', self::getTeacherStatistics());
     }
 
     public function nonTeachingStaffDashboard()
@@ -232,7 +233,7 @@ class DashboardController extends Controller
             'bargraph' => self::getPrefectBarGraph(),
             'bargraph_school_years' => \App\Models\SchoolYear::orderByDesc('year')->get(['id', 'year']),
             'current_school_year_id' => SchoolYearSemester::current()?->school_year_id,
-            'offense_list' => Violation::with(['penalties.penalty'])->latest('created_at')->get(),
+            'offense_list' => Violation::active()->with(['penalties.penalty'])->latest('created_at')->get(),
             'penalty_list' => Penalty::latest('created_at')->get(),
             'countLastMonthUnresolvedComplaint' => $countUnresolvedComplaints->count(),
             'label' => self::getDynamicComplaintLabel($countUnresolvedComplaints
@@ -309,29 +310,28 @@ class DashboardController extends Controller
     }
 
     /**
-     * Shared statistics for the teaching_staff role. A teaching staff member whose
-     * `position` is 'program_head' additionally sees faculty-wide stats; a plain
-     * faculty member only sees their own complaint/student stats.
+     * Shared statistics for program heads and faculty. A program head
+     * additionally sees faculty-wide stats; a faculty member only sees
+     * their own complaint/student stats.
      *
      * NOTE: "students in program" is computed as "has any enrollment row in this
      * program", not restricted to the most recent term only — a simplification
      * for this pass.
      */
-    public function getTeachingStaffStatistics()
+    public function getTeacherStatistics()
     {
         $id = auth()->id();
-        $teachingStaff = TeachingStaff::where('user_id', $id)->first(['user_id', 'program_id', 'position_id']);
-        $programId = $teachingStaff?->program_id;
-        $isProgramHead = $teachingStaff?->position === 'program_head';
-        $programIds = $isProgramHead ? $teachingStaff->programsHandled->pluck('id') : collect([$programId]);
+        $teaching = auth()->user()->teaching;
+        $isProgramHead = (bool) $teaching?->isProgramHead();
+        $programIds = $isProgramHead ? $teaching->programs_handled->pluck('id') : collect([$teaching?->program_id]);
 
         $complaint = Complaint::where('complainant_id', $id)->count();
-        $referral = Referral::where('teaching_staff_id', $id)->count('id');
+        $referral = Referral::where('referrer_id', $id)->count('id');
 
         $studentCount = Enrollment::whereIn('program_id', $programIds)->distinct('student_id')->count('student_id');
 
         // Everyone in this teacher's program(s): own program + any they head.
-        $myProgramIds = TeachingStaff::programIdsFor($id);
+        $myProgramIds = User::teachingProgramIdsFor($id);
 
         $props = [
             'complaint' => $complaint,
@@ -350,14 +350,16 @@ class DashboardController extends Controller
         ];
 
         if ($isProgramHead) {
-            $props['faculty'] = TeachingStaff::whereIn('program_id', $programIds)->count();
+            // Program heads and faculty in their programs: faculty plus program heads.
+            $props['faculty'] = \App\Models\Faculty::whereIn('program_id', $programIds)->count()
+                + \App\Models\ProgramHead::whereIn('program_id', $programIds)->distinct('user_id')->count('user_id');
         }
 
         return $props;
     }
 
     /**
-     * Students (latest enrollment) and teaching staff (own or headed program)
+     * Students (latest enrollment) and program heads and faculty (own or headed program)
      * in these programs, excluding the current user.
      */
     private static function programPeopleQuery($programIds)
@@ -365,12 +367,12 @@ class DashboardController extends Controller
         $studentIds = Enrollment::whereIn('id', Enrollment::selectRaw('MAX(id)')->groupBy('student_id'))
             ->whereIn('program_id', $programIds)
             ->pluck('student_id');
-        $teacherIds = TeachingStaff::whereIn('program_id', $programIds)->pluck('user_id')
-            ->merge(\App\Models\ProgramHeadProgram::whereIn('program_id', $programIds)->pluck('user_id'));
+        $teacherIds = \App\Models\Faculty::whereIn('program_id', $programIds)->pluck('user_id')
+            ->merge(\App\Models\ProgramHead::whereIn('program_id', $programIds)->pluck('user_id'));
 
-        return User::with(['profile', 'program', 'enrollments.program', 'teachingStaff.program'])
+        return User::with(['profile', 'program', 'enrollments.program', 'faculty.program', 'headships.program'])
             ->whereIn('id', $studentIds->merge($teacherIds)->unique())
-            ->whereRole(['student', 'teaching_staff'])
+            ->whereRole(['student', 'program_head', 'faculty'])
             ->whereNot('id', auth()->id());
     }
 
@@ -482,14 +484,6 @@ class DashboardController extends Controller
     public function getWatchList()
     {
         return response()->json(\App\Services\WatchListService::get(request()->boolean('refresh')));
-    }
-
-    /** One student's predicted risk — gates "Set Appointment" on their violations page. */
-    public function getStudentRisk($id)
-    {
-        $id = decrypt_id($id) ?? abort(404);
-
-        return response()->json(\App\Services\WatchListService::forStudent($id));
     }
 
     public function getBargraph()
@@ -685,7 +679,7 @@ class DashboardController extends Controller
         // its permission switch on too).
         $types = match ($user->role) {
             'student' => ['complaint', 'absent_form', 'gate_pass', 'appointment'],
-            'teaching_staff', 'sub_admin' => ['complaint', 'referral'],
+            'program_head', 'faculty', 'sub_admin' => ['complaint', 'referral'],
             'parent' => ['complaint', 'appointment'],
             default => ['complaint'], // non-teaching staff, IT admin
         };
@@ -698,7 +692,7 @@ class DashboardController extends Controller
 
         if ($permissions?->allow_referral && $can('referral')) {
             $records['referral'] = self::semesterRecords('referral',
-                Referral::with(['user.profile', 'referredStudent.profile'])->where('teaching_staff_id', $user->id));
+                Referral::with(['user.profile', 'referredStudent.profile'])->where('referrer_id', $user->id));
         }
 
         if ($permissions?->allow_absent_form && $can('absent_form')) {

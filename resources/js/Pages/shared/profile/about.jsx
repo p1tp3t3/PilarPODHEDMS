@@ -17,19 +17,15 @@ const About = (props) => {
           [loading, setLoading] = useState(false),
           [btnLabel, setBtnLabel] = useState('save changes')
 
-    // Teaching and non-teaching staff don't collect date of birth/religion/
+    // Program heads, faculty and non-teaching staff don't collect date of birth/religion/
     // citizenship/civil status/place of birth (see edit-profile-modal.jsx
     // and Validator.validateUpdateProfileForm) — hide them here too rather
     // than showing "N/A" for fields these roles never ask for.
-    const isStaffRole = ['teaching_staff', 'non_teaching_staff'].includes(props.data.user_type)
+    const isStaffRole = ['program_head', 'faculty', 'non_teaching_staff'].includes(props.data.user_type)
 
-    // "TEACHING STAFF (PROGRAM HEAD)" / "TEACHING STAFF (FACULTY)" for
-    // teaching staff, "NON TEACHING STAFF (GUARD)" etc. for non-teaching —
-    // same parenthetical-position treatment for both.
+    // "NON TEACHING STAFF (GUARD)" etc.: a non-teaching staff member's
+    // position in parentheses. Program head / faculty are roles themselves.
     const roleSuffix = () => {
-        if (props.data.user_type === 'teaching_staff') {
-            return props.data.unique_att?.position === 'program_head' ? 'Program Head' : 'Faculty'
-        }
         if (props.data.user_type === 'non_teaching_staff') {
             return props.data.unique_att?.position ?? null
         }
@@ -50,7 +46,8 @@ const About = (props) => {
                         e.val == 'absent_form' ||
                         e.val == 'gatepass')
                 )
-            case 'teaching_staff':
+            case 'program_head':
+            case 'faculty':
                 return requestType.filter((e, i) =>
                     (e.val == 'complaint' ||
                         e.val == 'referral')
@@ -103,10 +100,10 @@ const About = (props) => {
     return (
         <div className="flex gap-6">
             <div className="grid gap-6 w-full">
-                {/* IT admin and prefect control what students and teaching staff can submit. */}
+                {/* IT admin and prefect control what students, program heads and faculty can submit. */}
                 {['super_admin', 'sub_admin'].includes(props.user.role) &&
                   props.data.user_id != props.user.id &&
-                  ['student', 'teaching_staff'].includes(props.data.user_type) &&
+                  ['student', 'program_head', 'faculty'].includes(props.data.user_type) &&
                 <ProfileSectionWrapper
                     title='Accessibility'
                     icon={User}
@@ -160,7 +157,7 @@ const About = (props) => {
                             title="User Role"
                             desc={`${replaceUnderScoreToSpace(props.data.user_type.toUpperCase())}${roleSuffix() ? ` (${roleSuffix().toUpperCase()})` : ''}`}
                         />
-                        {(props.data.user_type === 'teaching_staff' && props.data.unique_att?.program != null) && (
+                        {(['program_head', 'faculty'].includes(props.data.user_type) && props.data.unique_att?.program != null) && (
                             <div className="border-b border-gray-200 py-3 last:border-b-0">
                                 <div className="font-semibold text-gray-700">
                                     {(props.data.unique_att.programs_handled?.length > 1) ? 'Programs Handled:' : 'Program:'}

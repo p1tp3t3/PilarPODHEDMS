@@ -8,20 +8,11 @@ import { Pencil, Trash2, X, Check, Lock } from "lucide-react"
 
 // Mirrors AccountController::PROTECTED_POSITIONS — these can't be renamed
 // or deleted server-side (they're load-bearing: gate pass verification,
-// referral intake/forwarding, and the teaching_staff role hierarchy all key
-// off the exact stored name), so their Edit/Delete actions are disabled
-// here too instead of only surfacing the 403 after the fact.
-const PROTECTED_POSITIONS = ["Guard", "Guidance", "IT Staff", "faculty", "program_head"]
-
-// 'faculty'/'program_head' are stored in snake_case (matching the old enum
-// values every backend comparison still relies on) but should never be
-// shown to a user that way — every other place in the app that displays a
-// teaching staff's position already renders these as plain text.
-const DISPLAY_NAMES = {
-    faculty: "Faculty",
-    program_head: "Program Head",
-}
-const displayName = (name) => DISPLAY_NAMES[name] ?? name
+// and referral intake/forwarding key off the exact stored name), so their
+// Edit/Delete actions are disabled here too instead of only surfacing the
+// 403 after the fact.
+const PROTECTED_POSITIONS = ["Guard", "Guidance", "IT Staff"]
+const displayName = (name) => name
 
 const ManagePositionsModal = ({ close, closeModal, positions, setPositions }) => {
     const [newName, setNewName] = useState("")

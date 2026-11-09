@@ -1,4 +1,5 @@
 import { APIRequest } from "../classes/api-req";
+import { openPdfTab } from "../function";
 
 export const ReportArchiveService = {
     recover(id, type, setter, success, error) {
@@ -62,6 +63,10 @@ export const ReportArchiveService = {
     deleteGeneratedReport(id, success, error) {
         const api = new APIRequest(`/prefect/report/delete/${id}`, "post", {}, () => {}, success, error);
         api.sendPostData();
+    },
+    // PDF: generated and shown in a new tab (see openPdfTab) instead of downloaded.
+    openActionLogReportTab(data) {
+        return openPdfTab(`/super-admin/report/generate?${new URLSearchParams(data).toString()}`, "Action Log Report");
     },
     downloadActionLogReport(data, fileName, success, error) {
         const query = new URLSearchParams(data).toString();

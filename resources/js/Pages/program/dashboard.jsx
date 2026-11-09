@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import { User, GraduationCap, FileText } from "lucide-react";
 import { PageTitle } from "@/context-provider/page-title-provider";
 
-const TeachingStaffDashboard = (props) => {
+const ProgramDashboard = (props) => {
   const isProgramHead = props.is_program_head;
 
   return (
@@ -33,7 +33,7 @@ const TeachingStaffDashboard = (props) => {
             {/* === STAT CARDS SECTION === */}
             <div className={`grid grid-cols-1 sm:grid-cols-2 ${isProgramHead ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
               {isProgramHead && (
-                <Link href="/teaching-staff/faculty-list" className="h-full grid">
+                <Link href="/program/faculty-list" className="h-full grid">
                   <QuantityCard
                     h="h-[6rem]"
                     num={props.faculty}
@@ -46,7 +46,7 @@ const TeachingStaffDashboard = (props) => {
                 </Link>
               )}
 
-              <Link href="/teaching-staff/student-list" className="h-full grid">
+              <Link href="/program/student-list" className="h-full grid">
                 <QuantityCard
                   h="h-[6rem]"
                   num={props.student_list}
@@ -104,6 +104,6 @@ const TeachingStaffDashboard = (props) => {
   );
 };
 
-TeachingStaffDashboard.layout = (page) => <AuthLayout user={page.props.user}>{page}</AuthLayout>
+ProgramDashboard.layout = (page) => <AuthLayout user={page.props.user}>{page}</AuthLayout>
 
-export default TeachingStaffDashboard;
+export default ProgramDashboard;

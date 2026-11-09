@@ -18,7 +18,6 @@ use App\Models\Enrollment;
 use App\Models\Penalty;
 use App\Models\Position;
 use App\Models\Program;
-use App\Models\TeachingStaff;
 use App\Models\User;
 use App\Models\Violation;
 use App\Models\ViolationPenalty;
@@ -71,15 +70,7 @@ class MaintenanceController extends Controller
      */
     public function violationManagementIndex(string $section = 'violations')
     {
-        $isSuperAdmin = auth()->user()->role === 'super_admin';
-
-        // Super admin manages the violation/penalty catalog but doesn't get
-        // to see which students actually have violations — that's student
-        // disciplinary data, not system configuration.
-        if ($section === 'student-violations' && $isSuperAdmin) {
-            return redirect('/violation-management/violations');
-        }
-
+        // Prefect only (routes/auth.php).
         $props = ['section' => $section];
 
         // The violation form's penalty dropdowns need the penalties too.
@@ -88,12 +79,7 @@ class MaintenanceController extends Controller
         }
 
         if ($section === 'violations') {
-            $props['violation'] = Violation::query()
-                ->with(['penalties.penalty'])
-                ->latest('created_at')
-                ->orderByDesc('id')
-                ->get()
-                ->each(fn ($v) => $v->encrypted_id = encrypt_id($v->id));
+            $props['violation'] = self::violationManagementList();
             $props['program'] = Program::all(['id', 'name', 'color_code']);
         }
 
@@ -101,7 +87,7 @@ class MaintenanceController extends Controller
             $props['student_violation_list'] = self::getStudentViolationList();
         }
 
-        return Inertia::render('shared/violation-management', $props);
+        return Inertia::render('prefect/violation-management', $props);
     }
 
     private function getStudentViolationList()
@@ -112,7 +98,7 @@ class MaintenanceController extends Controller
             'user.profile',
             'user.program',
             'user.enrollments.schoolYear',
-            'user.teachingStaff.program',
+            'user.faculty.program', 'user.headships.program',
         ])
             ->whereHas('complaint', function ($q) {
                 $q->where('complaint_status', 'resolved');
@@ -593,18 +579,75 @@ class MaintenanceController extends Controller
     }
 
     /**
-     * users_count = enrolled students + teaching staff, the same "in use"
+     * users_count = enrolled students + program heads and faculty, the same "in use"
      * definition destroyProgram() below already checks before allowing a delete.
      */
     private static function programsWithUserCount()
     {
         return Program::withCount([
             'enrollments as students_count' => fn ($q) => $q->where('status', 'enrolled'),
-            'teachingStaff as teaching_staff_count',
+            'faculty as faculty_count',
+            'programHead as program_head_count',
         ])
+            // has_records picks the row's Archive vs Delete button.
+            ->withExists(['enrollments as has_enrollment_records', 'faculty as has_faculty_records', 'programHead as has_head_records'])
             ->latest('created_at')
             ->orderByDesc('id')
-            ->get();
+            ->get()
+            ->each(function ($p) {
+                $p->has_records = (bool) ($p->has_enrollment_records || $p->has_faculty_records || $p->has_head_records);
+            });
+    }
+
+    /**
+     * Archive a program that has users or enrollments. Archived: not offered
+     * when registering accounts, parents, or importing enrollments, and
+     * read-only until restored; existing users, records and reports keep it.
+     */
+    public function archiveProgram(Request $request)
+    {
+        $program = Program::findOrFail($request->id);
+
+        if (! $program->hasLinkedRecords()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'This program has no users or records, so it is deleted instead of archived.',
+            ], 409);
+        }
+        if ($program->isArchived()) {
+            return response()->json(['status' => false, 'message' => 'This program is already archived.'], 409);
+        }
+
+        $program->update(['archived_at' => now()]);
+
+        return ProgramResource::collection(self::programsWithUserCount());
+    }
+
+    /** Bring an archived program back into use. */
+    public function restoreProgram(Request $request)
+    {
+        $program = Program::findOrFail($request->id);
+        $program->update(['archived_at' => null]);
+
+        return ProgramResource::collection(self::programsWithUserCount());
+    }
+
+    /**
+     * A 409 response if the name belongs to an archived program (other than
+     * $exceptId), so it's restored instead of duplicated; null otherwise.
+     */
+    private static function archivedProgramNameConflict(string $name, $exceptId = null)
+    {
+        $archived = Program::whereNotNull('archived_at')
+            ->whereRaw('LOWER(name) = ?', [strtolower(trim($name))])
+            ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
+            ->first();
+
+        return $archived ? response()->json([
+            'status' => false,
+            'message' => "{$archived->name} already exists in Archived. Restore it instead of adding it again.",
+            'errors' => ['name' => ['This program is archived. Restore it from the Archived tab.']],
+        ], 422) : null;
     }
 
     public function programUsersIndex($id)
@@ -613,9 +656,9 @@ class MaintenanceController extends Controller
 
         $program = Program::with('programHead.user.profile')->findOrFail($id);
 
-        $faculty = User::with(['profile', 'teachingStaff.program'])
-            ->whereRole('teaching_staff')
-            ->whereHas('teachingStaff', fn ($q) => $q->where('program_id', $id)->where('position_id', '!=', Position::idFor('program_head')))
+        $faculty = User::with(['profile', 'faculty.program', 'headships.program'])
+            ->whereRole('faculty')
+            ->whereHas('faculty', fn ($q) => $q->where('program_id', $id))
             ->latest('created_at')
             ->get();
 
@@ -634,6 +677,10 @@ class MaintenanceController extends Controller
 
     public function programStore(StoreProgramRequest $request)
     {
+        if ($conflict = self::archivedProgramNameConflict($request->name)) {
+            return $conflict;
+        }
+
         $data = [
             'name' => Str::upper($request->name),
             'description' => ucwords($request->description),
@@ -713,20 +760,13 @@ class MaintenanceController extends Controller
 
         $program = Program::where('id', $request->id)->first();
 
-        $oldSlug = strtoupper(Str::slug($program->name));
-        $newSlug = strtoupper(Str::slug($data['name'], '-'));
-
-        // Old file paths
-        $oldFaculty = storage_path("app/private/zips/faculty-account-{$program->id}-{$oldSlug}.csv");
-        $oldStudent = storage_path("app/private/zips/student-{$program->id}-{$oldSlug}.zip");
-
-        // New file paths
-        $newFaculty = storage_path("app/private/zips/faculty-account-{$program->id}-{$newSlug}.csv");
-        $newStudent = storage_path("app/private/zips/student-{$program->id}-{$newSlug}.zip");
-
+        // Archived programs are read-only until restored.
+        if ($program->isArchived()) {
+            return response()->json(['status' => false, 'message' => 'This program is archived. Restore it before editing.'], 409);
+        }
+        // The acronym and full name can't be edited (anything sent for them
+        // is ignored); only the color and logo change.
         $updateFields = [
-            'name' => $data['name'],
-            'description' => $data['description'],
             'color_code' => $data['color'],
         ];
 
@@ -741,18 +781,7 @@ class MaintenanceController extends Controller
             $updateFields['logo'] = $fileName;
         }
 
-        $program = Program::where('id', $request->id);
-        // Update database
         $program->update($updateFields);
-
-        // Rename files if exists
-        if (file_exists($oldFaculty)) {
-            rename($oldFaculty, $newFaculty);
-        }
-
-        if (file_exists($oldStudent)) {
-            rename($oldStudent, $newStudent);
-        }
 
         return ProgramResource::collection(self::programsWithUserCount());
     }
@@ -763,14 +792,12 @@ class MaintenanceController extends Controller
         $program = Program::where('id', $request->id)->first();
         $programSlug = strtoupper($program->name);
 
-        // Check related records
-        $studentCount = Enrollment::where('program_id', $program->id)->where('status', 'enrolled')->count();
-        $facultyCount = TeachingStaff::where('program_id', $program->id)->count();
-
-        if ($studentCount > 0 || $facultyCount > 0) {
+        // Hard delete only when nothing points to it; one with users or
+        // enrollments (even past ones) is archived instead (archiveProgram).
+        if ($program->hasLinkedRecords()) {
             return response()->json([
                 'status' => false,
-                'message' => 'Program cannot be deleted. Users are still assigned to this program.',
+                'message' => 'This program has users or enrollment records, so it can\'t be deleted. Archive it instead.',
             ], 409);
         }
 
@@ -816,6 +843,10 @@ class MaintenanceController extends Controller
             'keywords' => 'required|array|min:1',
             'keywords.*' => 'string|max:100',
         ]);
+
+        if ($conflict = self::archivedViolationNameConflict($data['violation_name'])) {
+            return $conflict;
+        }
 
         // Create violation
         $violation = Violation::create([
@@ -868,6 +899,14 @@ class MaintenanceController extends Controller
             'keywords.*' => 'string|max:100',
         ]);
 
+        // Archived violations are read-only until restored.
+        if (Violation::findOrFail($request->id)->isArchived()) {
+            return response()->json(['status' => false, 'message' => 'This violation is archived. Restore it before editing.'], 409);
+        }
+        if ($conflict = self::archivedViolationNameConflict($data['violation_name'], $request->id)) {
+            return $conflict;
+        }
+
         // UPDATE VIOLATION RECORD
         Violation::where('id', $request->id)->update([
             'violation_name' => $data['violation_name'],
@@ -917,29 +956,104 @@ class MaintenanceController extends Controller
         return self::getViolation();
     }
 
+    /**
+     * Hard delete: only for a violation nothing points to (no complaint or
+     * student record). One with records is archived instead (archiveOffense).
+     */
     public function destroyOffense(Request $request)
     {
-        $violation = Violation::where('id', $request->id)->first();
+        $violation = Violation::findOrFail($request->id);
 
-        // Check related records
-        $complaintCount = ComplaintSubjectViolation::where('violation_id', $request->id)->count();
-
-        if ($complaintCount > 0) {
+        if ($violation->hasLinkedRecords()) {
             return response()->json([
                 'status' => false,
-                'message' => 'Violation cannot be deleted. It is still assigned to complaint subjects.',
+                'message' => 'This violation has complaint records, so it can\'t be deleted. Archive it instead.',
             ], 409);
         }
 
-        Http::withoutVerifying()
-            ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
-            ->post(config('services.python_api.url').'/api/violation/delete', [
-                'id' => $violation->id,
-            ]);
-        // Delete violation
+        if (! $violation->isArchived()) {
+            self::syncViolationToAnalyzer($violation, false);
+        }
+        // Its penalty ladder goes with it (violation_penalty cascades).
         $violation->delete();
 
         return self::getViolation();
+    }
+
+    /**
+     * Archive a violation that has records. Archived: it can't be picked for
+     * new complaints, the Complaint Context Analyzer stops suggesting it,
+     * and it's read-only until restored; existing records, reports and
+     * history keep it.
+     */
+    public function archiveOffense(Request $request)
+    {
+        $violation = Violation::findOrFail($request->id);
+
+        if (! $violation->hasLinkedRecords()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'This violation has no records, so it is deleted instead of archived.',
+            ], 409);
+        }
+        if ($violation->isArchived()) {
+            return response()->json(['status' => false, 'message' => 'This violation is already archived.'], 409);
+        }
+
+        $violation->update(['archived_at' => now()]);
+        self::syncViolationToAnalyzer($violation, false);
+
+        return self::getViolation();
+    }
+
+    /** Bring an archived violation back into use (and back into the analyzer). */
+    public function restoreOffense(Request $request)
+    {
+        $violation = Violation::findOrFail($request->id);
+
+        if ($violation->isArchived()) {
+            $violation->update(['archived_at' => null]);
+            self::syncViolationToAnalyzer($violation, true);
+        }
+
+        return self::getViolation();
+    }
+
+    /**
+     * A 409 response if the name belongs to an archived violation (other
+     * than $exceptId), so it's restored instead of duplicated; null otherwise.
+     */
+    private static function archivedViolationNameConflict(string $name, $exceptId = null)
+    {
+        $archived = Violation::whereNotNull('archived_at')
+            ->whereRaw('LOWER(violation_name) = ?', [strtolower(trim($name))])
+            ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
+            ->first();
+
+        return $archived ? response()->json([
+            'status' => false,
+            'message' => "{$archived->violation_name} already exists in Archived. Restore it instead of adding it again.",
+            'errors' => ['violation_name' => ['This violation is archived. Restore it from the Archived tab.']],
+        ], 422) : null;
+    }
+
+    /** Adds (active/restored) or removes (archived/deleted) it in the Python analyzer. */
+    private static function syncViolationToAnalyzer(Violation $violation, bool $present): void
+    {
+        try {
+            Http::withoutVerifying()
+                ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
+                ->timeout(15)
+                ->post(config('services.python_api.url').($present ? '/api/violation/add' : '/api/violation/delete'), $present
+                    ? [
+                        'violation' => preg_replace('/[^\w\s]/', ' ', $violation->violation_name),
+                        'keywords' => self::flattenKeywords($violation->keywords ?? []),
+                        'id' => $violation->id,
+                    ]
+                    : ['id' => $violation->id]);
+        } catch (\Exception $e) {
+            Log::warning('Violation analyzer sync failed', ['id' => $violation->id, 'error' => $e->getMessage()]);
+        }
     }
 
     public function penaltyStore(Request $request)
@@ -1019,16 +1133,26 @@ class MaintenanceController extends Controller
 
     public function getViolation()
     {
+        return self::violationManagementList();
+    }
+
+    /**
+     * The Violations page's rows (also returned after add / edit / delete /
+     * archive / restore): penalties, encrypted id, and has_records, which
+     * picks the row's Archive vs Delete button.
+     */
+    private static function violationManagementList()
+    {
         return Violation::query()
-            ->with(['penalties' => function ($q) {
-                $q->join('penalty', 'penalty.id', '=', 'violation_penalty.penalty_id')
-                    ->select(
-                        'violation_penalty.*',
-                        'penalty.description as penalty_description'
-                    );
-            }])
+            ->with(['penalties.penalty'])
+            ->withExists(['subjectViolations as has_subject_records', 'complaints as has_complaint_records'])
             ->latest('created_at')
             ->orderByDesc('id')
-            ->get();
+            ->get()
+            ->each(function ($v) {
+                $v->encrypted_id = encrypt_id($v->id);
+                $v->has_records = (bool) ($v->has_subject_records || $v->has_complaint_records);
+                unset($v->has_subject_records, $v->has_complaint_records);
+            });
     }
 }

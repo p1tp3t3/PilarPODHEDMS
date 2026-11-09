@@ -23,7 +23,8 @@ const ROLE_COLORS = {
   super_admin: "#6366f1",
   sub_admin: "#0ea5e9",
   student: "#16a34a",
-  teaching_staff: "#f59e0b",
+  program_head: "#f59e0b",
+  faculty: "#f97316",
   non_teaching_staff: "#db2777",
   parent: "#8b5cf6",
 };
@@ -165,17 +166,18 @@ const ITRCDashboard = (props) => {
                   }}
                 />
               </Link>
-              <Link href="/violation-management/violations">
+              {/* Count only: Violation Management is the prefect's. */}
+              <div>
                 <QuantityCard
                   h="h-[6rem]"
                   num={props.total_violation}
                   icon={ShieldAlert}
                   label="Violations"
                   color={{
-                    bg: "bg-white hover:bg-black/5 transition-all",
+                    bg: "bg-white",
                   }}
                 />
-              </Link>
+              </div>
               <Link href="/super-admin/roles">
                 <QuantityCard
                   h="h-[6rem]"

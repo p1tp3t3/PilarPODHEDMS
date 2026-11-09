@@ -48,7 +48,7 @@ const Row = ({ obj }) => {
     const programName = obj.program?.name ?? latestEnrollment?.program?.name
     const detail = isStudent
         ? [programName, latestEnrollment?.year_level ? getYearLevel(latestEnrollment.year_level) : null].filter(Boolean).join(" • ")
-        : (obj.role === "teaching_staff" ? showUserType(obj, true) : showUserType(obj))
+        : (["program_head", "faculty"].includes(obj.role) ? showUserType(obj, true) : showUserType(obj))
 
     return (
         <div key={obj.id}>

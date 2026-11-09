@@ -3,7 +3,6 @@
 use App\Events\NotifyUser;
 use App\Models\Notifications;
 use App\Models\Position;
-use App\Models\TeachingStaff;
 use Illuminate\Support\Facades\Crypt;
 
 /*
@@ -34,21 +33,12 @@ if (!function_exists('notify_single_user')) {
 if (!function_exists('is_program_head')) {
     /**
      * The authenticated user's program name(s) if they're a program head,
-     * else null — a program head can now be responsible for 2+ programs
-     * (program_head_program), so this joins every one of them rather than
-     * only their "home" teaching_staff.program_id.
+     * else null. A program head can lead 2+ programs (one program_head row
+     * each), so this joins all of them.
      */
     function is_program_head()
     {
-        $admin = TeachingStaff::where('user_id', auth()->user()->id)
-                            ->where('position_id', Position::idFor('program_head'))
-                            ->first();
-
-        if (!$admin) {
-            return null;
-        }
-
-        $names = $admin->programsHandled->pluck('name');
+        $names = \App\Models\Program::whereIn('id', \App\Models\User::headedProgramIdsFor(auth()->id()))->pluck('name');
 
         return $names->isNotEmpty() ? $names->implode(', ') : null;
     }
@@ -97,7 +87,8 @@ if (!function_exists('get_user_access_field')) {
                     'allow_complaint' => 1,
                     'allow_gatepass' => 1,
                 ]);
-            case 'teaching_staff':
+            case 'program_head':
+            case 'faculty':
                 return array_merge($data, [
                     'allow_complaint' => 1,
                     'allow_referral' => 1,

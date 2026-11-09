@@ -1,8 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Action Log Report</title>
+@extends('pdf.layouts.report')
+
+@section('title', 'Action Log Report')
+
+@section('period')
+
+      <strong>{{ $period }}</strong>
+@endsection
+
+@section('styles')
 <style>
   body {
     font-family: DejaVu Sans, sans-serif;
@@ -140,9 +145,9 @@
        Margins live on @page so every page gets them, not just the first
        and last; content then fits inside the printable width and wraps
        instead of running off the edge. */
-    @page { margin: 18mm 14mm 20mm 14mm; }
+    /* Page margins: pdf/layouts/report (narrow). */
     body { margin: 0 !important; padding: 0 !important; height: auto !important; }
-    html { height: auto !important; margin: 18mm 14mm 20mm 14mm !important; }
+    html { height: auto !important; }
     .page { max-width: none !important; width: auto !important; margin: 0 !important; padding: 0 !important; }
     table { width: 100% !important; max-width: 100%; }
     th, td { word-wrap: break-word; overflow-wrap: break-word; }
@@ -150,30 +155,9 @@
     tr { page-break-inside: avoid; }
     img { max-width: 100%; }
   </style>
-</head>
-<body>
+@endsection
 
-  {{-- HEADER --}}
-  <table class="report-header">
-    <tr>
-      <td style="width: 90px;">
-        <img src="{{ public_path('default-pic/pilar-pdf.png') }}" alt="Logo">
-      </td>
-      <td>
-        <div class="school-name">PILAR COLLEGE OF ZAMBOANGA CITY, INC.</div>
-        <div class="school-info">R.T. Lim Boulevard, Zamboanga City</div>
-        <div class="school-info">Higher Education Department</div>
-      </td>
-    </tr>
-  </table>
-
-  {{-- TITLE --}}
-  <div class="title-box">
-    <h2>Action Log Report</h2>
-    <div style="font-size: 11px; color: #555;">
-      <strong>{{ $period }}</strong>
-    </div>
-  </div>
+@section('content')
 
   {{-- STUDENT PROFILE --}}
   <div class="profile-section">
@@ -229,5 +213,4 @@
       @endforelse
     </tbody>
   </table>
-</body>
-</html>
+@endsection

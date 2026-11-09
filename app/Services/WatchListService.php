@@ -48,33 +48,6 @@ class WatchListService
     }
 
     /**
-     * One student's risk (for the student violation page): whether the
-     * model predicts they'll repeat any of their violations, and the
-     * highest probability. Not cached — it's one quick batch call.
-     */
-    public static function forStudent(int $studentId): array
-    {
-        $inputs = ViolationController::modelInputsForStudents([$studentId]);
-        if ($inputs->isEmpty()) {
-            return ['available' => true, 'likely' => false, 'top_probability' => null];
-        }
-
-        $scores = self::score($inputs);
-        if ($scores === null) {
-            return ['available' => false, 'likely' => false];
-        }
-
-        $top = $scores->sortByDesc('probability')->first();
-
-        return [
-            'available' => true,
-            'likely' => $scores->contains(fn ($s) => (int) $s['prediction'] === 1),
-            'top_probability' => $top['probability'] ?? null,
-            'top_violation_id' => $top ? (int) explode(':', $top['key'])[1] : null,
-        ];
-    }
-
-    /**
      * Scores model-input rows in one call to the Python batch endpoint,
      * keyed "student_id:violation_id". Null when the service is down.
      */

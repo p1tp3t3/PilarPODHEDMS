@@ -3,7 +3,6 @@ import { getProfilePic, readableDate, readableTime, showUserType, formatSchoolYe
 import ProfilePic from "../other/profile-pic"
 import ActionBtn from "../button/action-btn"
 import Box from '@mui/material/Box'
-import { filedByColumn } from "@/Components/list/filed-by-column"
 
 const GatePassList = (props) => {
 
@@ -54,7 +53,6 @@ const GatePassList = (props) => {
                 </div>
             )
         },
-        filedByColumn((r) => r.prefect),
         {
             field: 'requested',
             headerName: 'Requested Since',

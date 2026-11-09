@@ -29,7 +29,8 @@ class StoreComplaintRequest extends FormRequest
         return [
             'complainant' => 'nullable|integer|exists:users,id',
             'complainant_name' => 'nullable|string',
-            'incident_id' => 'nullable|integer|exists:violation,id',
+            // A new complaint can only be filed under an enabled violation.
+            'incident_id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('violation', 'id')->whereNull('archived_at')],
             'complaint_description' => 'required|string',
             'student_subjects' => 'required|array|min:1',
             'student_subjects.*' => ['integer', 'exists:users,id', new EnrolledStudent],

@@ -4,16 +4,7 @@ import Box from "@mui/material/Box";
 import { getProfilePic, readableDate, readableTime, showUserType, toTitleCase, formatSchoolYearSemester } from "@/others/function";
 import ActionBtn from "../button/action-btn";
 import ProfilePic from "../other/profile-pic";
-
-const STATUS_STYLES = {
-  rejected: "bg-red-100 text-red-700",
-  pending: "bg-yellow-100 text-yellow-700",
-  ongoing: "bg-orange-100 text-orange-700",
-  resolved: "bg-green-100 text-green-700",
-  accepted: "bg-green-100 text-green-700",
-  approved: "bg-green-100 text-green-700",
-  revoked: "bg-gray-200 text-gray-700",
-};
+import StatusPill from "@/Components/list/status-pill";
 
 const referenceNumberFor = (data) => {
   if (data.type === "complaint") return data.complaint_number;
@@ -36,10 +27,15 @@ const nameFor = (data) => {
   return toTitleCase(`${person.profile?.first_name ?? ""} ${person.profile?.last_name ?? ""}`.trim()) || "-";
 };
 
+// Absent forms and gate passes have no status field: it follows from which
+// of their decision dates is set.
 const statusValueFor = (data) => {
   if (data.type === "complaint") return data.complaint_status;
   if (data.type === "referral") return data.referral_status;
-  return null;
+  if (data.revoked_at) return "revoked";
+  if (data.rejected_at) return "rejected";
+  if (data.confirmed_at) return "approved";
+  return "pending";
 };
 
 // Whichever status a record last transitioned into is the semester tag we
@@ -66,7 +62,7 @@ const downloadDocument = (type, id, data) => {
   document.body.removeChild(link);
 };
 
-const ArchiveList = ({ list = [], viewDocument, deleteDocument, recoverDocument }) => {
+const ArchiveList = ({ list = [], viewDocument, deleteDocument }) => {
   const rows = useMemo(
     () => list.map((data, i) => ({ id: `${data.type}-${data.id}`, i: i + 1, data })),
     [list]
@@ -93,7 +89,6 @@ const ArchiveList = ({ list = [], viewDocument, deleteDocument, recoverDocument 
         flex: 1.3,
         minWidth: 240,
         renderCell: ({ row }) => {
-          const status = statusValueFor(row.data);
           const person = personFor(row.data);
           return (
             <div className="flex items-center gap-2 h-full py-1">
@@ -101,14 +96,7 @@ const ArchiveList = ({ list = [], viewDocument, deleteDocument, recoverDocument 
                 <ProfilePic size={2} src={getProfilePic(person.profile?.profile_picture, person.profile?.sex)} />
               )}
               <div className="flex flex-col min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-[0.9em] truncate">{nameFor(row.data)}</span>
-                  {status && (
-                    <span className={`px-2 py-0.5 rounded-full text-[0.75em] font-medium ${STATUS_STYLES[status] ?? "bg-gray-100 text-gray-700"}`}>
-                      {toTitleCase(status)}
-                    </span>
-                  )}
-                </div>
+                <span className="font-medium text-[0.9em] truncate">{nameFor(row.data)}</span>
                 {person && (
                   <span className="text-[0.75em] text-gray-500 truncate">{showUserType(person, true)}</span>
                 )}
@@ -119,6 +107,17 @@ const ArchiveList = ({ list = [], viewDocument, deleteDocument, recoverDocument 
             </div>
           );
         },
+      },
+      {
+        field: "status",
+        headerName: "Status",
+        width: 120,
+        valueGetter: (_, row) => statusValueFor(row.data),
+        renderCell: ({ row }) => (
+          <div className="h-full flex items-center">
+            <StatusPill status={statusValueFor(row.data)} />
+          </div>
+        ),
       },
       {
         field: "created_at",
@@ -150,12 +149,6 @@ const ArchiveList = ({ list = [], viewDocument, deleteDocument, recoverDocument 
                 </ActionBtn>
               )}
 
-              {data.type === "absent form" && data.confirmed_at === null && (
-                <ActionBtn className="bg-green-600 hover:bg-green-700" onClick={() => recoverDocument(data.id, data.type, data.usr)}>
-                  Approve
-                </ActionBtn>
-              )}
-
               {((data.type === "complaint" && data.complaint_status === "resolved") ||
                 (data.type === "absent form" && data.confirmed_at != null) ||
                 data.type === "referral") && (
@@ -177,7 +170,7 @@ const ArchiveList = ({ list = [], viewDocument, deleteDocument, recoverDocument 
         },
       },
     ],
-    [viewDocument, recoverDocument, deleteDocument]
+    [viewDocument, deleteDocument]
   );
 
   return (

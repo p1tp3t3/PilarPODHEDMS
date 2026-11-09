@@ -4,7 +4,7 @@ import FormTextfield from "@/Components/input/form-input"
 import FormButton from "@/Components/button/button"
 import { AccountService } from "@/others/services/account-service"
 import { useState, useEffect } from "react"
-import { change, check, checkUserExist, fileChange, toTitleCase } from "@/others/function"
+import { change, check, checkUserExist, fileChange, toTitleCase, generateStrongPassword } from "@/others/function"
 import { requestType } from "@/others/list/type-list"
 import { Validator } from "@/others/classes/validator"
 import DropdownField from "@/Components/input/dropdown"
@@ -107,7 +107,8 @@ const EditUserInfoModal = (props) => {
                      e.val == 'absent_form' ||
                      e.val == 'gatepass')
                 )
-            case 'teaching_staff':
+            case 'program_head':
+            case 'faculty':
                 return requestType.filter((e, i) =>
                     (e.val == 'complaint' ||
                      e.val == 'gatepass')
@@ -132,15 +133,9 @@ const EditUserInfoModal = (props) => {
         }
     }
     const generatePassword = (length) => {
-        var result           = '';
-        var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*_+<>?';
-        var charactersLength = characters.length;
-        for ( var i = 0; i < length; i++ ) {
-            result += characters.charAt(Math.floor(Math.random() * charactersLength));
-        }
         setData((prev) => ({
             ...prev,
-            password: result
+            password: generateStrongPassword(length)
         }))
     }
     const userType = (props.data != null) ? props.data.user_type : ''

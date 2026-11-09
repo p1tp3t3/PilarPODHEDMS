@@ -12,7 +12,8 @@ const roleLabel = (identity) => {
         case "super_admin": return "IT Admin"
         case "sub_admin": return "Prefect"
         case "student": return "Student"
-        case "teaching_staff": return identity.teaching_staff?.position === "program_head" ? "Program Head" : "Faculty"
+        case "program_head": return "Program Head"
+        case "faculty": return "Faculty"
         case "non_teaching_staff": return identity.non_teaching_staff?.position || "Staff"
         case "parent": return "Parent"
         default: return null

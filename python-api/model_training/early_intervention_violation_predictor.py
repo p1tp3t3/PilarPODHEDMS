@@ -270,63 +270,148 @@ class EarlyInterventionViolationPredictor:
             for row, p in zip(rows, proba)
         ]
 
-    def get_insights(self, data, pred):
-        insights = []
-        violation_type = data.get("violation_type", "Unknown")
+    # Plain-language names for the model's features (engineer_features),
+    # used to say which one weighed most on a prediction.
+    # (when the flag/count is present, when it is zero)
+    _FACTOR_NAMES = {
+        "past_repeat_same_violation_count": ("the number of times the student has committed this violation", "the student having no earlier record of this violation"),
+        "recent_same_violation_count": ("the repeat offenses in the last 90 days", "the lack of any repeat offense in the last 90 days"),
+        "first_offense": ("this being the student's first offense", "this not being the student's first offense"),
+        "months_0_1": ("the last offense being less than 2 months ago", "the last offense not being in the past 2 months"),
+        "months_2_3": ("the last offense being 2 to 3 months ago", "the last offense not being 2 to 3 months ago"),
+    }
 
-        prob = None
+    def _strongest_factor(self, data, pred):
+        """The feature that pushed this prediction hardest toward its verdict
+        (coefficient x scaled value), or None. Never exposes a percentage."""
         try:
             model = joblib.load(self.model_name)
-            X_in = pd.DataFrame([data]).fillna(0)
-            if hasattr(model, "predict_proba"):
-                prob = float(model.predict_proba(X_in)[:, 1][0])
+            clf = model.named_steps["clf"]
+            X = model[:-1].transform(pd.DataFrame([data]))
+            raw = engineer_features(pd.DataFrame([data])).iloc[0]
+            names = list(raw.index)
+            contrib = np.asarray(X)[0] * clf.coef_[0]
+            sign = 1 if int(pred) == 1 else -1
+            i = int(np.argmax(contrib * sign))
+            if contrib[i] * sign <= 0:
+                return None
+            present, absent = self._FACTOR_NAMES.get(names[i], (None, None))
+            return present if raw.iloc[i] > 0 else absent
         except Exception:
-            prob = None
+            return None
 
-        # `.get(key, 0)` only substitutes when the key is *missing* — a
-        # present-but-None value (e.g. a source complaint with no
-        # offense_issued_at date) still slips through and breaks int(None).
-        past_repeat = int(data.get("past_repeat_same_violation_count") or 0)
-        recent_same = int(data.get("recent_same_violation_count") or 0)
-        months_since = int(data.get("months_since_last_same_violation") or 0)
+    def get_insights(self, data, pred):
+        """Plain-language reasons behind the verdict, for the prefect. Built
+        from the same inputs the model sees; the model's probability is
+        deliberately left out (the page shows only Likely / Unlikely)."""
+        insights = []
+        violation_type = data.get("violation_type") or "this violation"
+        likely = int(pred) == 1
 
-        insights.append(f"Violation type selected: {violation_type}.")
+        # `.get(key, 0)` only substitutes when the key is *missing*; a
+        # present-but-None value still slips through and breaks int(None).
+        # past = every resolved record of this violation, the latest included.
+        # recent = how many of them fell in the last 90 days.
+        # months = months since the latest one; 120 marks a first offense.
+        total = int(data.get("past_repeat_same_violation_count") or 0)
+        recent = int(data.get("recent_same_violation_count") or 0)
+        months = data.get("months_since_last_same_violation")
+        months = FIRST_OFFENSE_MONTHS if months is None else int(months)
+        first = total <= 1 or months >= FIRST_OFFENSE_MONTHS
 
-        if past_repeat > 0:
-            insights.append(f"Student has repeated this violation before ({past_repeat} time(s)). This increases risk.")
+        def times(n):
+            return "once" if n == 1 else ("twice" if n == 2 else f"{n} times")
+
+        # 1. Offense history.
+        if first:
+            insights.append(
+                f"Offense history: this is the student's first resolved record of \"{violation_type}\". "
+                "There is no earlier pattern of this violation, which on its own keeps the risk of repeating it lower."
+            )
         else:
-            insights.append("No past repeats of the same violation were recorded, which generally reduces risk.")
+            level = "an established, repeated pattern" if total >= 4 else "a repeat offense, not a one-time mistake"
+            insights.append(
+                f"Offense history: the student has been recorded for \"{violation_type}\" {times(total)} "
+                f"(the latest counts as their {self._ordinal(total)} offense). This is {level}, "
+                "and each repeat makes another one more likely."
+            )
 
-        if recent_same > 0:
-            insights.append(f"There were recent occurrences of the same violation ({recent_same}). Recency increases risk.")
+        # 2. Recent activity (last 90 days).
+        if first:
+            insights.append(
+                "Recent activity: with only one record, there is no repeat activity in the last 90 days to measure yet."
+            )
+        elif recent == 0:
+            insights.append(
+                "Recent activity: none of these offenses happened in the last 90 days, "
+                "which suggests the behaviour has slowed down or stopped for now."
+            )
         else:
-            insights.append("No recent occurrences of the same violation were recorded, which lowers short-term risk.")
+            share = "all of them" if recent >= total else f"{recent} of the {total}"
+            weight = (
+                "a cluster of offenses in a short time, a strong sign the behaviour is ongoing"
+                if recent >= 3 else
+                "a sign the behaviour is still active"
+            )
+            insights.append(
+                f"Recent activity: {share} happened within the last 90 days. This is {weight}."
+            )
 
-        # months_since only means anything once there's a PAST occurrence to
-        # measure against — for a genuine first offense (past_repeat == 0)
-        # it's pinned to a neutral sentinel (120) by getModelInput()/the
-        # training data, not a real "several months clean" reading, so
-        # describing it as a risk factor here would be misleading either way.
-        if past_repeat == 0:
-            insights.append("This is the student's first recorded occurrence of this violation, so recency history isn't applicable yet.")
-        else:
-            if months_since <= 1:
-                insights.append("The last same violation was very recent (≤ 1 month), which increases repeat risk.")
-            elif months_since <= 3:
-                insights.append("The last same violation was within 2–3 months, which indicates moderate risk.")
+        # 3. Time since the last offense.
+        if not first:
+            if months <= 0:
+                when = "less than a month ago"
+            elif months == 1:
+                when = "about 1 month ago"
             else:
-                insights.append("The last same violation was several months ago, which reduces repeat risk.")
+                when = f"about {months} months ago"
+            if months <= 1:
+                meaning = "This is very recent, the period when a repeat is most likely."
+            elif months <= 3:
+                meaning = "This is fairly recent, so the risk has not yet had time to fade."
+            else:
+                meaning = "Several months without a repeat lowers the risk, though the earlier history still counts."
+            insights.append(f"Last offense: {when}. {meaning}")
 
-        if prob is not None:
-            verdict = "high" if prob >= 0.65 else ("moderate" if prob >= 0.45 else "low")
-            insights.append(f"Model probability estimate: {prob:.4f} ({verdict} risk under the current threshold logic).")
-
-        if int(pred) == 1:
-            insights.append("Final decision: Student is flagged for early intervention (predicted repeat).")
+        # 4. Overall pattern.
+        if first:
+            pattern = "a single incident with no pattern yet"
+        elif recent >= total and total >= 2:
+            pattern = "every offense is recent, so the behaviour appears to be escalating"
+        elif recent > 0:
+            pattern = "the offenses are spread out over time and still continuing"
         else:
-            insights.append("Final decision: Student is not flagged (predicted not to repeat).")
+            pattern = "earlier offenses with a quiet period since"
+        insights.append(f"Pattern: {pattern}.")
+
+        # 5. What weighed most.
+        factor = self._strongest_factor(data, pred)
+        if factor:
+            insights.append(
+                f"Main reason for this result: {factor} weighed most on the prediction."
+            )
+
+        # 6. What it means.
+        if likely:
+            insights.append(
+                "Result: the student is flagged for early intervention. They are likely to commit "
+                f"\"{violation_type}\" again unless something changes, so follow-up is advised."
+            )
+        else:
+            insights.append(
+                "Result: the student is not flagged. They are unlikely to commit "
+                f"\"{violation_type}\" again soon; routine monitoring is enough for now."
+            )
 
         return insights
+
+    @staticmethod
+    def _ordinal(n):
+        if 10 <= n % 100 <= 20:
+            suffix = "th"
+        else:
+            suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+        return f"{n}{suffix}"
 
     def get_recommendation(self, data, pred, insights=None):
         # Was generated client-side via an OpenRouter call (student-violation.jsx)

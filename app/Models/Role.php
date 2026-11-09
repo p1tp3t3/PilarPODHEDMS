@@ -13,7 +13,7 @@ class Role extends Model
 
     // Built into the app's access rules (route middleware, menus,
     // dashboards) — their `name` can't change and they can't be deleted.
-    public const SYSTEM_ROLES = ['super_admin', 'sub_admin', 'student', 'teaching_staff', 'non_teaching_staff', 'parent'];
+    public const SYSTEM_ROLES = ['super_admin', 'sub_admin', 'student', 'program_head', 'faculty', 'non_teaching_staff', 'parent'];
 
     protected static array $idCache = [];
 

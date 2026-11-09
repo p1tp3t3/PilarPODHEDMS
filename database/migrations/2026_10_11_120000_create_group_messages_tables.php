@@ -5,7 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * One group chat per program for its teaching staff. A program's group
+ * One group chat per program for its program heads and faculty. A program's group
  * exists implicitly — its messages are keyed by program_id — so there's
  * nothing to create when a program or teacher is added.
  */

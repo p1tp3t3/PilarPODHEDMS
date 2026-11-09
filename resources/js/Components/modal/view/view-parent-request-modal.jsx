@@ -1,7 +1,7 @@
 import UpModal from "../up-modal"
 import { FamilyService } from "@/others/services/family-service"
 import { useState, useEffect, useMemo } from "react"
-import { toTitleCase } from "@/others/function"
+import { toTitleCase, getYearLevel } from "@/others/function"
 import { ViewModalSkeleton } from "./view-modal-parts"
 
 const ViewParentRequestModal = (props) => {
@@ -189,6 +189,10 @@ const Body = ({ data }) => {
                                     <InfoRow
                                         label="Program"
                                         value={child.program || "-"}
+                                    />
+                                    <InfoRow
+                                        label="Year Level"
+                                        value={child.year_level ? getYearLevel(Number(child.year_level)) : "-"}
                                     />
                                 </div>
                             </div>

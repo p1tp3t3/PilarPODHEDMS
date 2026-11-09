@@ -2,7 +2,7 @@ import ProfilePic from "./profile-pic";
 import { useState, useEffect, useRef, useContext } from "react";
 import NotificationModal from "../modal/notification-modal";
 import AccountModal from "../modal/account-modal";
-import { getChannelList, getProfilePic, playNotificationSound } from "../../others/function";
+import { getChannelList, getProfilePic, playNotificationSound, playMessageSound } from "../../others/function";
 import CallInModal from "../modal/submission-form/call-in-modal";
 import { UserService } from "@/others/services/user-service";
 import { NotificationService } from "@/others/services/notification-service";
@@ -95,7 +95,11 @@ const AuthHeader = (props) => {
       'private',
       'chat.' + props.user.id,
       'MessageSent',
-      (e) => setChatUnread(e.unread_count)
+      // Only the receiver gets this event: a new message for this user.
+      (e) => {
+        setChatUnread(e.unread_count);
+        playMessageSound();
+      }
     ).configure('enable chat badge');
   }, []);
 

@@ -6,6 +6,7 @@ import { readableDate, readableTime, toTitleCase, showWarningModal, showOutputMo
 import ActionBtn from "../button/action-btn"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
 import { Play, Pencil, Trash2 } from "lucide-react"
+import { router } from "@inertiajs/react"
 
 const summarizeFilters = (filters) => {
     const parts = []
@@ -53,7 +54,8 @@ const ReportFilterList = ({ list = null, onEdit, onChange, showType = true, gene
     const handleGenerate = (row) => {
         ReportArchiveService.generateFromReportFilter(
             row.id,
-            () => showOutputModal("Report queued — check \"Generated Reports\" for the download link once it's ready.", "s"),
+            // Straight to Generated Reports, where the file appears once it's ready.
+            () => router.visit("/prefect/report/generated"),
             () => showOutputModal("Failed to queue report generation.", "e")
         )
     }

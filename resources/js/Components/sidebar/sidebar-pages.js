@@ -36,7 +36,7 @@ import {
 // `id` must be a literal substring of the page's own URL — SidebarNav marks
 // a nav item active via `url.includes(id)`. The same id is reused
 // across different roles' entries on purpose (e.g. "student-list" appears
-// under super_admin, sub_admin and teaching_staff); that's safe because a
+// under super_admin, sub_admin and faculty); that's safe because a
 // given user only ever sees their own role's items, so they never coexist
 // in the DOM.
 export const sidebarPages = [
@@ -44,7 +44,7 @@ export const sidebarPages = [
         type: "link", id: "dashboard", href: "/dashboard", icon: LineChart, label: "Dashboard",
         // "guard"/"guidance" aren't separate roles — they're positions
         // inside non_teaching_staff, already covered by that role entry.
-        roles: ["super_admin", "sub_admin", "student", "teaching_staff", "non_teaching_staff", "parent"],
+        roles: ["super_admin", "sub_admin", "student", "program_head", "faculty", "non_teaching_staff", "parent"],
     },
 
     // ---- super_admin (ITRC) ----
@@ -64,14 +64,6 @@ export const sidebarPages = [
         items: [
             { id: "report/statistics", href: "/super-admin/report/statistics", icon: BarChart3, label: "Statistics" },
             { id: "report/action-log", href: "/super-admin/report/action-log", icon: ScrollText, label: "Action Log" },
-        ],
-    },
-    {
-        type: "dropdown", id: "violation-management", icon: AlertTriangle, label: "Violation Management", roles: ["super_admin"],
-        items: [
-            { id: "violation-management/violations", href: "/violation-management/violations", icon: ShieldAlert, label: "Violations" },
-            { id: "violation-management/penalties", href: "/violation-management/penalties", icon: Gavel, label: "Penalties" },
-            { id: "violation-management/access", href: "/violation-management/access", icon: KeyRound, label: "Edit Access" },
         ],
     },
     {
@@ -104,7 +96,6 @@ export const sidebarPages = [
             { id: "violation-management/violations", href: "/violation-management/violations", icon: ShieldAlert, label: "Violations" },
             { id: "violation-management/penalties", href: "/violation-management/penalties", icon: Gavel, label: "Penalties" },
             { id: "violation-management/student-violations", href: "/violation-management/student-violations", icon: GraduationCap, label: "Student Violations" },
-            { id: "violation-management/access", href: "/violation-management/access", icon: KeyRound, label: "Edit Access" },
         ],
     },
     { type: "link", id: "appointment", href: "/prefect/appointment", icon: Calendar, label: "Appointment", roles: ["sub_admin"] },
@@ -123,10 +114,10 @@ export const sidebarPages = [
         ],
     },
 
-    // ---- shared: complaint (student, teaching_staff, non_teaching_staff, parent) ----
+    // ---- shared: complaint (student, program_head, faculty, non_teaching_staff, parent) ----
     {
         type: "link", id: "complaint", href: "/complaint", icon: FileWarning, label: "Complaint",
-        roles: ["student", "teaching_staff", "non_teaching_staff", "parent"],
+        roles: ["student", "program_head", "faculty", "non_teaching_staff", "parent"],
     },
 
     // ---- student ----
@@ -136,22 +127,22 @@ export const sidebarPages = [
     // ---- shared: appointment (the prefect schedules them for students and parents) ----
     { type: "link", id: "appointment", href: "/appointment", icon: Calendar, label: "Appointment", roles: ["student", "parent"] },
 
-    // ---- teaching_staff ----
+    // ---- program_head / faculty ----
     // Account Files (other/program-account-files.jsx) already shows Faculty
     // and Student as tabs on the same page — separate "Faculty"/"Student"
     // dropdown entries just linked to duplicate, single-purpose versions of
     // those same tabs, so this is one link instead of a three-item dropdown.
     {
-        type: "link", id: "account-files", href: "/teaching-staff/account-files", icon: Users, label: "User List",
-        roles: ["teaching_staff"], show: (usr) => usr.teaching_staff?.position === "program_head",
+        type: "link", id: "account-files", href: "/program/account-files", icon: Users, label: "User List",
+        roles: ["program_head"],
     },
     {
-        type: "link", id: "student-list", href: "/teaching-staff/student-list", icon: GraduationCap, label: "Student List",
-        roles: ["teaching_staff"], show: (usr) => usr.teaching_staff?.position !== "program_head",
+        type: "link", id: "student-list", href: "/program/student-list", icon: GraduationCap, label: "Student List",
+        roles: ["faculty"],
     },
     {
         type: "link", id: "referral", href: "/referral", icon: Share2, label: "Referral",
-        roles: ["teaching_staff"],
+        roles: ["program_head", "faculty"],
     },
 
     // ---- non_teaching_staff: guard/guidance positions ----

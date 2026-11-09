@@ -38,9 +38,11 @@ const ROLE_COLUMNS = {
     textColumn("program_name", "Program", (row) => studentProgram(row), 150),
     textColumn("year_level", "Year Level", (row) => studentYearLevel(row)),
   ],
-  teaching_staff: [
-    textColumn("position", "Position", (row) => label(row.teaching_staff?.position)),
-    textColumn("program_name", "Program", (row) => row.teaching_staff?.program?.name, 150),
+  program_head: [
+    textColumn("program_name", "Programs", (row) => (row.teaching?.programs_handled ?? []).map((p) => p.name).join(", ") || row.teaching?.program?.name, 150),
+  ],
+  faculty: [
+    textColumn("program_name", "Program", (row) => row.teaching?.program?.name, 150),
   ],
   non_teaching_staff: [
     textColumn("position", "Position", (row) => label(row.non_teaching_staff?.position)),

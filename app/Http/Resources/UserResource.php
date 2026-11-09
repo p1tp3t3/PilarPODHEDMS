@@ -29,7 +29,7 @@ class UserResource extends JsonResource
             'profile' => $this->whenLoaded('profile'),
             'program' => $this->whenLoaded('program'),
             'enrollments' => $this->whenLoaded('enrollments'),
-            'teaching_staff' => $this->whenLoaded('teachingStaff'),
+            'teaching' => $this->teaching,
             'non_teaching_staff' => $this->whenLoaded('nonTeachingStaff'),
             'parent' => $this->whenLoaded('parent'),
             'permissions' => $this->whenLoaded('permissions'),
