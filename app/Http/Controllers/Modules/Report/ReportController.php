@@ -65,6 +65,12 @@ class ReportController extends Controller
 
         if ($filterBy === 'date' && $dateFrom && $dateTo) {
             $constrain = fn ($q) => $q->whereBetween($dateColumn, [$dateFrom, "$dateTo 23:59:59"]);
+        } elseif ($filterBy === 'school_year' && (! $schoolYearId || $schoolYearId === 'all') && $semester) {
+            $constrain = function ($q) use ($dateColumn, $semester) {
+                SchoolYearSemester::applyFilter($q, $dateColumn, null, $semester);
+
+                return $q;
+            };
         } elseif ($filterBy === 'school_year' && $schoolYearId && $schoolYearId !== 'all') {
             // ('all' = every school year: no limit.)
             $semesters = SchoolYearSemester::allCached()->filter(
@@ -425,8 +431,10 @@ class ReportController extends Controller
         $to = $dateTo;
 
         // All School Years: no limit at all.
-        if ($filterBy === 'school_year' && $schoolYearId === 'all') {
+        $acrossYears = $filterBy === 'school_year' && (! $schoolYearId || $schoolYearId === 'all');
+        if ($acrossYears) {
             $schoolYearId = null;
+        } elseif (! $schoolYearId) {
             $semester = null;
         }
 
@@ -439,12 +447,16 @@ class ReportController extends Controller
 
         $hasRange = $from && $to;
 
+        $semesterAcross = $acrossYears && $semester ? $semester : null;
+
         $countByRole = fn ($role) => User::whereRole($role)
             ->when($hasRange, fn ($q) => $q->whereBetween('created_at', [$from, $to]))
+            ->when($semesterAcross, fn ($q) => SchoolYearSemester::applyFilter($q, 'created_at', null, $semesterAcross))
             ->count();
 
-        if ($filterBy === 'school_year' && $schoolYearId) {
-            $studentQuery = Enrollment::where('school_year_id', $schoolYearId)
+        if ($filterBy === 'school_year' && ($schoolYearId || ($acrossYears && $semester))) {
+            $studentQuery = Enrollment::query()
+                ->when($schoolYearId, fn ($q) => $q->where('school_year_id', $schoolYearId))
                 ->when($semester, fn ($q) => $q->where('semester', $semester));
 
             $studentCount = (clone $studentQuery)->distinct('student_id')->count('student_id');
@@ -638,9 +650,9 @@ class ReportController extends Controller
         $parts = [];
 
         if (! empty($filters['school_year'])) {
-            $parts[] = $filters['school_year'] === 'all'
+            $parts[] = ($filters['school_year'] === 'all'
                 ? 'All School Years'
-                : "SY {$filters['school_year']}".self::semesterSuffix($filters['semester'] ?? null);
+                : "SY {$filters['school_year']}").self::semesterSuffix($filters['semester'] ?? null);
         } elseif (! empty($filters['date_from']) && ! empty($filters['date_to'])) {
             $parts[] = Carbon::parse($filters['date_from'])->format('M j, Y').' – '.Carbon::parse($filters['date_to'])->format('M j, Y');
         }
@@ -1224,8 +1236,15 @@ class ReportController extends Controller
         $to = null;
         $label = null;
 
-        if ($request->filter_by === 'school_year' && $request->school_year_id === 'all') {
-            $label = 'All School Years';
+        $semesterAcross = null;
+
+        if ($request->filter_by === 'school_year' && (! $request->filled('school_year_id') || $request->school_year_id === 'all')) {
+            $semesterAcross = in_array((int) $request->semester, [1, 2], true) ? (int) $request->semester : null;
+            $label = 'All School Years'.match ($semesterAcross) {
+                1 => ' (1st Semester)',
+                2 => ' (2nd Semester)',
+                default => '',
+            };
         } elseif ($request->filter_by === 'school_year') {
             $year = $request->filled('school_year_id')
                 ? SchoolYear::where('id', $request->school_year_id)->value('year')
@@ -1262,13 +1281,14 @@ class ReportController extends Controller
             };
         }
 
-        return ['from' => $from, 'to' => $to, 'label' => $label];
+        return ['from' => $from, 'to' => $to, 'label' => $label, 'semester' => $semesterAcross];
     }
 
     private function applyActionLogRange($query, array $range): void
     {
         $query->when($range['from'], fn ($q) => $q->where('created_at', '>=', $range['from']))
-            ->when($range['to'], fn ($q) => $q->where('created_at', '<=', $range['to']));
+            ->when($range['to'], fn ($q) => $q->where('created_at', '<=', $range['to']))
+            ->when($range['semester'] ?? null, fn ($q) => SchoolYearSemester::applyFilter($q, 'created_at', null, $range['semester']));
     }
 
     public function getReportField($request)

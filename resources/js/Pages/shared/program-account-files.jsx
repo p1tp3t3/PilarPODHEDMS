@@ -33,7 +33,7 @@ const ProgramAccountFiles = (props) => {
 
             {activeTab === "students" && <StudentList list={props.students} type="program_head" />}
             {activeTab === "faculty" && <FacultyList list={props.faculty} type="program_head" />}
-            {activeTab === "files" && <AccountFilesTab files={props.account_files} canDelete={false} />}
+            {activeTab === "files" && <AccountFilesTab files={props.account_files} canDelete={false} showRoleFilter={false} />}
         </PageLayout>
         </>
     )

@@ -5,7 +5,6 @@ import FormButton from "@/Components/button/button"
 import { SystemService } from "@/others/services/system-service"
 import { disablePrevDate, showWarningModal , showLoadingModal, closeLoadingModal } from "@/others/function"
 import { useState } from "react"
-import { CalendarClock } from "lucide-react"
 
 // Combines what used to be two separate cards (pick a start date, write a
 // notice) into one form — scheduling a maintenance window and telling
@@ -66,16 +65,8 @@ const ScheduleMaintenanceModal = ({ close, closeModal, onScheduled }) => {
             w="w-[32rem]"
         >
             <form onSubmit={handleSubmit} className="grid gap-5">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 grid place-items-center flex-shrink-0">
-                        <CalendarClock size={18} />
-                    </div>
-                    <div>
-                        <div className="font-semibold text-gray-800">Schedule Maintenance</div>
-                        <p className="text-[0.85em] text-gray-500">
-                            Maintenance mode turns itself on automatically at the date/time you pick, and everyone is notified now.
-                        </p>
-                    </div>
+                <div className="pt-2 pr-6 text-[1.1em] sm:text-[1.2em]">
+                    <h1><b>Schedule Maintenance</b></h1>
                 </div>
 
                 <FormTextfield

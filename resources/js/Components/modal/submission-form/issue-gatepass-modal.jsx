@@ -90,9 +90,8 @@ const IssueGatePassModal = (props) => {
             w="w-[32rem]"
         >
             <form method="post" onSubmit={handleSubmit} className="grid gap-4">
-                <div className="text-[1.2em]">
+                <div className="pt-2 text-[1.1em] sm:text-[1.2em]">
                     <h1><b>Issue Gate Pass</b></h1>
-                    <p className="text-[0.7em] text-gray-500">Gate passes issued by the prefect are approved immediately.</p>
                 </div>
 
                 <div className="grid gap-2">

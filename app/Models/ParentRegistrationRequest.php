@@ -13,11 +13,21 @@ class ParentRegistrationRequest extends Model
 
     protected $table = 'parent_registration_request';
 
-    protected $fillable = ['name', 'email', 'parent_details', 'reason', 'is_agreed', 'parent_id'];
+    protected $fillable = ['name', 'email', 'parent_details', 'reason', 'is_agreed', 'parent_id', 'status', 'rejected_reason', 'rejected_at'];
 
     protected function casts(): array
     {
-        return ['is_agreed' => 'boolean'];
+        return ['is_agreed' => 'boolean', 'rejected_at' => 'datetime'];
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    public static function hasPendingFor(string $email): bool
+    {
+        return static::pending()->whereRaw('LOWER(email) = ?', [strtolower(trim($email))])->exists();
     }
 
     /** The parent account generated when this request was approved (null while pending). */

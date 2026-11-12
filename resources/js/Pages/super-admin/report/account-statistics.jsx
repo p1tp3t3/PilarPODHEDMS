@@ -88,7 +88,6 @@ const AccountStatistics = ({ initial, schoolYears, userId }) => {
                 onApply={setFilter}
                 onClear={() => setFilter(EMPTY_REPORT_FILTER)}
                 allSemestersLabel="All Semesters (Students Only)"
-                description="Show the account statistics for a date range or a school year."
             />
 
             <div className="flex flex-wrap items-center justify-between gap-3 min-w-0">

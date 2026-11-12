@@ -2,6 +2,7 @@ import axios from "axios";
 import CryptoJS from "crypto-js";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
+import { startBusy, endBusy } from "./form-busy";
 
 const MySwal = withReactContent(Swal)
 const cryptoKey = 'gh4mdvcf'
@@ -112,6 +113,7 @@ export const showWarningModal = (
 // Any showOutputModal (success/error) replaces it; call closeLoadingModal()
 // when a request finishes without showing a result message.
 export const showLoadingModal = (text = "Processing") => {
+    if (startBusy(() => showLoadingModal(text))) return;
     Swal.fire({
         title: "Please wait",
         text: `${text}...`,
@@ -122,10 +124,12 @@ export const showLoadingModal = (text = "Processing") => {
     });
 };
 export const closeLoadingModal = () => {
+    endBusy();
     if (Swal.isVisible() && Swal.isLoading()) Swal.close();
 };
 
 export const showOutputModal = (text = "Success", type = "s", callBack, htmlContent = null, timer = null) => {
+    endBusy();
     const modalAtt = {
         's': {
             icon: "success",

@@ -65,6 +65,13 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'breach' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/breach-log.log'),
+            'level' => 'info',
+            'replace_placeholders' => false,
+        ],
+
         'daily' => [
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),

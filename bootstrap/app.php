@@ -34,6 +34,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\PreventWritesDuringMaintenance::class,
             \App\Http\Middleware\ForceAccountSetup::class,
             \App\Http\Middleware\DecryptEncryptedIds::class,
+            \App\Http\Middleware\DetectMaliciousInput::class,
         ]);
         
         $middleware->alias([
@@ -77,6 +78,24 @@ $app = Application::configure(basePath: dirname(__DIR__))
                  ->dailyAt('08:00');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Security Monitor: log suspicious HTTP errors (null keeps the normal response).
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e, Request $request) {
+            $status = $e->getStatusCode();
+            $path = '/'.ltrim($request->path(), '/');
+
+            if ($status === 404 && preg_match('#(^|/)(\.env|\.git|\.htaccess|\.ds_store|wp-admin|wp-login|wp-content|wp-includes|xmlrpc\.php|phpmyadmin|pma|adminer|cgi-bin|vendor/phpunit|server-status|config\.php|setup\.php|shell\.php|boaform|actuator|\.aws|\.ssh)#i', $path)) {
+                \App\Support\BreachLog::record('scanner_probe', 'medium', "Probe for {$path}");
+            } elseif ($status === 403) {
+                \App\Support\BreachLog::record('forbidden', 'medium', "Forbidden request to {$path}");
+            } elseif ($status === 419) {
+                \App\Support\BreachLog::record('csrf_mismatch', 'low', "Invalid or expired CSRF token on {$path}");
+            } elseif ($status === 429) {
+                \App\Support\BreachLog::record('rate_limited', 'medium', "Too many requests to {$path}");
+            }
+
+            return null;
+        });
+
         // Laravel's default auth middleware treats every Inertia/axios
         // request as "expects JSON" (Inertia sends Accept: application/json)
         // and just returns a plain 401 instead of ever redirecting — fine

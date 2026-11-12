@@ -92,7 +92,6 @@ const ReportReferralModal = (props) => {
             <div className="w-full">
                 <div className="pt-2 text-[1.1em] sm:text-[1.2em]">
                     <h1><b>Referral Report</b></h1>
-                    <p className="text-[0.75em] text-gray-500 mt-1">Refer a student to the Prefect of Discipline</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="py-3 w-full grid gap-4">

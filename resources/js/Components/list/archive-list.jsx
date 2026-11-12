@@ -182,7 +182,7 @@ const ArchiveList = ({ list = [], viewDocument, deleteDocument }) => {
         disableRowSelectionOnClick
         pagination
         initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
-        pageSizeOptions={[20, 50, 100, 200]}
+        pageSizeOptions={[20, 50, 100]}
         getRowHeight={() => "auto"}
         localeText={{ noRowsLabel: "No Documents Yet" }}
       />

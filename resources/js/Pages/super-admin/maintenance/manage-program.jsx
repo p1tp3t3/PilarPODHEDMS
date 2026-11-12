@@ -207,16 +207,7 @@ const ManageProgram = ({ list, original_list, events, reload, setter }) => {
           disableRowSelectionOnClick
           hideFooterSelectedRowCount
           showToolbar
-          components={{
-            NoRowsOverlay: () => (
-              <div className="grid place-items-center h-full text-gray-600 py-10">
-                <div className="text-[4em]">
-                  <AlertCircle size="1em" />
-                </div>
-                <div><b>No Programs Found</b></div>
-              </div>
-            ),
-          }}
+          localeText={{ noRowsLabel: "No programs found" }}
         />
       </div>
     </div>

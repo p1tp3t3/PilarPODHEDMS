@@ -8,6 +8,8 @@ import PageLayout from "@/Layouts/page-layout"
 import { FamilyService } from "@/others/services/family-service"
 import { useState } from "react"
 import { Head } from "@inertiajs/react"
+import { useReload } from "@/context-provider/reload-provider"
+import TabSwitcher from "@/Components/other/tab-switcher"
 
 const ParentApprovalRequest = (props) => {
     const [viewParent, openParent] = useState(false),
@@ -20,6 +22,10 @@ const ParentApprovalRequest = (props) => {
     const [data, setData] = useState({
         reason: ''
     })
+    const { loadRegister } = useReload()
+    const [tab, setTab] = useState('all')
+    const all = parent_request_list ?? []
+    const shown = tab === 'all' ? all : all.filter((r) => (r.status ?? 'pending') === tab)
 
     const setEvent = (t, i, info) => {
         if(t == 'v') {
@@ -35,7 +41,7 @@ const ParentApprovalRequest = (props) => {
                 'Approve',
                 'Cancel',
                 () => {
-                    showLoadingModal("Approving the parent request")
+                    showLoadingModal("Approving the parent registration request")
                     const api = new APIRequest(
                         `/super-admin/parent-request/approve`, 
                         'post', 
@@ -68,26 +74,33 @@ const ParentApprovalRequest = (props) => {
             openRejectReason(true)
         }
     }
-    const loadRegister = () => {
-
-    }
 
     return (
         <>
-        <Head title="Parent Request List" />
+        <Head title="Parent Registration Requests" />
         <SetReasonModal
             close={rejectReason}
             closeModal={openRejectReason}
             pd={["px-10", "py-7"]}
             isEnableOuterClose={true}
-            title='Reason to Reject this Parent Request'
+            title='Reason to Reject this Parent Registration Request'
             data={data}
             setData={setData}
             sendData={() => {
-                loadRegister(true, "text-wait", 'Rejecting Parent Request Is Processing')
-                FamilyService.rejectParentRequest(id, data.reason)
+                loadRegister(true, "text-wait", 'Rejecting Parent Registration Request Is Processing')
+                FamilyService.rejectParentRequest(
+                    id,
+                    data.reason,
+                    setParentRequestList,
+                    () => {
+                        loadRegister(true, "success", "Parent Registration Request Rejected")
+                        openRejectReason(false)
+                        setData({ reason: '' })
+                    },
+                    (e) => loadRegister(true, "error", e?.response?.data?.message ?? "Failed to Reject the Parent Registration Request")
+                )
             }}
-            warning={{ title: 'Are You Sure You Want To Reject This Parent Request?' , btn: 'Reject Request' }}
+            warning={{ title: 'Are You Sure You Want To Reject This Parent Registration Request?' , btn: 'Reject Request' }}
             />
         <RegisterFamilyModal 
             close={familyRegistration} 
@@ -105,10 +118,19 @@ const ParentApprovalRequest = (props) => {
             isEnableOuterClose={true}
             id={id}
         />}
-        <PageLayout title="PARENT REQUEST LIST">
-            <div>
+        <PageLayout title="PARENT REGISTRATION REQUESTS">
+            <div className="grid gap-3">
+                <TabSwitcher
+                    value={tab}
+                    onChange={setTab}
+                    tabs={[
+                        { key: 'all', label: 'All Requests' },
+                        { key: 'pending', label: 'Pending' },
+                        { key: 'rejected', label: 'Rejected' },
+                    ]}
+                />
                 <ParentRequestList
-                    list={parent_request_list}
+                    list={shown}
                     event={setEvent}
                 />
             </div>

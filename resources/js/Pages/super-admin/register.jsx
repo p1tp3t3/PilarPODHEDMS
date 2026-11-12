@@ -280,10 +280,10 @@ const Register = (props) => {
             // 3️⃣ Define required columns
             const commonCol = ["id", "first_name", "middle_name", "last_name", "sex", "email"];
             const col = {
-                student: ["id", "first_name", "middle_name", "last_name", "suffix", "sex", "email", "program", "year_level", "school_year"],
-                faculty: commonCol.concat(["program"]),
+                student: ["id", "first_name", "middle_name", "last_name", "suffix", "sex", "email", "program", "year_level"],
+                faculty: ["id", "first_name", "middle_name", "last_name", "suffix", "sex", "email", "program"],
                 administrative: commonCol.concat(["program"]),
-                staff: commonCol.concat(["position"]),
+                staff: ["id", "first_name", "middle_name", "last_name", "suffix", "sex", "email", "position"],
             };
 
             const requiredCols = col[t].map((h) => h.toLowerCase().trim());
@@ -306,9 +306,9 @@ const Register = (props) => {
 
                 // 6️⃣ Validate program (only if "program" column exists)
                 let invalidPrograms = [];
+                const isNameBased = t === 'student' || t === 'faculty';
                 const programIndex = headers.indexOf("program");
                 if (programIndex !== -1) {
-                    const isNameBased = t === 'student';
                     const validPrograms = isNameBased
                         ? props.program.map((p) => p.name.toLowerCase())
                         : props.program.map((p) => String(p.id));
@@ -338,11 +338,11 @@ const Register = (props) => {
                     setValidationError((prev) => ({
                         ...prev,
                         file:
-                            `Invalid program${t === 'student' ? ' names' : ' IDs'} found at rows: ${invalidPrograms
+                            `Invalid program${isNameBased ?' names' : ' IDs'} found at rows: ${invalidPrograms
                                 .map((r) => `${r.row} (${r.value})`)
                                 .join(", ")}. ` +
-                            `Allowed ${t === 'student' ? 'names' : 'IDs'}:\n` +
-                            props.program.map((p) => `${t === 'student' ? p.name : p.id} - ${p.description}`).join("\n"),
+                            `Allowed ${isNameBased ?'names' : 'IDs'}:\n` +
+                            props.program.map((p) => `${isNameBased ?p.name : p.id} - ${p.description}`).join("\n"),
                     }));
 
                 // Final validation results

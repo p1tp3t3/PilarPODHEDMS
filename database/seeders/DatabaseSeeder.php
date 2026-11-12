@@ -51,6 +51,11 @@ class DatabaseSeeder extends Seeder
             storage_path('app/public/program-logos'),
         ];
 
+        $log_files = [
+            storage_path('logs/laravel.log'),
+            storage_path('logs/breach-log.log'),
+        ];
+
         $this->command->info('Refreshing storage folders...');
 
         // File::deleteDirectories() deletes the SUBdirectories *within* a
@@ -60,6 +65,10 @@ class DatabaseSeeder extends Seeder
         foreach (array_merge($private_folders, $public_folders) as $folder) {
             File::deleteDirectory($folder);
             File::makeDirectory($folder, 0755, true);
+        }
+        foreach ($log_files as $file) {
+            File::delete($file);
+            File::put($file, '');
         }
 
         // The public disk is useless without this symlink (public/storage

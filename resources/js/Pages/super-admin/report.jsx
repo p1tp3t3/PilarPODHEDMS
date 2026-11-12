@@ -113,7 +113,6 @@ const ITRCReport = (props) => {
                     emptyValue={EMPTY_LOG_FILTER}
                     canApply={() => true}
                     schoolYearLabel="All School Years"
-                    description="Show only the logs of an action type, within a date range or a school year."
                     extraFields={(draft, setDraft) => (
                         <DropdownField
                             default={{ val: 'all', label: 'All Action Type' }}

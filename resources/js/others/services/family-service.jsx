@@ -1,8 +1,8 @@
 import { APIRequest } from "../classes/api-req";
 
 export const FamilyService = {
-    rejectParentRequest(id, reason) {
-        const api = new APIRequest(`/super-admin/parent-register/reject/${id}`, "post", { reason });
+    rejectParentRequest(id, reason, setter, success, error) {
+        const api = new APIRequest(`/super-admin/parent-register/reject/${id}`, "post", { reason }, setter, success, error);
         api.fetchData();
     },
     getParentRequestInfo(id, success, error) {

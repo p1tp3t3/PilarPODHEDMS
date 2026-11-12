@@ -18,11 +18,14 @@ return new class extends Migration
             // account is generated; null while pending.
             $table->foreignId('parent_id')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
             $table->string('name')->nullable();
-            $table->string('email')->unique();
+            $table->string('email')->index();
             $table->longText('parent_details')->nullable();
             $table->text('reason')->nullable();
             // The parent agreed to the Terms and Conditions when registering.
             $table->boolean('is_agreed')->default(false);
+            $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
+            $table->text('rejected_reason')->nullable();
+            $table->timestamp('rejected_at')->nullable();
             $table->timestamp('created_at')->useCurrent();
         });
     }

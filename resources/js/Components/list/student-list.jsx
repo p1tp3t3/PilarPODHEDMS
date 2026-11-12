@@ -148,7 +148,7 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
         disableRowSelectionOnClick
         hideFooterSelectedRowCount
         pagination
-        pageSizeOptions={[20, 50, 100, 200]}
+        pageSizeOptions={[20, 50, 100]}
         initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
         showToolbar
         getRowId={(row) => row.id}

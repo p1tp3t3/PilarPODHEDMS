@@ -93,9 +93,6 @@ const EditReferralModal = (props) => {
             <div className="w-full">
                 <div className="pt-2 text-[1.1em] sm:text-[1.2em]">
                     <h1><b>Edit Your Referral</b></h1>
-                    <p className="text-[0.75em] text-gray-500 mt-1">
-                        You can only edit this referral once, and only while it's still pending.
-                    </p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="py-3 w-full grid gap-4">

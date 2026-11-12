@@ -552,7 +552,7 @@ class AccountController extends Controller
 
     /**
      * Prefect only: a roster covering both staff roles, split by tab —
-     * unlike getFaculty() (program heads and faculty only, program-scoped for program
+     * unlike getFaculty() (faculty only, program-scoped for program
      * heads), this is unscoped and lets the caller pick teaching vs.
      * non-teaching via ?type=.
      */
@@ -1395,7 +1395,7 @@ class AccountController extends Controller
         $isProgramHead = (bool) $myTeaching?->isProgramHead();
 
         $data = User::with(['profile', 'faculty.program', 'headships.program'])
-            ->whereRole(User::TEACHING_ROLES);
+            ->whereRole('faculty');
 
         if (in_array(auth()->user()->role, ['super_admin', 'sub_admin']) || $isProgramHead) {
             // Filter by program if not "all"

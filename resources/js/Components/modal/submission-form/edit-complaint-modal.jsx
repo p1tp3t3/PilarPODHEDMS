@@ -143,9 +143,6 @@ const EditComplaintModal = (props) => {
             <div className="w-full">
                 <div className="pt-2 text-[1.1em] sm:text-[1.2em]">
                     <h1><b>Edit Your Complaint</b></h1>
-                    <p className="text-[0.75em] text-gray-500 mt-1">
-                        You can only edit this complaint once. Evidence you've already uploaded will be kept — new files are added on top of it.
-                    </p>
                 </div>
                 <div className="py-3 w-full">
                     <form onSubmit={handleSubmit} className="grid gap-4">

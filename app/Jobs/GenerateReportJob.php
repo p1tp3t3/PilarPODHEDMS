@@ -150,6 +150,21 @@ class GenerateReportJob implements ShouldQueue
         return $fileName;
     }
 
+    /** "All School Years" + a semester: that semester of every school year. */
+    private function semesterAcrossYears(): ?int
+    {
+        $sem = (int) ($this->filters['semester'] ?? 0);
+
+        return ($this->filters['school_year'] ?? null) === 'all' && in_array($sem, [1, 2], true) ? $sem : null;
+    }
+
+    private function onlySemesterAcrossYears($query, string $column): void
+    {
+        if ($sem = $this->semesterAcrossYears()) {
+            \App\Models\SchoolYearSemester::applyFilter($query, $column, null, $sem);
+        }
+    }
+
     private function buildAnalyticsFile(): array
     {
         $from = $this->filters['date_from'];
@@ -243,7 +258,9 @@ class GenerateReportJob implements ShouldQueue
 
         $query = ReportController::getAllReport($type)
             ->whereHas('complaint', function ($q) use ($filters, $isIncident) {
-                $q->whereBetween($isIncident ? 'complaint.created_at' : 'complaint.offense_issued_at', [$filters['date_from'], $filters['date_to']]);
+                $column = $isIncident ? 'complaint.created_at' : 'complaint.offense_issued_at';
+                $q->whereBetween($column, [$filters['date_from'], $filters['date_to']]);
+                $this->onlySemesterAcrossYears($q, $column);
             });
 
         if ($individual) {
@@ -386,6 +403,9 @@ class GenerateReportJob implements ShouldQueue
                 if ($date < $filters['date_from'] || $date > $filters['date_to']) {
                     return false;
                 }
+                if (($sem = $this->semesterAcrossYears()) && \App\Models\SchoolYearSemester::forDate($date)?->semester !== $sem) {
+                    return false;
+                }
 
                 return $reportType === 'all' || $cs->complaint->incident_id == $reportType;
             });
@@ -440,6 +460,7 @@ class GenerateReportJob implements ShouldQueue
             ->whereNotNull('confirmed_at')
             ->whereJsonContains('reason', 'Excused Tardiness')
             ->whereBetween('confirmed_at', [$filters['date_from'], $filters['date_to']]);
+        $this->onlySemesterAcrossYears($query, 'confirmed_at');
 
         if ($individual) {
             $query->where('student_id', $filters['student_id']);
@@ -474,6 +495,7 @@ class GenerateReportJob implements ShouldQueue
         $query = Appointment::with(['user.profile', 'user.program'])
             ->where('appointment_status', 'accepted')
             ->whereBetween('confirmed_at', [$filters['date_from'], $filters['date_to']]);
+        $this->onlySemesterAcrossYears($query, 'confirmed_at');
 
         if ($individual) {
             $query->where('user_id', $filters['student_id']);
@@ -506,6 +528,7 @@ class GenerateReportJob implements ShouldQueue
         $query = GatePass::with(['user.profile', 'user.program'])
             ->whereNotNull('confirmed_at')
             ->whereBetween('confirmed_at', [$filters['date_from'], $filters['date_to']]);
+        $this->onlySemesterAcrossYears($query, 'confirmed_at');
 
         if ($individual) {
             $query->where('user_id', $filters['student_id']);
@@ -601,15 +624,13 @@ class GenerateReportJob implements ShouldQueue
             'from' => $filters['date_from'],
             'to' => $filters['date_to'],
             // e.g. "2025-2026 (1st Semester)" when narrowed to one semester.
-            'school_year' => ($filters['school_year'] ?? null) === 'all'
-                ? 'All School Years'
-                : (! empty($filters['school_year'])
-                ? $filters['school_year'].match ((int) ($filters['semester'] ?? 0)) {
+            'school_year' => ! empty($filters['school_year'])
+                ? (($filters['school_year'] === 'all' ? 'All School Years' : $filters['school_year']).match ((int) ($filters['semester'] ?? 0)) {
                     1 => ' (1st Semester)',
                     2 => ' (2nd Semester)',
                     default => '',
-                }
-                : null),
+                })
+                : null,
             'type' => $type,
             'individual' => $individual,
         ]));

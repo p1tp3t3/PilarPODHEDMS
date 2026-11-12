@@ -49,6 +49,8 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      // Model Training page: status/training of the two Python ML models.
      Route::post('/api/user-graph', [\App\Http\Controllers\Auth\DashboardController::class, 'getUserGraphRoute']);
      Route::get('/super-admin/model-training', [\App\Http\Controllers\Modules\System\ModelTrainingController::class, 'index']);
+     Route::get('/super-admin/security-monitor', [\App\Http\Controllers\Modules\System\SecurityMonitorController::class, 'index']);
+     Route::get('/super-admin/security-monitor/pdf', [\App\Http\Controllers\Modules\System\SecurityMonitorController::class, 'pdf']);
      Route::get('/maintenance/models/status', [\App\Http\Controllers\Modules\System\ModelTrainingController::class, 'status']);
      Route::post('/maintenance/models/predictor/train', [\App\Http\Controllers\Modules\System\ModelTrainingController::class, 'trainPredictor']);
      Route::get('/maintenance/models/predictor/dataset', [\App\Http\Controllers\Modules\System\ModelTrainingController::class, 'downloadPredictorDataset']);
@@ -101,6 +103,7 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      Route::get('/super-admin/parent-request-list', [ParentController::class, 'index']);
 
      Route::get('/super-admin/parent-register/get/{id}', [ParentController::class, 'getParentRequest']);
+     Route::post('/super-admin/parent-register/reject/{id}', [ParentController::class, 'reject']);
 
      Route::get('/super-admin/school-year', [SchoolYearController::class, 'index']);
      Route::post('/super-admin/school-year/semester/update-dates', [SchoolYearController::class, 'updateSemesterDates']);

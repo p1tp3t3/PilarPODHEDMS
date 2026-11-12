@@ -33,19 +33,31 @@ class ProfileAuthorization
         // program heads and faculty of the student's own program. That rule alone decides
         // student profiles; everyone else is sent home.
         if ($targetRole === 'student') {
-            return self::canViewStudentProfile($targetUser)
-                ? $next($request)
-                : Inertia::location('/');
+            if (self::canViewStudentProfile($targetUser)) {
+                return $next($request);
+            }
+            self::logDenied($targetUser);
+            return Inertia::location('/');
         }
 
         // Check if current user is allowed to access the target user role
         if (!self::checkRole($authRole, $targetRole)) {
             if (self::restrictProfileAccess($targetUser->username)) {
+                self::logDenied($targetUser);
                 return Inertia::location('/');
             }
         }
 
         return $next($request);
+    }
+
+    protected static function logDenied(User $target): void
+    {
+        \App\Support\BreachLog::record(
+            'unauthorized_access', 'medium',
+            "Opened the profile of a {$target->role} they may not view",
+            ['target_user_id' => $target->id]
+        );
     }
 
     protected function checkRole(string $authRole, string $targetRole): bool

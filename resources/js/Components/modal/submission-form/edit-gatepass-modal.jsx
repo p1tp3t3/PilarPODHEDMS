@@ -63,11 +63,8 @@ const EditGatePassModal = (props) => {
             w="w-[28rem]"
         >
             <div className="w-full">
-                <div className="text-[1.2em] pb-3">
+                <div className="pt-2 pb-3 text-[1.1em] sm:text-[1.2em]">
                     <h1><b>Edit Your Gate Pass Request</b></h1>
-                    <p className="text-[0.75em] text-gray-500 mt-1">
-                        You can only edit this request once, and only while it's still pending.
-                    </p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="grid gap-3">

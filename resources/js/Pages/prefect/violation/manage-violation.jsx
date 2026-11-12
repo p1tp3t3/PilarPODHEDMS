@@ -99,7 +99,7 @@ const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditR
                             hideFooterSelectedRowCount
                             pagination
                             initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
-                            pageSizeOptions={[20, 50, 100, 200]}
+                            pageSizeOptions={[20, 50, 100]}
                             getRowHeight={() => "auto"}
                             // Phones: each violation collapses to its name and
                             // Major/Minor; tap to drop down the date added

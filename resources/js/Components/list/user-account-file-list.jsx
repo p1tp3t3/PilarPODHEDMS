@@ -54,10 +54,10 @@ const UserAccountFileList = ({ list = null, deleteFile }) => {
             align: "left",
             renderCell: ({ row }) => (
                 <div className="flex flex-wrap gap-2 items-center py-1">
-                    <ActionBtn onClick={() => setPreviewFile(row.name)} className="bg-gray-700 text-white hover:bg-gray-800">
+                    <ActionBtn onClick={() => setPreviewFile(row.name)} className="bg-blue-600 text-white hover:bg-blue-700">
                         View
                     </ActionBtn>
-                    <ActionBtn onClick={() => downloadFile(row.name)} className="bg-blue-600 text-white hover:bg-blue-700">
+                    <ActionBtn onClick={() => downloadFile(row.name)} className="bg-orange-600 text-white hover:bg-orange-700">
                         Download File
                     </ActionBtn>
                     {deleteFile && (
@@ -86,7 +86,7 @@ const UserAccountFileList = ({ list = null, deleteFile }) => {
                 pagination
                 getRowHeight={() => 'auto'}
                 initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
-                pageSizeOptions={[20, 50, 100, 200]}
+                pageSizeOptions={[20, 50, 100]}
                 localeText={{ noRowsLabel: "No Files Uploaded Yet" }}
                 sx={{
                     "& .MuiDataGrid-toolbarContainer": {

@@ -1,5 +1,6 @@
 import { createContext, useContext, useRef, useState } from "react"
 import Reload from "@/Components/reload/reload"
+import { startBusy, endBusy } from "@/others/form-busy"
 
 const ReloadContext = createContext()
 
@@ -20,10 +21,23 @@ export function ReloadProvider({ children }) {
     const onCloseRef = useRef(null)
 
     const loadRegister = (r, t = "", l = "", onClose = undefined) => {
+        if (onClose !== undefined) onCloseRef.current = onClose
+        // Processing: the submitting form shows it (disabled, button spinning)
+        // instead of the full-screen loader, when one can be found.
+        const showLoader = () => {
+            setReload(true)
+            setReloadType("text-wait")
+            setReloadLabel(l)
+        }
+        if (r && t === "text-wait" && startBusy(showLoader)) {
+            setReload(false)
+            setReloadType("")
+            return
+        }
+        endBusy()
         setReload(r)
         setReloadType(t)
         setReloadLabel(l)
-        if (onClose !== undefined) onCloseRef.current = onClose
     }
 
     const setOnClose = (fn) => {
@@ -33,7 +47,7 @@ export function ReloadProvider({ children }) {
     // Must outrank every form modal's z-[200] (UpModal, AlertModal, FadeModal) —
     // otherwise the loading/success overlay renders behind a still-open modal
     // instead of covering it, since same-z-index siblings stack by DOM order.
-    const isReload = () => (reload ? "opacity-1 z-[300]" : "opacity-0 z-[-1]")
+    const isReload = () => (reload && ["text-wait", "logo"].includes(reloadType) ? "opacity-1 z-[300]" : "opacity-0 z-[-1] pointer-events-none")
 
     const handleClose = (e) => {
         if (onCloseRef.current) {

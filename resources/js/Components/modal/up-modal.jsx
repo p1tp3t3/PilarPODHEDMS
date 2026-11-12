@@ -57,6 +57,7 @@ const UpModal = ({
             max-md:max-h-[92dvh] max-md:overflow-y-auto max-md:!px-4 max-md:!pt-7
             max-md:!pb-[calc(1.25rem+env(safe-area-inset-bottom))]`}
           onClick={(e) => e.stopPropagation()}
+          data-modal-panel
         >
           <div className="md:hidden absolute top-2 left-1/2 -translate-x-1/2 h-1.5 w-10 rounded-full bg-gray-300" />
             {/* ❌ Close button */}

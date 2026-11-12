@@ -222,22 +222,20 @@ const GenerateActionLogReportMoodal = (props) => {
                                     <DropdownField
                                         default={{ val: '', label: 'Select School Year' }}
                                         list={[{ val: 'all', label: 'All School Years' }, ...(props.schoolYears ?? []).map((y) => ({ val: y.id, label: y.year }))]}
-                                        onChange={(e) => setData((prev) => ({ ...prev, school_year_id: e.target.value, ...(e.target.value === 'all' ? { semester: '' } : {}) }))}
+                                        onChange={(e) => setData((prev) => ({ ...prev, school_year_id: e.target.value }))}
                                         name="school_year_id"
                                         error={errs.school_year_id}
                                         val={data.school_year_id}
                                         req={true}
                                         keepCase
                                     />
-                                    {/* A semester only narrows one school year. */}
-                                    {data.school_year_id !== 'all' &&
                                     <DropdownField
                                         default={{ val: '', label: 'All Semesters' }}
                                         list={semesterList}
                                         onChange={handleChange}
                                         name="semester"
                                         val={data.semester}
-                                    />}
+                                    />
                                 </div>}
                             </div>
                             <div>

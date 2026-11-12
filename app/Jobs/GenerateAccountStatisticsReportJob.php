@@ -44,7 +44,7 @@ class GenerateAccountStatisticsReportJob implements ShouldQueue
                 $semester
             );
 
-            $data['school_year_label'] = $schoolYearId ? SchoolYear::where('id', $schoolYearId)->value('year') : null;
+            $data['school_year_label'] = $schoolYearId && $schoolYearId !== 'all' ? SchoolYear::where('id', $schoolYearId)->value('year') : null;
             $data['all_school_years'] = $schoolYearId === 'all';
             $data['semester_label'] = match ((string) $semester) {
                 '1' => '1st Semester',

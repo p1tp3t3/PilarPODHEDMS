@@ -55,7 +55,7 @@ export const sidebarPages = [
             { id: "user-accounts", href: "/super-admin/user-accounts", icon: List, label: "User List" },
             { id: "staff-list", href: "/super-admin/staff-list", icon: UserRoundCog, label: "Staff Positions" },
             { id: "student-list", href: "/super-admin/student-list", icon: GraduationCap, label: "Students" },
-            { id: "parent-request-list", href: "/super-admin/parent-request-list", icon: UserCheck, label: "Parent Request" },
+            { id: "parent-request-list", href: "/super-admin/parent-request-list", icon: UserCheck, label: "Parent Registration Requests" },
         ],
     },
     { type: "link", id: "program", href: "/super-admin/program", icon: GraduationCap, label: "College Programs", roles: ["super_admin"] },
@@ -74,6 +74,7 @@ export const sidebarPages = [
             { id: "super-admin/roles", href: "/super-admin/roles", icon: ShieldCheck, label: "Roles" },
             { id: "maintenance", href: "/maintenance", icon: Wrench, label: "Maintenance" },
             { id: "model-training", href: "/super-admin/model-training", icon: BrainCircuit, label: "Model Training" },
+            { id: "security-monitor", href: "/super-admin/security-monitor", icon: ShieldAlert, label: "Security Monitor" },
         ],
     },
 

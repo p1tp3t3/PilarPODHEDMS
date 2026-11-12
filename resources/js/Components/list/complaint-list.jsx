@@ -280,11 +280,9 @@ const ComplaintList = ({
             initialState={{
               pagination: { paginationModel: { pageSize: 20, page: 0 } }
             }}
-            pageSizeOptions={[20, 50, 100, 200]}
+            pageSizeOptions={[20, 50, 100]}
             showToolbar
-            slots={{
-                noRowsOverlay: CustomNoRowsOverlay, // <- custom empty state
-            }}
+            localeText={{ noRowsLabel: "No complaints found" }}
             // Phones: one row per complaint (complainant for the prefect,
             // else the reference no.); tap for the details and actions.
             mobileSummary={(row) => ({ select: canBulkSelect(row) ? bulkCheckbox(row) : null, ...(type === "prefect" && row.user ? {

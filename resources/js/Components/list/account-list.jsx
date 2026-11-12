@@ -168,7 +168,7 @@ const AccountList = (props) => {
             hideFooterSelectedRowCount
             pagination
             initialState={{ pagination: { paginationModel: {  page: 0, pageSize: 20 } } }}
-            pageSizeOptions={[20, 50, 100, 200]}
+            pageSizeOptions={[20, 50, 100]}
             sx={{
               "& .MuiDataGrid-toolbarContainer": {
                 minHeight: "2.75rem",

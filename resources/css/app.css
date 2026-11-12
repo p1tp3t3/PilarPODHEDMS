@@ -136,3 +136,32 @@ html.dark .hover\:bg-white:hover, html.dark .group:hover .group-hover\:bg-white 
 html.dark .hover\:bg-blue-50:hover { background-color: rgb(59 130 246 / 0.15); }
 html.dark .hover\:bg-green-50:hover { background-color: rgb(34 197 94 / 0.15); }
 html.dark .hover\:bg-red-50:hover { background-color: rgb(239 68 68 / 0.15); }
+
+/* Submitting (others/form-busy.js): the form is disabled, its button spins. */
+.form-busy { cursor: progress; }
+.form-busy :is(input, textarea, select, .MuiInputBase-root, .MuiSelect-select, .ql-toolbar, .ql-container, [contenteditable], label, button:not(.btn-busy), .MuiButton-root:not(.btn-busy), .MuiCheckbox-root, .MuiRadio-root, .MuiSwitch-root) {
+    opacity: 0.55;
+    transition: opacity 0.15s;
+}
+.btn-busy {
+    position: relative !important;
+    color: transparent !important;
+    pointer-events: none !important;
+    cursor: progress !important;
+}
+.btn-busy > * { visibility: hidden !important; }
+.btn-busy::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 1.1em;
+    height: 1.1em;
+    border-radius: 9999px;
+    border: 2px solid var(--busy-color, currentColor);
+    border-right-color: transparent;
+    animation: btn-busy-spin 0.7s linear infinite;
+    visibility: visible;
+}
+@keyframes btn-busy-spin { to { transform: rotate(360deg); } }
+.ctl-busy { opacity: 0.5; cursor: progress; }

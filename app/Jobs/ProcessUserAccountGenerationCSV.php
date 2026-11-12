@@ -61,6 +61,13 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
                 throw new \Exception(json_encode($validationErrors)); // handled below
             }
 
+            if ($userType === 'faculty') {
+                $csvArr = array_map(function ($row) {
+                    $row['program'] = self::programIdByName($row['program']);
+                    return $row;
+                }, $csvArr);
+            }
+
             foreach ($csvArr as $csv) {
                 $id = strtolower($csv['id']);
                 $existingUser = User::where('id_number', $id)->first();
@@ -102,6 +109,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
                     'first_name' => ucwords($csv['first_name']),
                     'middle_name' => ucwords($csv['middle_name']),
                     'last_name' => ucwords($csv['last_name']),
+                    'suffix' => empty(trim($csv['suffix'] ?? '')) ? null : trim($csv['suffix']),
                     'sex' => strtolower($csv['sex']),
                 ]);
 
@@ -152,10 +160,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
 
                 // === FACULTY (bulk upload creates faculty; program heads are registered one by one) ===
                 elseif ($userType === 'faculty') {
-                    Faculty::updateOrInsert(
-                        ['user_id' => $user->id],
-                        ['program_id' => $csv['program']]
-                    );
+                    $user->assignTeaching('faculty', (int) $csv['program']);
                     $programId = $csv['program'];
 
                     if (!isset($grouped[$programId])) {
@@ -260,8 +265,15 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
                     'sex', 'email', 'program'
                 ],
                 'extra_validation' => function ($row, $rowNum, &$rowErrors) {
-                    if (!is_numeric($row['program']) || $row['program'] < 1 || $row['program'] > 7) {
-                        $rowErrors[$rowNum][] = "Row $rowNum: Program must be 1–7.";
+                    $program = trim((string) ($row['program'] ?? ''));
+                    if ($program !== '' && self::programIdByName($program) === null) {
+                        $rowErrors[$rowNum][] = "Row $rowNum: program '{$program}' is not valid. Allowed: "
+                            . Program::active()->pluck('name')->implode(', ');
+                    }
+
+                    $existing = User::where('id_number', strtolower(trim((string) ($row['id'] ?? ''))))->first();
+                    if ($existing && $existing->role !== 'faculty') {
+                        $rowErrors[$rowNum][] = "Row $rowNum: ID '{$row['id']}' already belongs to a non-faculty account.";
                     }
                 }
             ],
@@ -311,6 +323,10 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
                 if (!preg_match('/^[A-Za-z\s]+$/', trim($row[$nameField]))) {
                     $rowErrors[$rowNum][] = "Row $rowNum: '$nameField' must contain letters and spaces only.";
                 }
+            }
+
+            if (isset($row['suffix']) && trim($row['suffix']) !== '' && !preg_match('/^[A-Za-z.\s]+$/', trim($row['suffix']))) {
+                $rowErrors[$rowNum][] = "Row $rowNum: 'suffix' must contain letters, periods, and spaces only.";
             }
 
             // SEX
@@ -426,8 +442,16 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
                 $zipPath = storage_path("app/private/zips/student-{$programId}-{$programName}.zip");
                 $csvName = "student-account-{$programId}-{$programName}-year-{$yearLevel}.csv";
             } elseif ($userType === 'faculty') {
-                $zipPath = storage_path("app/private/zips/faculty-account-{$programId}-{$programName}.csv");
-                $csvName = "faculty-account-{$programId}-{$programName}.csv";
+                File::deleteDirectory($extractDir);
+                $oldPassword = $this->passwordFromCsv(
+                    storage_path("app/private/zips/faculty-account-{$programId}-{$programName}.csv"),
+                    $userId
+                );
+                if ($oldPassword !== null) {
+                    return $oldPassword;
+                }
+                User::where('id_number', $userId)->update(['password' => Hash::make($randomPassword)]);
+                return $randomPassword;
             } else {
                 // Users other than students/faculty → always new random password
                 User::where('id_number', $userId)->update(['password' => Hash::make($randomPassword)]);
@@ -498,13 +522,43 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
         }
     }
 
-    /** ✅ Export grouped faculty files */
+    private static function programIdByName($name): ?int
+    {
+        $id = Program::active()->whereRaw('LOWER(name) = ?', [strtolower(trim((string) $name))])->value('id');
+        return $id !== null ? (int) $id : null;
+    }
+
+    private function passwordFromCsv(string $path, string $userId): ?string
+    {
+        if (!file_exists($path)) {
+            return null;
+        }
+        foreach (array_map('str_getcsv', file($path)) as $row) {
+            if (isset($row[0]) && strtolower($row[0]) === strtolower($userId)) {
+                $password = $row[count($row) - 1] ?? '';
+                return $password !== '' ? $password : null;
+            }
+        }
+        return null;
+    }
+
     private function exportFacultyGrouped($grouped)
     {
         foreach ($grouped as $programId => $columnData) {
             $programName = Program::where('id', $programId)->value('name') ?? 'unknown';
             $fileName = "faculty-account-{$programId}-" . Str::slug($programName, '-') . ".csv";
-            Excel::store(new UserAccountExport($columnData), "zips/$fileName", 'local', ExcelFormat::CSV);
+            $path = storage_path("app/private/zips/{$fileName}");
+
+            $header = array_shift($columnData);
+            $newIds = array_map(fn ($r) => strtolower($r[0]), $columnData);
+            $kept = [];
+            if (file_exists($path)) {
+                $old = array_map('str_getcsv', file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
+                array_shift($old); // header
+                $kept = array_values(array_filter($old, fn ($r) => isset($r[0]) && !in_array(strtolower($r[0]), $newIds, true)));
+            }
+
+            Excel::store(new UserAccountExport(array_merge([$header], $kept, $columnData)), "zips/$fileName", 'local', ExcelFormat::CSV);
         }
     }
 

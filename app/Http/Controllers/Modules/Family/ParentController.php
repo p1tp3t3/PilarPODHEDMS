@@ -41,6 +41,10 @@ class ParentController extends Controller
                 'terms_version' => 'nullable|string|max:20',
             ]);
 
+            if (ParentRegistrationRequest::hasPendingFor($request->email)) {
+                return response()->json(['message' => 'There is already a registration request waiting for review for this email.'], 422);
+            }
+
             // The submission isn't written to the DB yet — it's held in
             // cache behind a random token until the emailed link is
             // clicked and its signature verified, mirroring the same
@@ -92,6 +96,15 @@ class ParentController extends Controller
             return Inertia::render('guest/parent-register-confirm', [
                 'success' => false,
                 'message' => 'This confirmation link is invalid or has expired.',
+            ]);
+        }
+
+        if (ParentRegistrationRequest::hasPendingFor($data['email'])) {
+            cache()->forget($key);
+
+            return Inertia::render('guest/parent-register-confirm', [
+                'success' => false,
+                'message' => 'There is already a registration request waiting for review for this email.',
             ]);
         }
 
@@ -212,19 +225,29 @@ class ParentController extends Controller
         ];
     }
 
-    public function destroy(Request $request)
+    public function reject(Request $request, $id)
     {
-        $reason = $request->reason;
-        $parent = ParentRegistrationRequest::find($request->id);
-        $parentEmail = $parent->value('email');
+        $request->validate(['reason' => 'required|string']);
 
-        Mail::to($parentEmail)
-            ->send(new ParentRejectMail($reason));
-        $parent->delete();
+        $parentRequest = ParentRegistrationRequest::findOrFail($id);
+        if ($parentRequest->status !== 'pending') {
+            return response()->json(['message' => 'This request has already been '.$parentRequest->status.'.'], 409);
+        }
 
-        return response()->json([
-            'message' => 'Parent Request Reject Successfully',
+        $parentRequest->update([
+            'status' => 'rejected',
+            'rejected_reason' => $request->reason,
+            'rejected_at' => now(),
         ]);
+
+        try {
+            Mail::to($parentRequest->email)->send(new ParentRejectMail($parentRequest->name ?? 'Parent', $request->reason));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Parent reject mail failed: '.$e->getMessage());
+        }
+
+        return ParentRegistrationRequest::latest('created_at')->get()
+            ->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
     }
 
     public function getParentRequest($id)

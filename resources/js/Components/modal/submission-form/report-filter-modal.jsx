@@ -3,12 +3,13 @@ import RadioButton from "@/Components/input/radio"
 import DropdownField from "@/Components/input/dropdown"
 import BetweenTextfield from "@/Components/input/between-input"
 import { useEffect, useState } from "react"
-import { SlidersHorizontal } from "lucide-react"
 
 const semesterList = [
     { val: 1, label: "1st Semester" },
     { val: 2, label: "2nd Semester" },
 ]
+
+const ALL_SCHOOL_YEARS = { val: "all", label: "All School Years" }
 
 export const EMPTY_REPORT_FILTER = { filter_by: "date", date_from: "", date_to: "", school_year_id: "", semester: "" }
 
@@ -23,9 +24,9 @@ export const reportFilterSummary = (f, schoolYears = []) => {
         const fmt = (d) => new Date(d + "T00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
         return `${fmt(f.date_from)} – ${fmt(f.date_to)}`
     }
-    if (f.school_year_id === "all") return "All School Years"
-    const year = schoolYears.find((y) => String(y.id) === String(f.school_year_id))?.year
     const sem = semesterList.find((s) => String(s.val) === String(f.semester))?.label ?? "All Semesters"
+    if (f.school_year_id === "all") return `All School Years · ${sem}`
+    const year = schoolYears.find((y) => String(y.id) === String(f.school_year_id))?.year
     return `SY ${year ?? ""} · ${sem}`
 }
 
@@ -34,13 +35,14 @@ export const reportFilterSummary = (f, schoolYears = []) => {
 // Optional: `extraFields(draft, setDraft)` renders more fields above the
 // date/school-year choice, `emptyValue` is what Clear resets to, and
 // `canApply(draft)` replaces the default "a full range is set" rule.
-const ReportFilterModal = ({ close, closeModal, value, schoolYears = [], onApply, onClear, allSemestersLabel = "All Semesters", schoolYearLabel = "Select School Year", description = "Show only the records within a date range or a school year.", extraFields, emptyValue = EMPTY_REPORT_FILTER, canApply = isUsableReportFilter }) => {
+const ReportFilterModal = ({ close, closeModal, value, schoolYears = [], onApply, onClear, allSemestersLabel = "All Semesters", schoolYearLabel = "Select School Year", extraFields, emptyValue = EMPTY_REPORT_FILTER, canApply = isUsableReportFilter }) => {
     const [draft, setDraft] = useState(value)
 
     // Start from the filter currently applied each time it opens.
     useEffect(() => { if (close) setDraft(value) }, [close])
 
     const usable = canApply(draft)
+    const syDefault = schoolYearLabel === ALL_SCHOOL_YEARS.label ? ALL_SCHOOL_YEARS : { val: "", label: schoolYearLabel }
 
     const apply = () => {
         if (!usable) return
@@ -65,16 +67,8 @@ const ReportFilterModal = ({ close, closeModal, value, schoolYears = [], onApply
             w="w-[32rem]"
         >
             <div className="grid gap-5">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 grid place-items-center flex-shrink-0">
-                        <SlidersHorizontal size={18} />
-                    </div>
-                    <div>
-                        <div className="font-semibold text-gray-800">Filter Records</div>
-                        <p className="text-[0.85em] text-gray-500">
-                            {description}
-                        </p>
-                    </div>
+                <div className="pt-2 pr-6 text-[1.1em] sm:text-[1.2em]">
+                    <h1><b>Filter Records</b></h1>
                 </div>
 
                 {extraFields?.(draft, setDraft)}
@@ -111,22 +105,21 @@ const ReportFilterModal = ({ close, closeModal, value, schoolYears = [], onApply
                 {draft.filter_by === "school_year" &&
                 <div className="grid sm:grid-cols-2 gap-3">
                     <DropdownField
-                        default={{ val: "", label: schoolYearLabel }}
-                        list={[{ val: "all", label: "All School Years" }, ...schoolYears.map((y) => ({ val: y.id, label: y.year }))]}
-                        onChange={(e) => setDraft((prev) => ({ ...prev, school_year_id: e.target.value, ...(e.target.value === "all" ? { semester: "" } : {}) }))}
+                        default={syDefault}
+                        list={[...(syDefault.val === "all" ? [] : [ALL_SCHOOL_YEARS]), ...schoolYears.map((y) => ({ val: y.id, label: y.year }))]}
+                        onChange={(e) => setDraft((prev) => ({ ...prev, school_year_id: e.target.value }))}
                         name="school_year_id"
                         val={draft.school_year_id}
                         keepCase
                     />
-                    {/* A semester only narrows one school year. */}
-                    {draft.school_year_id !== "all" &&
+                    {/* With All School Years: that semester of every school year. */}
                     <DropdownField
                         default={{ val: "", label: allSemestersLabel }}
                         list={semesterList}
                         onChange={(e) => setDraft((prev) => ({ ...prev, semester: e.target.value }))}
                         name="semester"
                         val={draft.semester}
-                    />}
+                    />
                 </div>}
 
                 <div className="flex flex-wrap items-center justify-end gap-2 pt-1">

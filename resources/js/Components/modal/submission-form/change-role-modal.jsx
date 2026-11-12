@@ -133,9 +133,9 @@ const ChangeRoleModal = ({ close, closeModal, user, roles = [], programs = [], o
     return (
         <UpModal close={close} closeModal={closeModal} isEnableOuterClose={true} pd={["px-6", "py-6"]} bgColor="bg-white" w="w-[32rem]">
             <form onSubmit={handleSubmit} className="grid gap-4">
-                <div>
-                    <h1 className="text-[1.2em] font-bold">Change Role</h1>
-                    <p className="text-[0.8em] text-gray-500">
+                <div className="pt-2 pr-6 text-[1.1em] sm:text-[1.2em]">
+                    <h1><b>Change Role</b></h1>
+                    <p className="text-[0.7em] text-gray-500">
                         {name} · current role: <b>{labelOf(user.role)}</b>
                     </p>
                 </div>

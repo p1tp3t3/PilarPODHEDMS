@@ -3,7 +3,7 @@ import DropdownField from "@/Components/input/dropdown"
 import { useState, useEffect } from "react"
 import { usePage } from "@inertiajs/react"
 import { Button } from "@mui/material"
-import { CalendarDays, GraduationCap } from "lucide-react"
+import { CalendarDays } from "lucide-react"
 import { change, ordinal } from "@/others/function"
 import { AccountService } from "@/others/services/account-service"
 import { validateForm, hasErrors, required } from "@/others/validation"
@@ -85,16 +85,11 @@ const EditEnrollmentModal = ({ close, closeModal, data, program, schoolYears, re
         >
             <form onSubmit={handleSubmit} className="w-full grid gap-5">
                 {/* Header */}
-                <div className="flex items-center gap-3 pr-6">
-                    <span className="w-10 h-10 shrink-0 rounded-full bg-blue-50 text-blue-600 grid place-items-center">
-                        <GraduationCap size={18} />
-                    </span>
-                    <div className="min-w-0">
-                        <h1 className="font-semibold text-gray-800">Edit Program</h1>
-                        <p className="text-[0.85em] text-gray-500 truncate">
-                            {[fullName, data?.id_number].filter(Boolean).join(" · ")}
-                        </p>
-                    </div>
+                <div className="pt-2 pr-6 min-w-0 text-[1.1em] sm:text-[1.2em]">
+                    <h1><b>Edit Program</b></h1>
+                    <p className="text-[0.7em] text-gray-500 truncate">
+                        {[fullName, data?.id_number].filter(Boolean).join(" · ")}
+                    </p>
                 </div>
 
                 {/* The period this saves to: fixed, not a field. */}

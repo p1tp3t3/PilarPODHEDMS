@@ -132,7 +132,6 @@ const AnalyticalReport = (props) => {
         schoolYears={schoolYears}
         onApply={applyFilter}
         onClear={clearFilter}
-        description="Show the analytics for a date range or a school year."
       />
 
       {/* Export (left) and Filter (right): the same bar as the super admin's Statistics. */}

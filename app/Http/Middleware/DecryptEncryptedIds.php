@@ -35,7 +35,11 @@ class DecryptEncryptedIds
             if (is_array($value)) {
                 $input[$key] = self::decryptAll($value);
             } elseif (self::looksLikeToken($value)) {
-                $input[$key] = decrypt_id($value) ?? $value;
+                $id = decrypt_id($value);
+                if ($id === null) {
+                    \App\Support\BreachLog::record('tampered_id', 'high', "Forged encrypted ID in field {$key}");
+                }
+                $input[$key] = $id ?? $value;
             }
         }
 

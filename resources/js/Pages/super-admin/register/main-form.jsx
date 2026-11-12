@@ -101,7 +101,7 @@ const RegistrationForm = ({
     setActiveTab('manual');
   }, [data.user_type]);
 
-  const supportsBulkUpload = data.user_type && !["itrc", "prefect", "program_head", "faculty", "parent"].includes(data.user_type);
+  const supportsBulkUpload = data.user_type && !["itrc", "prefect", "program_head", "parent"].includes(data.user_type);
 
   const handleChange = (e) => change(e, setData);
 

@@ -66,13 +66,9 @@ const SetSemesterDatesModal = ({ close, closeModal, semester, siblingSemester, r
             w="w-[26rem]"
         >
             <div className="w-full">
-                <h1 className="text-[1.2em] font-bold">
-                    {semester ? `${semester.semester === 1 ? "1st" : "2nd"} Semester Dates${semester.upcoming ? ` · SY ${semester.year}` : ""}` : "Semester Dates"}
-                </h1>
-                <p className="text-[0.8em] text-gray-500 mt-1">
-                    Sets when this semester runs — the day after it ends, prefects are notified of any
-                    complaints, referrals, absent forms, or gate passes still unresolved from it.
-                </p>
+                <div className="pt-2 text-[1.1em] sm:text-[1.2em]">
+                    <h1><b>{semester ? `${semester.semester === 1 ? "1st" : "2nd"} Semester Dates${semester.upcoming ? ` · SY ${semester.year}` : ""}` : "Semester Dates"}</b></h1>
+                </div>
                 <form onSubmit={handleSubmit} className="grid gap-5 mt-4">
                     <FormTextfield
                         label="Start Date"

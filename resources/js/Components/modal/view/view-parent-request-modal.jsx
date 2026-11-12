@@ -39,13 +39,8 @@ const ViewParentRequestModal = (props) => {
             w='w-[36rem]'
         >
             <div className="w-full">
-                <div className="mb-6 border-b pb-4">
-                    <h2 className="text-xl font-semibold text-gray-800">
-                        Request Details
-                    </h2>
-                    <p className="text-[0.85em] text-gray-500 mt-1">
-                        Review the submitted parent registration request.
-                    </p>
+                <div className="mb-6 border-b pb-4 pt-2 text-[1.1em] sm:text-[1.2em]">
+                    <h1><b>Request Details</b></h1>
                 </div>
 
                 {data != null ? (

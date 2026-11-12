@@ -350,9 +350,9 @@ class DashboardController extends Controller
         ];
 
         if ($isProgramHead) {
-            // Program heads and faculty in their programs: faculty plus program heads.
-            $props['faculty'] = \App\Models\Faculty::whereIn('program_id', $programIds)->count()
-                + \App\Models\ProgramHead::whereIn('program_id', $programIds)->distinct('user_id')->count('user_id');
+            $props['faculty'] = \App\Models\Faculty::whereIn('program_id', $programIds)
+                ->whereIn('user_id', \App\Models\User::whereRole('faculty')->select('id'))
+                ->count();
         }
 
         return $props;

@@ -313,14 +313,7 @@ const RecentViolation = ({ violations, user }) => {
           disableRowSelectionOnClick
           hideFooterSelectedRowCount
           showToolbar
-          components={{
-            NoRowsOverlay: () => (
-              <div className="grid place-items-center h-full text-gray-500 py-10">
-                <FolderOpen size="2.5em" className="mb-2 opacity-60" />
-                <p>No recent violations found.</p>
-              </div>
-            ),
-          }}
+          localeText={{ noRowsLabel: "No recent violations found" }}
         />
       </Box>
     </div>

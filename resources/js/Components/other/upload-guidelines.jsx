@@ -31,9 +31,16 @@ const UploadGuidelines = (props) => {
           { field: "year_level", value: "Year level", example: "2" },
         ];
       case "faculty":
-        return baseFields.concat([
-          { field: "program", value: "Assigned program (1=BSIT, 2=BLIS, etc.)", example: "1" },
-        ]);
+        return [
+          { field: "id", value: "School I.D (must start with 'C' followed by digits)", example: "c2210213" },
+          { field: "first_name", value: "Given name of the user", example: "John" },
+          { field: "middle_name", value: "Middle name of the user", example: "Alexander" },
+          { field: "last_name", value: "Surname or family name", example: "Doe" },
+          { field: "suffix", value: "Name suffix, if any (Optional — can be left blank)", example: "Jr." },
+          { field: "sex", value: "Sex", example: "m/f" },
+          { field: "email", value: "Email", example: "email123@gmail.com" },
+          { field: "program", value: "Program they teach in, by name (e.g. BSIT, BEED)", example: "BSIT" },
+        ];
       case "administrative":
         return baseFields.concat([
           { field: "type", value: "Role type (program_dean, college_dean)", example: "program_dean" },
@@ -45,6 +52,7 @@ const UploadGuidelines = (props) => {
           { field: "first_name", value: "Given name of the user", example: "John" },
           { field: "middle_name", value: "Middle name of the user", example: "Alexander" },
           { field: "last_name", value: "Surname or family name", example: "Doe" },
+          { field: "suffix", value: "Name suffix, if any (Optional — can be left blank)", example: "Jr." },
           { field: "sex", value: "Sex", example: "m/f" },
           { field: "email (Optional)", value: "Email (Optional — some staff don't have one, can be left blank)", example: "email123@gmail.com" },
           { field: "position", value: "Assigned position, by exact name", example: props.positions?.[0]?.name ?? "Guard" },
@@ -97,14 +105,14 @@ const UploadGuidelines = (props) => {
           <li>The first row must contain exact field names as shown below.</li>
           {(props.type == 'student' || props.type == 'enrollment_update') &&
           <li>School year and semester are not part of the file — every row is enrolled under whichever school year/semester is currently active.</li>}
-          {(props.type == 'student' || props.type == 'enrollment_update') &&
+          {(props.type == 'student' || props.type == 'faculty' || props.type == 'enrollment_update') &&
           <li>
             <div>Program must match one of these program names exactly:</div>
             <ul>
               {props.program.map((e, i) => <li key={i}>{e.name} - {e.description}</li>)}
             </ul>
           </li>}
-          {(props.type == 'faculty' || props.type == 'administrative') &&
+          {props.type == 'administrative' &&
           <li>
             <div>Program must be their corresponding ID</div>
             <ul>

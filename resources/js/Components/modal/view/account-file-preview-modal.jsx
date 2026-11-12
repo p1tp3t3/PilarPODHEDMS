@@ -108,6 +108,7 @@ const AccountFilePreviewModal = ({ close, closeModal, fileName }) => {
                         <Box sx={{ width: "100%" }}>
                             <DataGrid
                                 rows={csvRows.map((row, i) => ({ id: i, ...row }))}
+                                showToolbar
                                 columns={columns}
                                 disableRowSelectionOnClick
                                 hideFooterSelectedRowCount

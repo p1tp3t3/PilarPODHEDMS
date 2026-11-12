@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use App\Models\User;
+use App\Support\BreachLog;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -50,6 +51,7 @@ class LoginRequest extends FormRequest
 
         if (is_null($field)) {
             RateLimiter::hit($this->throttleKey());
+            BreachLog::record('failed_login', 'low', 'Login with an unknown account "'.$this->string('username').'"');
 
             throw ValidationException::withMessages([
                 'username' => "Account doesn't exist. Please try again",
@@ -58,6 +60,7 @@ class LoginRequest extends FormRequest
 
         if (! Auth::attempt([$field => $this->username, 'password' => $this->password])) {
             RateLimiter::hit($this->throttleKey());
+            BreachLog::record('failed_login', 'low', 'Wrong password for "'.$this->string('username').'"');
 
             throw ValidationException::withMessages([
                 'password' => 'Wrong password. Please try again',
@@ -81,6 +84,9 @@ class LoginRequest extends FormRequest
         }
 
         event(new Lockout($this));
+        BreachLog::record('brute_force', 'high', 'Login locked after repeated failures for "'.$this->string('username').'"', [
+            'attempts' => RateLimiter::attempts($this->throttleKey()),
+        ]);
 
         $seconds = RateLimiter::availableIn($this->throttleKey());
 

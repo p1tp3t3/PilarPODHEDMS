@@ -7,6 +7,7 @@ import {
   toTitleCase,
 } from "../../others/function";
 import ActionBtn from "../button/action-btn";
+import StatusPill from "./status-pill";
 
 const ParentRequestList = ({ list = null, paginate = true, event }) => {
   const data = paginate ? list || [] : list || [];
@@ -22,6 +23,9 @@ const ParentRequestList = ({ list = null, paginate = true, event }) => {
       parent_details: obj.parent_details,
       email: obj.email,
       reason: obj.reason,
+      status: obj.status ?? "pending",
+      rejected_reason: obj.rejected_reason,
+      rejected_at: obj.rejected_at,
       request_since: obj.created_at
     };
   });
@@ -45,6 +49,14 @@ const ParentRequestList = ({ list = null, paginate = true, event }) => {
       width: 130,
     },
     {
+      field: "status",
+      headerName: "Status",
+      width: 120,
+      renderCell: (params) => (
+        <div className="h-full flex items-center"><StatusPill status={params.value} /></div>
+      ),
+    },
+    {
       field: "request_since",
       headerName: "Request Since",
       width: 170,
@@ -64,12 +76,14 @@ const ParentRequestList = ({ list = null, paginate = true, event }) => {
             <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => event('v', params.row.encrypted_id, params.row)}>
               View
             </ActionBtn>
+            {params.row.status === "pending" && <>
             <ActionBtn className="bg-green-600 text-white hover:bg-green-700" onClick={() => event('a', params.row.id, params.row)}>
               Approve
             </ActionBtn>
             <ActionBtn className="bg-red-600 text-white hover:bg-red-700" onClick={() => event('r', params.row.id)}>
               Reject
             </ActionBtn>
+            </>}
         </div>
       ),
     },
@@ -86,12 +100,12 @@ const ParentRequestList = ({ list = null, paginate = true, event }) => {
         disableRowSelectionOnClick
         hideFooterSelectedRowCount
         pagination
-        pageSizeOptions={[20, 50, 100, 200]}
+        pageSizeOptions={[20, 50, 100]}
         initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
         showToolbar
         getRowHeight={() => 'auto'}
         getRowId={(row) => row.id}
-        localeText={{ noRowsLabel: "No Parent Requests Found" }}
+        localeText={{ noRowsLabel: "No Parent Registration Requests Found" }}
       />
     </Box>
   );
