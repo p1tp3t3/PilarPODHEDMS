@@ -3,10 +3,16 @@
 namespace App\Http\Requests\Referral;
 
 use App\Rules\EnrolledStudent;
+use App\Http\Requests\Concerns\RateLimitsSubmissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreReferralRequest extends FormRequest
 {
+    use RateLimitsSubmissions;
+
+    /** Submissions allowed per minute. */
+    protected int $perMinute = 5;
+
     public function authorize(): bool
     {
         return true;

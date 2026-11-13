@@ -3,7 +3,6 @@ import { useState } from "react";
 import AuthLayout from "@/Layouts/auth-layout";
 import SetupLayout from "@/Layouts/setup-layout";
 import AccountSettingsForm from "@/Components/other/account-settings-form";
-import { AvailabilityScheduleEditor } from "@/Components/other/prefect-availability";
 import { useReload } from "@/context-provider/reload-provider";
 import { Head, router } from "@inertiajs/react";
 import ChangeRoleModal from "@/Components/modal/submission-form/change-role-modal";
@@ -69,12 +68,6 @@ const UserAccountSettings = (props) => {
                     forceAccountSetup={props.force_account_setup}
                 />
 
-                {/* The prefect's weekly availability (own settings only). */}
-                {props.auth.user.role === "sub_admin" && target?.id === props.auth.user.id && !props.force_account_setup && (
-                    <div className="mt-6">
-                        <AvailabilityScheduleEditor userId={props.auth.user.id} reload={loadRegister} />
-                    </div>
-                )}
             </div>
         </>
     );

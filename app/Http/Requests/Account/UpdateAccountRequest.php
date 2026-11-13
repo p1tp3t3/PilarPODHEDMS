@@ -2,10 +2,14 @@
 
 namespace App\Http\Requests\Account;
 
+use App\Http\Requests\Concerns\RateLimitsSubmissions;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateAccountRequest extends FormRequest
 {
+    use RateLimitsSubmissions;
+
     public function authorize(): bool
     {
         return true;
@@ -13,9 +17,15 @@ class UpdateAccountRequest extends FormRequest
 
     public function rules(): array
     {
+        // The account being saved: the IT admin may name another user
+        // (AccountController::update); everyone else saves their own.
+        $targetId = $this->user()?->role === 'super_admin' && $this->filled('user_id')
+            ? (int) $this->input('user_id')
+            : $this->user()?->id;
+
         return [
-            'username' => 'nullable|string',
-            'email' => 'nullable|email',
+            'username' => ['nullable', 'string', Rule::unique('users', 'username')->ignore($targetId)],
+            'email' => ['nullable', 'email', Rule::unique('users', 'email')->ignore($targetId)],
             'current_password' => 'nullable|string',
             'password' => 'nullable|string|min:8|confirmed',
         ];

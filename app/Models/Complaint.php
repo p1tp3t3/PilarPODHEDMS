@@ -16,6 +16,12 @@ class Complaint extends Model
     /** @use HasFactory<ComplaintFactory> */
     use HasFactory, HasDerivedSchoolYearSemester, HasDocumentPdf;
 
+    // Cleaned on read too, for complaints saved before it was cleaned on save.
+    protected function complaintDescription(): \Illuminate\Database\Eloquent\Casts\Attribute
+    {
+        return \Illuminate\Database\Eloquent\Casts\Attribute::get(fn ($value) => clean_rich_text($value));
+    }
+
     protected function documentFolder(): string
     {
         return "complaints/complaint-{$this->complaint_number}";

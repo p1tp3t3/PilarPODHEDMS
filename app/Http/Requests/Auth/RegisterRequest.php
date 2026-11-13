@@ -2,10 +2,16 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Http\Requests\Concerns\RateLimitsSubmissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class RegisterRequest extends FormRequest
 {
+    use RateLimitsSubmissions;
+
+    /** Submissions allowed per minute. */
+    protected int $perMinute = 20;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -19,6 +25,14 @@ class RegisterRequest extends FormRequest
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
+    // Manual registration: the username is generated, never typed.
+    protected function prepareForValidation(): void
+    {
+        if (! $this->hasFile('file') && ! $this->has('file')) {
+            $this->merge(['username' => registration_username($this->first_name, $this->last_name)]);
+        }
+    }
+
     public function rules(): array
     {
         $fields = [

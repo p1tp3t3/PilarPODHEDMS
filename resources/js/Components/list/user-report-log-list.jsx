@@ -59,7 +59,7 @@ const UserReportLogList = ({ list = null, showUser = true }) => {
             headerName: "Date / Time",
             width: 190,
             renderCell: (params) => (
-                <span className="text-[0.85em]">
+                <span>
                     {readableDate(params.value)} ({readableTime(params.value)})
                 </span>
             ),
@@ -67,8 +67,8 @@ const UserReportLogList = ({ list = null, showUser = true }) => {
     ], [showUser])
 
     return (
-        <div className="w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm grid gap-3">
-            <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
+        <div className="w-full grid gap-3">
+            <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", backgroundColor: "var(--dm-surface, #fff)", borderRadius: 2, boxShadow: 1, p: 2 }}>
                 <DataGrid
                     rows={rows}
                     columns={columns}
@@ -77,6 +77,8 @@ const UserReportLogList = ({ list = null, showUser = true }) => {
                     getRowHeight={() => "auto"}
                     showToolbar
                     localeText={{ noRowsLabel: "No Logs Yet" }}
+                    // Auto-height rows need their own padding, else the text touches the lines.
+                    sx={{ "& .MuiDataGrid-cell": { py: 1.25, minHeight: "52px !important" } }}
                 />
             </Box>
             {(list.data.length != 0 && list.data.length >= 50) &&

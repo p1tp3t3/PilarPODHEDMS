@@ -8,7 +8,6 @@ import {
   fileChange,
   toTitleCase,
   check,
-  checkUserExist,
   inArr,
   canEdit,
 } from "../../../others/function";
@@ -54,8 +53,7 @@ const Body = (props) => {
   const [preview, setPreview] = useState(null),
     [submit, setSubmit] = useState(false),
     [errors, setErrors] = useState(false),
-    [validationErr, setValidationError] = useState({}),
-    [existUserId, setExistUserId] = useState(false);
+    [validationErr, setValidationError] = useState({});
 
   // Program heads, faculty and non-teaching staff only need picture, sex, contact number,
   // and address — religion/citizenship/date of birth/place of birth/civil
@@ -119,7 +117,7 @@ const Body = (props) => {
       setValidationError(errors);
 
       if (currentUserRoleAlias == "itrc") {
-        if (!isErrorFree || existUserId) return;
+        if (!isErrorFree) return;
       } else {
         if (!isErrorFree) return;
       }

@@ -175,8 +175,16 @@ class FileController extends Controller
      * A program head may only reach files belonging to their own program —
      * super_admin/sub_admin are trusted with every file.
      */
+    private static function isPlainFileName($fileName): bool
+    {
+        return is_string($fileName) && $fileName !== ''
+            && ! str_contains($fileName, '..')
+            && strpbrk($fileName, '/\\') === false;
+    }
+
     private function authorizeAccountFile($fileName)
     {
+        abort_unless(self::isPlainFileName($fileName), 404);
         $user = auth()->user();
 
         if (in_array($user->role, ['super_admin', 'sub_admin'])) {
@@ -356,6 +364,7 @@ class FileController extends Controller
     public function destroy()
     {
         $fileName = request()->fileName;
+        abort_unless(self::isPlainFileName($fileName), 404);
         $filePath = "zips/$fileName";
 
         if (Storage::disk('local')->exists($filePath)) {

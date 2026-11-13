@@ -4,10 +4,16 @@ namespace App\Http\Requests\Appointment;
 
 use App\Rules\EnrolledStudent;
 use App\Rules\WithinAppointmentHours;
+use App\Http\Requests\Concerns\RateLimitsSubmissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreAppointmentRequest extends FormRequest
 {
+    use RateLimitsSubmissions;
+
+    /** Submissions allowed per minute. */
+    protected int $perMinute = 5;
+
     public function authorize(): bool
     {
         return true;

@@ -22,10 +22,17 @@ class ActivityLogController extends Controller
             $query->where('action_type', request('action_type'));
         }
 
+        // School year / semester: the semesters' date ranges (a semester with
+        // "All School Years" is that semester of every year).
+        \App\Models\SchoolYearSemester::applyFilter($query, 'created_at', request('school-year'), request('semester'));
+
         return Inertia::render('shared/my-activity', [
             'logs' => ActionLogResource::collection($query->paginate(50)->withQueryString())->response()->getData(true),
             'action_types' => ActionLog::where('user_id', auth()->id())->distinct()->orderBy('action_type')->pluck('action_type'),
             'action_type' => request('action_type', 'all'),
+            'school_years' => \App\Models\SchoolYear::orderByDesc('year')->pluck('year'),
+            'school_year' => request('school-year', 'all'),
+            'semester' => request('semester', 'all'),
         ]);
     }
 }

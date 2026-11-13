@@ -1,7 +1,6 @@
 import QuantityCard from "@/Components/card/qntty-statistic-card";
 import DashboardInfoBar from "@/Components/other/dashboard-info-bar"
 import AuthLayout from "@/Layouts/auth-layout";
-import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder";
 import "../style.css";
 import AppointmentScheduleList from "@/Components/list/upcoming-sched-list";
 import TabSwitcher from "@/Components/other/tab-switcher";
@@ -36,7 +35,6 @@ const StudentDashboard = (props) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
       >
-        <MaintenanceScheduleReminder />
 
         {/* === Tab Buttons === */}
         <div className="mb-4">

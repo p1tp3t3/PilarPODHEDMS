@@ -3,10 +3,16 @@
 namespace App\Http\Requests\Complaint;
 
 use App\Rules\EnrolledStudent;
+use App\Http\Requests\Concerns\RateLimitsSubmissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreComplaintRequest extends FormRequest
 {
+    use RateLimitsSubmissions;
+
+    /** Submissions allowed per minute. */
+    protected int $perMinute = 5;
+
     public function authorize(): bool
     {
         return true;
@@ -21,6 +27,9 @@ class StoreComplaintRequest extends FormRequest
     {
         if (is_array($this->input('student_subjects'))) {
             $this->merge(['student_subjects' => array_values(array_unique($this->input('student_subjects')))]);
+        }
+        if ($this->has('complaint_description')) {
+            $this->merge(['complaint_description' => clean_rich_text((string) $this->complaint_description)]);
         }
     }
 

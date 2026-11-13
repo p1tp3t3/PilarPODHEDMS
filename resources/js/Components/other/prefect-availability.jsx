@@ -1,14 +1,15 @@
 import { useContext, useEffect, useMemo, useState } from "react"
 import AuthContext from "@/context-provider/auth-provider"
 import { usePage } from "@inertiajs/react"
-import { Clock, ChevronRight, Plus, Trash2, CalendarClock, UserCheck } from "lucide-react"
+import { Clock, ChevronRight, Plus, Trash2, CalendarClock, UserCheck, Pencil } from "lucide-react"
 import { InfoSegment } from "./info-segment"
 import FormButton from "@/Components/button/button"
 import UpModal from "@/Components/modal/up-modal"
 import { showOutputModal } from "@/others/function"
+import { useReload } from "@/context-provider/reload-provider"
 
-// The prefect's weekly availability (Mon–Sat), set in the prefect's Account
-// Settings and shown to every user on their dashboard.
+// The prefect's weekly availability (Mon–Sat), shown to every user on their
+// dashboard; the prefect edits it from the same dashboard modal.
 // Backend: PrefectAvailabilityController (GET/POST /prefect-availability).
 
 export const DAYS = [
@@ -58,9 +59,17 @@ export const PrefectAvailabilityCard = () => {
     const { isUserOnline, lastSeenOf } = useContext(AuthContext)
     // The super admin's and the prefect's own dashboards show the schedule
     // only, no online status (a prefect would just see themselves online).
-    const showOnline = !["super_admin", "sub_admin"].includes(usePage().props.auth?.user?.role)
+    const viewer = usePage().props.auth?.user
+    const showOnline = !["super_admin", "sub_admin"].includes(viewer?.role)
+    const canEdit = viewer?.role === "sub_admin"
+    const { loadRegister } = useReload()
     const [prefects, setPrefects] = useState(null)
     const [open, setOpen] = useState(false)
+    const [editing, setEditing] = useState(false)
+    const openModal = (v) => {
+        setOpen(v)
+        if (!v) setEditing(false)
+    }
     const [now, setNow] = useState(manilaNow)
 
     useEffect(() => {
@@ -110,13 +119,13 @@ export const PrefectAvailabilityCard = () => {
                 </span>
             }
             subtitle={`${availableNow ? "Available now" : "Not available now"} · ${todayText(prefects, now)}`}
-            onClick={() => setOpen(true)}
+            onClick={() => openModal(true)}
         />
 
         {/* The week's schedule opens in a modal instead of expanding the card. */}
         <UpModal
             close={open}
-            closeModal={setOpen}
+            closeModal={openModal}
             isEnableOuterClose={true}
             cntr={true}
             pd={["px-6", "py-6"]}
@@ -137,15 +146,42 @@ export const PrefectAvailabilityCard = () => {
                     </div>
                 </div>
 
-                {prefects.length === 0 && (
-                    <p className="text-[0.85em] text-gray-500">No prefect account yet.</p>
+                {editing ? (
+                    <AvailabilityScheduleEditor
+                        embedded
+                        userId={viewer.id}
+                        reload={loadRegister}
+                        onCancel={() => setEditing(false)}
+                        onSaved={() => {
+                            setEditing(false)
+                            fetchAvailability().then(setPrefects).catch(() => {})
+                        }}
+                    />
+                ) : (
+                    <>
+                        {prefects.length === 0 && (
+                            <p className="text-[0.85em] text-gray-500">No prefect account yet.</p>
+                        )}
+                        {prefects.map((p) => (
+                            <div key={p.id} className="grid gap-2">
+                                {many && <p className="text-[0.85em] font-semibold text-gray-700">{p.name}</p>}
+                                <WeekTable slots={p.slots} today={now.day} />
+                            </div>
+                        ))}
+                        {/* The prefect sets their own hours here. */}
+                        {canEdit && (
+                            <div className="flex justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditing(true)}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-blue-600 text-white text-[0.9em] font-semibold hover:bg-blue-700"
+                                >
+                                    <Pencil size={14} /> Edit Schedule
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
-                {prefects.map((p) => (
-                    <div key={p.id} className="grid gap-2">
-                        {many && <p className="text-[0.85em] font-semibold text-gray-700">{p.name}</p>}
-                        <WeekTable slots={p.slots} today={now.day} />
-                    </div>
-                ))}
             </div>
         </UpModal>
         </>
@@ -216,7 +252,7 @@ const validateDay = (ranges) => {
     return null
 }
 
-export const AvailabilityScheduleEditor = ({ userId, reload }) => {
+export const AvailabilityScheduleEditor = ({ userId, reload, embedded = false, onSaved, onCancel }) => {
     const [week, setWeek] = useState(null) // { 1: [{start_time, end_time}], ... }
     const [errors, setErrors] = useState({})
     const [saving, setSaving] = useState(false)
@@ -261,7 +297,10 @@ export const AvailabilityScheduleEditor = ({ userId, reload }) => {
         window.axios.post("/prefect-availability", { slots })
             .then(() => {
                 reload?.(true, "")
-                showOutputModal("Availability Schedule Saved", "s", () => reload?.(false))
+                showOutputModal("Availability Schedule Saved", "s", () => {
+                    reload?.(false)
+                    onSaved?.()
+                })
             })
             .catch((e) => {
                 reload?.(true, "")
@@ -272,12 +311,14 @@ export const AvailabilityScheduleEditor = ({ userId, reload }) => {
     }
 
     return (
-        <div className="bg-white px-5 md:px-10 py-8 rounded-lg shadow-sm shadow-black/20">
-            <div className="flex items-start gap-3 mb-5">                
-                <div>
-                    <h2 className="text-lg font-semibold">Availability Schedule</h2>
+        <div className={embedded ? "" : "bg-white px-5 md:px-10 py-8 rounded-lg shadow-sm shadow-black/20"}>
+            {!embedded && (
+                <div className="flex items-start gap-3 mb-5">
+                    <div>
+                        <h2 className="text-lg font-semibold">Availability Schedule</h2>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {week === null ? (
                 <div className="h-40 rounded-md bg-gray-100 animate-pulse" />
@@ -342,11 +383,19 @@ export const AvailabilityScheduleEditor = ({ userId, reload }) => {
                         </div>
                     ))}
 
-                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                    {/* In the modal it stays at the bottom while the days scroll. */}
+                    <div className={`flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 pt-3 ${embedded ? "sticky bottom-0 z-10 bg-white pb-1 border-t border-gray-100 max-md:-mx-4 max-md:px-4 max-md:pb-2" : "pt-2"}`}>
                         <span className="text-[0.8em] text-gray-500">
                             {totalRanges === 0 ? "No times set — you'll show as not available." : `${totalRanges} time range${totalRanges === 1 ? "" : "s"} this week. Sunday is always off.`}
                         </span>
-                        <FormButton type="button" label="Save Schedule" click={save} loading={saving} />
+                        <div className={`grid gap-2 ${onCancel ? "grid-cols-2" : "grid-cols-1"} sm:flex sm:items-center [&_button]:max-sm:!w-full [&_button]:max-sm:!px-3`}>
+                            {onCancel && (
+                                <button type="button" onClick={onCancel} disabled={saving} className="px-4 py-2 rounded-md border border-gray-300 text-[0.9em] text-gray-700 hover:bg-gray-50">
+                                    Cancel
+                                </button>
+                            )}
+                            <FormButton type="button" label="Save Schedule" click={save} loading={saving} />
+                        </div>
                     </div>
                 </div>
             )}

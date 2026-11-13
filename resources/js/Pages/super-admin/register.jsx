@@ -87,7 +87,7 @@ const Register = (props) => {
         { val: "faculty", label: "Faculty" },
         { val: "program_head", label: "Program Head" },
         { val: "staff", label: "Non-Teaching Staff" },
-        { val: "parent", label: "Parent" },
+        // Parents register themselves (Parent Registration Requests).
     ]
     const yearLevel = [
         { val: 1, label: "1st Year" },

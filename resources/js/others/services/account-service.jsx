@@ -27,6 +27,10 @@ export const AccountService = {
         api.setHeaders({ "Content-Type": "application/json" });
         api.sendPostData();
     },
+    resetPassword(userId, setter, success, error) {
+        const api = new APIRequest(`/super-admin/user-accounts/${userId}/reset-password`, "post", {}, setter, success, error);
+        api.fetchData();
+    },
     updateAccountInfo(payload, success, error) {
         const api = new APIRequest("/account/update", "post", payload, () => {}, success, error);
         api.setHeaders({ "Content-Type": "application/json" });

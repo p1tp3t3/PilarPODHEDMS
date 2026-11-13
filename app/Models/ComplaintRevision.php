@@ -20,6 +20,12 @@ class ComplaintRevision extends Model
         'created_at',
     ];
 
+    // Cleaned on read too, for complaints saved before it was cleaned on save.
+    protected function complaintDescription(): \Illuminate\Database\Eloquent\Casts\Attribute
+    {
+        return \Illuminate\Database\Eloquent\Casts\Attribute::get(fn ($value) => clean_rich_text($value));
+    }
+
     public function complaint(): BelongsTo
     {
         return $this->belongsTo(Complaint::class, 'complaint_id', 'id');

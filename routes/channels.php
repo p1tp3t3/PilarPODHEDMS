@@ -9,9 +9,10 @@ use Illuminate\Support\Facades\Broadcast;
 | (bootstrap/app.php); the rule on each channel below then decides whether
 | that user may listen to it. See App\Broadcasting\ChannelAuth.
 |
-| The only public channel is "maintenance" (MaintenanceModeToggled): guests
+| The only public channel is "maintenance": MaintenanceModeToggled (guests
 | on the login and maintenance pages need it to reload when maintenance
-| ends, and it carries nothing but { enabled }.
+| ends; carries only { enabled }) and MaintenanceScheduleChanged (the
+| title-bar countdown; carries only { scheduled_at }).
 */
 
 // Per-user channels: only the user named in the channel.

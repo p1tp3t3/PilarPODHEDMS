@@ -3,10 +3,13 @@
 namespace App\Http\Requests\Appointment;
 
 use App\Rules\WithinAppointmentHours;
+use App\Http\Requests\Concerns\RateLimitsSubmissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateAppointmentRequest extends FormRequest
 {
+    use RateLimitsSubmissions;
+
     public function authorize(): bool
     {
         return true;

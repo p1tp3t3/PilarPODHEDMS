@@ -180,3 +180,55 @@ if (!function_exists('can_see_incident_summary')) {
         return auth()->user()?->role === 'sub_admin';
     }
 }
+
+if (!function_exists('clean_rich_text')) {
+    /**
+     * Rich-text HTML from the app's editor, reduced to the formatting tags it
+     * produces: no scripts, event handlers or javascript: links.
+     */
+    function clean_rich_text(?string $html): ?string
+    {
+        if ($html === null) {
+            return null;
+        }
+        $clean = strip_tags($html, '<p><br><strong><b><em><i><u><s><ul><ol><li><h1><h2><h3><blockquote>');
+        $clean = preg_replace('/\s(on\w+|style)\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $clean);
+
+        return preg_replace('/javascript\s*:/i', '', $clean);
+    }
+}
+
+if (!function_exists('default_password')) {
+    /**
+     * A new account's starting password: last name and ID number, lowercase,
+     * no spaces — "Dela Cruz" + "C2210213" -> "delacruz_c2210213". Mirrored
+     * in register/main-form.jsx (defaultPassword) for the preview.
+     */
+    function default_password(?string $lastName, ?string $idNumber): string
+    {
+        // Accents dropped too ("Peña" -> "pena"), like registration_username().
+        $part = fn ($v) => strtolower(preg_replace('/\s+/', '', \Illuminate\Support\Str::ascii((string) $v)));
+
+        return $part($lastName).'_'.$part($idNumber);
+    }
+}
+
+if (!function_exists('registration_username')) {
+    /**
+     * A new account's username: first name + last name + 4 random digits,
+     * lowercase letters and digits only — "Juan" "Dela Cruz" -> "juandelacruz4821".
+     * Retries until it's not taken.
+     */
+    function registration_username(?string $firstName, ?string $lastName): string
+    {
+        $base = preg_replace('/[^a-z0-9]/', '', strtolower(\Illuminate\Support\Str::ascii((string) $firstName.(string) $lastName)));
+        if ($base === '') {
+            $base = 'user';
+        }
+        do {
+            $username = $base.str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+        } while (\App\Models\User::where('username', $username)->exists());
+
+        return $username;
+    }
+}

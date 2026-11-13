@@ -1,9 +1,9 @@
 import { APIRequest } from "../classes/api-req";
 
 export const RegisterService = {
-    registerUser(data, success, error) {
-        const api = new APIRequest("/super-admin/register", "post", data, () => {}, success, error);
-        api.sendPostData();
+    registerUser(data, setter, success, error) {
+        const api = new APIRequest("/super-admin/register", "post", data, setter, success, error);
+        api.fetchData();
     },
     uploadUserCsv(data, success, error) {
         const api = new APIRequest("/super-admin/register/upload-user", "post", data, () => {}, success, error);

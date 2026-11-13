@@ -28,6 +28,8 @@ const userTabs = [
 // getStudent()/getStaffList()/getParentList() as-is) via a full reload that
 // keeps `tab` (and, for staff, `type`/`program`/`position`) in the URL, the
 // same pattern the original three pages already used for their own filters.
+const TEACHING_TYPES = ["program_head", "faculty", "teaching"]
+
 const PrefectUserList = (props) => {
     const params = new URLSearchParams(window.location.search)
     const tab = props.tab ?? "student"
@@ -48,7 +50,7 @@ const PrefectUserList = (props) => {
         router.visit(`/prefect/user-list?tab=${nextTab}`)
     }
 
-    const staffType = params.get("type") ?? "teaching"
+    const staffType = params.get("type") ?? "all"
     const staffProgram = params.get("program") ?? ""
     const staffPosition = params.get("position") ?? ""
     const canManagePosition = props.auth.user.role === "super_admin"
@@ -195,14 +197,15 @@ const PrefectUserList = (props) => {
                             <DropdownField
                                 list={[
                                     { val: "all", label: "All Staff" },
-                                    { val: "teaching", label: "Program Heads & Faculty" },
+                                    { val: "program_head", label: "Program Heads" },
+                                    { val: "faculty", label: "Faculty" },
                                     { val: "non_teaching", label: "Non-Teaching Staff" },
                                 ]}
                                 val={staffType}
                                 onChange={(e) => updateQuery({ tab: "staff", type: e.target.value })}
                             />
                         </div>
-                        {staffType === "teaching" && (
+                        {TEACHING_TYPES.includes(staffType) && (
                             <div className="w-full sm:w-[14rem] flex-shrink-0">
                                 <DropdownField
                                     default={{ val: "", label: "All Programs" }}
@@ -213,7 +216,7 @@ const PrefectUserList = (props) => {
                                 />
                             </div>
                         )}
-                        {staffType !== "teaching" && (
+                        {!TEACHING_TYPES.includes(staffType) && (
                             <div className="w-full sm:w-[14rem] flex-shrink-0">
                                 <DropdownField
                                     default={{ val: "", label: "All Positions" }}

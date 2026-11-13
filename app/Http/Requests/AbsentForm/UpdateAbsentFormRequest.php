@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests\AbsentForm;
 
+use App\Http\Requests\Concerns\RateLimitsSubmissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateAbsentFormRequest extends FormRequest
 {
+    use RateLimitsSubmissions;
+
     public function authorize(): bool
     {
         return true;

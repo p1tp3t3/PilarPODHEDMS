@@ -221,6 +221,11 @@ class AppointmentController extends Controller
             }
 
             $notifData = $notif->first();
+            if ((int) $notifData->receiver_id !== (int) auth()->id() && auth()->user()->role !== 'sub_admin') {
+                DB::rollBack();
+
+                return response()->json(['message' => 'You can only respond to your own appointment.'], 403);
+            }
             $content = json_decode($notifData->content, true);
 
             // Handle double-encoded JSON (if exists)
@@ -491,38 +496,6 @@ class AppointmentController extends Controller
             ->get();
 
         return response()->json($slots);
-    }
-
-    public function getReqList($reqId = null, $json = false)
-    {
-        if ($reqId !== null) {
-            $reqId = decrypt_id($reqId) ?? abort(404);
-        }
-
-        $appointmentReq = new AppointmentRequest;
-        $appointmentReq = $appointmentReq->with(['user' => function ($q) {
-            $q->with(['program', 'parent']);
-        }]);
-
-        if ($reqId == null) {
-            $data = AppointmentRequestResource::collection(
-                $appointmentReq->where('appointment_id', null)
-                    ->latest('created_at')
-                    ->get()
-            );
-
-            return ($json)
-                    ? response()->json($data)
-                    : $data;
-        } else {
-            $data = new AppointmentRequestResource(
-                $appointmentReq->where('id', $reqId)->first()
-            );
-
-            return ($json)
-                    ? response()->json($data)
-                    : $data;
-        }
     }
 
     public function getUpcomingAppointmentList($id)

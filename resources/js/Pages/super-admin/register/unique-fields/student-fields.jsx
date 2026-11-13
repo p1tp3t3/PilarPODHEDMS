@@ -1,6 +1,13 @@
 import DropdownField from "@/Components/input/dropdown";
+import { usePage } from "@inertiajs/react";
 
 const StudentFields = ({ data, handleChange, selectionVal, validationErr }) => {
+    // Students are enrolled in the current school year and semester.
+    const current = usePage().props.current_school_year_semester;
+    const term = current
+        ? `SY ${current.school_year?.year ?? ""} · ${current.semester === 1 ? "1st" : "2nd"} Semester`
+        : null;
+
     return (
         <>
         <div className="flex flex-col sm:flex-row gap-3 w-full">
@@ -21,15 +28,10 @@ const StudentFields = ({ data, handleChange, selectionVal, validationErr }) => {
                 error={validationErr.year_level}
             />
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 w-full">
-            <DropdownField
-                default={{ val: "", label: "Select School Year" }}
-                val={data.school_year_id}
-                onChange={handleChange}
-                list={selectionVal[4]}
-                name="school_year_id"
-                error={validationErr.school_year_id}
-            />
+        <div className={`text-[0.85em] ${term ? "text-gray-600" : "text-[#d12323] font-semibold"}`}>
+            {term
+                ? <>Enrolled in the current term: <b>{term}</b></>
+                : "No active school year/semester is set. Set one in School Year Management first."}
         </div>
         </>
     )

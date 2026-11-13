@@ -64,9 +64,7 @@ class HandleInertiaRequests extends Middleware
             // it flips on, everyone but a super admin is locked out anyway
             // by CheckMaintenanceMode, so there's no dashboard left to warn
             // them on) — lets every role see a countdown before it hits.
-            'maintenance_mode_scheduled_at' => Cache::get('maintenance_mode', false)
-                ? null
-                : Cache::get('maintenance_mode_scheduled_at'),
+            'maintenance_mode_scheduled_at' => \App\Http\Controllers\Modules\System\MaintenanceController::scheduledAtIso(),
         ];
     }
 }

@@ -12,9 +12,11 @@ import { Head } from "@inertiajs/react"
 import { PageActions } from "@/context-provider/page-title-provider"
 
 
+const TEACHING_TYPES = ["program_head", "faculty", "teaching"]
+
 const PrefectStaffList = (props) => {
     const url = new URLSearchParams(window.location.search)
-    const [tab, setTab] = useState(url.get("type") ?? "teaching")
+    const [tab, setTab] = useState(url.get("type") ?? "all")
     const [program, setProgram] = useState(url.get("program") ?? "")
     const [positionFilter, setPositionFilter] = useState(url.get("position") ?? "")
     // Position management (assign/reassign one of the 8 fixed non-teaching
@@ -82,14 +84,15 @@ const PrefectStaffList = (props) => {
                             <DropdownField
                                 list={[
                                     { val: "all", label: "All Staff" },
-                                    { val: "teaching", label: "Program Heads & Faculty" },
+                                    { val: "program_head", label: "Program Heads" },
+                                    { val: "faculty", label: "Faculty" },
                                     { val: "non_teaching", label: "Non-Teaching Staff" },
                                 ]}
                                 val={tab}
                                 onChange={(e) => handleTab(e.target.value)}
                             />
                         </div>
-                        {tab === "teaching" && (
+                        {TEACHING_TYPES.includes(tab) && (
                             <div className="w-full sm:w-[14rem] flex-shrink-0">
                                 <DropdownField
                                     default={{ val: "", label: "All Programs" }}
@@ -100,7 +103,7 @@ const PrefectStaffList = (props) => {
                                 />
                             </div>
                         )}
-                        {tab !== "teaching" && (
+                        {!TEACHING_TYPES.includes(tab) && (
                             <div className="w-full sm:w-[14rem] flex-shrink-0">
                                 <DropdownField
                                     default={{ val: "", label: "All Positions" }}

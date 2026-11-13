@@ -33,6 +33,7 @@ class OTPVerificationController extends Controller
             cache()->put($key, Hash::make($pin));
             cache()->forget($key.'_verified');
             cache()->put($key.'_verified', false);
+            cache()->put($key.'_tries', 0, now()->addMinutes(10));
             Mail::to($email)
                 ->send(new OTPMail($pin));
 
@@ -40,7 +41,7 @@ class OTPVerificationController extends Controller
         } catch (\Throwable $e) {
             Log::error('Failed to send OTP', ['error' => $e->getMessage()]);
 
-            return response()->json(['status' => 'error', 'message' => 'Failed to send OTP.', 'error' => $e->getMessage(), 'req' => $request->all()], 500);
+            return response()->json(['status' => 'error', 'message' => 'Failed to send OTP.'], 500);
         }
     }
 
@@ -49,9 +50,17 @@ class OTPVerificationController extends Controller
         $email = $request->email;
         $key = $email.'_otp_hash';
 
-        if (! Hash::check($request->pin, cache($key))) {
+        $hashed = cache($key);
+        if (! $hashed || ! Hash::check((string) $request->pin, $hashed)) {
+            // Too many wrong guesses: the code is discarded; a new one is needed.
+            if ($hashed && cache()->increment($key.'_tries') >= 5) {
+                cache()->forget($key);
+                cache()->forget($key.'_tries');
+            }
+
             return response()->json(['status' => 'error'], 500);
         }
+        cache()->forget($key.'_tries');
         cache()->put($key.'_verified', true);
 
         return response()->json(['status' => 'success', 'verified' => cache($key.'_verified')]);

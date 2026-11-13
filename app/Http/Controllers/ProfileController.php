@@ -199,6 +199,8 @@ class ProfileController extends Controller
         if (! $account) {
             abort(404, 'User not found.');
         }
+        // Same rule as saving (update): your own, or the IT admin / prefect.
+        abort_unless($account->id === auth()->id() || in_array(auth()->user()->role, ['super_admin', 'sub_admin']), 403);
 
         $userId = $account->id;
 
@@ -249,7 +251,8 @@ class ProfileController extends Controller
         self::applyProfileFields($targetUser, $request);
 
         $userFields = [];
-        if ($request->filled('email')) {
+        // Emails are managed centrally by the IT admin (Account Settings).
+        if ($request->filled('email') && auth()->user()->role === 'super_admin') {
             $userFields['email'] = strtolower($request->email);
         }
         if ($isSelf && ! $targetUser->already_update_profile) {

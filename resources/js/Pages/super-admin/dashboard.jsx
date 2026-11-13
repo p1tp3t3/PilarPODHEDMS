@@ -1,7 +1,6 @@
 import AuthLayout from "@/Layouts/auth-layout";
 import DashboardInfoBar from "@/Components/other/dashboard-info-bar"
 import QuantityCard from "@/Components/card/qntty-statistic-card";
-import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder";
 import SystemInfoPanel from "@/Components/other/system-info-panel";
 import "../style.css";
 import LineGraph from "@/Components/card/line-graph-statistic";
@@ -111,7 +110,6 @@ const ITRCDashboard = (props) => {
             </Link>
           )}
 
-          <MaintenanceScheduleReminder />
 
           <TabSwitcher
             tabs={[

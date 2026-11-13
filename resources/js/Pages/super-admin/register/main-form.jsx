@@ -1,7 +1,7 @@
 import FormTextfield from "@/Components/input/form-input";
 import RadioButton from "@/Components/input/radio";
 import FormButton from "@/Components/button/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import StudentFields from "./unique-fields/student-fields";
 import FacultyFields from "./unique-fields/faculty-fields";
 import AdministrativeFields from "./unique-fields/administrative-fields";
@@ -10,13 +10,11 @@ import ParentFields from "./unique-fields/parent-fields";
 import DropdownField from "@/Components/input/dropdown";
 import {
   change,
-  checkUserExist,
   clearField,
   showOutputModal,
   showWarningModal,
   toTitleCase,
 } from "@/others/function";
-import GeneratePassword from "@/Components/input/generate-password";
 import { RegisterService } from "@/others/services/register-service";
 import UploadFileBtn from "@/Components/button/upload-file-btn";
 import Switch from "@/Components/button/switch-btn";
@@ -24,6 +22,10 @@ import CheckBoxButton from "@/Components/input/checkbox";
 import { Validator } from "@/others/classes/validator";
 import UploadGuidelines from "@/Components/other/upload-guidelines";
 import TabSwitcher from "@/Components/other/tab-switcher";
+
+// Same as default_password() in app/helpers.php.
+const plain = (v) => String(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "").toLowerCase();
+const defaultPassword = (lastName, idNumber) => `${plain(lastName)}_${plain(idNumber)}`;
 
 const RegistrationForm = ({
   baseData,
@@ -40,14 +42,15 @@ const RegistrationForm = ({
   setUserType,
   uploadingCSV,
 }) => {
-  const [commonPasswordList, setCommonPasswordList] = useState(null),
-    [errors, setErrors] = useState(false),
+  // What was just sent, for the success message (generated username + default password).
+  const lastSubmitted = useRef(null);
+  const [errors, setErrors] = useState(false),
     [activeTab, setActiveTab] = useState('manual');
 
   const newField = () => {
     switch (baseData.user_type) {
       case "student":
-        return { program: "", year_level: "", school_year_id: "", semester: "" };
+        return { program: "", year_level: "" };
       case "faculty":
         return { program: "" };
       case "program_head":
@@ -63,20 +66,8 @@ const RegistrationForm = ({
 
   const [data, setData] = useState({ ...baseData, ...newField() });
   const [activateManual, setActivateManual] = useState(false),
-    [existUsername, setExistUsername] = useState(false),
-    [existUserId, setExistUserId] = useState(false),
-    [existEmail, setExistEmail] = useState(false),
     [agreedGuidelines, setAgreedGuidelines] = useState(false);
 
-  useEffect(() => {
-    fetch("/storage/list/common-password.txt")
-      .then((res) => res.text())
-      .then((data) => {
-        const lines = data.split(/\r?\n/).filter(Boolean);
-        setCommonPasswordList(new Set(lines));
-      })
-      .catch((x) => console.log(x));
-  }, []);
 
   useEffect(() => {
     setData((prev) => ({
@@ -119,16 +110,18 @@ const RegistrationForm = ({
     const formData = new FormData(e.target);
     formData.append("activate", activateManual ? 1 : 0);
     const d = Object.fromEntries(formData.entries());
+    // The role dropdown sits outside the <form>, so it isn't in formData.
+    d.user_type = data.user_type;
     d.role = roleMap[data.user_type] ?? data.user_type;
     d.id_number = d.user_id;
     const validator = new Validator(d, data.user_type);
-    const errors = validator.validateRegistrationForm(commonPasswordList);
+    const errors = validator.validateRegistrationForm();
     const isErrorFree = Object.values(errors).every((err) => err === "");
 
     setValidationError(errors);
-    setErrors(!isErrorFree || existUsername || existUserId || existEmail);
+    setErrors(!isErrorFree);
 
-    if (!isErrorFree || existUsername || existUserId || existEmail) return;
+    if (!isErrorFree) return;
 
     showWarningModal(
       `Are You Sure You Want To Register This ${toTitleCase(
@@ -142,12 +135,14 @@ const RegistrationForm = ({
           "text-wait",
           `${toTitleCase(data.user_type)} is Generating. Please Wait`
         );
-        RegisterService.registerUser(d, success, error);
+        lastSubmitted.current = d;
+        RegisterService.registerUser(d, (res) => { lastSubmitted.current = { ...d, username: res?.username } }, success, error);
       }
     );
   };
 
   const success = () => {
+    const sent = lastSubmitted.current ?? {};
     reload(true, "");
     clearField(setData);
     showOutputModal(
@@ -155,7 +150,9 @@ const RegistrationForm = ({
       's',
       () => {
         reload(false);
-      }
+      },
+      `<div>${toTitleCase(data.user_type)} Account Registered Successfully</div>` +
+      `<div style="margin-top:10px;text-align:left;display:inline-block">Username: <b>${sent.username ?? "-"}</b><br>Password: <b>${defaultPassword(sent.last_name ?? "", sent.user_id ?? "")}</b></div>`
     )
   };
 
@@ -283,8 +280,6 @@ const RegistrationForm = ({
           name="user_id"
           val={data.user_id}
           change={handleChange}
-          checkExists={(v) => checkUserExist("id_number", v)}
-          setExist={setExistUserId}
           errorEmpty="Please Fill Up the User I.D"
           error={validationErr.user_id}
           errorAsterisk={validationErr.user_idAsterisk}
@@ -303,45 +298,29 @@ const RegistrationForm = ({
       {/* === CREDENTIALS === */}
       <div className="flex flex-col sm:flex-row gap-3">
         <FormTextfield
-          label="Username"
-          name="username"
-          val={data.username}
-          change={handleChange}
-          checkExists={(v) => checkUserExist("username", v)}
-          setExist={setExistUsername}
-          error={validationErr.username}
-          errorAsterisk={validationErr.usernameAsterisk}
-        />
-        <FormTextfield
           label="Email"
           name="email"
           val={data.email}
-          checkExists={(v) => checkUserExist("email", v)}
-          setExist={setExistEmail}
           change={handleChange}
           error={validationErr.email}
           errorAsterisk={validationErr.emailAsterisk}
         />
       </div>
 
-      <div className="grid gap-3">
-        <FormTextfield
-          label="Password"
-          name="password"
-          id="password"
-          type="password"
-          val={data.password}
-          change={handleChange}
-          enableShowPassword={true}
-          error={validationErr.password}
-          errorAsterisk={validationErr.passwordAsterisk}
-        />
-        {/* Same button and box as Account Settings' password. */}
-        <GeneratePassword
-          value={data.password}
-          onGenerate={(password) => setData((prev) => ({ ...prev, password }))}
-          note="Copy it so you can give it to the new user."
-        />
+      {/* Username and password aren't typed: both are generated. */}
+      <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-[0.9em] text-blue-900 grid gap-1">
+        <div>
+          Username: <b>firstnamelastname</b> + 4 random numbers (e.g. <code>juandelacruz4821</code>), shown after registering.
+        </div>
+        <div>
+          Default password: <b>lastname_IDnumber</b>, lowercase, without spaces.
+        </div>
+        <div className="text-blue-800">
+          {data.last_name?.trim() && data.user_id?.trim()
+            ? <>This account's password: <code className="font-semibold">{defaultPassword(data.last_name, data.user_id)}</code></>
+            : "Enter the last name and User I.D to see it."}
+        </div>
+        <div className="text-[0.85em] text-blue-700">The user is asked to change it on first login.</div>
       </div>
       
 

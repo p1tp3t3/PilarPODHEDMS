@@ -12,13 +12,13 @@ import { useEffect, useRef, useState } from "react"
 import { getWebLink, showWarningModal, toTitleCase } from "@/others/function"
 import { DashboardService } from "@/others/services/dashboard-service"
 import BarGraph from "@/Components/card/bar-graph-statistic-card"
+import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import AppointmentTodayList from "@/Components/list/appointment-today-list"
 import NewStudentList from "@/Components/list/new-student-list"
 import StudentNotificationList from "@/Components/list/student-notification-list"
 import WatchList from "@/Components/list/watch-list"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import UnresolvedComplaintModal from "@/Components/modal/validation/unresolved-complaint-modal"
-import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder"
 import { Head, Link, router } from "@inertiajs/react"
 import LatestActiveAccountList from "@/Components/list/latest-active-user-list"
 import OffenseList from "@/Components/list/offense-list"
@@ -204,7 +204,6 @@ const PrefectDashBoard = (props) => {
         <Head title="Dashboard" />
         <PageTitle title="Dashboard" />
         <div className="w-full pt-5 pb-6 sm:pb-10">
-          <MaintenanceScheduleReminder />
 
           <div>
             <TabSwitcher tabs={optionTab} value={choose2} onChange={handleSelect2} />
@@ -301,6 +300,8 @@ const PrefectDashBoard = (props) => {
                         </div>
                       }
                       side={
+                        // On phones, the period filters open in a modal.
+                        <MobileFilters active={countActive(selectedRange === "school_year" ? semester : "")}>
                         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                           <div className="w-full sm:w-[9.5rem]">
                             <DropdownField
@@ -355,6 +356,7 @@ const PrefectDashBoard = (props) => {
                             </div>
                           )}
                         </div>
+                        </MobileFilters>
                       }
                     />
                   </div>

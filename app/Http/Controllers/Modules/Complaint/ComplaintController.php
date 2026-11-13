@@ -240,22 +240,6 @@ class ComplaintController extends Controller
         ]);
     }
 
-    public function downloadSubjectDocument($id, $fileName)
-    {
-        $id = decrypt_id($id) ?? abort(404);
-        $fileName = basename($fileName);
-        $complaintNumber = Complaint::where('id', $id)->value('complaint_number');
-        $path = storage_path("app/private/complaints/complaint-{$complaintNumber}/subjects/$fileName");
-
-        if (! file_exists($path)) {
-            abort(404);
-        }
-
-        return response()->file($path, [
-            'Content-Type' => mime_content_type($path),
-        ]);
-    }
-
     public function confirmComplaint($id)
     {
         $complaint = Complaint::with(['user.profile', 'subject.profile'])
@@ -826,7 +810,10 @@ class ComplaintController extends Controller
 
         // Determine complainant_id
         $complainantId = null;
-        if (! $request->has('complainant_name') || is_null($request->complainant_name)) {
+        if (! $isPrefect) {
+            // Everyone else files as themselves, whatever the form says.
+            $complainantId = auth()->id();
+        } elseif (! $request->has('complainant_name') || is_null($request->complainant_name)) {
             $complainantId = $request->complainant;
         }
 
@@ -844,7 +831,7 @@ class ComplaintController extends Controller
             'case_number' => $isPrefect ? $nextCaseNumber : null,
         ];
 
-        if ($request->has('complainant_name') && ! empty($request->complainant_name)) {
+        if ($isPrefect && $request->has('complainant_name') && ! empty($request->complainant_name)) {
             $fields['complainant_name'] = $request->complainant_name;
         }
 

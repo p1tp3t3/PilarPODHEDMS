@@ -558,12 +558,16 @@ class AccountController extends Controller
      */
     public function getStaffList()
     {
-        $type = $_GET['type'] ?? 'teaching';
+        $type = $_GET['type'] ?? 'all';
         $roles = match ($type) {
+            'program_head' => ['program_head'],
+            'faculty' => ['faculty'],
             'non_teaching' => ['non_teaching_staff'],
-            'all' => ['program_head', 'faculty', 'non_teaching_staff'],
-            default => ['program_head', 'faculty'],
+            // Old links: program heads and faculty together.
+            'teaching' => ['program_head', 'faculty'],
+            default => ['program_head', 'faculty', 'non_teaching_staff'],
         };
+        $isTeaching = in_array($type, ['program_head', 'faculty', 'teaching'], true);
 
         $data = User::with(['profile', 'faculty.program', 'headships.program', 'nonTeachingStaff'])
             ->whereRole($roles);
@@ -571,7 +575,7 @@ class AccountController extends Controller
         // Program only makes sense for teaching staff — non-teaching staff
         // aren't attached to a program at all, and "All Staff" mixes both
         // together so a single program can't scope the whole list.
-        if ($type === 'teaching' && isset($_GET['program']) && $_GET['program'] !== 'all') {
+        if ($isTeaching && isset($_GET['program']) && $_GET['program'] !== 'all') {
             $data->teachingInPrograms([$_GET['program']]);
         }
 
@@ -595,7 +599,7 @@ class AccountController extends Controller
                 ->paginate(100)
                 ->appends([
                     'search' => $_GET['search'] ?? '',
-                    'type' => $_GET['type'] ?? 'teaching',
+                    'type' => $_GET['type'] ?? 'all',
                     'program' => $_GET['program'] ?? 'all',
                     'position' => $_GET['position'] ?? 'all',
                 ])
@@ -855,7 +859,8 @@ class AccountController extends Controller
 
     public function accountSettingsIndex($id)
     {
-        $target = User::with('profile')->where('username', $id)->first();
+        $target = User::with('profile')->where('username', $id)->first() ?? abort(404);
+        abort_unless($target->id === auth()->id() || auth()->user()->role === 'super_admin', 403);
         $props = [
             'program_name' => is_program_head(),
             'otherUserAccount' => new UserResource($target),
@@ -869,6 +874,38 @@ class AccountController extends Controller
         }
 
         return Inertia::render('shared/account-settings', $props);
+    }
+
+    /**
+     * IT admin: resets another user's password to the default
+     * (default_password(): lastname_idnumber). The user must change it at
+     * their next login, and is signed out of any open session.
+     */
+    public function resetPassword($id)
+    {
+        $user = User::with('profile')->findOrFail($id);
+
+        if ($user->id === auth()->id()) {
+            return response()->json(['message' => 'Change your own password with the password form instead.'], 422);
+        }
+        if (empty($user->id_number) || empty($user->profile?->last_name)) {
+            return response()->json(['message' => "This account has no ID number or last name, so it has no default password."], 422);
+        }
+
+        $password = default_password($user->profile->last_name, $user->id_number);
+        $user->update([
+            'password' => Hash::make($password),
+            'must_change_password' => true,
+        ]);
+        DB::table('sessions')->where('user_id', $user->id)->delete();
+
+        ActionLog::log(
+            auth()->id(),
+            'account update',
+            'Reset the password of '.trim(($user->profile->first_name ?? '').' '.($user->profile->last_name ?? '')).' to the default'
+        );
+
+        return response()->json(['message' => 'Password reset.', 'password' => $password]);
     }
 
     public function update(UpdateAccountRequest $request)
@@ -892,6 +929,16 @@ class AccountController extends Controller
             return response()->json([
                 'error' => 'Complete account setup (profile and password together) before changing your password here.',
             ], 422);
+        }
+
+        // Usernames and emails are managed centrally by the IT admin; everyone
+        // else can only change their own password here.
+        $changesIdentity = ($request->filled('username') && strtolower($request->username) !== $user->username)
+            || ($request->filled('email') && strtolower($request->email) !== strtolower((string) $user->email));
+        if ($changesIdentity && auth()->user()->role !== 'super_admin') {
+            return response()->json([
+                'message' => 'Only the IT admin can change usernames and emails.',
+            ], 403);
         }
 
         // Only touch the fields actually present in this request — a
@@ -1367,27 +1414,6 @@ class AccountController extends Controller
         return $account->allUserAccount();
     }
 
-    public function getContact($username)
-    {
-        $user = User::with('profile')
-            ->where(function ($q) use ($username) {
-                $q->where('username', $username)->orWhere('id_number', $username);
-            })
-            ->first();
-
-        if (! $user) {
-            return response()->json(['message' => "This Account Doesn't Exists."], 400);
-        }
-
-        if (empty($user->email) && empty($user->profile?->contact_number)) {
-            return response()->json(['message' => "This Account Doesn't Have Email."], 400);
-        }
-
-        return response()->json([
-            'email' => $user->email ?: null,
-            'contact_number' => $user->profile?->contact_number ?: null,
-        ]);
-    }
 
     public function getFaculty()
     {
@@ -1807,39 +1833,4 @@ class AccountController extends Controller
         ];
     }
 
-    public function validateUser($type, $value, $id = null)
-    {
-        $authUserId = auth()->check()
-                      ?
-                      auth()->user()->id
-                      :
-                      null;
-
-        // Find any user with same username/email except the one being edited
-        $exists = auth()->check()
-                  ?
-                  User::where($type, $value)
-                      ->when($id, function ($q) use ($id) {
-                          $q->where('id', '!=', $id); // exclude user being edited
-                      })
-                      ->exists()
-                  :
-                  User::where($type, $value)->exists();
-
-        // 🟢 Special Rule: If admin enters THEIR OWN username/email
-        // while editing another user's info → ignore conflict
-        if (auth()->check() && (auth()->user()->role === 'super_admin' && ! is_null($id))) {
-            if ($authUserId != $id) {
-                $isAdminOwnCredential = User::where('id', $authUserId)
-                    ->where($type, $value)
-                    ->exists();
-
-                if ($isAdminOwnCredential) {
-                    return response()->json(true); // treat as "not existing"
-                }
-            }
-        }
-
-        return response()->json($exists);
-    }
 }

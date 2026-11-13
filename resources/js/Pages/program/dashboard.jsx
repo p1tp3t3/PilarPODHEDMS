@@ -1,7 +1,6 @@
 import AuthLayout from "@/Layouts/auth-layout";
 import DashboardInfoBar from "@/Components/other/dashboard-info-bar"
 import QuantityCard from "@/Components/card/qntty-statistic-card";
-import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder";
 import "../style.css";
 import LatestActiveAccountList from "@/Components/list/latest-active-user-list";
 import NewUserList from "@/Components/list/new-user-list";
@@ -24,7 +23,6 @@ const ProgramDashboard = (props) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
         >
-          <MaintenanceScheduleReminder />
           <DashboardTabs>
           <div className="w-full flex flex-col gap-6">
             {/* Date/time, current semester and prefect availability in one card. */}

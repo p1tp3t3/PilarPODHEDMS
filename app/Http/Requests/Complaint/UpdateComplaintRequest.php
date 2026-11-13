@@ -2,14 +2,24 @@
 
 namespace App\Http\Requests\Complaint;
 
+use App\Http\Requests\Concerns\RateLimitsSubmissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateComplaintRequest extends FormRequest
 {
+    use RateLimitsSubmissions;
+
     // The prefect can't edit a complaint, even one they filed.
     public function authorize(): bool
     {
         return $this->user()?->role !== 'sub_admin';
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('complaint_description')) {
+            $this->merge(['complaint_description' => clean_rich_text((string) $this->complaint_description)]);
+        }
     }
 
     public function rules(): array

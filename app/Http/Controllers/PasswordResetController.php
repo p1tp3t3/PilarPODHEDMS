@@ -30,6 +30,7 @@ class PasswordResetController extends Controller
 
         $pin = random_int(100000, 999999);
         cache()->put("password_reset_otp_{$user->username}", Hash::make($pin), now()->addMinutes(10));
+        cache()->put("password_reset_otp_tries_{$user->username}", 0, now()->addMinutes(10));
 
         try {
             Mail::to($user->email)->send(new OTPMail($pin));
@@ -66,12 +67,22 @@ class PasswordResetController extends Controller
             'otp' => 'required|string',
         ]);
 
-        $hashed = cache("password_reset_otp_{$request->username}");
+        $otpKey = "password_reset_otp_{$request->username}";
+        $triesKey = "password_reset_otp_tries_{$request->username}";
+
+        $hashed = cache($otpKey);
         if (! $hashed || ! Hash::check($request->otp, $hashed)) {
+            // Too many wrong guesses: the code is discarded; a new one is needed.
+            if ($hashed && cache()->increment($triesKey) >= 5) {
+                cache()->forget($otpKey);
+                cache()->forget($triesKey);
+            }
+
             return response()->json(['message' => 'Invalid or expired code.'], 400);
         }
 
-        cache()->forget("password_reset_otp_{$request->username}");
+        cache()->forget($otpKey);
+        cache()->forget($triesKey);
         cache()->put("password_reset_authorized_{$request->username}", true, now()->addMinutes(15));
 
         return response()->json(['message' => 'success']);

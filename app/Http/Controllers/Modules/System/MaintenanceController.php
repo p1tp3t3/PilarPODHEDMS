@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Modules\System;
 
 use App\Events\MaintenanceModeToggled;
+use App\Events\MaintenanceScheduleChanged;
 use App\Exports\UserAccountExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Program\DestroyProgramRequest;
@@ -148,6 +149,13 @@ class MaintenanceController extends Controller
         $enabled = $request->boolean('enabled');
 
         Cache::forever('maintenance_mode', $enabled);
+        if ($enabled) {
+            Cache::forever('maintenance_mode_started_at', now()->toIso8601String());
+            Cache::forget('maintenance_mode_message');
+        } else {
+            Cache::forget('maintenance_mode_started_at');
+            Cache::forget('maintenance_mode_message');
+        }
 
         // Toggling by hand (in either direction) supersedes any pending
         // schedule — most obviously so once it's already been turned on,
@@ -182,8 +190,10 @@ class MaintenanceController extends Controller
         ]);
 
         Cache::forever('maintenance_mode_scheduled_at', $data['starts_at']);
+        Cache::forever('maintenance_mode_message', $data['message']);
 
         ActivateScheduledMaintenanceJob::dispatch()->delay(Carbon::parse($data['starts_at']));
+        self::broadcastSchedule();
 
         $notified = self::notifyAllUsers($data['message']);
 
@@ -196,8 +206,40 @@ class MaintenanceController extends Controller
     public function cancelScheduledMaintenanceMode()
     {
         Cache::forget('maintenance_mode_scheduled_at');
+        Cache::forget('maintenance_mode_message');
+        self::broadcastSchedule();
 
         return response()->json(['message' => 'success']);
+    }
+
+    /**
+     * The pending maintenance start as ISO 8601 (with the app's timezone, so
+     * every browser counts down to the same moment), or null.
+     */
+    public static function scheduledAtIso(): ?string
+    {
+        $at = Cache::get('maintenance_mode_scheduled_at');
+        if (Cache::get('maintenance_mode', false) || ! $at) {
+            return null;
+        }
+
+        return Carbon::parse($at, config('app.timezone'))->toIso8601String();
+    }
+
+    /** For the title-bar countdown's periodic check (when live updates aren't running). */
+    public function scheduleStatus()
+    {
+        return response()->json(['scheduled_at' => self::scheduledAtIso()]);
+    }
+
+    /** Tells every open page; a broadcasting failure (Reverb down) doesn't fail the request. */
+    private static function broadcastSchedule(): void
+    {
+        try {
+            broadcast(new MaintenanceScheduleChanged(self::scheduledAtIso()));
+        } catch (\Throwable $e) {
+            Log::warning('Maintenance schedule broadcast failed: '.$e->getMessage());
+        }
     }
 
     /**
@@ -224,6 +266,7 @@ class MaintenanceController extends Controller
         }
 
         Cache::forever('maintenance_mode', true);
+        Cache::forever('maintenance_mode_started_at', now()->toIso8601String());
         Cache::forget('maintenance_mode_scheduled_at');
 
         broadcast(new MaintenanceModeToggled(true));

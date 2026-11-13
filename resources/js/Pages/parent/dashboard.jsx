@@ -1,7 +1,6 @@
 import AuthLayout from "@/Layouts/auth-layout";
 import DashboardInfoBar from "@/Components/other/dashboard-info-bar"
 import QuantityCard from "@/Components/card/qntty-statistic-card";
-import MaintenanceScheduleReminder from "@/Components/other/maintenance-schedule-reminder";
 import '../style.css'
 import DashboardTabs from "@/Components/other/dashboard-tabs";
 import { Head, Link } from "@inertiajs/react";
@@ -14,7 +13,6 @@ const ParentDashboard = (props) => {
             <Head title="Dashboard" />
             <PageTitle title="Dashboard" />
             <div className="w-full pt-5 pb-6 sm:pb-10">
-                <MaintenanceScheduleReminder />
                 <DashboardTabs>
                 {/* Date/time, current semester and prefect availability in one card. */}
                 <DashboardInfoBar />

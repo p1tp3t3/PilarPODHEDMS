@@ -5,10 +5,16 @@ namespace App\Http\Requests\GatePass;
 use App\Models\GatePass;
 use Carbon\Carbon;
 use Illuminate\Contracts\Validation\Validator;
+use App\Http\Requests\Concerns\RateLimitsSubmissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class GatepassRequestRequest extends FormRequest
 {
+    use RateLimitsSubmissions;
+
+    /** Submissions allowed per minute. */
+    protected int $perMinute = 5;
+
     public function authorize(): bool
     {
         return true;

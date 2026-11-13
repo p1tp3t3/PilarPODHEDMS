@@ -33,6 +33,10 @@ class CheckMaintenanceMode
             ], 503);
         }
 
-        return Inertia::render('guest/maintenance-notice')->toResponse($request);
+        return Inertia::render('guest/maintenance-notice', [
+            // When it started, and the IT admin's message (scheduled maintenance).
+            'started_at' => Cache::get('maintenance_mode_started_at'),
+            'message' => Cache::get('maintenance_mode_message'),
+        ])->toResponse($request);
     }
 }

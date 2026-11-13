@@ -4,7 +4,7 @@ import FormTextfield from "@/Components/input/form-input"
 import FormButton from "@/Components/button/button"
 import { AccountService } from "@/others/services/account-service"
 import { useState, useEffect } from "react"
-import { change, check, checkUserExist, fileChange, toTitleCase, generateStrongPassword } from "@/others/function"
+import { change, check, fileChange, toTitleCase, generateStrongPassword } from "@/others/function"
 import { requestType } from "@/others/list/type-list"
 import { Validator } from "@/others/classes/validator"
 import DropdownField from "@/Components/input/dropdown"
@@ -221,8 +221,6 @@ const EditUserInfoModal = (props) => {
                             change={handleChange}
                             error={validationErr.username}
                             errorAsterisk={validationErr.usernameAsterisk}
-                            setExist={setExist}
-                            checkExists={(value) => checkUserExist("username", value)}
                         />
                         <div className="flex gap-2">
                             <FormTextfield

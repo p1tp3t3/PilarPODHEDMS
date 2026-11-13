@@ -109,7 +109,10 @@ const AccountModal = (props) => {
 
                 <List dense disablePadding sx={{ p: 1 }}>
                     <MenuLink href={`${profileUrl(user)}`} icon={User}>See Profile</MenuLink>
-                    <MenuLink href={'/settings/' + user.username} icon={Settings}>Account Settings</MenuLink>
+                    {/* Account settings are managed centrally by the IT admin. */}
+                    {user.role === "super_admin" && (
+                        <MenuLink href={'/settings/' + user.username} icon={Settings}>Account Settings</MenuLink>
+                    )}
                     <MenuLink href="/my-activity" icon={History}>My Activity</MenuLink>
                 </List>
 

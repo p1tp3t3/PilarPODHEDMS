@@ -1,4 +1,5 @@
 import { Children, createContext, isValidElement, useContext } from "react"
+import MaintenanceCountdown from "@/Components/other/maintenance-countdown"
 import { createPortal } from "react-dom"
 import { useIsMobile } from "@/others/use-is-mobile"
 import { useMediaQuery } from "@mui/material"
@@ -87,6 +88,7 @@ export const PageTitle = ({ title, rightSideComponent, actionsElsewhere = false 
     const heading = (
         <div className="flex w-full justify-between items-center gap-3 min-w-0">
             <h1 className="min-w-0 text-[0.95em] sm:text-[1.05em] font-bold uppercase tracking-wide text-gray-800">{title}</h1>
+            <MaintenanceCountdown />
         </div>
     )
 

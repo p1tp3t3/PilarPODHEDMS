@@ -3,7 +3,7 @@ import FormTextfield from "@/Components/input/form-input";
 import OtpModal from "@/Components/modal/validation/show-otp-modal";
 import { useEffect, useState } from "react";
 import { router } from "@inertiajs/react";
-import { change, checkUserExist, checkCurrentPassword, showOutputModal, showWarningModal } from "@/others/function";
+import { change, checkCurrentPassword, showOutputModal, showWarningModal } from "@/others/function";
 import GeneratePassword from "@/Components/input/generate-password";
 import { AccountService } from "@/others/services/account-service";
 import { Validator } from "@/others/classes/validator";
@@ -54,8 +54,6 @@ const AccountInfoForm = ({ authUser, targetAccount, isAdmin, reload }) => {
         email: targetAccount.email,
     });
     const [error, setError] = useState({});
-    const [existUsername, setExistUsername] = useState(false);
-    const [existEmail, setExistEmail] = useState(false);
 
     const validate = () => {
         const err = {};
@@ -84,12 +82,8 @@ const AccountInfoForm = ({ authUser, targetAccount, isAdmin, reload }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        if (!isAdmin) return;
         if (!validate()) return;
-
-        const usernameChanged = data.username !== targetAccount.username;
-        const emailChanged = data.email !== targetAccount.email;
-
-        if ((existUsername && usernameChanged) || (existEmail && emailChanged)) return;
 
         const isSelfUpdate = targetAccount.id === authUser.id;
 
@@ -114,9 +108,10 @@ const AccountInfoForm = ({ authUser, targetAccount, isAdmin, reload }) => {
                             window.location.reload();
                         });
                     },
-                    () => {
+                    (e) => {
                         reload(true, "");
-                        showOutputModal("Failed to Update Account Info", "e", () => reload(false));
+                        // e.g. "The username has already been taken."
+                        showOutputModal(e?.response?.data?.message ?? "Failed to Update Account Info", "e", () => reload(false));
                     }
                 );
             }
@@ -127,33 +122,36 @@ const AccountInfoForm = ({ authUser, targetAccount, isAdmin, reload }) => {
         <div className="bg-white px-5 md:px-10 py-8 rounded-lg shadow-sm shadow-black/20">
             <h2 className="text-lg font-semibold mb-5">Username &amp; Email</h2>
             <form onSubmit={handleSubmit} className="grid gap-6">
+                {/* Usernames and emails are managed by the IT admin; everyone else sees theirs. */}
                 <FormTextfield
                     label="Username"
                     name="username"
                     val={data.username}
                     change={(e) => change(e, setData)}
-                    checkExists={(e) => checkUserExist('username', e, data.user_id)}
-                    setExist={setExistUsername}
+                    readOnly={!isAdmin}
                     error={error.username}
                     errorAsterisk={error.usernameAsterisk}
                 />
 
-                {isAdmin && (
-                    <FormTextfield
-                        label="Email"
-                        name="email"
-                        val={data.email}
-                        change={(e) => change(e, setData)}
-                        checkExists={(e) => checkUserExist('email', e, data.user_id)}
-                        setExist={setExistEmail}
-                        error={error.email}
-                        errorAsterisk={error.emailAsterisk}
-                    />
-                )}
+                <FormTextfield
+                    label="Email"
+                    name="email"
+                    val={data.email ?? ""}
+                    change={(e) => change(e, setData)}
+                    readOnly={!isAdmin}
+                    error={error.email}
+                    errorAsterisk={error.emailAsterisk}
+                />
 
-                <div className="grid justify-end">
-                    <FormButton type="submit" label="Save Changes" />
-                </div>
+                {isAdmin ? (
+                    <div className="grid justify-end">
+                        <FormButton type="submit" label="Save Changes" />
+                    </div>
+                ) : (
+                    <p className="text-[0.85em] text-gray-500">
+                        To change your username or email, contact the IT admin.
+                    </p>
+                )}
             </form>
         </div>
     );
@@ -189,7 +187,67 @@ const PasswordChecklist = ({ password = "", confirmation = "" }) => {
     );
 };
 
-export const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, reload, isForceSetup = false, onBackToProfile, isForcePassword = false }) => {
+// lastname_idnumber, as default_password() in app/helpers.php.
+const plain = (v) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "").toLowerCase();
+const defaultPasswordOf = (account) => `${plain(account.profile?.last_name)}_${plain(account.id_number)}`;
+
+// The IT admin on another user's account settings: no typed password, just a
+// reset to the default, which the user must change at their next login.
+const ResetPasswordCard = ({ targetAccount, reload }) => {
+    const name = targetAccount.profile?.first_name ?? "this user";
+    const canReset = !!targetAccount.id_number && !!targetAccount.profile?.last_name;
+
+    const reset = () => {
+        showWarningModal(
+            `Reset ${name}'s password to the default? They'll be signed out and must set a new one at their next login.`,
+            "Reset Password",
+            "Cancel",
+            () => {
+                reload(true, "text-wait", "Resetting password...");
+                AccountService.resetPassword(
+                    targetAccount.id,
+                    () => {},
+                    () => {
+                        reload(true, "");
+                        showOutputModal("Password Reset", "s", () => reload(false),
+                            `<div>The password is now <b>${defaultPasswordOf(targetAccount)}</b>.</div><div style="font-size:0.9em;color:#555;margin-top:6px">${name} must change it at their next login.</div>`);
+                    },
+                    (e) => {
+                        reload(true, "");
+                        showOutputModal(e?.response?.data?.message ?? "Failed to Reset Password", "e", () => reload(false));
+                    }
+                );
+            }
+        );
+    };
+
+    return (
+        <div className="bg-white px-5 md:px-10 py-8 rounded-lg shadow-sm shadow-black/20">
+            <h2 className="text-lg font-semibold mb-3">Password</h2>
+            <p className="text-[0.9em] text-gray-600">
+                Resets the password to the default, <b>lastname_IDnumber</b>
+                {canReset && <> (<code className="font-semibold">{defaultPasswordOf(targetAccount)}</code>)</>}.
+                {" "}{name} must change it at their next login.
+            </p>
+            {!canReset && (
+                <p className="text-[0.85em] text-[#d12323] mt-2">This account has no ID number or last name, so it has no default password.</p>
+            )}
+            <div className="grid justify-end mt-5">
+                <FormButton type="button" label="Reset Password" click={reset} enable={canReset} />
+            </div>
+        </div>
+    );
+};
+
+export const PasswordForm = (props) => {
+    const { targetAccount, isAdmin, isEditingOwnAccount, reload, isForceSetup = false, isForcePassword = false } = props;
+    if (isAdmin && !isEditingOwnAccount && !isForceSetup && !isForcePassword) {
+        return <ResetPasswordCard targetAccount={targetAccount} reload={reload} />;
+    }
+    return <OwnPasswordForm {...props} />;
+};
+
+const OwnPasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount, reload, isForceSetup = false, onBackToProfile, isForcePassword = false }) => {
     const PROFILE_CACHE_KEY = accountSetupCacheKey("account-setup-profile", targetAccount.id);
     const PASSWORD_CACHE_KEY = accountSetupCacheKey("account-setup-password", targetAccount.id);
     const [commonPasswordList, setCommonPasswordList] = useState([]);
@@ -404,7 +462,7 @@ export const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAcc
                         <StepHeading
                             icon={KeyRound}
                             title="Set a New Password"
-                            desc="The administrator changed your password. Enter the password you just logged in with, then choose your own."
+                            desc="The administrator reset your password to the default (lastname_IDnumber). Enter it, then choose your own."
                         />
                     </div>
                 ) : isForceSetup ? (
@@ -421,7 +479,7 @@ export const PasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAcc
                 <form onSubmit={handleSubmit} className="grid gap-6">
                     {showCurrentPassword && (
                         <FormTextfield
-                            label={isForcePassword ? "Password Given by the Administrator" : "Enter Your Current Password"}
+                            label={isForcePassword ? "Default Password (lastname_IDnumber)" : "Enter Your Current Password"}
                             name="current_password"
                             id="current_password"
                             type="password"

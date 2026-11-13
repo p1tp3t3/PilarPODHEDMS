@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests\Referral;
 
+use App\Http\Requests\Concerns\RateLimitsSubmissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateReferralRequest extends FormRequest
 {
+    use RateLimitsSubmissions;
+
     public function authorize(): bool
     {
         return true;

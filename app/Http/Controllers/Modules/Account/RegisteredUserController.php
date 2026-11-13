@@ -18,6 +18,7 @@ use App\Models\Position;
 use App\Models\Profile;
 use App\Models\Program;
 use App\Models\SchoolYear;
+use App\Models\SchoolYearSemester;
 use App\Models\User;
 use App\Models\UserPermission;
 use Exception;
@@ -28,6 +29,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use ZipArchive;
 
@@ -87,6 +89,14 @@ class RegisteredUserController extends Controller
 
     public function store(RegisterRequest $request)
     {
+        // Manually registered accounts start with the default password
+        // (lastname_idnumber), never one typed in the form.
+        // It's guessable, so it must be changed at first login (every role).
+        $request->merge([
+            'password' => default_password($request->last_name, $request->id_number),
+            'must_change_password' => true,
+        ]);
+
         if ($request->validated()) {
             DB::beginTransaction(); // 🧱 Start Transaction
 
@@ -108,7 +118,7 @@ class RegisteredUserController extends Controller
 
                         DB::commit();
 
-                        return response()->json(['message' => 'Registered Successfully']);
+                        return response()->json(['message' => 'Registered Successfully', 'username' => $request->username]);
                     }
 
                     DB::rollBack();
@@ -140,7 +150,7 @@ class RegisteredUserController extends Controller
 
                         DB::commit();
 
-                        return response()->json(['message' => 'Registered Successfully']);
+                        return response()->json(['message' => 'Registered Successfully', 'username' => $request->username]);
                     }
 
                     DB::rollBack();
@@ -160,6 +170,11 @@ class RegisteredUserController extends Controller
                     ]);
 
                     DB::commit();
+
+                    // Tell the admin the generated username.
+                    if ($result instanceof \Illuminate\Http\JsonResponse && $result->isSuccessful()) {
+                        $result->setData(array_merge((array) $result->getData(true), ['username' => $request->username]));
+                    }
 
                     return $result;
                 }
@@ -201,12 +216,18 @@ class RegisteredUserController extends Controller
                     $programName = Program::where('id', $programId)->value('name');
                     $yearLevel = $request->year_level;
 
-                    $zipPath = storage_path("app/private/zips/student-{$programId}-{$programName}.zip");
-                    $csvName = "student-account-{$programId}-{$programName}-year-{$yearLevel}.csv";
-
-                    if (! file_exists($zipPath)) {
-                        throw new Exception("Student account ZIP file for {$programName} does not exist.");
+                    // Enrolled in the current school year and semester (not picked in the form).
+                    $currentSemester = SchoolYearSemester::current();
+                    if (! $currentSemester) {
+                        return response()->json([
+                            'message' => 'No active school year/semester is set. Set one in School Year Management first.',
+                        ], 422);
                     }
+
+                    // Same file names as the bulk import (ProcessStudentCsvRow).
+                    $programSlug = strtoupper(Str::slug($programName ?? 'unknown', '-'));
+                    $zipPath = storage_path("app/private/zips/student-{$programId}-{$programSlug}.zip");
+                    $csvName = "student-account-{$programId}-{$programSlug}-year-{$yearLevel}.csv";
 
                     $user = User::create($userFields);
                     Profile::create(array_merge(['user_id' => $user->id], $profileFields));
@@ -215,8 +236,8 @@ class RegisteredUserController extends Controller
                     Enrollment::create([
                         'student_id' => $user->id,
                         'program_id' => $programId,
-                        'school_year_id' => $request->school_year_id,
-                        'semester' => $request->semester ?? 1,
+                        'school_year_id' => $currentSemester->school_year_id,
+                        'semester' => $currentSemester->semester,
                         'year_level' => $yearLevel,
                     ]);
 
@@ -243,8 +264,10 @@ class RegisteredUserController extends Controller
                     ];
 
                     $zip = new ZipArchive;
-                    if ($zip->open($zipPath) === true) {
-                        $zip->extractTo($tmpExtractDir);
+                    if ($zip->open($zipPath, ZipArchive::CREATE) === true) {
+                        if ($zip->numFiles > 0) {
+                            $zip->extractTo($tmpExtractDir);
+                        }
                         $zip->close();
 
                         $csvPath = "{$tmpExtractDir}/{$csvName}";
@@ -715,6 +738,7 @@ class RegisteredUserController extends Controller
             'email' => (empty($request->email)) ? null : strtolower($request->email),
             'activate' => $request->activate,
             'password' => Hash::make($request->password),
+            'must_change_password' => (bool) ($request->must_change_password ?? false),
         ];
     }
 
