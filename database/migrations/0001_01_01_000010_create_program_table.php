@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('program', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->text('description');
+            $table->string('code');
+            $table->text('name');
             $table->string('logo')->nullable();
             $table->string('color_code')->nullable();
             $table->tinyInteger('is_deleted')->default(0);

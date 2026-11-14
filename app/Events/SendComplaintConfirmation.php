@@ -10,6 +10,7 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use App\Http\Resources\Notification\NotificationsResource;
 
 class SendComplaintConfirmation implements ShouldBroadcast
 {
@@ -45,7 +46,7 @@ class SendComplaintConfirmation implements ShouldBroadcast
                               ->latest('created_at')
                               ->get();
         return [
-            'response' => $notif
+            'response' => NotificationsResource::collection($notif)->resolve(),
         ];
     }
 }

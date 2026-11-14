@@ -143,7 +143,7 @@ class Referral extends Model
 
                 return [
                     'name' => $fullName($student?->profile),
-                    'course' => trim(($student?->program?->name ?? '').($year ? " - {$year}" : '')) ?: '—',
+                    'course' => trim(($student?->program?->code ?? '').($year ? " - {$year}" : '')) ?: '—',
                 ];
             })->values()->all();
 

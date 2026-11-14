@@ -29,7 +29,7 @@ class ProfileAuthorization
         $targetRole = $targetUser->role;
 
         // Student data privacy: a student's profile is only for the student,
-        // the prefect / IT admin, their own parent, their siblings, and
+        // the prefect / System Admin, their own parent, their siblings, and
         // program heads and faculty of the student's own program. That rule alone decides
         // student profiles; everyone else is sent home.
         if ($targetRole === 'student') {

@@ -26,8 +26,9 @@ const UserProfileList = (props) => {
                             />
                         </div>
                     )
-                  :<div className="w-full text-[0.9em] text-center py-3 text-gray-600">
-                       <b><Search size={14} /> {(props.default) ? props.default : "User Not Found"}</b>
+                  :<div className="w-full flex items-center justify-center gap-2 py-3 text-[0.9em] font-semibold text-gray-600">
+                       <Search size={15} className="shrink-0" />
+                       <span>{(props.default) ? props.default : "User Not Found"}</span>
                    </div>)
                 :
                 <div className="flex justify-center items-center w-full">

@@ -9,23 +9,23 @@ import { ProgramService } from "@/others/services/program-service"
 const SetProgramModal = (props) => {
     const action = props.action || 'add'
     const editData = props.data || {}
-    // The acronym and full name are fixed once a program is created.
+    // The code and full name are fixed once a program is created.
     const locked = action === 'edit'
 
     const [data, setData] = useState({
         id: '',
+        code: '',
         name: '',
-        description: '',
         color: '',
         logo: null,
     })
     const [preview, setPreview] = useState(null)
 
     const [validationErr, setValidationErr] = useState({
+        code: "",
+        codeAsterisk: false,
         name: "",
         nameAsterisk: false,
-        description: "",
-        descriptionAsterisk: false,
         color: "",
         colorAsterisk: false,
     })
@@ -37,13 +37,13 @@ const SetProgramModal = (props) => {
         const d = action === 'edit' ? (props.data || {}) : {}
         setData({
             id: d.id || '',
+            code: d.code || '',
             name: d.name || '',
-            description: d.description || '',
             color: d.color_code || '',
             logo: null,
         })
         setPreview(null)
-        setValidationErr({ name: "", nameAsterisk: false, description: "", descriptionAsterisk: false, color: "", colorAsterisk: false })
+        setValidationErr({ code: "", codeAsterisk: false, name: "", nameAsterisk: false, color: "", colorAsterisk: false })
     }, [props.close, action, props.data])
 
     const handleLogoChange = (e) => {
@@ -52,22 +52,22 @@ const SetProgramModal = (props) => {
 
     const validate = () => {
         let err = {
+            code: "",
+            codeAsterisk: false,
             name: "",
             nameAsterisk: false,
-            description: "",
-            descriptionAsterisk: false,
             color: "",
             colorAsterisk: false,
         }
 
-        if (!data.name.trim()) {
-            err.name = "Program acronym is required."
-            err.nameAsterisk = true
+        if (!data.code.trim()) {
+            err.code = "Program code is required."
+            err.codeAsterisk = true
         }
 
-        if (!data.description.trim()) {
-            err.description = "Program name is required."
-            err.descriptionAsterisk = true
+        if (!data.name.trim()) {
+            err.name = "Program name is required."
+            err.nameAsterisk = true
         }
 
         if (!data.color || !/^#([0-9A-F]{3}){1,2}$/i.test(data.color)) {
@@ -76,7 +76,7 @@ const SetProgramModal = (props) => {
         }
 
         setValidationErr(err)
-        return !(err.name || err.description || err.color)
+        return !(err.code || err.name || err.color)
     }
 
     const handleSubmit = (e) => {
@@ -105,8 +105,8 @@ const SetProgramModal = (props) => {
                 const formData = new FormData()
                 formData.append('id', data.id)
                 if (!locked) {
+                    formData.append('code', data.code)
                     formData.append('name', data.name)
-                    formData.append('description', data.description)
                 }
                 formData.append('color', data.color)
                 if (data.logo) formData.append('logo', data.logo)
@@ -167,15 +167,15 @@ const SetProgramModal = (props) => {
 
                             <div className="grid gap-3">
 
-                                {/* `name` is the acronym (e.g. BSIT). Read-only when editing. */}
+                                {/* `code`, e.g. BSIT. Read-only when editing. */}
                                 <FormTextfield
-                                    label='Program Acronym'
-                                    name='name'
-                                    val={data.name}
+                                    label='Program Code'
+                                    name='code'
+                                    val={data.code}
                                     change={handleChange}
-                                    errorEmpty="Please enter program acronym."
-                                    error={validationErr.name}
-                                    errorAsterisk={validationErr.nameAsterisk}
+                                    errorEmpty="Please enter program code."
+                                    error={validationErr.code}
+                                    errorAsterisk={validationErr.codeAsterisk}
                                     readOnly={locked}
                                 />
 
@@ -193,20 +193,20 @@ const SetProgramModal = (props) => {
                                     )}
                                 </div>
 
-                                {/* `description` is the full name. Read-only when editing. */}
+                                {/* `name`, the full name. Read-only when editing. */}
                                 <FormTextfield
                                     label='Program Name'
-                                    name='description'
-                                    val={data.description}
+                                    name='name'
+                                    val={data.name}
                                     change={handleChange}
                                     errorEmpty="Please enter program name."
-                                    error={validationErr.description}
-                                    errorAsterisk={validationErr.descriptionAsterisk}
+                                    error={validationErr.name}
+                                    errorAsterisk={validationErr.nameAsterisk}
                                     readOnly={locked}
                                 />
                                 {locked && (
                                     <p className="text-[0.75em] text-gray-500 -mt-1">
-                                        The acronym and program name can't be changed. Only the logo and color can be edited.
+                                        The program code and name can't be changed. Only the logo and color can be edited.
                                     </p>
                                 )}
 

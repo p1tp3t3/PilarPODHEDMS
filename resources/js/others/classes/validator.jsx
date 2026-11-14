@@ -256,7 +256,10 @@ export class Validator {
         }
         if (required(nameKey, label)) return;
 
-        if (!/^[A-Za-z\s]+$/.test(field[nameKey])) {
+        // Real names: letters (ñ, é, ...), spaces, apostrophes, hyphens and
+        // periods (O'Reilly, Dela Cruz-Santos, Ma.). Letters only blocked
+        // these accounts with an error nobody could see (names aren't on the form).
+        if (!/^[\p{L}\s.'’-]+$/u.test(field[nameKey])) {
             errorMessage[nameKey] = `${label} must only contain letters`;
         } else {
             errorMessage[nameKey] = '';

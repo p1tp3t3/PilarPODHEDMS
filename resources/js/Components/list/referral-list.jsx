@@ -114,7 +114,7 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
 
                     const roleLabel =
                         ["program_head", "faculty"].includes(u?.role)
-                            ? `${u.role === "program_head" ? "Program Head" : "Faculty"} (${u?.teaching?.program?.name || "N/A"})`
+                            ? `${u.role === "program_head" ? "Program Head" : "Faculty"} (${u?.teaching?.program?.code || "N/A"})`
                             : "Prefect"
 
                     return (
@@ -264,7 +264,7 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
 
                         {canRevoke && (
                             <ActionBtn
-                                className="bg-gray-600 hover:bg-gray-700"
+                                className="bg-red-600 hover:bg-red-700"
                                 onClick={() => events("revoke", row.id)}
                             >
                                 Revoke

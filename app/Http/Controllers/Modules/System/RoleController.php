@@ -8,6 +8,7 @@ use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use App\Http\Resources\Account\RoleResource;
 
 /**
  * Super admin role management. Role names are fixed once created. A role that any user has ever held (current
@@ -33,7 +34,8 @@ class RoleController extends Controller
         ])
             ->orderBy('id')
             ->get()
-            ->each(fn (Role $r) => $r->is_system = $r->isSystem());
+            ->each(fn (Role $r) => $r->is_system = $r->isSystem())
+            ->pipe(fn ($roles) => RoleResource::collection($roles));
     }
 
     public function store(Request $request)
@@ -58,7 +60,7 @@ class RoleController extends Controller
         $role = Role::findOrFail($id);
 
         if ($role->name === 'super_admin' && $role->is_active) {
-            return response()->json(['message' => 'The IT Admin role cannot be deactivated.'], 422);
+            return response()->json(['message' => 'The System Admin role cannot be deactivated.'], 422);
         }
 
         $role->update(['is_active' => ! $role->is_active]);

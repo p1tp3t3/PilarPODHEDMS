@@ -109,14 +109,14 @@ const UploadGuidelines = (props) => {
           <li>
             <div>Program must match one of these program names exactly:</div>
             <ul>
-              {props.program.map((e, i) => <li key={i}>{e.name} - {e.description}</li>)}
+              {props.program.map((e, i) => <li key={i}>{e.code} - {e.name}</li>)}
             </ul>
           </li>}
           {props.type == 'administrative' &&
           <li>
             <div>Program must be their corresponding ID</div>
             <ul>
-              {props.program.map((e, i) => <li key={i}>{e.id} - {e.description}</li>)}
+              {props.program.map((e, i) => <li key={i}>{e.id} - {e.name}</li>)}
             </ul>
           </li>}
           {props.type == 'staff' &&
@@ -144,7 +144,7 @@ const UploadGuidelines = (props) => {
           <TableBody>
             <TableRow sx={{ "& .MuiTableCell-root": { backgroundColor: "var(--dm-surface-2, #f9fafb)", border: "1px solid var(--dm-border-strong, #d1d5db)" } }}>
               {data.map((item, idx) => (
-                <TableCell key={idx} align="center" sx={{ fontFamily: "monospace", color: "#1d4ed8" }}>
+                <TableCell key={idx} align="center" sx={{ fontFamily: "monospace", color: "#1d4ed8", "html.dark &": { color: "#60a5fa" } }}>
                   {item.example}
                 </TableCell>
               ))}

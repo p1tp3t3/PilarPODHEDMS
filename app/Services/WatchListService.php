@@ -125,7 +125,7 @@ class WatchListService
                 'id_number' => $user->id_number,
                 'role' => $user->role,
                 'profile' => $user->profile?->only(['first_name', 'middle_name', 'last_name', 'profile_picture', 'sex']),
-                'program' => $user->program?->only(['name']),
+                'program' => $user->program?->only(['code']),
                 'enrollments' => $user->enrollments->map->only(['year_level', 'program_id'])->values()->all(),
                 'top_probability' => $violations->first()['probability'],
                 // Plain arrays only: the cache won't rebuild objects such as Collections.

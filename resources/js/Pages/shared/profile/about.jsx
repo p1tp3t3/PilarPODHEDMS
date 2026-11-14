@@ -100,7 +100,7 @@ const About = (props) => {
     return (
         <div className="flex gap-6">
             <div className="grid gap-6 w-full">
-                {/* IT admin and prefect control what students, program heads and faculty can submit. */}
+                {/* System Admin and prefect control what students, program heads and faculty can submit. */}
                 {['super_admin', 'sub_admin'].includes(props.user.role) &&
                   props.data.user_id != props.user.id &&
                   ['student', 'program_head', 'faculty'].includes(props.data.user_type) &&
@@ -173,7 +173,7 @@ const About = (props) => {
                                                 alt=""
                                                 className="w-6 h-6 rounded-full object-cover"
                                             />
-                                            <div>{p.description ?? p.name}</div>
+                                            <div>{p.name ?? p.code}</div>
                                         </div>
                                     ))}
                                 </div>
@@ -202,7 +202,7 @@ const About = (props) => {
                 <ProfileSectionWrapper title="Contact Information" icon={Home}>
                     <div className="">
                         {/* Everyone's contact details show here, the prefect's
-                            included (same as the IT admin's). */}
+                            included (same as the System Admin's). */}
                         <div className="grid gap-3">
                             <AddressDisplay
                                 title="Current Address"
@@ -369,7 +369,7 @@ const EducationBackgroundSection = ({ type, list, student_data, program, usr, va
                                     <Label title="School Name" desc={e.school_name}/>
                                     <Label title="School Address" desc={e.school_address}/>
                                     {e.education_type !== 'senior_high_school' && (
-                                        <Label title='Program' desc={(e.education_type === 'college' && !e.transferee) ? (student_data?.unique_att?.program?.description ?? student_data?.unique_att?.program?.name) : e.program} />
+                                        <Label title='Program' desc={(e.education_type === 'college' && !e.transferee) ? (student_data?.unique_att?.program?.name ?? student_data?.unique_att?.program?.code) : e.program} />
                                     )}
                                     {e.education_type === 'college' && e.transferee ? (
                                         <>

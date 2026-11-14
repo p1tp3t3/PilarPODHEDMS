@@ -29,7 +29,7 @@ const FacultyList = ({ list, style = true, type = 'prefect', paginate = true }) 
         name: `${e.profile?.first_name ?? ""} ${e.profile?.last_name ?? ""}`,
         profile_picture: e.profile?.profile_picture,
         sex: e.profile?.sex,
-        program: e.teaching?.program?.name ?? "",
+        program: e.teaching?.program?.code ?? "",
         role_label: showUserType(e),
         created_at: e.created_at,
         last_seen: e.last_seen,
@@ -52,7 +52,7 @@ const FacultyList = ({ list, style = true, type = 'prefect', paginate = true }) 
                         isActive={isUserOnline(params.row.id) || checkActiveStatus(params.row.last_seen)}
                         activeSize={0.9}
                     />
-                    <div>
+                    <div className="leading-tight">
                         <h1 className="text-[0.8rem]"><b>{params.value}</b></h1>
                         <p className="text-[0.7rem]">{params.row.program}</p>
                     </div>
@@ -64,7 +64,7 @@ const FacultyList = ({ list, style = true, type = 'prefect', paginate = true }) 
             headerName: "Registered Since",
             width: 170,
             renderCell: (params) => (
-                <div>
+                <div className="flex flex-col justify-center h-full leading-tight">
                     <div className="text-[0.8rem]">{readableDate(params.value)}</div>
                     <div className="text-[0.7em]">{readableTime(params.value)}</div>
                 </div>
@@ -84,11 +84,13 @@ const FacultyList = ({ list, style = true, type = 'prefect', paginate = true }) 
             headerName: "Action",
             width: 120,
             renderCell: (params) => (
-                <Link href={`${profileUrl(params.row)}`}>
-                    <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700">
-                        View
-                    </ActionBtn>
-                </Link>
+                <div className="flex items-center h-full">
+                    <Link href={`${profileUrl(params.row)}`}>
+                        <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700">
+                            View
+                        </ActionBtn>
+                    </Link>
+                </div>
             ),
         },
     ], [isUserOnline])
@@ -103,7 +105,7 @@ const FacultyList = ({ list, style = true, type = 'prefect', paginate = true }) 
                         mobileSummary={(row) => ({ name: row.name.trim(), role: row.role_label, picture: row.profile_picture, sex: row.sex, hide: ["name"] })}
                         hideFooter
                         disableRowSelectionOnClick
-                        getRowHeight={() => "auto"}
+                        rowHeight={60}
                         showToolbar
                         localeText={{ noRowsLabel: "No Faculty Yet" }}
                     />

@@ -198,7 +198,7 @@
                 {{ $s->user->first_name . ' ' .  $s->user->middle_name . ' ' . $s->user->last_name }}
             </div>
           </td>
-          <td>{{ $s->user->student->program->name }}</td>
+          <td>{{ $s->user->student->program->code }}</td>
           <td>{{ $s->total_offenses }}</td>
         </tr>
       @empty

@@ -7,6 +7,7 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use App\Http\Resources\Chat\MessageResource;
 
 class MessageSent implements ShouldBroadcastNow
 {
@@ -30,7 +31,7 @@ class MessageSent implements ShouldBroadcastNow
         $this->message->load(['sender.profile', 'replyTo.sender.profile']);
 
         return [
-            'message' => $this->message,
+            'message' => MessageResource::make($this->message)->resolve(),
             'unread_count' => Message::where('receiver_id', $this->message->receiver_id)
                 ->whereNull('read_at')
                 ->count(),

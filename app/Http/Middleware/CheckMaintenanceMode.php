@@ -34,7 +34,7 @@ class CheckMaintenanceMode
         }
 
         return Inertia::render('guest/maintenance-notice', [
-            // When it started, and the IT admin's message (scheduled maintenance).
+            // When it started, and the System Admin's message (scheduled maintenance).
             'started_at' => Cache::get('maintenance_mode_started_at'),
             'message' => Cache::get('maintenance_mode_message'),
         ])->toResponse($request);

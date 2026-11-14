@@ -14,6 +14,12 @@ use App\Models\MessageEdit;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Http\Resources\Account\UserResource;
+use App\Http\Resources\Chat\MessageResource;
+use App\Http\Resources\Account\ProfileResource;
+use App\Http\Resources\System\ProgramResource;
+use App\Http\Resources\Account\EnrollmentResource;
+use App\Http\Resources\Account\NonTeachingStaffResource;
 
 class ChatController extends Controller
 {
@@ -21,15 +27,15 @@ class ChatController extends Controller
 
     /**
      * Whether $a may chat with $b (send to them, see the thread, list them):
-     * - IT admin (super_admin): the prefect, and anyone else only once that
-     *   person has messaged the IT admin first — the IT admin replies, but
+     * - System Admin (super_admin): the prefect, and anyone else only once that
+     *   person has messaged the System Admin first — the System Admin replies, but
      *   never starts a conversation with a user;
      * - prefect (sub_admin): everyone (parents included);
      * - program head: the students of the program(s) they head;
-     * - student: their program head, the prefect and the IT admin;
-     * - faculty: the prefect and the IT admin (not their
+     * - student: their program head, the prefect and the System Admin;
+     * - faculty: the prefect and the System Admin (not their
      *   program head, each other, or students);
-     * - non-teaching staff: the prefect and the IT admin;
+     * - non-teaching staff: the prefect and the System Admin;
      * - parent: no chat at all (the routes are closed to them too).
      */
     private function canChat(User $a, User $b): bool
@@ -44,7 +50,7 @@ class ChatController extends Controller
             return false;
         }
 
-        // Anyone may start a chat with the IT admin; the IT admin may only
+        // Anyone may start a chat with the System Admin; the System Admin may only
         // answer (any admin aside).
         if ($b->role === 'super_admin') {
             return true;
@@ -138,7 +144,7 @@ class ChatController extends Controller
         $partnerIds = Message::where('receiver_id', $me->id)->pluck('sender_id')
             ->merge(Message::where('sender_id', $me->id)->pluck('receiver_id'));
 
-        // Always the IT admin and the prefect, plus: a student's program head,
+        // Always the System Admin and the prefect, plus: a student's program head,
         // and for a program head, the students of the programs they head.
         $suggestedIds = User::whereRole(self::ADMIN_ROLES)->pluck('id');
 
@@ -174,11 +180,11 @@ class ChatController extends Controller
                 'encrypted_id' => encrypt_id($contact->id),
                 'username' => $contact->username,
                 'role' => $contact->role,
-                'profile' => $contact->profile,
-                'program' => $contact->program,
-                'enrollments' => $contact->enrollments,
+                'profile' => ProfileResource::make($contact->profile),
+                'program' => ProgramResource::make($contact->program),
+                'enrollments' => EnrollmentResource::collection($contact->enrollments),
                 'teaching' => $contact->teaching,
-                'non_teaching_staff' => $contact->nonTeachingStaff,
+                'non_teaching_staff' => NonTeachingStaffResource::make($contact->nonTeachingStaff),
                 'last_seen' => $contact->last_seen,
                 'last_message' => $lastMessage
                     ? ($lastMessage->unsent_at ? 'Message unsent' : $lastMessage->body)
@@ -226,8 +232,8 @@ class ChatController extends Controller
         $this->scrubUnsent($messages);
 
         return response()->json([
-            'contact' => $contact,
-            'messages' => $messages,
+            'contact' => UserResource::make($contact),
+            'messages' => MessageResource::collection($messages),
         ]);
     }
 

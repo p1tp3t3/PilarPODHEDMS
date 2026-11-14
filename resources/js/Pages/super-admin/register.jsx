@@ -310,7 +310,7 @@ const Register = (props) => {
                 const programIndex = headers.indexOf("program");
                 if (programIndex !== -1) {
                     const validPrograms = isNameBased
-                        ? props.program.map((p) => p.name.toLowerCase())
+                        ? props.program.map((p) => p.code.toLowerCase())
                         : props.program.map((p) => String(p.id));
                     for (let i = 1; i < rows.length; i++) {
                         const programVal = rows[i][programIndex]?.trim();
@@ -342,7 +342,7 @@ const Register = (props) => {
                                 .map((r) => `${r.row} (${r.value})`)
                                 .join(", ")}. ` +
                             `Allowed ${isNameBased ?'names' : 'IDs'}:\n` +
-                            props.program.map((p) => `${isNameBased ?p.name : p.id} - ${p.description}`).join("\n"),
+                            props.program.map((p) => `${isNameBased ?p.code : p.id} - ${p.name}`).join("\n"),
                     }));
 
                 // Final validation results
@@ -405,7 +405,7 @@ const Register = (props) => {
                 onValidateRow={(row, onResult, onError) =>
                     RegisterService.validateStudentCsvRow(row, onResult, () => {}, onError)
                 }
-                programOptions={(props.program ?? []).map((p) => p.name)}
+                programOptions={(props.program ?? []).map((p) => p.code)}
             />
         ) : (
         <PageLayout title="USER REGISTRATION">

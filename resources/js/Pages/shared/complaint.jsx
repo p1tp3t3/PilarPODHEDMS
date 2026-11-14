@@ -1,4 +1,5 @@
 import SchoolYearSemesterFilter from "@/Components/input/school-year-semester-filter"
+import SingleRowNotice from "@/Components/other/single-row-notice"
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import { useEffect, useState } from "react"
@@ -64,6 +65,7 @@ const Complaint = (props) => {
         // Keep the school year / semester filters when switching tabs.
         const q = new URLSearchParams(window.location.search)
         q.set("status", type)
+        q.delete("id") // a single-row view ends when the tab changes
         router.visit(`${url}?${q.toString()}`)
         setChoose(type)
       }
@@ -148,6 +150,7 @@ const Complaint = (props) => {
                 <div>
                     <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
                 </div>
+                <SingleRowNotice noun="complaint" />
                 {/* Complaint List */}
                 <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3 min-w-0">
                         <ComplaintList

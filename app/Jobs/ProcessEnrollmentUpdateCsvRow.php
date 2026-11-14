@@ -56,7 +56,7 @@ class ProcessEnrollmentUpdateCsvRow implements ShouldQueue
 
         $student = User::where('id_number', $idNumber)->whereRole('student')->first();
         $fullName = trim(($student->profile->first_name ?? '') . ' ' . ($student->profile->last_name ?? ''));
-        $program = Program::whereRaw('LOWER(name) = ?', [strtolower(trim($row['program']))])->first();
+        $program = Program::whereRaw('LOWER(code) = ?', [strtolower(trim($row['program']))])->first();
 
         $currentSemester = SchoolYearSemester::current();
 
@@ -85,7 +85,7 @@ class ProcessEnrollmentUpdateCsvRow implements ShouldQueue
             $this->recordResult('success', $idNumber, $fullName, null, [
                 'id' => $idNumber,
                 'name' => $fullName,
-                'program' => $program->name,
+                'program' => $program->code,
                 'year_level' => $row['year_level'],
                 'semester' => $currentSemester->semester,
                 'school_year' => $currentSemester->schoolYear?->year,

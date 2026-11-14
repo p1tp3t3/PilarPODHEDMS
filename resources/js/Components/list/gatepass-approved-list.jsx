@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { DataGrid } from "@/Components/other/data-grid";
 import Box from "@mui/material/Box";
-import { Chip } from "@mui/material";
 import ProfilePic from "../other/profile-pic";
 import { getProfilePic, readableDate, readableTime, showUserType, toTitleCase } from "@/others/function";
 
@@ -21,7 +20,6 @@ const when = (d) => (d ? `${readableDate(d)} (${readableTime(d)})` : "—");
 const GatePassApprovedList = ({ list = null }) => {
     const rows = useMemo(() => (list ?? []).map((u, i) => {
         const gp = u.gatepass?.[0] ?? {};
-        const expired = gp.date_expiration ? new Date(gp.date_expiration) <= new Date() : false;
         return {
             id: gp.id ?? `${u.id}-${i}`,
             name: [u.profile?.first_name, u.profile?.last_name].filter(Boolean).join(" ") || "—",
@@ -29,17 +27,20 @@ const GatePassApprovedList = ({ list = null }) => {
             picture: u.profile?.profile_picture,
             sex: u.profile?.sex,
             number: gp.gatepass_number ?? "—",
-            status: expired ? "Expired" : "Active",
             allowed: allowedTo(gp),
-            approved: gp.confirmed_at,
             expires: gp.date_expiration,
         };
     }), [list]);
 
     const columns = useMemo(() => [
         {
+            field: "index", headerName: "#", width: 60, sortable: false, filterable: false,
+            renderCell: (p) => `${p.api.getRowIndexRelativeToVisibleRows(p.id) + 1}.`,
+        },
+        { field: "number", headerName: "Gate Pass No.", minWidth: 140, flex: 0.7 },
+        {
             field: "name",
-            headerName: "User",
+            headerName: "Student",
             flex: 1.4,
             minWidth: 240,
             renderCell: (p) => (
@@ -52,19 +53,7 @@ const GatePassApprovedList = ({ list = null }) => {
                 </div>
             ),
         },
-        { field: "number", headerName: "Gate Pass No.", minWidth: 140, flex: 0.7 },
-        {
-            field: "status",
-            headerName: "Status",
-            width: 110,
-            renderCell: (p) => (
-                <div className="h-full flex items-center">
-                    <Chip size="small" label={p.value} color={p.value === "Active" ? "success" : "default"} />
-                </div>
-            ),
-        },
         { field: "allowed", headerName: "Allowed To", minWidth: 170, flex: 0.9, valueFormatter: (v) => v || "—" },
-        { field: "approved", headerName: "Approved", minWidth: 190, flex: 1, valueFormatter: (v) => when(v), sortComparator: (a, b) => new Date(a) - new Date(b) },
         { field: "expires", headerName: "Expires", minWidth: 190, flex: 1, valueFormatter: (v) => when(v), sortComparator: (a, b) => new Date(a) - new Date(b) },
     ], []);
 
@@ -79,11 +68,10 @@ const GatePassApprovedList = ({ list = null }) => {
                 showToolbar
                 initialState={{
                     pagination: { paginationModel: { pageSize: 10 } },
-                    sorting: { sortModel: [{ field: "approved", sort: "desc" }] },
                 }}
                 pageSizeOptions={[10, 20, 50]}
                 localeText={{ noRowsLabel: "No approved gate passes right now. Approvals will appear here." }}
-                mobileSummary={(r) => ({ name: r.name, role: `${r.number} · ${r.status}`, picture: r.picture, sex: r.sex, hide: ["name"] })}
+                mobileSummary={(r) => ({ name: r.name, role: `Gate Pass #${r.number}`, picture: r.picture, sex: r.sex, hide: ["name"] })}
             />
         </Box>
     );

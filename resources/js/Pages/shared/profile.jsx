@@ -377,7 +377,7 @@ const Profile = (props) => {
     // — only the sub_admin (prefect) who actually handles it, or the
     // person who filed it, can view it.
     const canViewOwnComplaints = props.user.role === 'sub_admin' || props.user.id === props.otherUserProfile.id;
-    // The IT admin doesn't file complaints, so their profile has no such tab.
+    // The System Admin doesn't file complaints, so their profile has no such tab.
     const showComplaintsFiledTab = canViewOwnComplaints && props.otherUserProfile.role !== 'super_admin';
     // Referrals, absent forms and gate passes follow the same rule.
     // Program heads and faculty and the prefect (sub_admin) can both refer students.
@@ -509,7 +509,7 @@ const Profile = (props) => {
                                     <div className="flex flex-col gap-1 md:gap-3">
                                         <h1 className="text-[1.7em] sm:text-[2em] font-bold">
                                             {`${user.profile?.first_name ?? ""} ${user.profile?.middle_name ?? ""} ${user.profile?.last_name ?? ""}`}
-                                            {user.role === "super_admin" && " (IT Admin)"}
+                                            {user.role === "super_admin" && " (System Admin)"}
                                         </h1>
                                         {user.id_number && (
                                         <p className="text-[1.1em] sm:text-[1.3em] text-gray-700">
@@ -560,7 +560,7 @@ const Profile = (props) => {
                                 <div className="min-w-0">
                                     <TabSwitcher tabs={tabOptions} value={tab} onChange={setTab} />
                                 </div>
-                                {/* School year / semester filters don't apply to the IT admin's
+                                {/* School year / semester filters don't apply to the System Admin's
                                     profile, or to the About tab (personal info, not records). */}
                                 {props.otherUserProfile.role !== 'super_admin' && tab !== 'about' && (
                                 <div className="flex flex-wrap gap-3 shrink-0">

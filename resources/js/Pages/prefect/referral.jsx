@@ -1,4 +1,5 @@
 import AuthLayout from "@/Layouts/auth-layout"
+import SingleRowNotice from "@/Components/other/single-row-notice"
 import PageLayout from "@/Layouts/page-layout"
 import { useState, useEffect } from "react"
 import DropdownField from "@/Components/input/dropdown"
@@ -235,7 +236,7 @@ const PrefectReferral = (props) => {
                             <div className="w-full sm:w-56">
                                 <DropdownField
                                     default={{ val: 'all', label: 'All Programs' }}
-                                    list={(props.programs || []).map((p) => ({ val: p.id, label: p.name }))}
+                                    list={(props.programs || []).map((p) => ({ val: p.id, label: p.code }))}
                                     val={program === 'all' ? 'all' : Number(program)}
                                     onChange={(e) => handleFilterChange('program', e.target.value)}
                                     name="program"
@@ -269,6 +270,8 @@ const PrefectReferral = (props) => {
                         <div className="overflow-x-auto">
                             <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
                         </div>
+
+                        <SingleRowNotice noun="referral" />
 
                         {/* Table/List */}
                         <div className="flex w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">

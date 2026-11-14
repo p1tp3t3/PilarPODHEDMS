@@ -32,6 +32,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use ZipArchive;
+use App\Http\Resources\Account\PositionResource;
+use App\Http\Resources\System\ProgramResource;
+use App\Http\Resources\System\SchoolYearResource;
+use App\Http\Resources\Account\UserResource;
 
 class RegisteredUserController extends Controller
 {
@@ -44,21 +48,21 @@ class RegisteredUserController extends Controller
 
         return Inertia::render('super-admin/register', [
             'authType' => auth()->user()->role,
-            'student' => $student->getAllStudent(),
+            'student' => UserResource::collection($student->getAllStudent()),
             // Disabled programs aren't offered for new accounts.
-            'program' => Program::active()->select('id', 'name', 'description')->get(),
+            'program' => ProgramResource::collection(Program::active()->select('id', 'code', 'name')->get()),
             'program_name' => is_program_head(),
-            'school_years' => SchoolYear::orderByDesc('year')->get(['id', 'year']),
-            'positions' => Position::orderBy('name')->get(),
+            'school_years' => SchoolYearResource::collection(SchoolYear::orderByDesc('year')->get(['id', 'year'])),
+            'positions' => PositionResource::collection(Position::orderBy('name')->get()),
         ]);
     }
 
     public function parentRegistrationIndex()
     {
-        $programs = Program::active()->get(['id', 'name']);
+        $programs = Program::active()->get(['id', 'code']);
 
         return Inertia::render('guest/parent-registration', [
-            'programs' => $programs,
+            'programs' => ProgramResource::collection($programs),
         ]);
     }
 
@@ -154,7 +158,7 @@ class RegisteredUserController extends Controller
                     }
 
                     DB::rollBack();
-                    $programName = $program->name ?? 'This program';
+                    $programName = $program->code ?? 'This program';
 
                     return response()->json([
                         'message' => "Program Head of {$programName} already exists.",
@@ -213,7 +217,7 @@ class RegisteredUserController extends Controller
                 /** ================= STUDENT ================= */
                 case 'student':
                     $programId = $request->program;
-                    $programName = Program::where('id', $programId)->value('name');
+                    $programName = Program::where('id', $programId)->value('code');
                     $yearLevel = $request->year_level;
 
                     // Enrolled in the current school year and semester (not picked in the form).
@@ -304,7 +308,7 @@ class RegisteredUserController extends Controller
                 case 'program_head':
                 case 'faculty':
                     $programId = $request->program;
-                    $programName = Program::where('id', $programId)->value('name');
+                    $programName = Program::where('id', $programId)->value('code');
                     $csvPath = storage_path("app/private/zips/faculty-account-{$programId}-{$programName}.csv");
 
                     if (! file_exists($csvPath)) {
@@ -595,8 +599,8 @@ class RegisteredUserController extends Controller
             if (! filter_var($row['email'], FILTER_VALIDATE_EMAIL)) {
                 $errors[] = 'Invalid email format.';
             }
-            if (! Program::active()->whereRaw('LOWER(name) = ?', [strtolower(trim($row['program']))])->exists()) {
-                $errors[] = 'Program must match an existing, enabled program name (e.g. BSIT, BEED, BSN).';
+            if (! Program::active()->whereRaw('LOWER(code) = ?', [strtolower(trim($row['program']))])->exists()) {
+                $errors[] = 'Program must match an existing, enabled program code (e.g. BSIT, BEED, BSN).';
             }
             if (! is_numeric($row['year_level']) || $row['year_level'] < 1 || $row['year_level'] > 4) {
                 $errors[] = 'Year level must be 1–4.';
@@ -770,8 +774,8 @@ class RegisteredUserController extends Controller
             ->get();
 
         return [
-            'parents' => $parentList,
-            'students' => $studentList,
+            'parents' => UserResource::collection($parentList),
+            'students' => UserResource::collection($studentList),
         ];
     }
 

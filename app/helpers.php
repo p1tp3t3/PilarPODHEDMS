@@ -38,7 +38,7 @@ if (!function_exists('is_program_head')) {
      */
     function is_program_head()
     {
-        $names = \App\Models\Program::whereIn('id', \App\Models\User::headedProgramIdsFor(auth()->id()))->pluck('name');
+        $names = \App\Models\Program::whereIn('id', \App\Models\User::headedProgramIdsFor(auth()->id()))->pluck('code');
 
         return $names->isNotEmpty() ? $names->implode(', ') : null;
     }

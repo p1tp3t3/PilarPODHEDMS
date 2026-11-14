@@ -109,11 +109,11 @@ class FamilySeeder extends Seeder
                     'family_code' => '',
                     'reason' => "Requesting access to monitor {$child->profile?->first_name}'s records.",
                     'children' => [[
-                        'student_id' => $child->id,
+                        'student_id' => $child->id_number,
                         'first_name' => $child->profile?->first_name,
                         'middle_name' => $child->profile?->middle_name,
                         'last_name' => $child->profile?->last_name,
-                        'program' => $child->program?->name,
+                        'program' => $child->program?->code,
                         'sex' => $child->profile?->sex,
                     ]],
                 ]),

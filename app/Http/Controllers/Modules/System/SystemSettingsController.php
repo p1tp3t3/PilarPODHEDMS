@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
+use App\Http\Resources\Account\UserResource;
 
 class SystemSettingsController extends Controller
 {
@@ -18,7 +19,7 @@ class SystemSettingsController extends Controller
         $user->encrypted_id = encrypt_id($user->id);
 
         return Inertia::render('super-admin/system-settings', [
-            'user' => $user,
+            'user' => new UserResource($user),
             'has_login_portal_password' => ! empty(config('app.maintenance_login_secret')),
             'mail_config' => [
                 'username' => config('mail.mailers.smtp.username') ?? '',

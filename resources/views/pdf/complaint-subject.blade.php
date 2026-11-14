@@ -108,6 +108,8 @@
     </table>
 
     {{-- ===================== PAGE 2: INCIDENT SUMMARY ===================== --}}
+    {{-- Only once the complaint is resolved (not pending, ongoing, rejected or revoked). --}}
+    @if ($show_summary ?? false)
     <div class="page-break"></div>
     @include('pdf.partials.letterhead', ['meta' => ['Reference No.' => $complaint_number, 'Case No.' => $case_number]])
 
@@ -161,5 +163,6 @@
             <td><div class="caption">Noted by</div></td>
         </tr>
     </table>
+    @endif
 </body>
 </html>

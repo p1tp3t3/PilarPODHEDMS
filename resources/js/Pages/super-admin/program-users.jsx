@@ -20,13 +20,13 @@ const ProgramUsers = ({ program, faculty, students }) => {
 
     return (
         <>
-        <Head title={`${program.name} Users`} />
+        <Head title={`${program.code} Users`} />
         <PageTitle title="College Programs" />
         <div className="w-full py-4 grid gap-6">
             <BreadcrumbNav
                 items={[
                     { label: "College Programs", href: "/super-admin/program" },
-                    { label: program.name },
+                    { label: program.code },
                 ]}
             />
 
@@ -38,8 +38,8 @@ const ProgramUsers = ({ program, faculty, students }) => {
                         className="w-14 h-14 rounded-full object-cover"
                     />
                     <div>
-                        <h1 className="text-[1.4em] font-bold leading-tight">{program.name}</h1>
-                        <p className="text-gray-500 text-[0.9em]">{program.description}</p>
+                        <h1 className="text-[1.4em] font-bold leading-tight">{program.code}</h1>
+                        <p className="text-gray-500 text-[0.9em]">{program.name}</p>
                     </div>
                 </div>
             </div>

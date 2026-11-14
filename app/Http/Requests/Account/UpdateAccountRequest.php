@@ -17,7 +17,7 @@ class UpdateAccountRequest extends FormRequest
 
     public function rules(): array
     {
-        // The account being saved: the IT admin may name another user
+        // The account being saved: the System Admin may name another user
         // (AccountController::update); everyone else saves their own.
         $targetId = $this->user()?->role === 'super_admin' && $this->filled('user_id')
             ? (int) $this->input('user_id')

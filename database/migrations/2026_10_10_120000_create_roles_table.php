@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     private const ROLES = [
-        'super_admin' => 'IT Admin',
+        'super_admin' => 'System Admin',
         'sub_admin' => 'Prefect',
         'student' => 'Student',
         'program_head' => 'Program Head',

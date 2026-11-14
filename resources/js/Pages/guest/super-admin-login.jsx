@@ -5,7 +5,7 @@ import { useState } from "react";
 import axios from "axios";
 import { showOutputModal } from "@/others/function";
 import background from '@/images/bg-pilar2.jpg'
-import { ReloadProvider, useReload } from "@/context-provider/reload-provider";
+import { ReloadProvider } from "@/context-provider/reload-provider";
 
 const SuperAdminLogin = (props) => (
     <ReloadProvider>
@@ -19,7 +19,6 @@ const SuperAdminLoginInner = (props) => {
         password: "",
     });
 
-    const { loadRegister } = useReload();
     const [validationErr, setValidationError] = useState({});
     const [submitting, setSubmitting] = useState(false);
 
@@ -46,8 +45,8 @@ const SuperAdminLoginInner = (props) => {
         if (Object.keys(errors).length > 0) return;
         if (submitting) return;
 
+        // The form disables itself and the button spins (LogInForm).
         setSubmitting(true);
-        loadRegister(true, "logo");
 
         axios
             .post(`/super-admin/login/${props.password}`, data)
@@ -58,15 +57,19 @@ const SuperAdminLoginInner = (props) => {
                         username: '',
                         password: ''
                     })
-                    loadRegister(false)
                     window.location.reload();
                 }, null, 5000);
             })
             .catch((err) => {
-                loadRegister(false);
                 setSubmitting(false);
 
-                const backend = err.response.data;
+                const backend = err.response?.data || {};
+                if (!backend.username && !backend.password) {
+                    showOutputModal(err.response?.status === 429
+                        ? "Too many login attempts. Please wait a minute and try again."
+                        : backend.message || "Something went wrong while logging in. Please try again.", "e");
+                    return;
+                }
                 setValidationError({
                     username: backend.username || "",
                     password: backend.password || "",
@@ -92,6 +95,7 @@ const SuperAdminLoginInner = (props) => {
                     data={data}
                     onchange={handleChange}
                     validationErr={validationErr}
+                    submitting={submitting}
                 />
             </div>
         </>

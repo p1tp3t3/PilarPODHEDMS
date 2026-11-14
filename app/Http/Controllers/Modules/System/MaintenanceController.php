@@ -9,8 +9,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Program\DestroyProgramRequest;
 use App\Http\Requests\Program\StoreProgramRequest;
 use App\Http\Requests\Program\UpdateProgramRequest;
-use App\Http\Resources\ProgramResource;
-use App\Http\Resources\UserResource;
+use App\Http\Resources\System\ProgramResource;
+use App\Http\Resources\System\ProgramDetailResource;
+use App\Http\Resources\Account\UserResource;
 use App\Jobs\ActivateScheduledMaintenanceJob;
 use App\Jobs\SendMaintenanceNoticeJob;
 use App\Models\ComplaintSubject;
@@ -34,6 +35,8 @@ use Carbon\Carbon;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Excel as ExcelFormat;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Http\Resources\Violation\PenaltyResource;
+use App\Http\Resources\Violation\ViolationResource;
 
 class MaintenanceController extends Controller
 {
@@ -76,12 +79,12 @@ class MaintenanceController extends Controller
 
         // The violation form's penalty dropdowns need the penalties too.
         if (in_array($section, ['violations', 'penalties'], true)) {
-            $props['penalty'] = Penalty::latest('created_at')->get();
+            $props['penalty'] = PenaltyResource::collection(Penalty::latest('created_at')->get());
         }
 
         if ($section === 'violations') {
             $props['violation'] = self::violationManagementList();
-            $props['program'] = Program::all(['id', 'name', 'color_code']);
+            $props['program'] = ProgramResource::collection(Program::all(['id', 'code', 'color_code']));
         }
 
         if ($section === 'student-violations') {
@@ -132,7 +135,7 @@ class MaintenanceController extends Controller
 
                 return [
                     'student_id' => $group->first()->user->id,
-                    'user' => $group->first()->user,
+                    'user' => UserResource::make($group->first()->user),
                     'violation_count' => $allOffenses->count(),
                     'repeat_violations' => $repeats,
                     'major_count' => $majorCount,
@@ -617,7 +620,7 @@ class MaintenanceController extends Controller
     public function programIndex()
     {
         return Inertia::render('super-admin/program', [
-            'program' => ProgramResource::collection(self::programsWithUserCount()),
+            'program' => ProgramDetailResource::collection(self::programsWithUserCount()),
         ]);
     }
 
@@ -663,7 +666,7 @@ class MaintenanceController extends Controller
 
         $program->update(['archived_at' => now()]);
 
-        return ProgramResource::collection(self::programsWithUserCount());
+        return ProgramDetailResource::collection(self::programsWithUserCount());
     }
 
     /** Bring an archived program back into use. */
@@ -672,7 +675,7 @@ class MaintenanceController extends Controller
         $program = Program::findOrFail($request->id);
         $program->update(['archived_at' => null]);
 
-        return ProgramResource::collection(self::programsWithUserCount());
+        return ProgramDetailResource::collection(self::programsWithUserCount());
     }
 
     /**
@@ -682,14 +685,14 @@ class MaintenanceController extends Controller
     private static function archivedProgramNameConflict(string $name, $exceptId = null)
     {
         $archived = Program::whereNotNull('archived_at')
-            ->whereRaw('LOWER(name) = ?', [strtolower(trim($name))])
+            ->whereRaw('LOWER(code) = ?', [strtolower(trim($name))])
             ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
             ->first();
 
         return $archived ? response()->json([
             'status' => false,
-            'message' => "{$archived->name} already exists in Archived. Restore it instead of adding it again.",
-            'errors' => ['name' => ['This program is archived. Restore it from the Archived tab.']],
+            'message' => "{$archived->code} already exists in Archived. Restore it instead of adding it again.",
+            'errors' => ['code' => ['This program is archived. Restore it from the Archived tab.']],
         ], 422) : null;
     }
 
@@ -712,7 +715,7 @@ class MaintenanceController extends Controller
             ->get();
 
         return Inertia::render('super-admin/program-users', [
-            'program' => new ProgramResource($program),
+            'program' => new ProgramDetailResource($program),
             'faculty' => UserResource::collection($faculty),
             'students' => UserResource::collection($students),
         ]);
@@ -720,13 +723,13 @@ class MaintenanceController extends Controller
 
     public function programStore(StoreProgramRequest $request)
     {
-        if ($conflict = self::archivedProgramNameConflict($request->name)) {
+        if ($conflict = self::archivedProgramNameConflict($request->code)) {
             return $conflict;
         }
 
         $data = [
-            'name' => Str::upper($request->name),
-            'description' => ucwords($request->description),
+            'code' => Str::upper($request->code),
+            'name' => ucwords($request->name),
             'color_code' => $request->color,
         ];
 
@@ -739,7 +742,7 @@ class MaintenanceController extends Controller
         $program = Program::create($data);
 
         $programId = $program->id;
-        $programName = $program->name;
+        $programName = $program->code;
 
         /* =============================
         FACULTY CSV EXPORT (EMPTY)
@@ -794,7 +797,7 @@ class MaintenanceController extends Controller
 
         Log::info('ZIP CREATED SUCCESSFULLY', ['zipPath' => $zipPath]);
 
-        return ProgramResource::collection(self::programsWithUserCount());
+        return ProgramDetailResource::collection(self::programsWithUserCount());
     }
 
     public function updateProgram(UpdateProgramRequest $request)
@@ -807,7 +810,7 @@ class MaintenanceController extends Controller
         if ($program->isArchived()) {
             return response()->json(['status' => false, 'message' => 'This program is archived. Restore it before editing.'], 409);
         }
-        // The acronym and full name can't be edited (anything sent for them
+        // The code and full name can't be edited (anything sent for them
         // is ignored); only the color and logo change.
         $updateFields = [
             'color_code' => $data['color'],
@@ -826,14 +829,14 @@ class MaintenanceController extends Controller
 
         $program->update($updateFields);
 
-        return ProgramResource::collection(self::programsWithUserCount());
+        return ProgramDetailResource::collection(self::programsWithUserCount());
     }
 
     public function destroyProgram(DestroyProgramRequest $request)
     {
 
         $program = Program::where('id', $request->id)->first();
-        $programSlug = strtoupper($program->name);
+        $programSlug = strtoupper($program->code);
 
         // Hard delete only when nothing points to it; one with users or
         // enrollments (even past ones) is archived instead (archiveProgram).
@@ -863,7 +866,7 @@ class MaintenanceController extends Controller
             unlink($studentZip);
         }
 
-        return ProgramResource::collection(self::programsWithUserCount());
+        return ProgramDetailResource::collection(self::programsWithUserCount());
     }
 
     // Python's CSV/tokenizer expects a flat comma-separated string, while
@@ -1117,7 +1120,7 @@ class MaintenanceController extends Controller
             'description' => $data['description'],
         ]);
 
-        return Penalty::latest('created_at')->get();
+        return PenaltyResource::collection(Penalty::latest('created_at')->get());
     }
 
     public function destroyPenalty(Request $request)
@@ -1127,20 +1130,20 @@ class MaintenanceController extends Controller
         // Delete violation
         $penalty->delete();
 
-        return Penalty::latest('created_at')->get();
+        return PenaltyResource::collection(Penalty::latest('created_at')->get());
     }
 
     public function update($id, Request $request)
     {
         if ($request->type == 'program') {
             $data = $request->validate([
+                'code' => 'required|string',
                 'name' => 'required|string',
-                'description' => 'required|string',
             ]);
 
             Program::where('id', $id)->update($data);
 
-            return Program::latest('created_at')->get();
+            return ProgramDetailResource::collection(Program::latest('created_at')->get());
         }if ($request->type == 'violation') {
             $data = $request->validate([
                 'violation_name' => 'required|string|max:191',
@@ -1149,7 +1152,7 @@ class MaintenanceController extends Controller
 
             Violation::where('id', $id)->update($data);
 
-            return Violation::latest('created_at')->get();
+            return ViolationResource::collection(Violation::latest('created_at')->get());
         }
 
         return response()->json(['message' => 'error'], 400);
@@ -1162,13 +1165,13 @@ class MaintenanceController extends Controller
                 'is_delete' => $request->delete,
             ]);
 
-            return Program::latest('created_at')->get();
+            return ProgramDetailResource::collection(Program::latest('created_at')->get());
         }if ($request->type == 'violation') {
             Violation::where('id', $id)->update([
                 'is_delete' => $request->delete,
             ]);
 
-            return Violation::latest('created_at')->get();
+            return ViolationResource::collection(Violation::latest('created_at')->get());
         }
 
         return response()->json(['message' => 'error'], 400);
@@ -1196,6 +1199,7 @@ class MaintenanceController extends Controller
                 $v->encrypted_id = encrypt_id($v->id);
                 $v->has_records = (bool) ($v->has_subject_records || $v->has_complaint_records);
                 unset($v->has_subject_records, $v->has_complaint_records);
-            });
+            })
+            ->pipe(fn ($violations) => ViolationResource::collection($violations));
     }
 }

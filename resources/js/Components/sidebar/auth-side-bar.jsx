@@ -22,7 +22,7 @@ const AuthSideBar = ({ usr }) => {
   const roleLabel = () => {
     switch (usr.role) {
       case "super_admin":
-        return "IT Admin"
+        return "System Admin"
       case "sub_admin":
         return "Prefect"
       case "student":

@@ -384,9 +384,9 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/api/user-account/file/{fileName}/preview', [FileController::class, 'previewAccountFile']);
      Route::get('/api/user-account/file/{fileName}/preview-entry', [FileController::class, 'previewAccountFileEntry']);
      Route::get('/all-students', function() {
-          return User::with(['profile', 'program', 'enrollments'])->whereRole('student')->get();
+          return \App\Http\Resources\Account\UserResource::collection(User::with(['profile', 'program', 'enrollments'])->whereRole('student')->get());
      })->middleware('role:sub_admin');
-     // Account settings are managed centrally by the IT admin.
+     // Account settings are managed centrally by the System Admin.
      Route::get('/settings/{id}', [AccountController::class, 'accountSettingsIndex'])->middleware('role:super_admin');
      Route::get('/referral', [ReferralController::class, 'index']);
 

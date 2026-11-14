@@ -81,7 +81,7 @@ const Accounts = (props) => {
       />
     </div>
   );
-  const programList = (props.program ?? []).map((p) => ({ val: p.id, label: p.name }));
+  const programList = (props.program ?? []).map((p) => ({ val: p.id, label: p.code }));
   const roleFilters = {
     student: [
       dropdown("program", program, "All Programs", programList, "program_filter"),

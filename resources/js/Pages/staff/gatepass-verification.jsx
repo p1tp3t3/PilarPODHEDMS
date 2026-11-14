@@ -41,7 +41,7 @@ const StaffGatePassVerification = (props) => {
         const seen = new Map()
         gatepassApprovedList.forEach((e) => {
             if (e.program?.id != null && !seen.has(e.program.id)) {
-                seen.set(e.program.id, e.program.name)
+                seen.set(e.program.id, e.program.code)
             }
         })
         return Array.from(seen, ([val, label]) => ({ val, label }))

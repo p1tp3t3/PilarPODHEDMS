@@ -91,7 +91,7 @@ class ProcessGatePassExpirationNotificationJob implements ShouldQueue
                 'last_name' => $user?->profile?->last_name,
                 'profile_picture' => $user?->profile?->profile_picture,
                 'user_type' => $user?->role,
-                'name' => $user?->program?->name,
+                'name' => $user?->program?->code,
                 'reason' => $gatePass->reason,
                 'allow_to' => $gatePass->allow_to,
                 'confirmed_at' => $gatePass->confirmed_at,

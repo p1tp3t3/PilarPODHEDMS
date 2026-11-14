@@ -19,6 +19,9 @@ const PrefectStaffList = (props) => {
     const [tab, setTab] = useState(url.get("type") ?? "all")
     const [program, setProgram] = useState(url.get("program") ?? "")
     const [positionFilter, setPositionFilter] = useState(url.get("position") ?? "")
+    // Staff accounts registered in that school year / semester.
+    const schoolYear = url.get("school-year") ?? "all"
+    const semester = url.get("semester") ?? "all"
     // Position management (assign/reassign one of the 8 fixed non-teaching
     // positions) is a super_admin-only capability server-side
     // (routes/auth.php's /super-admin/staff/position/* group) — this page
@@ -79,7 +82,7 @@ const PrefectStaffList = (props) => {
                     </Btn>}
             >
                     <div className="flex flex-col sm:flex-row gap-3 sm:items-center md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
-                        <MobileFilters active={countActive(tab, program, positionFilter)}>
+                        <MobileFilters active={countActive(tab, program, positionFilter, schoolYear, semester)}>
                         <div className="w-full sm:w-[14rem] flex-shrink-0">
                             <DropdownField
                                 list={[
@@ -96,7 +99,7 @@ const PrefectStaffList = (props) => {
                             <div className="w-full sm:w-[14rem] flex-shrink-0">
                                 <DropdownField
                                     default={{ val: "", label: "All Programs" }}
-                                    list={(props.programs ?? []).map((p) => ({ val: p.id, label: p.name }))}
+                                    list={(props.programs ?? []).map((p) => ({ val: p.id, label: p.code }))}
                                     onChange={handleProgramChange}
                                     name="program"
                                     val={program}
@@ -115,6 +118,27 @@ const PrefectStaffList = (props) => {
                                 />
                             </div>
                         )}
+                        <div className="w-full sm:w-[14rem] flex-shrink-0">
+                            <DropdownField
+                                default={{ val: "all", label: "All School Years" }}
+                                list={(props.school_years ?? []).map((y) => ({ val: y, label: y }))}
+                                val={schoolYear}
+                                onChange={(e) => updateQuery({ "school-year": e.target.value })}
+                                name="school_year"
+                            />
+                        </div>
+                        <div className="w-full sm:w-[14rem] flex-shrink-0">
+                            <DropdownField
+                                default={{ val: "all", label: "All Semesters" }}
+                                list={[
+                                    { val: 1, label: "1st Semester" },
+                                    { val: 2, label: "2nd Semester" },
+                                ]}
+                                val={semester === "all" ? "all" : Number(semester)}
+                                onChange={(e) => updateQuery({ semester: e.target.value })}
+                                name="semester"
+                            />
+                        </div>
                         </MobileFilters>
                         <PageActions />
                     </div>

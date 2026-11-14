@@ -27,12 +27,11 @@ const MyActivity = (props) => {
             <Head title="My Activity" />
             <PageLayout title="MY ACTIVITY">
                 <div className="grid gap-5 min-w-0">
-                    <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 min-w-0">
-                        <p className="text-[0.9em] text-gray-600">Everything you've done in the system.</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full sm:w-auto">
-                            <div className="sm:w-48">
+                    {/* Filters, on the left like the other list pages. */}
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 min-w-0">
+                            <div className="w-full sm:w-56">
                                 <DropdownField
-                                    default={{ val: "all", label: "All School Years" }}
+                                    default={{ val: "all", label: "Select School Year" }}
                                     list={(props.school_years ?? []).map((y) => ({ val: y, label: y }))}
                                     val={current["school-year"]}
                                     onChange={(e) => filter("school-year", e.target.value)}
@@ -40,9 +39,9 @@ const MyActivity = (props) => {
                                     keepCase={true}
                                 />
                             </div>
-                            <div className="sm:w-48">
+                            <div className="w-full sm:w-56">
                                 <DropdownField
-                                    default={{ val: "all", label: "All Semesters" }}
+                                    default={{ val: "all", label: "Select Semester" }}
                                     list={[{ val: "1", label: "1st Semester" }, { val: "2", label: "2nd Semester" }]}
                                     val={String(current.semester)}
                                     onChange={(e) => filter("semester", e.target.value)}
@@ -50,7 +49,7 @@ const MyActivity = (props) => {
                                     keepCase={true}
                                 />
                             </div>
-                            <div className="sm:w-52">
+                            <div className="w-full sm:w-56">
                                 <DropdownField
                                     default={{ val: "all", label: "All Actions" }}
                                     list={types}
@@ -60,7 +59,6 @@ const MyActivity = (props) => {
                                     keepCase={true}
                                 />
                             </div>
-                        </div>
                     </div>
                     <UserReportLogList list={props.logs} showUser={false} />
                 </div>

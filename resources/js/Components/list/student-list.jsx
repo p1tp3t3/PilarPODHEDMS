@@ -3,7 +3,7 @@ import LiveActiveSince from "@/Components/other/live-active-since";
 import { Box } from "@mui/material";
 import { DataGrid } from "@/Components/other/data-grid";
 import ProfilePic from "../other/profile-pic";
-import { checkActiveStatus, getProfilePic, getYearLevel, ordinal, readableActiveDuration, readableDate, readableTime, studentProgram, studentYearLevel, profileUrl } from "../../others/function";
+import { checkActiveStatus, getProfilePic, getYearLevel, readableActiveDuration, readableDate, readableTime, studentProgram, studentYearLevel, profileUrl } from "../../others/function";
 import { Link } from "@inertiajs/react";
 import ActionBtn from "../button/action-btn";
 import AuthContext from "@/context-provider/auth-provider";
@@ -15,15 +15,12 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
   return data.map((obj, i) => {
     const t = (type === "prefect" || type == 'itrc') || type === "program_head";
     const user = t ? obj : obj.user;
-    const latestEnrollment = user.enrollments?.[user.enrollments.length - 1];
 
     const fullName = `${user.profile?.first_name || ""} ${user.profile?.middle_name || ""} ${user.profile?.last_name || ""}`;
     const programName = studentProgram(user) || "";
     const program = [programName, studentYearLevel(user)]
       .filter(Boolean)
       .join(" • ");
-    const schoolYear = latestEnrollment?.school_year?.year || "N / A";
-    const semester = latestEnrollment?.semester ? `${ordinal(latestEnrollment.semester)} Semester` : "N / A";
 
     return {
       id: i,
@@ -33,7 +30,7 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
       full_name: fullName,
 
       // 🔥 FLATTENED SEARCH FIELD
-      studentSearch: `${fullName} ${program} ${schoolYear} ${semester}`.toLowerCase(),
+      studentSearch: `${fullName} ${program}`.toLowerCase(),
 
       // 👇 Raw data for rendering
       fullName,
@@ -41,8 +38,6 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
       profile_picture: user.profile?.profile_picture,
       sex: user.profile?.sex,
       color: user.program?.color_code,
-      school_year: schoolYear,
-      semester,
       created_at: user.created_at,
       last_seen: user.last_seen,
       raw: user,
@@ -71,18 +66,6 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
       renderCell: (params) => <StudentCell row={params.row} />,
       sortable: true,
       filterable: true,
-    },
-    {
-      field: "school_year",
-      headerName: "School Year",
-      width: 130,
-      renderCell: (params) => params.value ?? "N/A",
-    },
-    {
-      field: "semester",
-      headerName: "Semester",
-      width: 130,
-      renderCell: (params) => params.value ?? "N/A",
     },
     {
       field: "created_at",

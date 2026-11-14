@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Modules\Report;
 
 use App\Exports\ActionLogReportExport;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\ActionLogResource;
+use App\Http\Resources\Report\ActionLogResource;
 use App\Jobs\GenerateAccountStatisticsReportJob;
 use App\Jobs\GenerateReportJob;
 use App\Models\Absence;
@@ -30,6 +30,17 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Http\Resources\System\ProgramResource;
+use App\Http\Resources\System\SchoolYearResource;
+use App\Http\Resources\Account\UserResource;
+use App\Http\Resources\AbsentForm\AbsenceResource;
+use App\Http\Resources\Appointment\AppointmentResource;
+use App\Http\Resources\GatePass\GatePassResource;
+use App\Http\Resources\Report\ReportFilterResource;
+use App\Http\Resources\Report\ReportResource;
+use App\Http\Resources\Complaint\ComplaintSubjectResource;
+use App\Http\Resources\Complaint\ComplaintSubjectViolationResource;
+use App\Http\Resources\Violation\ViolationResource;
 
 class ReportController extends Controller
 {
@@ -155,11 +166,11 @@ class ReportController extends Controller
                     })
                     ->join('program AS p', 'p.id', '=', 'e.program_id')
                     ->select(
-                        'p.name AS program',
+                        'p.code AS program',
                         'cs.student_id',
                         DB::raw('COUNT(*) AS student_violations')
                     )
-                    ->groupBy('p.name', 'cs.student_id');
+                    ->groupBy('p.code', 'cs.student_id');
 
             }, 'student_counts')
             ->select(
@@ -190,48 +201,50 @@ class ReportController extends Controller
             'resolution' => 0,
             'resolved' => $resolved,
             'violation_count' => $violationCount,
-            'top5_students' => $top5Students,
+            'top5_students' => ComplaintSubjectViolationResource::collection($top5Students),
             'report' => $this->applyReportFilter(self::getAllReport(), 'created_at', 'complaint')
                 ->orderByDesc(
                     Complaint::select('created_at')
                         ->whereColumn('complaint.id', 'complaint_subject.complaint_id')
                 )
-                ->paginate(request('report_per_page', 20), ['*'], 'report_page'),
+                ->paginate(request('report_per_page', 20), ['*'], 'report_page')
+                ->through(fn ($row) => new ComplaintSubjectResource($row)),
             'violation_report' => $this->applyReportFilter(self::getAllReport('violation'), 'offense_issued_at', 'complaint')
                 ->orderByDesc(
                     Complaint::select('offense_issued_at')
                         ->whereColumn('complaint.id', 'complaint_subject_violation.complaint_id')
                 )
-                ->paginate(20),
-            'violation_list' => $violation,
-            'incident_list' => $incidentList,
-            'programs' => Program::all(['id', 'name']),
-            'students' => User::with(['profile', 'program'])->whereRole('student')->get(),
+                ->paginate(20)
+                ->through(fn ($row) => new ComplaintSubjectViolationResource($row)),
+            'violation_list' => ViolationResource::collection($violation),
+            'incident_list' => ViolationResource::collection($incidentList),
+            'programs' => ProgramResource::collection(Program::all(['id', 'code'])),
+            'students' => UserResource::collection(User::with(['profile', 'program'])->whereRole('student')->get()),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
-            'school_years_full' => SchoolYear::orderByDesc('year')->get(['id', 'year']),
+            'school_years_full' => SchoolYearResource::collection(SchoolYear::orderByDesc('year')->get(['id', 'year'])),
             'violation_program' => $data,
-            'tardy_report' => $this->applyReportFilter(
+            'tardy_report' => AbsenceResource::collection($this->applyReportFilter(
                 Absence::with(['user.profile', 'user.program', 'user.enrollments'])
                     ->whereNotNull('confirmed_at')
                     ->whereJsonContains('reason', 'Excused Tardiness'),
                 'confirmed_at'
             )
                 ->latest('confirmed_at')
-                ->get(),
-            'appointment_report' => $this->applyReportFilter(
+                ->get()),
+            'appointment_report' => AppointmentResource::collection($this->applyReportFilter(
                 Appointment::with(['user.profile', 'user.program', 'user.enrollments'])
                     ->where('appointment_status', 'accepted'),
                 'confirmed_at'
             )
                 ->latest('confirmed_at')
-                ->get(),
-            'gatepass_report' => $this->applyReportFilter(
+                ->get()),
+            'gatepass_report' => GatePassResource::collection($this->applyReportFilter(
                 GatePass::with(['user.profile', 'user.program', 'user.enrollments'])
                     ->whereNotNull('confirmed_at'),
                 'confirmed_at'
             )
                 ->latest('confirmed_at')
-                ->get(),
+                ->get()),
         ]);
     }
 
@@ -364,9 +377,9 @@ class ReportController extends Controller
         }
 
         $programOf = Enrollment::whereIn('id', Enrollment::whereIn('student_id', $ids->unique())->selectRaw('MAX(id)')->groupBy('student_id'))
-            ->with('program:id,name')
+            ->with('program:id,code')
             ->get(['id', 'student_id', 'program_id'])
-            ->mapWithKeys(fn ($e) => [$e->student_id => $e->program?->name ?? 'No Program']);
+            ->mapWithKeys(fn ($e) => [$e->student_id => $e->program?->code ?? 'No Program']);
 
         return $this->countBy($ids->map(fn ($id) => $programOf[$id] ?? 'Staff / Other'));
     }
@@ -387,10 +400,10 @@ class ReportController extends Controller
     {
         return Inertia::render('super-admin/report', [
             'section' => $section,
-            'students' => User::with(['profile', 'program', 'faculty.program', 'headships.program', 'parent'])->get(),
+            'students' => UserResource::collection(User::with(['profile', 'program', 'faculty.program', 'headships.program', 'parent'])->get()),
             'action_log_list' => self::getAllActionLogs(),
             'statistics' => self::buildAccountStatistics('date', null, null, null, null),
-            'school_years' => SchoolYear::orderByDesc('year')->get(['id', 'year']),
+            'school_years' => SchoolYearResource::collection(SchoolYear::orderByDesc('year')->get(['id', 'year'])),
         ]);
     }
 
@@ -463,8 +476,8 @@ class ReportController extends Controller
 
             $studentsPerProgram = (clone $studentQuery)
                 ->join('program', 'program.id', '=', 'enrollment.program_id')
-                ->select('program.name as program', DB::raw('COUNT(DISTINCT enrollment.student_id) as total'))
-                ->groupBy('program.name')
+                ->select('program.code as program', DB::raw('COUNT(DISTINCT enrollment.student_id) as total'))
+                ->groupBy('program.code')
                 ->orderByDesc('total')
                 ->get();
         } else {
@@ -474,7 +487,7 @@ class ReportController extends Controller
                 ->when($hasRange, fn ($q) => $q->whereBetween('created_at', [$from, $to]))
                 ->with('program')
                 ->get()
-                ->groupBy(fn ($u) => $u->program?->name ?? 'Unassigned')
+                ->groupBy(fn ($u) => $u->program?->code ?? 'Unassigned')
                 ->map(fn ($group, $name) => ['program' => $name, 'total' => $group->count()])
                 ->values();
         }
@@ -549,9 +562,9 @@ class ReportController extends Controller
      */
     public function reportFilterIndex()
     {
-        return ReportFilter::where('user_id', auth()->id())
+        return ReportFilterResource::collection(ReportFilter::where('user_id', auth()->id())
             ->latest('created_at')
-            ->get();
+            ->get());
     }
 
     public function storeReportFilter(Request $request)
@@ -606,11 +619,12 @@ class ReportController extends Controller
         return Report::where('user_id', auth()->id())
             ->latest('created_at')
             ->get()
-            ->map(fn ($r) => array_merge($r->toArray(), [
+            ->each(fn ($r) => $r->forceFill([
                 'download_url' => route('prefect.report.download', ['id' => encrypt_id($r->id)]),
                 'view_url' => $r->file_type === 'pdf' ? route('prefect.report.view', ['id' => encrypt_id($r->id)]) : null,
                 'filters_summary' => $this->summarizeReportFilters($r->filters ?? [], $r->report_type),
-            ]));
+            ]))
+            ->pipe(fn ($reports) => ReportResource::collection($reports));
     }
 
     /**
@@ -666,7 +680,7 @@ class ReportController extends Controller
             $name = $student ? trim(($student->profile->first_name ?? '').' '.($student->profile->last_name ?? '')) : null;
             $parts[] = 'Student: '.($name ?: 'Unknown');
         } elseif (! empty($filters['program']) && $filters['program'] !== 'all') {
-            $parts[] = 'Program: '.(Program::find($filters['program'])->name ?? 'Unknown');
+            $parts[] = 'Program: '.(Program::find($filters['program'])->code ?? 'Unknown');
         } else {
             $parts[] = 'All Programs';
         }
@@ -748,7 +762,7 @@ class ReportController extends Controller
                     ->where('e.status', '=', 'enrolled');
             })
             ->join('program AS p', 'p.id', '=', 'e.program_id')
-            ->where('p.name', $request->program)
+            ->where('p.code', $request->program)
             ->when(
                 $request->filled('date_from') && $request->filled('date_to'),
                 fn ($q) => $q->whereBetween('c.created_at', [$request->date_from, $request->date_to])
@@ -762,7 +776,7 @@ class ReportController extends Controller
         $violations = Violation::whereIn('id', $rows->pluck('violation_id')->filter()->unique())->get()->keyBy('id');
 
         $result = $rows->groupBy('student_id')->map(fn ($group, $studentId) => [
-            'user' => $users->get($studentId),
+            'user' => UserResource::make($users->get($studentId)),
             'total_violations' => $group->count(),
             'violations' => $group->map(function ($row) use ($violations) {
                 $violation = $violations->get($row->violation_id);
@@ -888,11 +902,11 @@ class ReportController extends Controller
                     ->join('program AS p', 'p.id', '=', 'e.program_id')
                     ->whereBetween('c.created_at', [$from, $to])
                     ->select(
-                        'p.name AS program',
+                        'p.code AS program',
                         'cs.student_id',
                         DB::raw('COUNT(*) AS student_violations')
                     )
-                    ->groupBy('p.name', 'cs.student_id');
+                    ->groupBy('p.code', 'cs.student_id');
 
             }, 'student_counts')
             ->select(

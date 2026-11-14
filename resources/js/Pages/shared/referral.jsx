@@ -1,4 +1,6 @@
 import AuthLayout from "@/Layouts/auth-layout"
+import SchoolYearSemesterFilter from "@/Components/input/school-year-semester-filter"
+import SingleRowNotice from "@/Components/other/single-row-notice"
 import PageLayout from "@/Layouts/page-layout"
 import ReferralList from "@/Components/list/referral-list"
 import { useReload } from "@/context-provider/reload-provider"
@@ -34,7 +36,11 @@ const Referral = (props) => {
     const handleSelect = (type) => {
         if (choose === type) return
         setChoose(type)
-        router.visit(`${window.location.pathname}?status=${type}`)
+        // Keep the school year / semester filters; a single-row view (?id=) ends.
+        const q = new URLSearchParams(window.location.search)
+        q.set("status", type)
+        q.delete("id")
+        router.visit(`${window.location.pathname}?${q.toString()}`)
     }
 
     const setViewReferralId = (i) => {
@@ -106,7 +112,7 @@ const Referral = (props) => {
             students={props.students}
             reload={loadRegister}
         />
-        <PageLayout
+        <PageLayout actionsWithFilters
             title="MY REFERRALS"
             rightSideComponent={
                 props.user.allow_referral
@@ -114,7 +120,10 @@ const Referral = (props) => {
                     : null
             }
         >
+            {/* School year / semester (Report Referral sits at the end of this row). */}
+            <SchoolYearSemesterFilter schoolYears={props.school_years} />
             <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
+            <SingleRowNotice noun="referral" />
             <div className="w-full min-w-0">
                 <ReferralList
                     list={props.referral.data}

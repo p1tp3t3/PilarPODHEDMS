@@ -6,6 +6,9 @@ use App\Models\SchoolYearSemester;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
+use App\Http\Resources\Account\ProfileResource;
+use App\Http\Resources\Account\NonTeachingStaffResource;
+use App\Http\Resources\System\SchoolYearSemesterResource;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -48,9 +51,13 @@ class HandleInertiaRequests extends Middleware
                     'encrypted_id' => encrypt_id($user->id),
                     'username' => $user->username,
                     'role' => $user->role,
-                    'profile' => $user->profile,
+                    'profile' => ProfileResource::make($user->profile),
                     'teaching' => $user->teaching,
-                    'non_teaching_staff' => $user->nonTeachingStaff,
+                    // Students: program and year level (the account menu's chip).
+                    'academic' => $user->academic,
+                    // Parents: mother / father / guardian (the account menu's chip).
+                    'parent_role' => $user->role === 'parent' ? $user->parent?->parent_role : null,
+                    'non_teaching_staff' => NonTeachingStaffResource::make($user->nonTeachingStaff),
                 ] : null,
             ],
             'app_name' => config('app.name'),
@@ -59,7 +66,7 @@ class HandleInertiaRequests extends Middleware
             // Shared (not per-dashboard-controller) so every dashboard page
             // can show it without each one needing to remember to query and
             // pass it separately.
-            'current_school_year_semester' => SchoolYearSemester::current()?->load('schoolYear'),
+            'current_school_year_semester' => SchoolYearSemesterResource::make(SchoolYearSemester::current()?->load('schoolYear')),
             // Only meaningful while maintenance mode is NOT yet active (once
             // it flips on, everyone but a super admin is locked out anyway
             // by CheckMaintenanceMode, so there's no dashboard left to warn

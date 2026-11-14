@@ -103,7 +103,7 @@ const Body = ({ data, usr, type }) => {
     if (notifyFaculty || notifyProgramHead) {
       setErr("")
       showWarningModal(
-        `Are you sure you want to notify the ${label} of the ${user.program?.name ?? "student's"} program?`,
+        `Are you sure you want to notify the ${label} of the ${user.program?.code ?? "student's"} program?`,
         `Notify ${label}`,
         "Cancel",
         () => {

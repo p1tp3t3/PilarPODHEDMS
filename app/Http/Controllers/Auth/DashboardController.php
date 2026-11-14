@@ -23,6 +23,16 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use App\Http\Resources\Account\UserResource;
+use App\Http\Resources\Violation\ViolationResource;
+use App\Http\Resources\Violation\PenaltyResource;
+use App\Http\Resources\System\SchoolYearResource;
+use App\Http\Resources\Complaint\ComplaintResource;
+use App\Http\Resources\Referral\ReferralResource;
+use App\Http\Resources\AbsentForm\AbsenceResource;
+use App\Http\Resources\GatePass\GatePassResource;
+use App\Http\Resources\Appointment\AppointmentResource;
+use App\Http\Resources\System\ProgramResource;
 
 class DashboardController extends Controller
 {
@@ -68,24 +78,24 @@ class DashboardController extends Controller
         switch (auth()->user()->role) {
             case 'super_admin':
                 return response()->json([
-                    'active' => User::with('profile')
+                    'active' => UserResource::collection(User::with('profile')
                         ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
                         ->whereNot('id', auth()->id())
-                        ->get(),
+                        ->get()),
                 ]);
             case 'sub_admin':
                 return response()->json([
-                    'active' => User::with('profile')
+                    'active' => UserResource::collection(User::with('profile')
                         ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
                         ->whereNot('id', auth()->id())
-                        ->get(),
+                        ->get()),
                 ]);
             case 'program_head':
             case 'faculty':
                 return response()->json([
-                    'active' => self::programPeopleQuery(User::teachingProgramIdsFor(auth()->id()))
+                    'active' => UserResource::collection(self::programPeopleQuery(User::teachingProgramIdsFor(auth()->id()))
                         ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
-                        ->get(),
+                        ->get()),
                 ]);
             default:
                 return response()->json([]);
@@ -99,26 +109,26 @@ class DashboardController extends Controller
 
     public function studentDashboard()
     {
-        return Inertia::render('student/dashboard', self::getStudentStatistics());
+        return Inertia::render('student/dashboard', self::getStudentStatistics() + ['my_requests' => self::myRequests(true)] + self::violationLists());
     }
 
     public function prefectDashboard()
     {
         $appointment = new AppointmentController;
         $prefectProps = array_merge([
-            'students' => User::with(['program', 'profile', 'enrollments'])
+            'students' => UserResource::collection(User::with(['program', 'profile', 'enrollments'])
                 ->whereRole('student')
                 ->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
                 ->latest('created_at')
-                ->get(),
+                ->get()),
             'students_week_start' => now()->startOfWeek()->toDateString(),
             'students_week_end' => now()->endOfWeek()->toDateString(),
             'appointment_today' => $appointment->getAppointmentToday(),
             'incident_risk_list' => [],
-            'active' => User::with('profile')
+            'active' => UserResource::collection(User::with('profile')
                 ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
                 ->whereNot('id', auth()->id())
-                ->get(),
+                ->get()),
         ], self::getPrefectDataStatistics());
 
         return Inertia::render('prefect/dashboard', $prefectProps);
@@ -126,17 +136,17 @@ class DashboardController extends Controller
 
     public function teacherDashboard()
     {
-        return Inertia::render('program/dashboard', self::getTeacherStatistics());
+        return Inertia::render('program/dashboard', self::getTeacherStatistics() + ['my_requests' => self::myRequests()] + self::violationLists());
     }
 
     public function nonTeachingStaffDashboard()
     {
-        return Inertia::render('staff/dashboard', self::getStaffStatictics());
+        return Inertia::render('staff/dashboard', self::getStaffStatictics() + ['my_requests' => self::myRequests()] + self::violationLists());
     }
 
     public function parentDashboard()
     {
-        $parentProps = self::getParentStatistics();
+        $parentProps = self::getParentStatistics() + ['my_requests' => self::myRequests()] + self::violationLists();
 
         return Inertia::render('parent/dashboard', $parentProps);
     }
@@ -148,7 +158,8 @@ class DashboardController extends Controller
         return Inertia::render('staff/dashboard', array_merge(self::getStaffStatictics(), [
             'is_guidance' => true,
             'referral' => Referral::count(),
-        ]));
+            'my_requests' => self::myRequests(),
+        ] + self::violationLists()));
     }
 
     public function getITRCStatistics()
@@ -158,10 +169,10 @@ class DashboardController extends Controller
         $complaint = Complaint::where('complainant_id', auth()->id())->count('case_number');
 
         return [
-            'new_users' => $account->newUsers(),
+            'new_users' => UserResource::collection($account->newUsers()),
             'new_users_week_start' => now()->startOfWeek()->toDateString(),
             'new_users_week_end' => now()->endOfWeek()->toDateString(),
-            'user_list' => User::latest('created_at')->get(),
+            'user_list' => UserResource::collection(User::latest('created_at')->get()),
             'complaint' => $complaint,
             'program' => Program::count(),
             'report' => ActionLog::count(),
@@ -171,20 +182,22 @@ class DashboardController extends Controller
             'active_roles' => \App\Models\Role::active()->count(),
             'maintenance_mode' => Cache::get('maintenance_mode', false),
             'user_graph' => self::getUserGraph(),
-            'graph_school_years' => \App\Models\SchoolYear::orderByDesc('year')->get(['id', 'year']),
+            'graph_school_years' => SchoolYearResource::collection(\App\Models\SchoolYear::orderByDesc('year')->get(['id', 'year'])),
             'current_school_year_id' => SchoolYearSemester::current()?->school_year_id,
-            'active' => User::with('profile')
+            'active' => UserResource::collection(User::with('profile')
                 ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
                 ->whereNot('id', auth()->id())
-                ->get(),
+                ->get()),
         ];
     }
 
     public function getPrefectDataStatistics()
     {
         $complaint = Complaint::count();
-        $pendingComplaint = Complaint::where('complaint_status', 'pending')->count();
-        $ongoingComplaint = Complaint::where('complaint_status', 'ongoing')->count();
+        // Same as the Complaints page's Pending/Ongoing tabs (and the Up
+        // next panel): archived complaints aren't listed there.
+        $pendingComplaint = Complaint::where('complaint_status', 'pending')->whereNull('archived_at')->count();
+        $ongoingComplaint = Complaint::where('complaint_status', 'ongoing')->whereNull('archived_at')->count();
         $resolvedComplaint = Complaint::where('complaint_status', 'resolved')->count();
 
         $referral = Referral::count();
@@ -229,17 +242,139 @@ class DashboardController extends Controller
             'appointment' => $appointment,
             'total_violation' => Violation::count(),
             'complaint_piechart' => $complaintPieChart,
-            'program' => Program::orderBy('id')->get(['name', 'color_code'])->toArray(),
+            'program' => ProgramResource::collection(Program::orderBy('id')->get(['code', 'color_code'])),
             'bargraph' => self::getPrefectBarGraph(),
-            'bargraph_school_years' => \App\Models\SchoolYear::orderByDesc('year')->get(['id', 'year']),
+            'bargraph_school_years' => SchoolYearResource::collection(\App\Models\SchoolYear::orderByDesc('year')->get(['id', 'year'])),
             'current_school_year_id' => SchoolYearSemester::current()?->school_year_id,
-            'offense_list' => Violation::active()->with(['penalties.penalty'])->latest('created_at')->get(),
-            'penalty_list' => Penalty::latest('created_at')->get(),
+            'offense_list' => ViolationResource::collection(Violation::active()->with(['penalties.penalty'])->latest('created_at')->get()),
+            'penalty_list' => PenaltyResource::collection(Penalty::latest('created_at')->get()),
+            'review_queue' => self::reviewQueue(),
             'countLastMonthUnresolvedComplaint' => $countUnresolvedComplaints->count(),
             'label' => self::getDynamicComplaintLabel($countUnresolvedComplaints
                 ->orderBy('created_at', 'asc')
                 ->value('created_at')
             ),
+        ];
+    }
+
+    /**
+     * The "List of Violations" and "List of Penalties" tabs, sent with the
+     * page (as on the prefect dashboard) instead of fetched by the tabs.
+     */
+    private static function violationLists(): array
+    {
+        return [
+            'offense_list' => ViolationResource::collection(Violation::active()->with(['penalties.penalty'])->latest('created_at')->get()
+                ->each(fn ($v) => $v->encrypted_id = encrypt_id($v->id))),
+            'penalty_list' => PenaltyResource::collection(Penalty::latest('created_at')->get()),
+        ];
+    }
+
+    /**
+     * The signed-in user's own requests for their dashboard's "My requests"
+     * panel: per kind, the earliest one still open (first in, first out) and
+     * its status, plus whether they've submitted any at all. Program heads
+     * and faculty also get their referrals; students their absent forms and
+     * gate passes.
+     */
+    private static function myRequests(bool $studentForms = false): array
+    {
+        $id = auth()->id();
+        $reasons = fn ($r) => is_array($list = json_decode((string) $r, true)) ? implode(', ', $list) : (string) $r;
+        $column = fn (string $key, $query, $any, callable $shape) => [
+            'key' => $key,
+            'any' => (bool) $any,
+            'item' => ($first = $query->oldest('created_at')->first()) ? ['encrypted_id' => encrypt_id($first->id)] + $shape($first) : null,
+        ];
+
+        $columns = [
+            $column('complaint',
+                Complaint::with('violation:id,violation_name')->where('complainant_id', $id)
+                    ->whereIn('complaint_status', ['pending', 'ongoing'])->whereNull('archived_at'),
+                Complaint::where('complainant_id', $id)->exists(),
+                fn ($c) => [
+                    'number' => ($c->case_number ? 'Case #' : 'Complaint #').($c->case_number ?? $c->complaint_number),
+                    'detail' => $c->violation?->violation_name,
+                    'status' => $c->complaint_status,
+                    'created_at' => $c->created_at,
+                ]),
+        ];
+
+        $pending = fn ($q) => $q->whereNull('confirmed_at')->whereNull('rejected_at')->whereNull('revoked_at');
+
+        // Program heads and faculty file referrals.
+        if (auth()->user()->isTeacher()) {
+            $columns[] = $column('referral',
+                $pending(Referral::where('referrer_id', $id)),
+                Referral::where('referrer_id', $id)->exists(),
+                fn ($r) => ['number' => 'Referral #'.$r->referral_number, 'detail' => \Illuminate\Support\Str::limit((string) $r->reason_description, 80), 'status' => 'pending', 'created_at' => $r->created_at]);
+        }
+
+        if ($studentForms) {
+            $columns[] = $column('absent_form',
+                $pending(Absence::where('student_id', $id)),
+                Absence::where('student_id', $id)->exists(),
+                fn ($a) => ['number' => 'Absent Form #'.$a->form_number, 'detail' => $reasons($a->reason), 'status' => 'pending', 'created_at' => $a->created_at]);
+            $columns[] = $column('gatepass',
+                $pending(GatePass::where('user_id', $id)),
+                GatePass::where('user_id', $id)->exists(),
+                fn ($g) => ['number' => 'Gate Pass #'.$g->gatepass_number, 'detail' => (string) $g->reason, 'status' => 'pending', 'created_at' => $g->created_at]);
+        }
+
+        return $columns;
+    }
+
+    /**
+     * What the prefect should handle next, one card per kind: the oldest
+     * item still waiting (first in, first out) and how many are waiting.
+     * The "pending" rules match each page's Pending tab.
+     */
+    private static function reviewQueue(): array
+    {
+        $name = fn ($u) => $u ? trim(($u->profile?->first_name ?? '').' '.($u->profile?->last_name ?? '')) : null;
+        $pending = fn ($q) => $q->whereNull('confirmed_at')->whereNull('rejected_at')->whereNull('revoked_at')->whereNull('archived_at');
+        $item = function (string $key, $query, callable $shape) {
+            $first = (clone $query)->oldest('created_at')->first();
+
+            return ['key' => $key, 'waiting' => (clone $query)->count(), 'item' => $first ? ['encrypted_id' => encrypt_id($first->id)] + $shape($first) : null];
+        };
+
+        return [
+            $item('complaint_pending',
+                Complaint::with(['user.profile', 'violation'])->where('complaint_status', 'pending')->whereNull('archived_at'),
+                fn ($c) => [
+                    'number' => ($c->case_number ? 'Case #' : 'Complaint #').($c->case_number ?? $c->complaint_number),
+                    'detail' => $c->violation?->violation_name,
+                    'by' => $c->complainant_name ?: $name($c->user),
+                    'created_at' => $c->created_at,
+                ]),
+            $item('complaint_ongoing',
+                Complaint::with(['user.profile', 'violation'])->where('complaint_status', 'ongoing')->whereNull('archived_at'),
+                fn ($c) => [
+                    'number' => ($c->case_number ? 'Case #' : 'Complaint #').($c->case_number ?? $c->complaint_number),
+                    'detail' => $c->violation?->violation_name,
+                    'by' => $c->complainant_name ?: $name($c->user),
+                    'created_at' => $c->created_at,
+                ]),
+            $item('referral', $pending(Referral::with('user.profile')), fn ($r) => [
+                'number' => 'Referral #'.$r->referral_number,
+                'detail' => \Illuminate\Support\Str::limit((string) $r->reason_description, 80),
+                'by' => $name($r->user),
+                'created_at' => $r->created_at,
+            ]),
+            $item('absent_form', $pending(Absence::with('user.profile')), fn ($a) => [
+                'number' => 'Absent Form #'.$a->form_number,
+                // reason is a JSON list of the reasons picked.
+                'detail' => \Illuminate\Support\Str::limit(is_array($r = json_decode((string) $a->reason, true)) ? implode(', ', $r) : (string) $a->reason, 80),
+                'by' => $name($a->user),
+                'created_at' => $a->created_at,
+            ]),
+            $item('gatepass', $pending(GatePass::with('user.profile')), fn ($g) => [
+                'number' => 'Gate Pass #'.$g->gatepass_number,
+                'detail' => \Illuminate\Support\Str::limit((string) $g->reason, 80),
+                'by' => $name($g->user),
+                'created_at' => $g->created_at,
+            ]),
         ];
     }
 
@@ -305,7 +440,7 @@ class DashboardController extends Controller
             'appointment' => $appointmentCount,
             'gatepass' => $gatepass,
             'absent_form' => $absentForm,
-            'upcoming_appointment' => $appointment->getUpcomingAppointmentList($id),
+            'upcoming_appointment' => UserResource::collection($appointment->getUpcomingAppointmentList($id)),
         ];
     }
 
@@ -338,13 +473,13 @@ class DashboardController extends Controller
             'referral' => $referral,
             'student_list' => $studentCount,
             'is_program_head' => $isProgramHead,
-            'active' => self::programPeopleQuery($myProgramIds)
+            'active' => UserResource::collection(self::programPeopleQuery($myProgramIds)
                 ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
-                ->get(),
-            'new_users' => self::programPeopleQuery($myProgramIds)
+                ->get()),
+            'new_users' => UserResource::collection(self::programPeopleQuery($myProgramIds)
                 ->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
                 ->latest('created_at')
-                ->get(),
+                ->get()),
             'new_users_week_start' => now()->startOfWeek()->toDateString(),
             'new_users_week_end' => now()->endOfWeek()->toDateString(),
         ];
@@ -370,9 +505,13 @@ class DashboardController extends Controller
         $teacherIds = \App\Models\Faculty::whereIn('program_id', $programIds)->pluck('user_id')
             ->merge(\App\Models\ProgramHead::whereIn('program_id', $programIds)->pluck('user_id'));
 
+        // Faculty only see their program's students (New Users / Active
+        // Users); program heads also see the program's teachers.
+        $studentsOnly = auth()->user()->role === 'faculty';
+
         return User::with(['profile', 'program', 'enrollments.program', 'faculty.program', 'headships.program'])
-            ->whereIn('id', $studentIds->merge($teacherIds)->unique())
-            ->whereRole(['student', 'program_head', 'faculty'])
+            ->whereIn('id', $studentsOnly ? $studentIds : $studentIds->merge($teacherIds)->unique())
+            ->whereRole($studentsOnly ? ['student'] : ['student', 'program_head', 'faculty'])
             ->whereNot('id', auth()->id());
     }
 
@@ -663,10 +802,17 @@ class DashboardController extends Controller
     /** This semester's pending/rejected records of one type, newest first. */
     private static function semesterRecords(string $type, $query)
     {
-        return self::scopeToCurrentSemester(self::pendingOrRejected($type, $query))
+        $records = self::scopeToCurrentSemester(self::pendingOrRejected($type, $query))
             ->latest('created_at')
-            ->get()
-            ->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
+            ->get();
+
+        return match ($type) {
+            'complaint' => ComplaintResource::collection($records),
+            'referral' => ReferralResource::collection($records),
+            'absent_form' => AbsenceResource::collection($records),
+            'gate_pass' => GatePassResource::collection($records),
+            'appointment' => AppointmentResource::collection($records),
+        };
     }
 
     public function myCurrentSemesterRecords()
@@ -681,7 +827,7 @@ class DashboardController extends Controller
             'student' => ['complaint', 'absent_form', 'gate_pass', 'appointment'],
             'program_head', 'faculty', 'sub_admin' => ['complaint', 'referral'],
             'parent' => ['complaint', 'appointment'],
-            default => ['complaint'], // non-teaching staff, IT admin
+            default => ['complaint'], // non-teaching staff, System Admin
         };
         $can = fn (string $type) => in_array($type, $types, true);
 

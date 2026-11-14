@@ -7,7 +7,7 @@ use App\Http\Requests\AbsentForm\CancelAbsentFormRequest;
 use App\Http\Requests\AbsentForm\ConfirmAbsentFormRequest;
 use App\Http\Requests\AbsentForm\StoreAbsentFormRequest;
 use App\Http\Requests\AbsentForm\UpdateAbsentFormRequest;
-use App\Http\Resources\AbsenceResource;
+use App\Http\Resources\AbsentForm\AbsenceResource;
 use App\Mail\AbsentFormMail;
 use App\Models\Absence;
 use App\Models\AbsenceRevision;
@@ -25,6 +25,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use App\Http\Resources\System\ProgramResource;
+use App\Http\Resources\Account\UserResource;
 
 class AbsentFormController extends Controller
 {
@@ -36,17 +38,29 @@ class AbsentFormController extends Controller
         $user = auth()->user();
         $user->allow_absent_form = $user->permissions?->allow_absent_form;
         $props = [
-            'user' => $user,
+            'user' => new UserResource($user),
         ];
         if (self::isPrefect()) {
             $props = array_merge($props, [
                 'absent_form_request_list' => self::getAllAbsentForm(),
                 'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
-                'programs' => Program::orderBy('name')->get(['id', 'name']),
+                'programs' => ProgramResource::collection(Program::orderBy('code')->get(['id', 'code'])),
             ]);
         } else {
             $mine = Absence::where('student_id', $user->id)->latest('created_at');
             SchoolYearSemester::applyFilter($mine, 'created_at', request('school-year'), request('semester'));
+            // ?id= (from the dashboard's My requests panel): only that one row.
+            if (is_numeric(request('id'))) {
+                $mine->where('id', (int) request('id'));
+            }
+            // ?status=: the tab (pending / noted = approved / rejected / revoked).
+            match (request('status')) {
+                'pending' => $mine->whereNull('confirmed_at')->whereNull('rejected_at')->whereNull('revoked_at'),
+                'noted' => $mine->whereNotNull('confirmed_at')->whereNull('revoked_at'),
+                'rejected' => $mine->whereNotNull('rejected_at')->whereNull('revoked_at'),
+                'revoked' => $mine->whereNotNull('revoked_at'),
+                default => null,
+            };
             $props = array_merge($props, [
                 'absent_form_list' => AbsenceResource::collection($mine->get()),
                 'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
@@ -386,7 +400,7 @@ class AbsentFormController extends Controller
                 'date_approve' => now()->toFormattedDateString(),
                 'status' => 'Approved',
                 'note' => $student->note,
-                'program' => $student->user->program?->name,
+                'program' => $student->user->program?->code,
                 'student_id' => $student->user->id_number,
             ];
 
@@ -455,7 +469,7 @@ class AbsentFormController extends Controller
     {
         return Absence::with(['user.profile', 'user.program', 'user.enrollments'])
             ->where('confirmed_at', null)
-            ->latest('created_at');
+            ->oldest('created_at'); // a queue: oldest request first
     }
 
     /**
@@ -465,10 +479,10 @@ class AbsentFormController extends Controller
      */
     public function getStudentAbsentForms($id)
     {
-        return Absence::with(['user.profile'])
+        return AbsenceResource::collection(Absence::with(['user.profile'])
             ->where('student_id', $id)
             ->latest('created_at')
-            ->get();
+            ->get());
     }
 
     // Absent forms have no expiration: one stays Pending until the prefect
@@ -489,11 +503,16 @@ class AbsentFormController extends Controller
         } elseif ($status === 'revoked') {
             $absence->whereNotNull('revoked_at')->latest('revoked_at');
         } else {
+            // Pending: a queue, the oldest form first.
             $absence->whereNull('confirmed_at')->whereNull('rejected_at')->whereNull('revoked_at')
-                ->latest('created_at');
+                ->oldest('created_at');
         }
 
         SchoolYearSemester::applyFilter($absence, 'created_at', request('school-year'), request('semester'));
+        // ?id= (from the dashboard's Up next panel): only that one row.
+        if (is_numeric(request('id'))) {
+            $absence->where('id', (int) request('id'));
+        }
 
         $program = request('program');
         if ($program && $program !== 'all') {

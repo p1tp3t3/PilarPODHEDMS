@@ -12,6 +12,7 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Notifications\Notification;
 use Illuminate\Queue\SerializesModels;
+use App\Http\Resources\Notification\NotificationsResource;
 
 class SendGatePass implements ShouldBroadcast
 {
@@ -48,7 +49,7 @@ class SendGatePass implements ShouldBroadcast
                               ->get();
 
         return [
-            'response' => $notif
+            'response' => NotificationsResource::collection($notif)->resolve(),
         ];
     }
 }

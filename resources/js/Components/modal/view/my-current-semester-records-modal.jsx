@@ -129,7 +129,7 @@ const RecordRow = ({ type, row, showOwner }) => {
     const meta = TAB_META[type]
     const status = meta.status ? row[meta.status] : deriveStatus(row)
     const reference = meta.number ? row[meta.number] : `#${row.id}`
-    const subjectName = fullName(row.subject?.profile) ?? fullName(row.referred_student?.profile)
+    const subjectName = fullName(row.subject?.profile) ?? fullName(row.referredStudent?.profile)
     const ownerName = showOwner ? fullName(row.user?.profile) : null
 
     const body = (

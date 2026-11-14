@@ -29,6 +29,12 @@ use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use App\Http\Resources\System\ProgramResource;
+use App\Http\Resources\System\SchoolYearResource;
+use App\Http\Resources\Account\UserResource;
+use App\Http\Resources\Account\UserDetailResource;
+use App\Http\Resources\Account\UserIdNumberResource;
+use App\Http\Resources\Account\EducationBackgroundResource;
 
 class ProfileController extends Controller
 {
@@ -71,15 +77,15 @@ class ProfileController extends Controller
             // teaching loaded so the frontend can tell a program head
             // apart from regular faculty (position === 'program_head'),
             // used to gate seeing a student's enrollment history below.
-            'user' => User::with(User::TEACHING_RELATIONS)->find(auth()->id()),
-            'otherUserProfile' => $account,
+            'user' => new UserDetailResource(User::with(User::TEACHING_RELATIONS)->find(auth()->id())),
+            'otherUserProfile' => new UserDetailResource($account),
             // Earlier ID numbers (e.g. the student ID of someone now staff).
-            'previous_id_numbers' => $hideContact ? [] : \App\Models\UserIdNumber::where('user_id', $account->id)
+            'previous_id_numbers' => $hideContact ? [] : UserIdNumberResource::collection(\App\Models\UserIdNumber::where('user_id', $account->id)
                 ->with('role:id,name,label')
                 ->whereNotNull('ended_at')->orderByDesc('ended_at')
-                ->get(['id_number', 'role_id', 'started_at', 'ended_at']),
-            'studentPrograms' => User::with('program')->where('id', auth()->user()->id)->first(),
-            'school_years' => SchoolYear::orderByDesc('year')->get(['id', 'year']),
+                ->get(['id_number', 'role_id', 'started_at', 'ended_at'])),
+            'studentPrograms' => new UserResource(User::with('program')->where('id', auth()->user()->id)->first()),
+            'school_years' => SchoolYearResource::collection(SchoolYear::orderByDesc('year')->get(['id', 'year'])),
         ];
         $family = $account->role == 'student' || $account->role == 'parent';
 
@@ -89,16 +95,15 @@ class ProfileController extends Controller
 
             $props = array_merge($props, [
                 'family' => self::getFamilyBackground($userId),
-                'education_background' => EducationBackground::where('student_id', $userId)
-                    ->get()
-                    ->toArray(),
+                'education_background' => EducationBackgroundResource::collection(EducationBackground::where('student_id', $userId)
+                    ->get()),
             ], $parentStudent->getParentAndStudent());
         }
 
-        // The prefect and the IT admin can change a student's program from
+        // The prefect and the System Admin can change a student's program from
         // the Edit Profile form, which needs the list of programs.
         if ($account->role === 'student' && in_array(auth()->user()->role, ['super_admin', 'sub_admin'], true)) {
-            $props['program'] = Program::latest('created_at')->get(['id', 'description']);
+            $props['program'] = ProgramResource::collection(Program::latest('created_at')->get(['id', 'name']));
         }
 
         // Incidents/violations follow ViolationController::canViewStudent():
@@ -121,7 +126,7 @@ class ProfileController extends Controller
         // actually handles them or by the person themselves.
         $canViewOwnComplaints = auth()->user()->role === 'sub_admin' || auth()->id() === $account->id;
 
-        // The IT admin doesn't file complaints, so their profile has no such tab.
+        // The System Admin doesn't file complaints, so their profile has no such tab.
         if ($canViewOwnComplaints && $account->role !== 'super_admin') {
             $props['complaints_filed'] = (new ComplaintController)->getComplainantComplaint($account->id);
         }
@@ -199,17 +204,16 @@ class ProfileController extends Controller
         if (! $account) {
             abort(404, 'User not found.');
         }
-        // Same rule as saving (update): your own, or the IT admin / prefect.
+        // Same rule as saving (update): your own, or the System Admin / prefect.
         abort_unless($account->id === auth()->id() || in_array(auth()->user()->role, ['super_admin', 'sub_admin']), 403);
 
         $userId = $account->id;
 
         $props = [
-            'otherUserProfile' => $account,
-            'program' => Program::latest('created_at')->get(['id', 'description']),
-            'education_background' => EducationBackground::where('student_id', $userId)
-                ->get()
-                ->toArray(),
+            'otherUserProfile' => new UserDetailResource($account),
+            'program' => ProgramResource::collection(Program::latest('created_at')->get(['id', 'name'])),
+            'education_background' => EducationBackgroundResource::collection(EducationBackground::where('student_id', $userId)
+                ->get()),
         ];
 
         return Inertia::render('student/edit-profile-form', $props);
@@ -251,7 +255,7 @@ class ProfileController extends Controller
         self::applyProfileFields($targetUser, $request);
 
         $userFields = [];
-        // Emails are managed centrally by the IT admin (Account Settings).
+        // Emails are managed centrally by the System Admin (Account Settings).
         if ($request->filled('email') && auth()->user()->role === 'super_admin') {
             $userFields['email'] = strtolower($request->email);
         }
@@ -357,7 +361,7 @@ class ProfileController extends Controller
                 $programId = $enrollment->program_id;
                 $yearLevel = $enrollment->year_level;
 
-                $programName = Program::where('id', $programId)->value('name') ?? 'unknown';
+                $programName = Program::where('id', $programId)->value('code') ?? 'unknown';
                 $zipPath = storage_path("app/private/zips/student-{$programId}-{$programName}.zip");
                 $csvName = "student-account-{$programId}-{$programName}-year-{$yearLevel}.csv";
 
@@ -412,7 +416,7 @@ class ProfileController extends Controller
                 }
                 $programId = $faculty->program_id;
                 $programName = Str::slug(
-                    Program::where('id', $programId)->value('name') ?? 'unknown',
+                    Program::where('id', $programId)->value('code') ?? 'unknown',
                     '-'
                 );
                 $csvPath = storage_path("app/private/zips/faculty-account-{$programId}-{$programName}.csv");
@@ -519,9 +523,9 @@ class ProfileController extends Controller
     {
         $educationBackground = $request->data;
         $programId = self::isKeyUndefined($educationBackground, 'college_program');
-        $program = Program::where('id', $programId)->value('description');
+        $program = Program::where('id', $programId)->value('name');
 
-        // Only the prefect and the IT admin change the program (the field
+        // Only the prefect and the System Admin change the program (the field
         // isn't on anyone else's form, so keep the current one for them).
         $canChangeProgram = in_array(auth()->user()->role, ['super_admin', 'sub_admin'], true) && $program !== null;
         if ($canChangeProgram) {
@@ -632,7 +636,10 @@ class ProfileController extends Controller
 
         return [
             'family_code' => ! is_null($family) ? $family->family_code : null,
-            'members' => $members,
+            'members' => [
+                'parent' => UserResource::collection($members['parent']),
+                'child' => UserResource::collection($members['child']),
+            ],
         ];
 
     }

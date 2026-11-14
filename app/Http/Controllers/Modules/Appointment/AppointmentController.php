@@ -9,8 +9,8 @@ use App\Http\Requests\Appointment\MarkAttendanceRequest;
 use App\Http\Requests\Appointment\StoreAppointmentRequest;
 use App\Http\Requests\Appointment\UpdateAppointmentRequest;
 use App\Http\Requests\Appointment\UpdateAppointmentSlotRequest;
-use App\Http\Resources\AppointmentRequestResource;
-use App\Http\Resources\AppointmentResource;
+use App\Http\Resources\Appointment\AppointmentRequestResource;
+use App\Http\Resources\Appointment\AppointmentResource;
 use App\Mail\AppointmentMail;
 use App\Models\ActionLog;
 use App\Models\Appointment;
@@ -28,6 +28,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
+use App\Http\Resources\System\ProgramResource;
+use App\Http\Resources\Account\UserResource;
+use App\Http\Resources\Notification\NotificationsResource;
 
 class AppointmentController extends Controller
 {
@@ -40,10 +43,10 @@ class AppointmentController extends Controller
         if (auth()->user()->role == 'sub_admin') {
             $props = array_merge($props, [
                 'appointment_request_list' => null,
-                'student_parent_list' => User::with('profile')->whereRole(['student', 'parent'])->get(),
+                'student_parent_list' => UserResource::collection(User::with('profile')->whereRole(['student', 'parent'])->get()),
                 // For the Call-In History's filter dropdowns.
                 'school_years' => \App\Models\SchoolYear::orderByDesc('year')->pluck('year'),
-                'programs' => \App\Models\Program::orderBy('name')->get(['id', 'name']),
+                'programs' => ProgramResource::collection(\App\Models\Program::orderBy('code')->get(['id', 'code'])),
             ]);
         } else {
             $props = array_merge($props, [
@@ -703,7 +706,7 @@ class AppointmentController extends Controller
                 })
                 ->values();
 
-            return response()->json($data);
+            return response()->json(NotificationsResource::collection($data->values()));
 
         }
 

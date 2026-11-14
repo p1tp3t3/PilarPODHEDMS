@@ -10,6 +10,7 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use App\Http\Resources\Notification\NotificationsResource;
 
 class SendReferral implements ShouldBroadcast
 {
@@ -48,7 +49,7 @@ class SendReferral implements ShouldBroadcast
                               ->get();
 
         return [
-            'response' => $notif
+            'response' => NotificationsResource::collection($notif)->resolve(),
         ];
     }
 }

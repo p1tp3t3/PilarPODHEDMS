@@ -1,7 +1,6 @@
 import UpModal from "../up-modal"
 import SearchUserBar from "@/Components/input/search-user-bar"
 import { useEffect, useMemo, useState } from "react"
-import FormTextfield from "@/Components/input/form-input"
 import ProfilePic from "@/Components/other/profile-pic"
 import FormButton from "@/Components/button/button"
 import { FamilyService } from "@/others/services/family-service"
@@ -11,6 +10,29 @@ import CheckBoxButton from "@/Components/input/checkbox"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import { X } from "lucide-react"
 import { LabeledCheckbox } from "@/Components/input/select-checkbox"
+import axios from "axios"
+
+const norm = (v) => (v ?? "").toString().trim().toLowerCase()
+const sameName = (student, child) =>
+    norm(student.profile?.first_name) === norm(child.first_name) &&
+    norm(student.profile?.last_name) === norm(child.last_name)
+const searchStudents = (text) =>
+    axios.get("/api/all-users/family-student", { params: { search: text } })
+        .then((r) => r.data?.data ?? r.data ?? [])
+        .catch(() => [])
+
+// Finds the student account for a child the parent entered: by Student ID
+// (confirmed by first and last name), else by name alone when exactly one
+// student has that first and last name.
+const findChildAccount = async (child) => {
+    if (norm(child.student_id)) {
+        const byId = (await searchStudents(norm(child.student_id))).filter((s) => sameName(s, child))
+        if (byId.length === 1) return byId[0]
+    }
+    if (!norm(child.last_name)) return null
+    const byName = (await searchStudents(norm(child.last_name))).filter((s) => sameName(s, child))
+    return byName.length === 1 ? byName[0] : null
+}
 
 const RegisterFamilyModal = (props) => {
     const [activeTab, setActiveTab] = useState("register")
@@ -67,11 +89,35 @@ const RegisterFamilyModal = (props) => {
     const [searchS, setSearchS] = useState("")
     const [isSearchSFocus, focusSearchS] = useState(false)
     const [searchedStudent, setSearchedStudent] = useState([])
+    // Children from the parent's request: matching and those not found.
+    const [matching, setMatching] = useState(false)
+    const [unmatched, setUnmatched] = useState([])
+
+    // On open, add the children the parent listed, found by their details.
+    useEffect(() => {
+        if (!props.close || !props.parent) return
+        let cancelled = false
+        let children = []
+        try { children = JSON.parse(props.parent.parent_details)?.children ?? [] } catch {}
+
+        setSearchedStudent([])
+        setUnmatched([])
+        if (children.length === 0) return
+        setMatching(true)
+        Promise.all(children.map(findChildAccount)).then((found) => {
+            if (cancelled) return
+            const students = []
+            found.forEach((s) => { if (s && !students.some((x) => x.id === s.id)) students.push(s) })
+            setSearchedStudent(students)
+            setUnmatched(children.filter((_, i) => !found[i]))
+            setMatching(false)
+        })
+        return () => { cancelled = true }
+    }, [props.close, props.parent?.id])
 
     const [data, setData] = useState({
         parents: [],
         children: [],
-        family_group_name: "",
     })
 
     const [errors, setErrors] = useState(false)
@@ -79,11 +125,6 @@ const RegisterFamilyModal = (props) => {
 
 
     const handleSearchS = (e) => setSearchS(e.target.value)
-
-    const handleFamilyName = (e) => {
-        const val = e?.target?.value ?? ""
-        setData((prev) => ({ ...prev, family_group_name: val }))
-    }
 
     const handleRegisterFamily = (e) => {
         e.preventDefault()
@@ -101,13 +142,11 @@ const RegisterFamilyModal = (props) => {
         const filterAtt = ["user_id"]
 
         const familyData = {
-            family_group_name: data.family_group_name,
             parents: cleanedParents,
             students: includeObjAtt(searchedStudent, filterAtt),
         }
 
         const validator = new Validator(familyData)
-        // make sure your validator checks family_group_name + students, etc.
         const errors = validator.validateFamilyRegistrationForm()
 
         const isErrorFree = Object.values(errors).every((err) => err === "")
@@ -215,14 +254,13 @@ const RegisterFamilyModal = (props) => {
                                             def="Family Not Found"
                                             withLink={false}
                                             profile={false}
-                                            label="family_name"
-                                            click={(id) => {
-                                                // Expecting SearchUserBar to return selected id
-                                                // If it returns object in your version, update this accordingly
-                                                setSelectedFamily({ id })
+                                            label="family_code"
+                                            click={(id, code) => {
+                                                // The family's encrypted id, and its code to show below.
+                                                setSelectedFamily({ id, name: code })
                                                 setSearchFamily("")
                                             }}
-                                            apiLink="/api/all-users/family" // <-- CHANGE to your real search API
+                                            apiLink="/api/all-users/family"
                                         />
                                     </div>
 
@@ -245,20 +283,6 @@ const RegisterFamilyModal = (props) => {
                     {activeTab === "register" && (
                         <div className="py-2 w-full">
                             <form onSubmit={handleRegisterFamily} method="post" className="grid gap-5">
-                                <div>
-                                    <FormTextfield
-                                        label="Family Group Name"
-                                        name="family_group_name"
-                                        value={data.family_group_name}
-                                        onChange={handleFamilyName}
-                                        placeholder="e.g. Dela Cruz Family"
-                                    />
-                                    {validationErr.family_group_name && (
-                                        <div className="text-[#d12323] text-[15px]">
-                                            <b>{validationErr.family_group_name}*</b>
-                                        </div>
-                                    )}
-                                </div>
 
                                 <SearchUserSection
                                     label="Add Children (Students)"
@@ -275,6 +299,24 @@ const RegisterFamilyModal = (props) => {
                                     unselect={removeStudent}
                                     user={props.user}
                                 />
+
+                                {matching && (
+                                    <div className="text-[0.85em] text-gray-500">Finding the children from the request…</div>
+                                )}
+                                {!matching && unmatched.length > 0 && (
+                                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[0.85em] text-amber-800">
+                                        <b>Not found, search for them above:</b>
+                                        <ul className="mt-1 list-disc pl-5">
+                                            {unmatched.map((c, i) => (
+                                                <li key={i}>
+                                                    {[c.first_name, c.middle_name, c.last_name].filter(Boolean).map(toTitleCase).join(" ")}
+                                                    {c.student_id ? ` (${c.student_id})` : ""}
+                                                    {c.program ? ` · ${c.program}` : ""}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
 
                                 {validationErr.parent && (
                                     <div className="text-[#d12323] text-[15px]">

@@ -45,7 +45,7 @@ const NewUserList = ({ list = null, showTitle = true, weekStart = null, weekEnd 
 const Row = ({ obj }) => {
     const isStudent = obj.role === "student"
     const latestEnrollment = obj.enrollments?.[obj.enrollments.length - 1]
-    const programName = obj.program?.name ?? latestEnrollment?.program?.name
+    const programName = obj.program?.code ?? latestEnrollment?.program?.code
     const detail = isStudent
         ? [programName, latestEnrollment?.year_level ? getYearLevel(latestEnrollment.year_level) : null].filter(Boolean).join(" • ")
         : (["program_head", "faculty"].includes(obj.role) ? showUserType(obj, true) : showUserType(obj))

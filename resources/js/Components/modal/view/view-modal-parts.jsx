@@ -1,14 +1,15 @@
-import { getProfilePic, toTitleCase, profileUrl } from "../../../others/function"
+import { getProfilePic, toTitleCase, profileUrl, openPdfTab, showOutputModal } from "../../../others/function"
+import { Button } from "@mui/material"
+import PictureAsPdfOutlined from "@mui/icons-material/PictureAsPdfOutlined"
 import SelectedUser from "../../other/selected-user"
 import { Link, usePage } from "@inertiajs/react"
-import ViewPdfBtn from "../../button/view-pdf-btn"
 
 // Shared building blocks for the "view [record]" modals (complaint, referral,
 // absent form, gate pass, ...) — one consistent card/timeline/status-badge
 // language instead of every modal hand-rolling its own layout.
 
 export const StatusBadge = ({ status, styles }) => (
-    <span className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full shrink-0 ${styles[status] ?? 'bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-200'}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 text-xs font-semibold rounded-full shrink-0 ${styles[status] ?? 'bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-200'}`}>
         {toTitleCase(status) || 'Pending'}
     </span>
 )
@@ -23,23 +24,30 @@ export const useIsOwner = (ownerId) => {
 export const useOwnerTitle = (ownerId, name, noun, fallback = "Student") =>
     useIsOwner(ownerId) ? `Your ${noun}` : `${name || fallback}'s ${noun}`
 
-// pdfUrl: the record's PDF (server's pdf_url), opened in a new tab; the
-// button is hidden when there is none or the viewer can't open it.
+// Title with the reference number and status under it; "View PDF" (the
+// record's pdf_url, opened in a new tab) on the right, hidden when there is
+// none or the viewer can't open it. pr-12 keeps clear of the modal's ✕.
 export const ModalHeader = ({ title, reference, status, styles, pdfUrl }) => (
-    <div className="rounded-t-md bg-gray-50 border-b px-6 py-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="rounded-t-md bg-gray-50 border-b pl-6 pr-12 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <div className="min-w-0">
-                <h1 className="text-xl font-bold text-gray-900 truncate">{title}</h1>
-                {reference && (
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-1">
-                        <span className="font-mono">#{reference}</span>
-                    </div>
-                )}
+                <h1 className="text-lg font-bold text-gray-900 truncate">{title}</h1>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                    {reference && <span className="font-mono text-xs text-gray-500">#{reference}</span>}
+                    {status !== undefined && <StatusBadge status={status} styles={styles} />}
+                </div>
             </div>
-            <div className="flex items-center gap-2">
-                {status !== undefined && <StatusBadge status={status} styles={styles} />}
-                <ViewPdfBtn url={pdfUrl} />
-            </div>
+            {pdfUrl && (
+                <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<PictureAsPdfOutlined fontSize="small" />}
+                    onClick={() => openPdfTab(pdfUrl, "PDF") || showOutputModal("Allow pop-ups for this site so the PDF can open in a new tab.", "e")}
+                    sx={{ textTransform: "none", fontWeight: 600, borderRadius: "0.5rem" }}
+                >
+                    View PDF
+                </Button>
+            )}
         </div>
     </div>
 )

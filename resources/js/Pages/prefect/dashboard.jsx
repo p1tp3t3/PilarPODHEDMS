@@ -26,6 +26,7 @@ import PenaltyList from "@/Components/list/penalty-list"
 import { motion } from "framer-motion"
 import { GraduationCap, Hourglass, RefreshCw, FileText, Archive, ShieldAlert } from "lucide-react"
 import { PageTitle } from "@/context-provider/page-title-provider"
+import UpNextPanel from "@/Components/card/up-next-panel"
 
 const PrefectDashBoard = (props) => {
   const date = new Date()
@@ -127,7 +128,7 @@ const PrefectDashBoard = (props) => {
       const color = p.color_code || FALLBACK_COLORS[a % FALLBACK_COLORS.length]
       return {
         data: bargraphComplaint.map((e) => e.count?.[a] ?? 0),
-        label: p.name,
+        label: p.code,
         backgroundColor: color,
         hoverBackgroundColor: color,
         borderRadius: 3,
@@ -277,6 +278,17 @@ const PrefectDashBoard = (props) => {
                     />
                   </Link>
                 </div>
+
+                {/* What to handle next: the oldest waiting item of each kind (first in, first out). */}
+                <UpNextPanel columns={(props.review_queue ?? []).filter((q) => QUEUE[q.key]).map((q) => ({
+                  key: q.key,
+                  label: QUEUE[q.key].label,
+                  meta: q.waiting,
+                  // ?id=<encrypted id>: the page lists only that row.
+                  href: q.item ? `${QUEUE[q.key].href}${QUEUE[q.key].href.includes("?") ? "&" : "?"}id=${q.item.encrypted_id}` : QUEUE[q.key].href,
+                  item: q.item,
+                  titleCaseDetail: q.key.startsWith("complaint"),
+                }))} />
 
                 {/* Bar Graph + Doughnut Chart */}
                 <div className="flex flex-col lg:flex-row gap-3">
@@ -431,6 +443,15 @@ const PrefectDashBoard = (props) => {
         </div>
     </>
   )
+}
+
+// One column per kind in the prefect's "Up next" panel: the oldest waiting item.
+const QUEUE = {
+  complaint_pending: { label: "Pending complaints", href: "/prefect/complaints?status=pending" },
+  complaint_ongoing: { label: "Ongoing cases", href: "/prefect/complaints?status=ongoing" },
+  referral: { label: "Referrals", href: "/prefect/referrals" },
+  absent_form: { label: "Absent forms", href: "/prefect/absent-form" },
+  gatepass: { label: "Gate passes", href: "/prefect/gatepass" },
 }
 
 PrefectDashBoard.layout = (page) => <AuthLayout user={page.props.user}>{page}</AuthLayout>

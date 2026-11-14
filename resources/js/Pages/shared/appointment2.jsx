@@ -44,8 +44,8 @@ const OtherAppointment = ({ appointment_history = [], call_in_history = [], ...p
         })
     }
     const tabs = [
-        { key: "appointments", label: `Appointments (${appointment_history.length})`, icon: CalendarDays },
-        { key: "call-ins", label: `Call-Ins (${call_in_history.length})`, icon: PhoneCall },
+        { key: "appointments", label: "Appointments", icon: CalendarDays },
+        { key: "call-ins", label: "Call-Ins", icon: PhoneCall },
     ]
 
     // Lets the "My Records This Semester" dashboard modal deep-link straight

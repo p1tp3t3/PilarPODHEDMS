@@ -93,10 +93,10 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
                                 {props.student.profile?.first_name} {props.student.profile?.middle_name} {props.student.profile?.last_name}
                             </div>
                             <div className="mt-2 flex flex-wrap justify-center sm:justify-start gap-2">
-                                {props.student.program?.description && (
+                                {props.student.program?.name && (
                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[0.8em] font-semibold bg-gray-100 text-gray-700 border border-gray-200">
                                         <GraduationCap size="1.1em" className="opacity-70" />
-                                        {props.student.program?.description}
+                                        {props.student.program?.name}
                                         {props.student.enrollments?.[props.student.enrollments.length - 1]?.year_level
                                             ? ` • ${getYearLevel(props.student.enrollments[props.student.enrollments.length - 1].year_level)}`
                                             : ""}

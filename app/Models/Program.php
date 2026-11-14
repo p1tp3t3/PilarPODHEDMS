@@ -13,7 +13,7 @@ class Program extends Model
 
     protected $table = 'program';
 
-    protected $fillable = ['name', 'description', 'logo', 'color_code', 'is_deleted', 'archived_at'];
+    protected $fillable = ['code', 'name', 'logo', 'color_code', 'is_deleted', 'archived_at'];
 
     public $timestamps = false;
 

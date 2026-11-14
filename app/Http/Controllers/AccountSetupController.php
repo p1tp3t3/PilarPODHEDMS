@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
+use App\Http\Resources\Account\UserResource;
 
 class AccountSetupController extends Controller
 {
@@ -25,7 +26,7 @@ class AccountSetupController extends Controller
         }
 
         return Inertia::render('guest/verify-email', [
-            'user' => $user,
+            'user' => new UserResource($user),
             'email' => $user->email,
         ]);
     }
@@ -63,7 +64,7 @@ class AccountSetupController extends Controller
         $user = auth()->user()->load('profile');
 
         return Inertia::render('shared/force-password', [
-            'user' => $user,
+            'user' => new UserResource($user),
             'targetAccount' => [
                 'id' => $user->id,
                 'id_number' => $user->id_number,

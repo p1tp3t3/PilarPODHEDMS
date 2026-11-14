@@ -1,4 +1,5 @@
 import AuthLayout from "@/Layouts/auth-layout"
+import SingleRowNotice from "@/Components/other/single-row-notice"
 import PageLayout from "@/Layouts/page-layout"
 import IssueComplaintModal from "@/Components/modal/submission-form/issue-complaint-modal"
 import ComplaintList from "@/Components/list/complaint-list"
@@ -350,6 +351,8 @@ const PrefectComplaint = (props) => {
                 </div>}
               </div>
             </div>
+
+            <SingleRowNotice noun="complaint" />
 
             {/* Complaint List */}
             <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3 min-w-0">

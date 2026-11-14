@@ -29,12 +29,12 @@ if (typeof document !== "undefined") {
     document.addEventListener("inertia:navigate", () => endBusy())
 }
 
-const recent = (x) => x && Date.now() - x.at < RECENT_MS && (x.form ?? x.el).isConnected
+const recent = (x, maxAge = RECENT_MS) => x && Date.now() - x.at < maxAge && (x.form ?? x.el).isConnected
 
 // The form (or modal panel) and button the processing request came from.
-const findSource = () => {
-    const sub = recent(lastSubmit) ? lastSubmit : null
-    const click = recent(lastClick) ? lastClick : null
+const findSource = (maxAge = RECENT_MS) => {
+    const sub = recent(lastSubmit, maxAge) ? lastSubmit : null
+    const click = recent(lastClick, maxAge) ? lastClick : null
     if (!sub && !click) return null
 
     const useSubmit = sub && (!click || sub.at >= click.at || sub.form.contains(click.el))
@@ -60,10 +60,10 @@ const isShown = (el) => {
 
 // onHidden: shows the old loading screen instead, for a form that closed
 // (e.g. its modal) right after confirming, so the progress stays visible.
-export const startBusy = (onHidden) => {
+export const startBusy = (onHidden, maxAge = RECENT_MS) => {
     if (busy && isShown(busy.trigger ?? busy.scope)) return true
     endBusy()
-    const src = findSource()
+    const src = findSource(maxAge)
     if (!src || !isShown(src.trigger ?? src.scope)) return false
 
     const { scope, trigger } = src

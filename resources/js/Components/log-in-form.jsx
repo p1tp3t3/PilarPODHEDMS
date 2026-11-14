@@ -40,9 +40,11 @@ const LogInForm = (props) => {
             </h1>
           </div>
 
-          {/* Form Inputs */}
-          <div className="flex flex-col px-6 pb-5 gap-3">
+          {/* Form Inputs: disabled while logging in (props.submitting); the button spins. */}
+          <fieldset disabled={props.submitting} aria-busy={props.submitting} className={`flex flex-col px-6 pb-5 gap-3 min-w-0 ${props.submitting ? "cursor-progress" : ""}`}>
             <div className="grid gap-6">
+              {/* Both fields dim while logging in. */}
+              <div className={`grid gap-6 transition-opacity duration-200 ${props.submitting ? "opacity-50" : ""}`}>
               {/* USERNAME FIELD */}
               <FormTextfield
                 label="Username or User ID"
@@ -68,21 +70,24 @@ const LogInForm = (props) => {
                 error={props.validationErr.password}
                 errorAsterisk={props.validationErr.passwordAsterisk}
               />
+              </div>
 
               {/* Submit Button */}
               <div className="w-full grid gap-1">
-                <FormButton label="Log in" type="submit" />
+                <FormButton label="Log in" type="submit" loading={props.submitting} />
 
-                <div className="text-[13px] text-center hover:underline text-blue-700 z-10">
-                  <Link href="/forgot-password">Forgot Password?</Link>
-                </div>
+                <div className={props.submitting ? "grid gap-1 pointer-events-none opacity-50" : "grid gap-1"} aria-disabled={props.submitting}>
+                  <div className="text-[13px] text-center hover:underline text-blue-700 z-10">
+                    <Link href="/forgot-password" tabIndex={props.submitting ? -1 : undefined}>Forgot Password?</Link>
+                  </div>
 
-                <div className="text-[13px] text-center hover:underline text-blue-700 z-10">
-                  <Link href="/parent-register">Register As Parent Here</Link>
+                  <div className="text-[13px] text-center hover:underline text-blue-700 z-10">
+                    <Link href="/parent-register" tabIndex={props.submitting ? -1 : undefined}>Register As Parent Here</Link>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          </fieldset>
         </div>
       </form>
     </div>

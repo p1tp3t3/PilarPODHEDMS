@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 
 use function Symfony\Component\Clock\now;
+use App\Http\Resources\Notification\NotificationsResource;
 
 class NotificationController extends Controller
 {
@@ -187,7 +188,7 @@ class NotificationController extends Controller
                     'student' => $student ? [
                         'name' => $name($student),
                         'id_number' => $student->id_number,
-                        'program' => $student->latestEnrollment?->program?->name,
+                        'program' => $student->latestEnrollment?->program?->code,
                         'profile_picture' => $student->profile?->profile_picture,
                         'sex' => $student->profile?->sex,
                         'encrypted_id' => encrypt_id($student->id),
@@ -256,7 +257,7 @@ class NotificationController extends Controller
                 break;
         }
 
-        return Notifications::where('receiver_id', $userId)->latest('created_at')->limit(10)->get();
+        return NotificationsResource::collection(Notifications::where('receiver_id', $userId)->latest('created_at')->limit(10)->get());
     }
 
     public function notifyFacultyProgramHead(Request $request)
@@ -329,7 +330,7 @@ class NotificationController extends Controller
             ->get()
             ->toArray();
 
-        return $notif;
+        return NotificationsResource::collection($notif);
     }
 
     public function getUserAppointmentNotification()
@@ -341,7 +342,7 @@ class NotificationController extends Controller
             ->get()
             ->toArray();
 
-        return $notif;
+        return NotificationsResource::collection($notif);
     }
 
     private function getFields($request, $type)

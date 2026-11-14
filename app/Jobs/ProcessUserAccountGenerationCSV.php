@@ -268,7 +268,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
                     $program = trim((string) ($row['program'] ?? ''));
                     if ($program !== '' && self::programIdByName($program) === null) {
                         $rowErrors[$rowNum][] = "Row $rowNum: program '{$program}' is not valid. Allowed: "
-                            . Program::active()->pluck('name')->implode(', ');
+                            . Program::active()->pluck('code')->implode(', ');
                     }
 
                     $existing = User::where('id_number', strtolower(trim((string) ($row['id'] ?? ''))))->first();
@@ -429,7 +429,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
             // Determine file paths
             $programId = $csv['program'] ?? null;
             $yearLevel = $csv['year_level'] ?? null;
-            $programName = Str::slug(Program::where('id', $programId)->value('name') ?? 'unknown', '-');
+            $programName = Str::slug(Program::where('id', $programId)->value('code') ?? 'unknown', '-');
             $extractDir = storage_path("app/tmp_zip_read");
 
             // Clean up any old temp directory first
@@ -504,7 +504,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
     {
         foreach ($grouped as $key => $columnData) {
             [$programId, $yearLevel] = explode('_', $key);
-            $programName = Program::where('id', $programId)->value('name') ?? 'unknown';
+            $programName = Program::where('id', $programId)->value('code') ?? 'unknown';
             $programSlug = strtoupper(Str::slug($programName, '-'));
 
             $csvName = "student-account-{$programId}-{$programSlug}-year-{$yearLevel}.csv";
@@ -524,7 +524,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
 
     private static function programIdByName($name): ?int
     {
-        $id = Program::active()->whereRaw('LOWER(name) = ?', [strtolower(trim((string) $name))])->value('id');
+        $id = Program::active()->whereRaw('LOWER(code) = ?', [strtolower(trim((string) $name))])->value('id');
         return $id !== null ? (int) $id : null;
     }
 
@@ -545,7 +545,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
     private function exportFacultyGrouped($grouped)
     {
         foreach ($grouped as $programId => $columnData) {
-            $programName = Program::where('id', $programId)->value('name') ?? 'unknown';
+            $programName = Program::where('id', $programId)->value('code') ?? 'unknown';
             $fileName = "faculty-account-{$programId}-" . Str::slug($programName, '-') . ".csv";
             $path = storage_path("app/private/zips/{$fileName}");
 
@@ -569,10 +569,10 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
 
         switch ($type) {
             case 'student':
-                $program = Program::where('id', $file['program'])->value('name') ?? 'unknown';
+                $program = Program::where('id', $file['program'])->value('code') ?? 'unknown';
                 return [$id, $name, $program, $file['year_level'], $username, $password];
             case 'faculty':
-                $program = Program::where('id', $file['program'])->value('name') ?? 'unknown';
+                $program = Program::where('id', $file['program'])->value('code') ?? 'unknown';
                 return [$id, $name, $program, $username, $password];
             default:
                 return [$id, $name, $username, $password];
@@ -582,7 +582,7 @@ class ProcessUserAccountGenerationCSV implements ShouldQueue
     private function userTypeFileName($type, $uniqueAtt)
     {
         $programName = !empty($uniqueAtt['program'])
-            ? strtoupper((Program::where('id', $uniqueAtt['program'])->value('name') ?? 'unknown'))
+            ? strtoupper((Program::where('id', $uniqueAtt['program'])->value('code') ?? 'unknown'))
             : 'general';
 
         return match ($type) {

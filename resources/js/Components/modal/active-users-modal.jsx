@@ -15,7 +15,7 @@ const ROLE_SCOPE = {
 }
 
 const ROLE_LABEL = {
-    super_admin: "IT Admin",
+    super_admin: "System Admin",
     sub_admin: "Prefect",
     student: "Student",
     program_head: "Program Head",

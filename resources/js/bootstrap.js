@@ -1,15 +1,24 @@
 import axios from 'axios';
+import { startBusy, endBusy, isBusy } from './others/form-busy';
 window.axios = axios;
 
 window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
+// Every submission (POST/PUT/PATCH/DELETE) disables the form it came from
+// while it's processing, even where the page doesn't open a loading screen
+// itself (those already do, via loadRegister / showLoadingModal). Only for a
+// form the user just clicked or submitted (last 30 seconds), and not for
+// background calls (marking notifications/chats read, Echo's channel auth).
+const BACKGROUND = /\/(broadcasting\/auth|notification\/read|activity\/status)|\/chat\/.*(read|seen|typing)/;
 axios.interceptors.request.use((config) => {
-    console.log('Request method:', config.method); // 'get', 'post', etc.
-    if (config.method === 'post') {
-        console.log('This is a POST request');
+    const method = (config.method ?? 'get').toLowerCase();
+    if (method !== 'get' && !isBusy() && !BACKGROUND.test(config.url ?? '')) {
+        config.__formBusy = startBusy(null, 30_000);
     }
     return config;
 });
+// Done: unlock it (a result modal, if any, opens right after).
+const releaseBusy = (config) => { if (config?.__formBusy) endBusy(); };
 
 // Session expiring mid-action (Cancel/Archive/Call In/etc — plain axios
 // calls, not an Inertia page visit) gets a plain 401 from the server, which
@@ -19,8 +28,9 @@ axios.interceptors.request.use((config) => {
 // — those get redirected server-side via Inertia::location() instead
 // (bootstrap/app.php's exception handler).
 axios.interceptors.response.use(
-    (response) => response,
+    (response) => { releaseBusy(response.config); return response; },
     (error) => {
+        releaseBusy(error.config);
         if (error.response?.status === 401) {
             window.location.href = '/';
             return new Promise(() => {});

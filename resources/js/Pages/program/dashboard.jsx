@@ -1,5 +1,6 @@
 import AuthLayout from "@/Layouts/auth-layout";
 import DashboardInfoBar from "@/Components/other/dashboard-info-bar"
+import MyRequestsPanel from "@/Components/card/my-requests-panel";
 import QuantityCard from "@/Components/card/qntty-statistic-card";
 import "../style.css";
 import LatestActiveAccountList from "@/Components/list/latest-active-user-list";
@@ -82,9 +83,11 @@ const ProgramDashboard = (props) => {
               </Link>
             </div>
 
-            {/* === NEW USERS + ACTIVE USERS (their program) === */}
+            {/* 1st column: My requests (a list) over New Users; 2nd column:
+                Active Users (their program). Stacked on phones. */}
             <div className="flex flex-col lg:flex-row gap-6">
-              <div className="w-full lg:w-1/2 min-w-0">
+              <div className="w-full lg:w-1/2 min-w-0 flex flex-col gap-6">
+                <MyRequestsPanel data={props.my_requests} stacked />
                 <NewUserList
                   list={props.new_users}
                   weekStart={props.new_users_week_start}

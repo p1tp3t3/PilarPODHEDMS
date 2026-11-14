@@ -14,7 +14,7 @@ class Family extends Model
 
     protected $table = 'family';
 
-    protected $fillable = ['family_name'];
+    protected $fillable = [];
 
     public $timestamps = false;
 

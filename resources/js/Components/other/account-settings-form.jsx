@@ -122,7 +122,7 @@ const AccountInfoForm = ({ authUser, targetAccount, isAdmin, reload }) => {
         <div className="bg-white px-5 md:px-10 py-8 rounded-lg shadow-sm shadow-black/20">
             <h2 className="text-lg font-semibold mb-5">Username &amp; Email</h2>
             <form onSubmit={handleSubmit} className="grid gap-6">
-                {/* Usernames and emails are managed by the IT admin; everyone else sees theirs. */}
+                {/* Usernames and emails are managed by the System Admin; everyone else sees theirs. */}
                 <FormTextfield
                     label="Username"
                     name="username"
@@ -149,7 +149,7 @@ const AccountInfoForm = ({ authUser, targetAccount, isAdmin, reload }) => {
                     </div>
                 ) : (
                     <p className="text-[0.85em] text-gray-500">
-                        To change your username or email, contact the IT admin.
+                        To change your username or email, contact the System Admin.
                     </p>
                 )}
             </form>
@@ -191,7 +191,7 @@ const PasswordChecklist = ({ password = "", confirmation = "" }) => {
 const plain = (v) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "").toLowerCase();
 const defaultPasswordOf = (account) => `${plain(account.profile?.last_name)}_${plain(account.id_number)}`;
 
-// The IT admin on another user's account settings: no typed password, just a
+// The System Admin on another user's account settings: no typed password, just a
 // reset to the default, which the user must change at their next login.
 const ResetPasswordCard = ({ targetAccount, reload }) => {
     const name = targetAccount.profile?.first_name ?? "this user";

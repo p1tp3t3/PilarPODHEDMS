@@ -53,6 +53,7 @@ export const sidebarPages = [
         items: [
             { id: "accounts/register", href: "/super-admin/accounts/register", icon: UserPlus, label: "New User" },
             { id: "user-accounts", href: "/super-admin/user-accounts", icon: List, label: "User List" },
+            { id: "super-admin/roles", href: "/super-admin/roles", icon: ShieldCheck, label: "Roles" },
             { id: "staff-list", href: "/super-admin/staff-list", icon: UserRoundCog, label: "Staff Positions" },
             { id: "student-list", href: "/super-admin/student-list", icon: GraduationCap, label: "Students" },
             { id: "parent-request-list", href: "/super-admin/parent-request-list", icon: UserCheck, label: "Parent Registration Requests" },
@@ -71,7 +72,6 @@ export const sidebarPages = [
         items: [
             { id: "system-settings", href: "/system-settings", icon: SlidersHorizontal, label: "System Settings" },
             { id: "school-year", href: "/super-admin/school-year", icon: Calendar, label: "School Year" },
-            { id: "super-admin/roles", href: "/super-admin/roles", icon: ShieldCheck, label: "Roles" },
             { id: "maintenance", href: "/maintenance", icon: Wrench, label: "Maintenance" },
             { id: "model-training", href: "/super-admin/model-training", icon: BrainCircuit, label: "Model Training" },
             { id: "security-monitor", href: "/super-admin/security-monitor", icon: ShieldAlert, label: "Security Monitor" },
@@ -125,8 +125,8 @@ export const sidebarPages = [
     { type: "link", id: "absent-form", href: "/absent-form", icon: CalendarX, label: "Absent Form", roles: ["student"] },
     { type: "link", id: "gatepass", href: "/gatepass", icon: DoorOpen, label: "Gate-Pass", roles: ["student"] },
 
-    // ---- shared: appointment (the prefect schedules them for students and parents) ----
-    { type: "link", id: "appointment", href: "/appointment", icon: Calendar, label: "Appointment", roles: ["student", "parent"] },
+    // ---- student: appointment (the prefect schedules them) ----
+    { type: "link", id: "appointment", href: "/appointment", icon: Calendar, label: "Appointment", roles: ["student"] },
 
     // ---- program_head / faculty ----
     // Account Files (other/program-account-files.jsx) already shows Faculty

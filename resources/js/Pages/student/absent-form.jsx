@@ -1,4 +1,5 @@
 import SchoolYearSemesterFilter from "@/Components/input/school-year-semester-filter"
+import SingleRowNotice from "@/Components/other/single-row-notice"
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import RequestAbsentFormModal from "@/Components/modal/submission-form/request-absent-form-modal"
@@ -10,7 +11,10 @@ import TabSwitcher from "@/Components/other/tab-switcher"
 import Btn from "@/Components/button/normal-btn"
 import { readableDate, readableTime, showWarningModal, showOutputModal, toTitleCase } from "@/others/function"
 import { AbsentFormService } from "@/others/services/absent-form-service"
-import { Send, List, Clock, CheckCircle2, Ban, FolderOpen, Undo2 } from "lucide-react"
+import { Send, List, Clock, CheckCircle2, Ban, Undo2 } from "lucide-react"
+import { DataGrid } from "@/Components/other/data-grid"
+import ActionBtn from "@/Components/button/action-btn"
+import StatusPill from "@/Components/list/status-pill"
 import { Head, router } from "@inertiajs/react"
 
 const STATUS_META = {
@@ -38,17 +42,24 @@ const optionTab = [
     { key: "revoked", label: "Revoked", icon: Undo2 },
 ]
 
-const reasonLabel = (form) => {
-    try {
-        const reasons = JSON.parse(form.reason || "[]")
-        return reasons.join(", ")
-    } catch (e) {
-        return form.reason ?? ""
-    }
-}
-
 const AbsentForm = (props) => {
-    const [tab, setTab] = useState("all")
+    // The tab is ?status= in the URL; changing it is an Inertia visit and the
+    // server sends only that status's forms.
+    const [tab, setTab] = useState(() => {
+        const s = new URLSearchParams(window.location.search).get("status")
+        return optionTab.some((t) => t.key === s) ? s : "all"
+    })
+    const changeTab = (key) => {
+        if (key === tab) return
+        setTab(key)
+        const params = new URLSearchParams(window.location.search)
+        params.delete("view")
+        params.delete("id")
+        if (key === "all") params.delete("status")
+        else params.set("status", key)
+        const q = params.toString()
+        router.get(`${window.location.pathname}${q ? `?${q}` : ""}`, {}, { preserveState: true, preserveScroll: true, only: ["absent_form_list"] })
+    }
     const [requestOpen, setRequestOpen] = useState(false)
     const [editForm, setEditForm] = useState(null)
     const [editOpen, setEditOpen] = useState(false)
@@ -57,18 +68,14 @@ const AbsentForm = (props) => {
 
     const { loadRegister } = useReload();
     const allForms = props.absent_form_list ?? []
-    const shownForms = tab === "all"
-        ? allForms
-        : allForms.filter((form) => absentFormStatusKey(form) === tab)
+    const shownForms = allForms
 
     // Lets the "My Records This Semester" dashboard modal deep-link straight
-    // to a specific absent form — jumps to whichever status tab it actually
-    // belongs to and opens the same view modal the prefect's page uses.
+    // to a specific absent form — opens the same view modal the prefect's
+    // page uses.
     useEffect(() => {
         const id = new URLSearchParams(window.location.search).get("view")
         if (!id) return
-        const match = allForms.find((form) => form.encrypted_id === id)
-        if (match) setTab(absentFormStatusKey(match))
         setViewId(id)
         setViewOpen(true)
     }, [])
@@ -98,6 +105,58 @@ const AbsentForm = (props) => {
             }
         )
     }
+
+    const openView = (form) => {
+        setViewId(form.encrypted_id)
+        setViewOpen(true)
+    }
+
+    const columns = [
+        {
+            field: "index", headerName: "#", width: 60, sortable: false,
+            renderCell: (params) => `${params.api.getRowIndexRelativeToVisibleRows(params.id) + 1}.`,
+        },
+        { field: "form_number", headerName: "Form No.", width: 120 },
+        {
+            field: "date_from", headerName: "Dates Absent", flex: 1, minWidth: 210,
+            renderCell: ({ row }) => (
+                <span>{readableDate(row.date_from)}{row.date_to && row.date_to !== row.date_from ? ` — ${readableDate(row.date_to)}` : ""}</span>
+            ),
+        },
+        {
+            field: "created_at", headerName: "Submitted", width: 170,
+            renderCell: ({ row }) => (
+                <div className="leading-tight">
+                    <div className="text-[0.85rem]">{readableDate(row.created_at)}</div>
+                    <div className="text-[0.72rem] text-gray-500">{readableTime(row.created_at)}</div>
+                </div>
+            ),
+        },
+        {
+            // Just the status; the rejection reason / note are in the View modal.
+            field: "status", headerName: "Status", width: 130, sortable: false,
+            valueGetter: (value, row) => STATUS_META[absentFormStatusKey(row)].label,
+            // Same solid badge as the other record tables ("noted" shows as Approved).
+            renderCell: ({ row }) => {
+                const key = absentFormStatusKey(row)
+                return <StatusPill status={key === "noted" ? "approved" : key} />
+            },
+        },
+        {
+            field: "actions", type: "actions", headerName: "Action", width: 220, align: "left", headerAlign: "left",
+            renderCell: ({ row }) => (
+                <div className="flex gap-2 items-center h-full">
+                    <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => openView(row)}>View</ActionBtn>
+                    {isEditable(row) && (
+                        <ActionBtn className="bg-green-600 text-white hover:bg-green-700" onClick={() => { setEditForm(row); setEditOpen(true) }}>Edit</ActionBtn>
+                    )}
+                    {isRevocable(row) && (
+                        <ActionBtn className="bg-red-600 text-white hover:bg-red-700" onClick={() => handleRevoke(row.id)}>Revoke</ActionBtn>
+                    )}
+                </div>
+            ),
+        },
+    ]
 
     return (
         <>
@@ -136,78 +195,27 @@ const AbsentForm = (props) => {
                 }
             >
                     <SchoolYearSemesterFilter schoolYears={props.school_years} />
-                    <TabSwitcher tabs={optionTab} value={tab} onChange={setTab} />
+                    <TabSwitcher tabs={optionTab} value={tab} onChange={changeTab} />
+                    <SingleRowNotice noun="absent form" />
 
-                    {(
-                        <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3">
-                            {shownForms.length === 0 ? (
-                                <div className="py-10 text-center text-gray-500">
-                                    <FolderOpen size="2.5em" className="mx-auto mb-2 opacity-60" />
-                                    <p>{tab === "all" ? "No absent form records found." : `No ${STATUS_META[tab].label.toLowerCase()} absent form records found.`}</p>
-                                </div>
-                            ) : (
-                                <div className="grid gap-3">
-                                    {shownForms.map((form) => {
-                                        const status = STATUS_META[absentFormStatusKey(form)]
-                                        return (
-                                            <div
-                                                key={form.id}
-                                                className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-[0.9em]"
-                                            >
-                                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                                    <span className="font-semibold text-gray-800">
-                                                        {form.form_number} — {readableDate(form.created_at)} ({readableTime(form.created_at)})
-                                                    </span>
-                                                    <span className={`px-2 py-0.5 rounded-full text-[0.8em] font-semibold ${status.className}`}>
-                                                        {status.label}
-                                                    </span>
-                                                </div>
-                                                <div className="text-gray-600 mt-1">
-                                                    Reason: {reasonLabel(form)}
-                                                </div>
-                                                <div className="text-gray-600 mt-1">
-                                                    {readableDate(form.date_from)} — {readableDate(form.date_to)}
-                                                </div>
-                                                {form.rejected_at && form.rejected_reason && (
-                                                    <div className="text-red-600 mt-1">
-                                                        Rejected: {form.rejected_reason}
-                                                    </div>
-                                                )}
-                                                {form.confirmed_at && form.note && (
-                                                    <div className="text-gray-600 mt-1">
-                                                        Note: {form.note}
-                                                    </div>
-                                                )}
-                                                {absentFormStatusKey(form) === "pending" && (
-                                                    <div className="flex gap-2 mt-2">
-                                                        {isEditable(form) && (
-                                                            <button
-                                                                type="button"
-                                                                className="px-3 py-1 rounded-md bg-green-600 hover:bg-green-700 text-white text-[0.85em] font-medium"
-                                                                onClick={() => {
-                                                                    setEditForm(form)
-                                                                    setEditOpen(true)
-                                                                }}
-                                                            >
-                                                                Edit
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            type="button"
-                                                            className="px-3 py-1 rounded-md bg-gray-600 hover:bg-gray-700 text-white text-[0.85em] font-medium"
-                                                            onClick={() => handleRevoke(form.id)}
-                                                        >
-                                                            Revoke
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    )}
+                    <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3 min-w-0">
+                        <DataGrid
+                            rows={shownForms}
+                            columns={columns}
+                            getRowId={(row) => row.id}
+                            getRowHeight={() => "auto"}
+                            pagination
+                            initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
+                            pageSizeOptions={[20, 50, 100]}
+                            disableRowSelectionOnClick
+                            hideFooterSelectedRowCount
+                            showToolbar
+                            // Phones: the form number and status; tap for the rest.
+                            mobileSummary={(row) => ({ name: `Absent Form #${row.form_number}`, role: STATUS_META[absentFormStatusKey(row)].label })}
+                            localeText={{ noRowsLabel: tab === "all" ? "No absent form records found." : `No ${STATUS_META[tab].label.toLowerCase()} absent form records found.` }}
+                            sx={{ "& .MuiDataGrid-cell": { py: 1 } }}
+                        />
+                    </div>
             </PageLayout>
         </>
     )

@@ -45,8 +45,9 @@ class TeachingAssignment implements Arrayable, JsonSerializable
             'user_id' => $this->user_id,
             'program_id' => $this->program_id,
             'position' => $this->position,
-            'program' => $this->program?->toArray(),
-            'programs_handled' => $this->programs_handled->map->toArray()->values()->all(),
+            // Through ProgramResource: only the program fields the pages use.
+            'program' => $this->program ? \App\Http\Resources\System\ProgramResource::make($this->program)->resolve() : null,
+            'programs_handled' => \App\Http\Resources\System\ProgramResource::collection($this->programs_handled->values())->resolve(),
         ];
     }
 

@@ -9,7 +9,7 @@ use App\Http\Requests\Complaint\BulkComplaintActionRequest;
 use App\Http\Requests\Complaint\CancelComplaintRequest;
 use App\Http\Requests\Complaint\StoreComplaintRequest;
 use App\Http\Requests\Complaint\UpdateComplaintRequest;
-use App\Http\Resources\ComplaintResource;
+use App\Http\Resources\Complaint\ComplaintResource;
 use App\Models\ActionLog;
 use App\Models\Complaint;
 use App\Models\ComplaintRevision;
@@ -30,6 +30,10 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use App\Http\Resources\System\ProgramResource;
+use App\Http\Resources\Account\UserResource;
+use App\Http\Resources\Violation\ViolationResource;
+use App\Http\Resources\Violation\ViolationOptionResource;
 
 class ComplaintController extends Controller
 {
@@ -44,14 +48,14 @@ class ComplaintController extends Controller
         $user = auth()->user();
         $user->allow_complaint = $user->permissions?->allow_complaint;
         $props = [
-            'user' => $user,
-            'program' => Program::latest('id')
-                ->get(['id', 'name']),
-            'students' => User::with(['profile', 'program'])
+            'user' => new UserResource($user),
+            'program' => ProgramResource::collection(Program::latest('id')
+                ->get(['id', 'code'])),
+            'students' => UserResource::collection(User::with(['profile', 'program'])
                 ->whereRole('student')
                 ->where('id', '!=', auth()->user()->id)
                 ->get()
-                ->each(fn (User $student) => $student->hidePhotoFrom(auth()->user())),
+                ->each(fn (User $student) => $student->hidePhotoFrom(auth()->user()))),
             'program_name' => is_program_head(),
             'complaint_list' => $complaints,
             // Column order matters here — the frontend's objConvert() reads
@@ -59,19 +63,20 @@ class ComplaintController extends Controller
             // must stay the first two selected columns; keywords is read by
             // name (not position) in the modal, so it's safe appended last.
             // Disabled violations can't be picked for complaints.
-            'incident_list' => Violation::active()->select([DB::raw('id AS val'), DB::raw('violation_name AS label'), 'keywords'])->get(),
+            'incident_list' => ViolationOptionResource::collection(Violation::active()->select([DB::raw('id AS val'), DB::raw('violation_name AS label'), 'keywords'])->get()),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
         ];
         if (self::isPrefect()) {
             $props = array_merge($props, [
-                'reported_complaint_list' => Complaint::with('user.profile')
+                // A queue: the oldest unhandled complaint first.
+                'reported_complaint_list' => ComplaintResource::collection(Complaint::with('user.profile')
                     ->where('confirmed_at', null)
+                    ->oldest('created_at')
+                    ->get()),
+                'violation_list' => ViolationResource::collection(Violation::active()->select('id', 'violation_name', 'offense_status')
                     ->latest('created_at')
-                    ->get(),
-                'violation_list' => Violation::active()->select('id', 'violation_name', 'offense_status')
-                    ->latest('created_at')
-                    ->get(),
-                'all_users' => User::with('profile')->get(),
+                    ->get()),
+                'all_users' => UserResource::collection(User::with('profile')->get()),
             ]);
         }
 
@@ -646,6 +651,10 @@ class ComplaintController extends Controller
             });
         }
         SchoolYearSemester::applyFilter($data, 'created_at', $_GET['school-year'] ?? null, $_GET['semester'] ?? null);
+        // ?id= (from the dashboard's Up next panel): only that one row.
+        if (is_numeric(request('id'))) {
+            $data->where('id', (int) request('id'));
+        }
         // rejected/revoked complaints get archived_at set the moment they
         // reach that status (see cancelComplaint()/revokeComplaint()) — that
         // field is the same one the Archives page filters on
@@ -666,8 +675,14 @@ class ComplaintController extends Controller
 
         if (isset($_GET['status']) && $_GET['status'] === 'revoked') {
             $data = $data->latest('revoked_at');
-        } elseif (isset($_GET['status']) && in_array($_GET['status'], ['rejected', 'pending'])) {
+        } elseif (isset($_GET['status']) && $_GET['status'] === 'pending') {
+            // A queue: the oldest pending complaint first.
+            $data = $data->oldest('created_at');
+        } elseif (isset($_GET['status']) && $_GET['status'] === 'rejected') {
             $data = $data->latest('created_at');
+        } elseif (isset($_GET['status']) && $_GET['status'] === 'ongoing') {
+            // Ongoing cases: a queue too, the oldest complaint first.
+            $data = $data->oldest('created_at');
         } else {
             $data = $data->latest('confirmed_at');
         }
@@ -688,6 +703,10 @@ class ComplaintController extends Controller
             $data = $data->where('complaint_status', $status);
         }
         \App\Models\SchoolYearSemester::applyFilter($data, 'created_at', request('school-year'), request('semester'));
+        // ?id= (from the dashboard's My requests panel): only that one row.
+        if (is_numeric(request('id'))) {
+            $data->where('id', (int) request('id'));
+        }
 
         $data = $data->latest('created_at');
 
@@ -704,9 +723,9 @@ class ComplaintController extends Controller
         return Complaint::with('user.profile')
             ->whereNull('confirmed_at')
             ->whereNull('archived_at')
-            ->latest('created_at')
+            ->oldest('created_at')
             ->get()
-            ->toArray();
+            ->pipe(fn ($c) => ComplaintResource::collection($c)->resolve());
     }
 
     /**
@@ -847,9 +866,12 @@ class ComplaintController extends Controller
      * Data for the complaint document (pdf.complaint-subject): page 1 is the
      * Complaint Form listing every complainee together, page 2 the prefect's
      * Incident Summary with the violation each complainee was found to have
-     * committed and its penalty at that offense.
+     * committed and its penalty at that offense. Page 2 is only included
+     * once the complaint is resolved, and only for the prefect
+     * (can_see_incident_summary); $showSummary overrides, e.g. while it's
+     * being resolved.
      */
-    public function getComplaintDocumentField($newComplaint, $summary)
+    public function getComplaintDocumentField($newComplaint, $summary, ?bool $showSummary = null)
     {
         $newComplaint->loadMissing([
             'user.profile', 'user.program', 'user.enrollments', 'user.nonTeachingStaff.positionRef',
@@ -909,6 +931,7 @@ class ComplaintController extends Controller
 
         return [
             'id' => $newComplaint->id,
+            'show_summary' => $showSummary ?? ($newComplaint->complaint_status === 'resolved' && can_see_incident_summary()),
             'complaint_number' => $newComplaint->complaint_number,
             'case_number' => $newComplaint->case_number,
             'date_filed' => $dateOf($newComplaint->created_at),
@@ -931,7 +954,7 @@ class ComplaintController extends Controller
 
         if ($user->role === 'student') {
             $year = (int) ($user->enrollments?->sortByDesc('id')->first()?->year_level ?? 0);
-            $course = implode(', ', array_filter([$user->program?->name, $year ? self::ordinal($year).' Year' : null]));
+            $course = implode(', ', array_filter([$user->program?->code, $year ? self::ordinal($year).' Year' : null]));
 
             return 'Student'.($course ? " — {$course}" : '');
         }

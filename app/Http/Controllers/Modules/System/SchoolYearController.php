@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use App\Http\Resources\System\SchoolYearResource;
 
 class SchoolYearController extends Controller
 {
@@ -49,7 +50,8 @@ class SchoolYearController extends Controller
                     $previous = self::neighbours($s)[0];
                     $s->start_locked = $previous && self::isPastYear($previous->schoolYear->year, self::currentYear());
                 });
-            });
+            })
+            ->pipe(fn ($years) => SchoolYearResource::collection($years));
     }
 
     /** The current school year's "YYYY-YYYY" (null if none is on record). */

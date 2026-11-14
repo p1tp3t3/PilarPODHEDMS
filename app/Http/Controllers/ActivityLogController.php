@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\ActionLogResource;
+use App\Http\Resources\Report\ActionLogResource;
 use App\Models\ActionLog;
 use Inertia\Inertia;
 
 /**
  * "My Activity": every user's own action log — only their own entries,
- * never anyone else's (the full log stays the IT admin's report).
+ * never anyone else's (the full log stays the System Admin's report).
  */
 class ActivityLogController extends Controller
 {

@@ -60,7 +60,7 @@ const ChangeRoleModal = ({ close, closeModal, user, roles = [], programs = [], o
     if (!user) return null
 
     const labelOf = (name) => roles.find((r) => r.name === name)?.label ?? name
-    // IT Admin / Prefect can only come from program heads, faculty or non-teaching staff (or
+    // System Admin / Prefect can only come from program heads, faculty or non-teaching staff (or
     // an existing admin switching between the two) — mirrors the server.
     const canBeAdmin = [...STAFF_ROLES, ...ADMIN_ROLES].includes(user?.role)
     const name = `${user.profile?.first_name ?? ""} ${user.profile?.last_name ?? ""}`.trim() || user.username
@@ -125,7 +125,7 @@ const ChangeRoleModal = ({ close, closeModal, user, roles = [], programs = [], o
     }
 
     const errorText = (f) => errors[f] && <div className="text-[#d12323] text-[0.8em] font-semibold">{errors[f]}</div>
-    const programList = programs.map((p) => ({ val: p.id, label: p.name }))
+    const programList = programs.map((p) => ({ val: p.id, label: p.code }))
     const positions = info?.positions ?? {}
     const history = info?.history
     const idHistory = info?.id_numbers
@@ -151,7 +151,7 @@ const ChangeRoleModal = ({ close, closeModal, user, roles = [], programs = [], o
                     />
                     {errorText("role")}
                     {!canBeAdmin && (
-                        <p className="text-[0.75em] text-gray-500">IT Admin and Prefect can only be assigned to teaching or non-teaching staff.</p>
+                        <p className="text-[0.75em] text-gray-500">System Admin and Prefect can only be assigned to teaching or non-teaching staff.</p>
                     )}
                 </div>
 

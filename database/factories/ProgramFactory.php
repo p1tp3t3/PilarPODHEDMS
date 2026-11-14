@@ -16,8 +16,8 @@ class ProgramFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => strtoupper($this->faker->lexify('????')),
-            'description' => 'Bachelor of Science in ' . $this->faker->words(2, true),
+            'code' => strtoupper($this->faker->lexify('????')),
+            'name' => 'Bachelor of Science in ' . $this->faker->words(2, true),
         ];
     }
 }

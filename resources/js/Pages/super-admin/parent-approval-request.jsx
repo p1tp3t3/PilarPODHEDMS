@@ -6,8 +6,8 @@ import ViewParentRequestModal from "@/Components/modal/view/view-parent-request-
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import { FamilyService } from "@/others/services/family-service"
-import { useState } from "react"
-import { Head } from "@inertiajs/react"
+import { useEffect, useState } from "react"
+import { Head, router } from "@inertiajs/react"
 import { useReload } from "@/context-provider/reload-provider"
 import TabSwitcher from "@/Components/other/tab-switcher"
 
@@ -23,9 +23,20 @@ const ParentApprovalRequest = (props) => {
         reason: ''
     })
     const { loadRegister } = useReload()
-    const [tab, setTab] = useState('all')
-    const all = parent_request_list ?? []
-    const shown = tab === 'all' ? all : all.filter((r) => (r.status ?? 'pending') === tab)
+    // The tab is ?status= in the URL; changing it is an Inertia visit and the
+    // server sends only that status's requests.
+    const [tab, setTab] = useState(() => {
+        const s = new URLSearchParams(window.location.search).get('status')
+        return ['pending', 'approved', 'rejected'].includes(s) ? s : 'all'
+    })
+    const changeTab = (key) => {
+        if (key === tab) return
+        setTab(key)
+        router.get(window.location.pathname, key === 'all' ? {} : { status: key }, { preserveState: true, preserveScroll: true, only: ['parent_requests'] })
+    }
+    // Follow the server's list after a tab change or reload.
+    useEffect(() => setParentRequestList(props.parent_requests), [props.parent_requests])
+    const shown = parent_request_list ?? []
 
     const setEvent = (t, i, info) => {
         if(t == 'v') {
@@ -91,7 +102,8 @@ const ParentApprovalRequest = (props) => {
                 FamilyService.rejectParentRequest(
                     id,
                     data.reason,
-                    setParentRequestList,
+                    // Reload this tab's list (the response holds every request).
+                    () => router.reload({ only: ['parent_requests'] }),
                     () => {
                         loadRegister(true, "success", "Parent Registration Request Rejected")
                         openRejectReason(false)
@@ -122,10 +134,11 @@ const ParentApprovalRequest = (props) => {
             <div className="grid gap-3">
                 <TabSwitcher
                     value={tab}
-                    onChange={setTab}
+                    onChange={changeTab}
                     tabs={[
                         { key: 'all', label: 'All Requests' },
                         { key: 'pending', label: 'Pending' },
+                        { key: 'approved', label: 'Approved' },
                         { key: 'rejected', label: 'Rejected' },
                     ]}
                 />

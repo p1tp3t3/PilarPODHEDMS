@@ -1,4 +1,5 @@
 import SchoolYearSemesterFilter from "@/Components/input/school-year-semester-filter"
+import SingleRowNotice from "@/Components/other/single-row-notice"
 import { useState, useEffect } from "react";
 import AuthLayout from "@/Layouts/auth-layout";
 import PageLayout from "@/Layouts/page-layout";
@@ -12,7 +13,9 @@ import { Head, Link, router } from "@inertiajs/react";
 import Btn from "@/Components/button/normal-btn";
 import ActionBtn from "@/Components/button/action-btn";
 import TabSwitcher from "@/Components/other/tab-switcher";
-import { List, Clock, CheckCircle2, XCircle, Ban, FolderOpen, Undo2, DoorOpen } from "lucide-react";
+import { List, Clock, CheckCircle2, XCircle, Ban, Undo2, DoorOpen } from "lucide-react";
+import { DataGrid } from "@/Components/other/data-grid";
+import StatusPill from "@/Components/list/status-pill";
 
 const STATUS_META = {
   pending: { label: "Pending", className: "bg-yellow-100 text-yellow-700" },
@@ -43,16 +46,6 @@ const canRequestNewGatePass = (gp) => {
   return false;
 };
 
-const permissionLabel = (gp) => {
-  const allowTo = JSON.parse(gp.allow_to || "[]");
-  if (allowTo.length !== 2) {
-    return allowTo[0] ?? "";
-  }
-  return toTitleCase(
-    allowTo[0].replace("-", " ") + " and " + allowTo[1].replace("-", " ")
-  );
-};
-
 const optionTab = [
   { key: "all", label: "All Gate Passes", icon: List },
   { key: "pending", label: "Pending", icon: Clock },
@@ -66,27 +59,38 @@ const GatePass = (props) => {
   const [requestGatePass, openRequestGatePass] = useState(false);
   const [editGatePass, openEditGatePass] = useState(false);
   const [editData, setEditData] = useState(null);
-  const [tab, setTab] = useState("all");
+  // The tab is ?status= in the URL; changing it is an Inertia visit and the
+  // server sends only that status's gate passes.
+  const [tab, setTab] = useState(() => {
+    const s = new URLSearchParams(window.location.search).get("status");
+    return optionTab.some((t) => t.key === s) ? s : "all";
+  });
+  const changeTab = (key) => {
+    if (key === tab) return;
+    setTab(key);
+    const params = new URLSearchParams(window.location.search);
+    params.delete("view");
+    params.delete("id");
+    if (key === "all") params.delete("status");
+    else params.set("status", key);
+    const q = params.toString();
+    router.get(`${window.location.pathname}${q ? `?${q}` : ""}`, {}, { preserveState: true, preserveScroll: true, only: ["user_gatepass"] });
+  };
   const [viewId, setViewId] = useState("");
   const [viewOpen, setViewOpen] = useState(false);
   const [viewApproved, setViewApproved] = useState(false);
 
   const { loadRegister } = useReload();
 
-  const allGatePasses = props.user_gatepass.gatepass ?? [];
-  const latestGatepass = allGatePasses[0];
-  const shownGatepasses = tab === "all"
-    ? allGatePasses
-    : allGatePasses.filter((gp) => gatePassStatusKey(gp) === tab);
+  const shownGatepasses = props.user_gatepass?.gatepass ?? [];
+  // Their latest request regardless of the tab and filters.
+  const latestGatepass = props.latest_gatepass;
 
   // Lets the "My Records This Semester" dashboard modal deep-link straight
-  // to a specific gate pass — jumps to whichever status tab it actually
-  // belongs to and opens the same view modal the prefect's page uses.
+  // to a specific gate pass — opens the same view modal the prefect's page uses.
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("view");
     if (!id) return;
-    const match = allGatePasses.find((gp) => gp.encrypted_id === id);
-    if (match) setTab(gatePassStatusKey(match));
     setViewId(id);
     setViewOpen(true);
   }, []);
@@ -103,7 +107,7 @@ const GatePass = (props) => {
           () => {},
           () => {
             loadRegister(true, "success", "Gate Pass Revoked Successfully");
-            router.reload({ only: ["user_gatepass"] });
+            router.reload({ only: ["user_gatepass", "latest_gatepass"] });
           },
           () => loadRegister(true, "error", "Failed to Revoke Gate Pass")
         );
@@ -115,6 +119,52 @@ const GatePass = (props) => {
     setEditData(gp);
     openEditGatePass(true);
   };
+
+  const columns = [
+    {
+      field: "index", headerName: "#", width: 60, sortable: false,
+      renderCell: (params) => `${params.api.getRowIndexRelativeToVisibleRows(params.id) + 1}.`,
+    },
+    { field: "gatepass_number", headerName: "Gate Pass No.", width: 140 },
+    {
+      field: "created_at", headerName: "Submitted", flex: 1, minWidth: 170,
+      renderCell: ({ row }) => (
+        <div className="leading-tight">
+          <div className="text-[0.85rem]">{readableDate(row.created_at)}</div>
+          <div className="text-[0.72rem] text-gray-500">{readableTime(row.created_at)}</div>
+        </div>
+      ),
+    },
+    {
+      field: "date_expiration", headerName: "Valid Until", flex: 1, minWidth: 170,
+      renderCell: ({ row }) => row.confirmed_at && row.date_expiration ? (
+        <div className="leading-tight">
+          <div className="text-[0.85rem]">{readableDate(row.date_expiration)}</div>
+          <div className="text-[0.72rem] text-gray-500">{readableTime(row.date_expiration)}</div>
+        </div>
+      ) : <span className="text-gray-400">—</span>,
+    },
+    {
+      // Same solid badge as the other record tables.
+      field: "status", headerName: "Status", width: 130, sortable: false,
+      valueGetter: (value, row) => STATUS_META[gatePassStatusKey(row)].label,
+      renderCell: ({ row }) => <StatusPill status={gatePassStatusKey(row)} />,
+    },
+    {
+      field: "actions", type: "actions", headerName: "Action", width: 220, align: "left", headerAlign: "left",
+      renderCell: ({ row }) => (
+        <div className="flex gap-2 items-center h-full">
+          <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => { setViewId(row.encrypted_id); setViewOpen(true); }}>View</ActionBtn>
+          {isEditable(row) && (
+            <ActionBtn className="bg-green-600 text-white hover:bg-green-700" onClick={() => handleEdit(row)}>Edit</ActionBtn>
+          )}
+          {isRevocable(row) && (
+            <ActionBtn className="bg-red-600 text-white hover:bg-red-700" onClick={() => handleRevoke(row.id)}>Revoke</ActionBtn>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   return (
     <>
@@ -153,65 +203,26 @@ const GatePass = (props) => {
         }
       >
           <SchoolYearSemesterFilter schoolYears={props.school_years} />
-          <TabSwitcher tabs={optionTab} value={tab} onChange={setTab} />
+          <TabSwitcher tabs={optionTab} value={tab} onChange={changeTab} />
+          <SingleRowNotice noun="gate pass" />
 
-            <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3">
-              {shownGatepasses.length === 0 ? (
-                <div className="py-10 text-center text-gray-500">
-                  <FolderOpen size="2.5em" className="mx-auto mb-2 opacity-60" />
-                  <p>{tab === "all" ? "No gate passes found." : `No ${STATUS_META[tab].label.toLowerCase()} gate passes found.`}</p>
-                </div>
-              ) : (
-                <div className="grid gap-3">
-                  {shownGatepasses.map((gp) => {
-                    const status = STATUS_META[gatePassStatusKey(gp)];
-                    return (
-                      <div
-                        key={gp.id}
-                        className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-[0.9em]"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="font-semibold text-gray-800">
-                            {readableDate(gp.created_at)} ({readableTime(gp.created_at)})
-                          </span>
-                          <span className={`px-2 py-0.5 rounded-full text-[0.8em] font-semibold ${status.className}`}>
-                            {status.label}
-                          </span>
-                        </div>
-                        <div className="text-gray-600 mt-1">Reason: {gp.reason}</div>
-                        {gp.confirmed_at && (
-                          <div className="text-gray-600 mt-1">
-                            Permission to {permissionLabel(gp)} the Campus — Expires{" "}
-                            {readableDate(gp.date_expiration)} ({readableTime(gp.date_expiration)})
-                          </div>
-                        )}
-                        {gp.rejected_reason && (
-                          <div className="text-gray-600 mt-1">Rejection Reason: {gp.rejected_reason}</div>
-                        )}
-                        {gatePassStatusKey(gp) === "pending" && (
-                          <div className="flex gap-2 mt-3">
-                            {isEditable(gp) && (
-                              <ActionBtn
-                                className="bg-green-600 hover:bg-green-700"
-                                onClick={() => handleEdit(gp)}
-                              >
-                                Edit
-                              </ActionBtn>
-                            )}
-                            <ActionBtn
-                              className="bg-gray-600 hover:bg-gray-700"
-                              onClick={() => handleRevoke(gp.id)}
-                            >
-                              Revoke
-                            </ActionBtn>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+          <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3 min-w-0">
+            <DataGrid
+              rows={shownGatepasses}
+              columns={columns}
+              getRowId={(row) => row.id}
+              rowHeight={60}
+              pagination
+              initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
+              pageSizeOptions={[20, 50, 100]}
+              disableRowSelectionOnClick
+              hideFooterSelectedRowCount
+              showToolbar
+              // Phones: the gate pass number and status; tap for the rest.
+              mobileSummary={(row) => ({ name: `Gate Pass #${row.gatepass_number}`, role: STATUS_META[gatePassStatusKey(row)].label })}
+              localeText={{ noRowsLabel: tab === "all" ? "No gate passes found." : `No ${STATUS_META[tab].label.toLowerCase()} gate passes found.` }}
+            />
+          </div>
       </PageLayout>
     </>
   );

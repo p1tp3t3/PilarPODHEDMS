@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('family', function (Blueprint $table) {
             $table->id();
             $table->string('family_code')->nullable();
-            $table->string('family_name', 25);
             $table->timestamp('created_at')->useCurrent()->useCurrentOnUpdate();
         });
     }

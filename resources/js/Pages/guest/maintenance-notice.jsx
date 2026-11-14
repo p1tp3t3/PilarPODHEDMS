@@ -14,8 +14,8 @@ const startedText = (iso) => {
     });
 };
 
-// Shown to everyone but the IT admin while maintenance mode is on
-// (CheckMaintenanceMode): when it started and the IT admin's message.
+// Shown to everyone but the System Admin while maintenance mode is on
+// (CheckMaintenanceMode): when it started and the System Admin's message.
 const MaintenanceNotice = ({ started_at, message }) => {
     // Back in automatically the moment maintenance mode turns off.
     useEffect(() => {
@@ -77,7 +77,7 @@ const MaintenanceNotice = ({ started_at, message }) => {
                                 <div className="flex items-start gap-2.5">
                                     <MessageSquare size={16} className="mt-0.5 shrink-0 text-gray-400" />
                                     <div className="min-w-0">
-                                        <div className="text-[0.85em] text-gray-500">Message from the IT admin</div>
+                                        <div className="text-[0.85em] text-gray-500">Message from the System Admin</div>
                                         <div className="text-gray-800 whitespace-pre-line break-words">{message}</div>
                                     </div>
                                 </div>

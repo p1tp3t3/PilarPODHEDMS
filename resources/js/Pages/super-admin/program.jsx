@@ -54,6 +54,7 @@ const ITRCProgram = (props) => {
         />
         <PageLayout
             title="College Programs"
+            actionsWithFilters
             rightSideComponent={
                 <Btn onclick={() => openActionModal('program', 'add')} icon={<Plus size={20} />}>
                     Add Program

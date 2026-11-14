@@ -1,4 +1,5 @@
 import { Children, createContext, isValidElement, useContext } from "react"
+import InstallAppButton from "@/Components/other/install-app-prompt"
 import MaintenanceCountdown from "@/Components/other/maintenance-countdown"
 import { createPortal } from "react-dom"
 import { useIsMobile } from "@/others/use-is-mobile"
@@ -80,6 +81,16 @@ export const useTitleActionIcon = (icon, children, label) => {
 // at the top right of the page content, full size with their labels. Falls
 // back to rendering in place when there's no bar (a page shown outside
 // AuthLayout).
+// Round, light button for the white title bar.
+const INSTALL_BTN_SX = {
+    width: "2.25rem", height: "2.25rem",
+    color: "#2563eb",
+    backgroundColor: "#eff6ff",
+    "&:hover": { backgroundColor: "#dbeafe" },
+    "html.dark &": { color: "#93c5fd", backgroundColor: "rgba(59,130,246,0.15)" },
+    "html.dark &:hover": { backgroundColor: "rgba(59,130,246,0.25)" },
+}
+
 export const PageTitle = ({ title, rightSideComponent, actionsElsewhere = false }) => {
     const slot = useContext(PageTitleSlotContext)
     const isMobile = useIsMobile()
@@ -88,7 +99,11 @@ export const PageTitle = ({ title, rightSideComponent, actionsElsewhere = false 
     const heading = (
         <div className="flex w-full justify-between items-center gap-3 min-w-0">
             <h1 className="min-w-0 text-[0.95em] sm:text-[1.05em] font-bold uppercase tracking-wide text-gray-800">{title}</h1>
-            <MaintenanceCountdown />
+            <div className="flex items-center gap-2 shrink-0">
+                <MaintenanceCountdown />
+                {/* "Add to Home Screen": a round button; its panel opens under it. */}
+                <InstallAppButton sx={INSTALL_BTN_SX} />
+            </div>
         </div>
     )
 

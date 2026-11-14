@@ -1,5 +1,6 @@
 import QuantityCard from "@/Components/card/qntty-statistic-card";
 import DashboardInfoBar from "@/Components/other/dashboard-info-bar"
+import MyRequestsPanel from "@/Components/card/my-requests-panel";
 import AuthLayout from "@/Layouts/auth-layout";
 import "../style.css";
 import AppointmentScheduleList from "@/Components/list/upcoming-sched-list";
@@ -84,12 +85,18 @@ const StudentDashboard = (props) => {
               </Link>
             </div>
 
-            {/* === Incident Risk & Appointments === */}
-            <div className="w-full">
-              <AppointmentScheduleList
-                list={props.upcoming_appointment[0].appointment}
-                showAction={false}
-              />
+            {/* My requests (a list: their earliest open request of each kind)
+                beside Upcoming Appointments; stacked on phones. */}
+            <div className="w-full flex flex-col lg:flex-row gap-6 items-stretch">
+              <div className="w-full lg:w-[38%] min-w-0">
+                <MyRequestsPanel data={props.my_requests} stacked className="h-full" />
+              </div>
+              <div className="w-full lg:w-[62%] min-w-0">
+                <AppointmentScheduleList
+                  list={props.upcoming_appointment[0].appointment}
+                  showAction={false}
+                />
+              </div>
             </div>
           </div>
         )}
@@ -97,12 +104,12 @@ const StudentDashboard = (props) => {
         {/* === OFFENSE TAB === */}
         {choose === "offense" && (
           <div className="pt-6">
-            <OffenseList />
+            <OffenseList list={props.offense_list} />
           </div>
         )}
         {choose === "penalty" && (
           <div className="pt-6">
-            <PenaltyList />
+            <PenaltyList list={props.penalty_list} />
           </div>
         )}
       </motion.div>

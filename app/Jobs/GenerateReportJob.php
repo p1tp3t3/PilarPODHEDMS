@@ -216,7 +216,7 @@ class GenerateReportJob implements ShouldQueue
             'i' => $id,
             'student_id' => $user->id_number,
             'name' => trim(($profile->first_name ?? '') . ' ' . ($profile->middle_name ?? '') . ' ' . ($profile->last_name ?? '')),
-            'program' => $user->program->name ?? '',
+            'program' => $user->program->code ?? '',
         ];
     }
 
@@ -645,7 +645,7 @@ class GenerateReportJob implements ShouldQueue
             'student_name' => trim(($profile->first_name ?? '') . ' ' . ($profile->middle_name ?? '') . ' ' . ($profile->last_name ?? '')),
             'student_id' => $student->id_number,
             'profile_picture' => !empty($profile->profile_picture) ? Storage::disk('public')->path("profile-pictures/{$profile->profile_picture}") : null,
-            'program' => $student->program->description ?? $student->program->name ?? '',
+            'program' => $student->program->name ?? $student->program->code ?? '',
             'civil_status' => $profile->civil_status ?? '',
             'data' => $collection['data'],
         ];
@@ -707,7 +707,7 @@ class GenerateReportJob implements ShouldQueue
             'last_name' => $profile->last_name ?? '',
             'civil_status' => $profile->civil_status ?? '',
             'profile_picture' => $profile->profile_picture ?? null,
-            'student' => ['program' => ['name' => $student->program->name ?? '']],
+            'student' => ['program' => ['code' => $student->program->code ?? '']],
         ];
     }
 }

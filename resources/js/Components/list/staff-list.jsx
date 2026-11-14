@@ -60,7 +60,7 @@ const StaffList = ({ list, canManagePosition = false }) => {
                         isActive={isUserOnline(params.row.id) || checkActiveStatus(params.row.last_seen)}
                         activeSize={0.9}
                     />
-                    <div>
+                    <div className="leading-tight">
                         <h1 className="text-[0.8rem]"><b>{params.value}</b></h1>
                         <p className="text-[0.7rem] text-gray-600">{params.row.subtitle}</p>
                     </div>
@@ -72,7 +72,7 @@ const StaffList = ({ list, canManagePosition = false }) => {
             headerName: "Registered Since",
             width: 170,
             renderCell: (params) => (
-                <div>
+                <div className="flex flex-col justify-center h-full leading-tight">
                     <div className="text-[0.8rem]">{readableDate(params.value)}</div>
                     <div className="text-[0.7em]">{readableTime(params.value)}</div>
                 </div>
@@ -105,7 +105,7 @@ const StaffList = ({ list, canManagePosition = false }) => {
                         mobileSummary={(row) => ({ name: row.name.trim(), role: row.subtitle, picture: row.profile_picture, sex: row.sex, hide: ["name"] })}
                         hideFooter
                         disableRowSelectionOnClick
-                        getRowHeight={() => "auto"}
+                        rowHeight={60}
                         showToolbar
                         localeText={{ noRowsLabel: "No Staff Found" }}
                     />

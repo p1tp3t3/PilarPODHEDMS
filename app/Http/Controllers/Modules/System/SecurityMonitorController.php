@@ -10,6 +10,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Http\Resources\System\SchoolYearResource;
 
 class SecurityMonitorController extends Controller
 {
@@ -18,8 +19,8 @@ class SecurityMonitorController extends Controller
         return Inertia::render('super-admin/security-monitor', [
             'entries' => BreachLog::entries(),
             'types' => collect(BreachLog::TYPES)->map(fn ($label, $val) => ['val' => $val, 'label' => $label])->values(),
-            'school_years' => SchoolYear::with('semesters:id,school_year_id,semester,date_start,date_end')
-                ->orderByDesc('year')->get(['id', 'year']),
+            'school_years' => SchoolYearResource::collection(SchoolYear::with('semesters:id,school_year_id,semester,date_start,date_end')
+                ->orderByDesc('year')->get(['id', 'year'])),
         ]);
     }
 

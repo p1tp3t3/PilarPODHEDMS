@@ -53,18 +53,19 @@ const AuthLayout = ({ children, program = '' }) => {
                             user={user}
                             addPicRoute={(path.includes('register')) ? '../' : ''}
                         />
-                        {/* Page title bar: full width under the header, with its
-                            text lined up with the content below (px-[2.5%]
-                            matches the content's 95%-wide centred column).
+                        {/* Page title bar: full width under the header, with the
+                            same side padding as the header (px-3 md:px-5) so
+                            its text lines up with the header and the content.
                             Pages fill it via <PageTitle>; it hides itself
                             (empty:hidden) on pages that don't set a title. */}
                         <div
                             ref={setTitleSlot}
-                            className="empty:hidden w-full bg-white border-b border-gray-200 shadow-sm px-3 md:px-[2.5%] py-2 sm:py-2.5"
+                            className="empty:hidden w-full bg-white border-b border-gray-200 shadow-sm px-3 md:px-5 py-2 sm:py-2.5"
                         />
                     </div>
                     <PageTitleSlotContext.Provider value={titleSlot}>
-                    <div className="w-full md:w-[95%] px-3 md:px-0 pb-40 md:pb-0 min-w-0 overflow-x-hidden [&_.grid>*]:min-w-0" style={{margin: '0 auto'}}>
+                    {/* Page content: full width, same side padding as the header. */}
+                    <div className="w-full px-3 md:px-5 pb-40 md:pb-0 min-w-0 overflow-x-hidden [&_.grid>*]:min-w-0">
                         {children}
                     </div>
                     </PageTitleSlotContext.Provider>

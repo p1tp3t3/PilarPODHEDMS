@@ -29,7 +29,7 @@ const EnrollmentHistory = ({ enrollments = [] }) => {
                                     </span>
                                 </div>
                                 <div className="text-gray-600 mt-1">
-                                    {e.program?.name ?? 'N/A'}
+                                    {e.program?.code ?? 'N/A'}
                                     {e.year_level != null ? ` · ${getYearLevel(e.year_level)}` : ''}
                                 </div>
                                 {e.dropped_at &&

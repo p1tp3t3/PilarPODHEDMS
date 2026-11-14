@@ -6,8 +6,10 @@ use App\Events\CsvBatchCompleted;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Resource\FileController;
 use App\Http\Requests\Account\UpdateAccountRequest;
-use App\Http\Resources\UserResource;
-use App\Http\Resources\UserSearchResource;
+use App\Http\Resources\Account\UserResource;
+use App\Http\Resources\Family\FamilyOptionResource;
+use App\Http\Resources\Account\UserDetailResource;
+use App\Http\Resources\Account\UserSearchResource;
 use App\Jobs\ProcessEnrollmentUpdateCsvRow;
 use App\Jobs\ProcessStudentAccountUpdate;
 use App\Models\ActionLog;
@@ -37,6 +39,15 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use ZipArchive;
+use App\Http\Resources\Account\PositionResource;
+use App\Http\Resources\System\ProgramResource;
+use App\Http\Resources\Account\RoleResource;
+use App\Http\Resources\System\SchoolYearResource;
+use App\Http\Resources\Account\UserRoleResource;
+use App\Http\Resources\Account\UserIdNumberResource;
+use App\Http\Resources\Account\EnrollmentResource;
+use App\Http\Resources\Family\ParentsResource;
+use App\Http\Resources\System\SchoolYearSemesterResource;
 
 class AccountController extends Controller
 {
@@ -49,14 +60,14 @@ class AccountController extends Controller
         return Inertia::render('super-admin/accounts',
             array_merge($account->allUserAccount(), [
                 'program_name' => is_program_head(),
-                'program' => Program::all(['id', 'name']),
+                'program' => ProgramResource::collection(Program::all(['id', 'code'])),
                 'account_files' => FileController::scopedAccountFiles(),
-                'roles' => Role::orderBy('id')->get(['id', 'name', 'label', 'is_active']),
+                'roles' => RoleResource::collection(Role::orderBy('id')->get(['id', 'name', 'label', 'is_active'])),
                 'school_years' => \App\Models\SchoolYear::orderByDesc('year')->pluck('year'),
                 // For the Edit Enrollment modal (Student filter).
-                'school_years_full' => \App\Models\SchoolYear::orderByDesc('year')->get(['id', 'year']),
+                'school_years_full' => SchoolYearResource::collection(\App\Models\SchoolYear::orderByDesc('year')->get(['id', 'year'])),
                 // Non-teaching staff positions, for that role's filter.
-                'positions' => Position::orderBy('name')->get(['id', 'name']),
+                'positions' => PositionResource::collection(Position::orderBy('name')->get(['id', 'name'])),
             ]));
     }
 
@@ -103,12 +114,12 @@ class AccountController extends Controller
         if ($from === $to) {
             return response()->json(['message' => 'The user already has this role.'], 422);
         }
-        // IT Admin / Prefect accounts come from the school's staff: only
+        // System Admin / Prefect accounts come from the school's staff: only
         // program heads, faculty or non-teaching staff (or an existing admin
         // moving between the two admin roles) can be given either admin role.
         $adminRoles = ['super_admin', 'sub_admin'];
         if (in_array($to, $adminRoles, true) && ! in_array($from, ['program_head', 'faculty', 'non_teaching_staff', ...$adminRoles], true)) {
-            return response()->json(['message' => 'Only program heads, faculty or non-teaching staff can be assigned as IT Admin or Prefect.'], 422);
+            return response()->json(['message' => 'Only program heads, faculty or non-teaching staff can be assigned as System Admin or Prefect.'], 422);
         }
 
         // A role change can come with a new ID number (e.g. a student who
@@ -127,7 +138,7 @@ class AccountController extends Controller
             return response()->json(['message' => "The ID number {$newId} is already used by another account."], 422);
         }
         if ($from === 'super_admin' && User::whereRole('super_admin')->count() <= 1) {
-            return response()->json(['message' => 'This is the only IT Admin account — assign another IT Admin first.'], 422);
+            return response()->json(['message' => 'This is the only System Admin account — assign another System Admin first.'], 422);
         }
 
         if ($to === 'program_head') {
@@ -136,7 +147,7 @@ class AccountController extends Controller
                 ->where('user_id', '!=', $user->id)
                 ->first();
             if ($head) {
-                return response()->json(['message' => ($head->program?->name ?? 'This program').' already has a program head. Choose Faculty, or reassign that program first.'], 422);
+                return response()->json(['message' => ($head->program?->code ?? 'This program').' already has a program head. Choose Faculty, or reassign that program first.'], 422);
             }
         }
 
@@ -192,8 +203,8 @@ class AccountController extends Controller
         return response()->json([
             'message' => 'Role updated successfully.',
             'role' => $user->role,
-            'history' => $user->userRoles()->with('role')->get(),
-            'id_numbers' => $user->idNumbers()->get(),
+            'history' => UserRoleResource::collection($user->userRoles()->with('role')->get()),
+            'id_numbers' => UserIdNumberResource::collection($user->idNumbers()->get()),
         ]);
     }
 
@@ -261,23 +272,23 @@ class AccountController extends Controller
         \App\Models\UserIdNumber::ensureCurrent($user);
 
         return response()->json([
-            'history' => $user->userRoles()->with('role')->get(),
-            'id_numbers' => $user->idNumbers()->get(),
+            'history' => UserRoleResource::collection($user->userRoles()->with('role')->get()),
+            'id_numbers' => UserIdNumberResource::collection($user->idNumbers()->get()),
             'existing' => [
-                'student' => Enrollment::where('student_id', $id)->latest('id')->first(['program_id', 'year_level']),
+                'student' => EnrollmentResource::make(Enrollment::where('student_id', $id)->latest('id')->first(['program_id', 'year_level'])),
                 'program_head' => $teaching ? ['program_id' => $teaching->program_id] : null,
                 'faculty' => $teaching ? ['program_id' => $teaching->program_id] : null,
                 'non_teaching_staff' => $nonTeaching ? ['position' => $nonTeaching->position] : null,
-                'parent' => \App\Models\Parents::where('user_id', $id)->first(['parent_role', 'work_occupation']),
+                'parent' => ParentsResource::make(\App\Models\Parents::where('user_id', $id)->first(['parent_role', 'work_occupation'])),
             ],
             'positions' => [
                 'non_teaching_staff' => Position::orderBy('name')->pluck('name'),
             ],
-            'current_semester' => \App\Models\SchoolYearSemester::current()?->load('schoolYear'),
+            'current_semester' => SchoolYearSemesterResource::make(\App\Models\SchoolYearSemester::current()?->load('schoolYear')),
         ]);
     }
 
-    // What the IT admin / prefect may switch on or off per role.
+    // What the System Admin / prefect may switch on or off per role.
     private const ACCESS_FIELDS = [
         'student' => ['allow_complaint', 'allow_absent_form', 'allow_gatepass'],
         'program_head' => ['allow_complaint', 'allow_referral'],
@@ -312,17 +323,17 @@ class AccountController extends Controller
         $isPrefect = (auth()->user()->role === 'sub_admin') ? 'prefect' : 'shared';
 
         $schoolYears = SchoolYear::orderByDesc('year')->pluck('year');
-        $schoolYearsFull = SchoolYear::orderByDesc('year')->get(['id', 'year']);
+        $schoolYearsFull = SchoolYearResource::collection(SchoolYear::orderByDesc('year')->get(['id', 'year']));
 
         $props = $programHead
                  ? array_merge([
                      'students' => [
                          'data' => self::getStudent(),
                      ],
-                     'program' => Program::all(['id', 'name']),
+                     'program' => ProgramResource::collection(Program::all(['id', 'code'])),
                      'program_name' => is_program_head(),
-                     'file_name' => "student-{$programHead->program_id}-{$programHead->program->name}.zip",
-                     'file_name_faculty' => "faculty-account-{$programHead->program_id}-{$programHead->program->name}.csv",
+                     'file_name' => "student-{$programHead->program_id}-{$programHead->program->code}.zip",
+                     'file_name_faculty' => "faculty-account-{$programHead->program_id}-{$programHead->program->code}.csv",
                      'school_years' => $schoolYears,
                      'school_years_full' => $schoolYearsFull,
                  ])
@@ -330,7 +341,7 @@ class AccountController extends Controller
                      'students' => [
                          'data' => self::getStudent(),
                      ],
-                     'program' => Program::all(['id', 'name', 'description', 'color_code']),
+                     'program' => ProgramResource::collection(Program::all(['id', 'code', 'name', 'color_code'])),
                      'school_years' => $schoolYears,
                      'school_years_full' => $schoolYearsFull,
                  ];
@@ -515,8 +526,8 @@ class AccountController extends Controller
             } elseif (! User::where('id_number', strtolower($row['id']))->whereRole('student')->exists()) {
                 $errors[] = "No existing student found with ID '{$row['id']}'.";
             }
-            if (! Program::active()->whereRaw('LOWER(name) = ?', [strtolower(trim($row['program']))])->exists()) {
-                $errors[] = 'Program must match an existing, enabled program name (e.g. BSIT, BEED, BSN).';
+            if (! Program::active()->whereRaw('LOWER(code) = ?', [strtolower(trim($row['program']))])->exists()) {
+                $errors[] = 'Program must match an existing, enabled program code (e.g. BSIT, BEED, BSN).';
             }
             if (! is_numeric($row['year_level']) || $row['year_level'] < 1 || $row['year_level'] > 4) {
                 $errors[] = 'Year level must be 1–4.';
@@ -539,12 +550,12 @@ class AccountController extends Controller
                  ? array_merge([
                      'faculty' => self::getFaculty(),
                      'program_name' => is_program_head(),
-                     'file_name' => "faculty-account-{$programHead->program_id}-{$programHead->program->name}.csv",
+                     'file_name' => "faculty-account-{$programHead->program_id}-{$programHead->program->code}.csv",
                  ])
                  : [
                      'faculty' => self::getFaculty(),
                      'program_name' => is_program_head(),
-                     'program' => Program::all(['id', 'name']),
+                     'program' => ProgramResource::collection(Program::all(['id', 'code'])),
                  ];
 
         return Inertia::render("$isPrefect/faculty", $props);
@@ -610,8 +621,9 @@ class AccountController extends Controller
     {
         return Inertia::render('prefect/staff-list', [
             'staff' => self::getStaffList(),
-            'programs' => Program::all(['id', 'name']),
-            'positions' => Position::orderBy('name')->get(),
+            'programs' => ProgramResource::collection(Program::all(['id', 'code'])),
+            'positions' => PositionResource::collection(Position::orderBy('name')->get()),
+            'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
         ]);
     }
 
@@ -637,21 +649,21 @@ class AccountController extends Controller
         $props = [
             'tab' => $tab,
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
-            'school_years_full' => SchoolYear::orderByDesc('year')->get(['id', 'year']),
+            'school_years_full' => SchoolYearResource::collection(SchoolYear::orderByDesc('year')->get(['id', 'year'])),
         ];
 
         switch ($tab) {
             case 'staff':
                 $props['staff'] = self::getStaffList();
-                $props['programs'] = Program::all(['id', 'name']);
-                $props['positions'] = Position::orderBy('name')->get();
+                $props['programs'] = ProgramResource::collection(Program::all(['id', 'code']));
+                $props['positions'] = PositionResource::collection(Position::orderBy('name')->get());
                 break;
             case 'parent':
                 $props['parents'] = self::getParentList();
                 break;
             default:
                 $props['students'] = ['data' => self::getStudent()];
-                $props['program'] = Program::all(['id', 'name', 'description', 'color_code']);
+                $props['program'] = ProgramResource::collection(Program::all(['id', 'code', 'name', 'color_code']));
                 break;
         }
 
@@ -693,7 +705,7 @@ class AccountController extends Controller
      */
     public function positionIndex()
     {
-        return response()->json(Position::orderBy('name')->get());
+        return response()->json(PositionResource::collection(Position::orderBy('name')->get()));
     }
 
     public function positionStore(Request $request)
@@ -704,7 +716,7 @@ class AccountController extends Controller
 
         Position::create($data);
 
-        return Position::orderBy('name')->get();
+        return PositionResource::collection(Position::orderBy('name')->get());
     }
 
     /**
@@ -733,7 +745,7 @@ class AccountController extends Controller
 
         $position->update($data);
 
-        return Position::orderBy('name')->get();
+        return PositionResource::collection(Position::orderBy('name')->get());
     }
 
     public function destroyPosition(Request $request)
@@ -754,7 +766,7 @@ class AccountController extends Controller
 
         $position->delete();
 
-        return Position::orderBy('name')->get();
+        return PositionResource::collection(Position::orderBy('name')->get());
     }
 
     /**
@@ -863,21 +875,21 @@ class AccountController extends Controller
         abort_unless($target->id === auth()->id() || auth()->user()->role === 'super_admin', 403);
         $props = [
             'program_name' => is_program_head(),
-            'otherUserAccount' => new UserResource($target),
+            'otherUserAccount' => new UserDetailResource($target),
         ];
 
-        // The IT admin changes another user's role from that user's account
+        // The System Admin changes another user's role from that user's account
         // settings — so only then load the roles/programs the form needs.
         if (auth()->user()->role === 'super_admin' && $target && $target->id !== auth()->id()) {
-            $props['roles'] = Role::orderBy('id')->get(['id', 'name', 'label', 'is_active']);
-            $props['programs'] = Program::orderBy('id')->get(['id', 'name']);
+            $props['roles'] = RoleResource::collection(Role::orderBy('id')->get(['id', 'name', 'label', 'is_active']));
+            $props['programs'] = ProgramResource::collection(Program::orderBy('id')->get(['id', 'code']));
         }
 
         return Inertia::render('shared/account-settings', $props);
     }
 
     /**
-     * IT admin: resets another user's password to the default
+     * System Admin: resets another user's password to the default
      * (default_password(): lastname_idnumber). The user must change it at
      * their next login, and is signed out of any open session.
      */
@@ -931,13 +943,13 @@ class AccountController extends Controller
             ], 422);
         }
 
-        // Usernames and emails are managed centrally by the IT admin; everyone
+        // Usernames and emails are managed centrally by the System Admin; everyone
         // else can only change their own password here.
         $changesIdentity = ($request->filled('username') && strtolower($request->username) !== $user->username)
             || ($request->filled('email') && strtolower($request->email) !== strtolower((string) $user->email));
         if ($changesIdentity && auth()->user()->role !== 'super_admin') {
             return response()->json([
-                'message' => 'Only the IT admin can change usernames and emails.',
+                'message' => 'Only the System Admin can change usernames and emails.',
             ], 403);
         }
 
@@ -1282,9 +1294,9 @@ class AccountController extends Controller
         }
 
         $program = $enrollment->program;
-        $zipName = "student-{$program->id}-{$program->name}.zip";
+        $zipName = "student-{$program->id}-{$program->code}.zip";
         $zipPath = storage_path("app/private/zips/{$zipName}");
-        $csvName = "student-account-{$program->id}-{$program->name}-year-{$enrollment->year_level}.csv";
+        $csvName = "student-account-{$program->id}-{$program->code}-year-{$enrollment->year_level}.csv";
 
         if (! file_exists($zipPath)) {
             return false;
@@ -1350,7 +1362,7 @@ class AccountController extends Controller
                 // 🩹 Safely access related program
                 if ($teacher && $teacher->program) {
                     $programId = $teacher->program->id;
-                    $programName = Str::slug($teacher->program->name, '-');
+                    $programName = Str::slug($teacher->program->code, '-');
                 } else {
                     Log::warning("Program head / faculty {$user->id_number} has no program relationship.");
 
@@ -1481,39 +1493,23 @@ class AccountController extends Controller
                          : null;
         $isProgramHead = (bool) $myTeaching?->isProgramHead();
 
+        // Every student account, dropped ones included.
         $data = User::with(['profile', 'program', 'enrollments.schoolYear'])
-            ->whereRole('student')
-            ->whereHas('enrollments', function ($q) {
-                $q->where('status', 'enrolled');
-            });
+            ->whereRole('student');
 
-        // The super admin's and the prefect's student lists open on the
-        // current school year and semester (their dropdowns show them);
-        // choosing a value, "all" included, is sent explicitly and replaces
-        // that default. The dashboard's "Total Enrolled Students" link
-        // (?is-enrolled=1) gets the same default.
+        // The student lists open on every student registered in the system;
+        // picking a school year / semester narrows it to that period.
         $schoolYear = request('school-year');
         $semester = request('semester');
-        $onDefaultPeriod = false;
         $isEnrolledLink = filter_var(request('is-enrolled'), FILTER_VALIDATE_BOOLEAN);
-        if (in_array(auth()->user()->role, ['super_admin', 'sub_admin'], true)
-            && ! request()->has('school-year') && ! request()->has('semester')
-            && ($current = \App\Models\SchoolYearSemester::current())) {
-            $schoolYear = $current->schoolYear?->year;
-            $semester = $current->semester;
-            $onDefaultPeriod = true;
-        }
         $schoolYear = $schoolYear && $schoolYear !== 'all' ? $schoolYear : null;
         $semester = $semester && $semester !== 'all' ? $semester : null;
         $yearLevel = request('year-level');
         $yearLevel = $yearLevel && $yearLevel !== 'all' ? (int) $yearLevel : null;
 
         // ?is-enrolled=1 (e.g. from the dashboard's "Total Enrolled Students"
-        // card), and the super admin's default view: only students whose
-        // latest enrollment is still "enrolled". A period picked by hand shows
-        // that period's students, dropped ones included.
-        if ($isEnrolledLink || $onDefaultPeriod
-            || (auth()->user()->role === 'super_admin' && ! $schoolYear && ! $semester)) {
+        // card): only students whose latest enrollment is still "enrolled".
+        if ($isEnrolledLink) {
             $data->currentlyEnrolled();
         }
 
@@ -1669,7 +1665,7 @@ class AccountController extends Controller
                 $data = Family::where('family_code', 'like', "%$search%")->limit(5)->get()->map(function ($d) {
                     return [
                         'id' => $d->id,
-                        'family_name' => $d->family_code.'-'.$d->family_name,
+                        'family_code' => $d->family_code,
                     ];
                 });
                 break;
@@ -1735,6 +1731,20 @@ class AccountController extends Controller
     public function searchAllUsers(Request $request, string $type)
     {
         $search = trim($request->query('search', ''));
+
+        // Join Family (parent approval): families by family code. The System
+        // Admin approves parent requests, so only they can look families up.
+        if ($type === 'family') {
+            abort_unless(auth()->user()->role === 'super_admin', 403);
+
+            return FamilyOptionResource::collection(
+                Family::whereNotNull('family_code')
+                    ->when($search !== '', fn ($q) => $q->where('family_code', 'like', "%{$search}%"))
+                    ->orderBy('family_code')
+                    ->limit(6)
+                    ->get(['id', 'family_code'])
+            );
+        }
 
         $query = User::with(['profile', 'program', 'enrollments', 'parent', 'faculty.program', 'headships.program', 'nonTeachingStaff'])->where('id', '!=', auth()->id());
 

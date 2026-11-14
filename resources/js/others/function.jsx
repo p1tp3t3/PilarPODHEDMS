@@ -315,8 +315,9 @@ export function generateStrongPassword(length = 16) {
     return chars.join("");
 }
 
+// Who sees a student's Enrollment History tab on their profile.
 export function canViewEnrollmentHistory(viewer) {
-    return ['super_admin', 'sub_admin', 'program_head'].includes(viewer?.role);
+    return ['super_admin', 'sub_admin', 'program_head', 'faculty'].includes(viewer?.role);
 }
 export function toTitleCase(str) {
     if (!str || typeof str !== 'string') return ''
@@ -551,7 +552,7 @@ export const decryptData = (en) => {
 // attribute every student user now carries from the server.
 export const studentProgram = (user) => {
     const latestEnrollment = user?.enrollments?.[user.enrollments.length - 1]
-    return user?.program?.name ?? latestEnrollment?.program?.name ?? user?.academic?.program ?? null
+    return user?.program?.code ?? latestEnrollment?.program?.code ?? user?.academic?.program ?? null
 }
 export const studentYearLevel = (user) => {
     const latestEnrollment = user?.enrollments?.[user.enrollments.length - 1]
@@ -566,11 +567,11 @@ export const showUserType = (user, showParentRole) => {
         case 'parent':
             return (showParentRole && user.parent?.parent_role) ? toTitleCase(user.parent.parent_role) : 'Parent'
         case 'program_head':
-            return `Program Head (${user.teaching?.program?.name ?? ''})`
+            return `Program Head (${user.teaching?.program?.code ?? ''})`
         case 'faculty':
-            return `Faculty (${user.teaching?.program?.name ?? ''})`
+            return `Faculty (${user.teaching?.program?.code ?? ''})`
         case 'super_admin':
-            return `IT Admin`
+            return `System Admin`
         case 'non_teaching_staff':
             return user.non_teaching_staff?.position ?? `Staff`
         case 'sub_admin':

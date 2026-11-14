@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Http\Resources\UserResource;
+use App\Http\Resources\Account\UserResource;
 use App\Models\Concerns\HasTeachingAssignment;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -242,7 +242,7 @@ class User extends Authenticatable implements MustVerifyEmail
      * - parents, non-teaching staff and other students: always hidden;
      * - program heads and faculty: hidden unless the student is in one of their
      *   programs (their own, or one they head);
-     * - the prefect, the IT admin, and the student themselves: visible.
+     * - the prefect, the System Admin, and the student themselves: visible.
      */
     /**
      * Whether this user and $other belong to the same family (a parent and
@@ -314,7 +314,7 @@ class User extends Authenticatable implements MustVerifyEmail
         $enrollment = $this->latestEnrollment;
 
         return $enrollment ? [
-            'program' => $enrollment->program?->name,
+            'program' => $enrollment->program?->code,
             'year_level' => $enrollment->year_level,
         ] : null;
     }
@@ -514,7 +514,7 @@ class User extends Authenticatable implements MustVerifyEmail
         $data = $query->latest('users.created_at')->get();
 
         return [
-            'user' => auth()->user(),
+            'user' => \App\Http\Resources\Account\UserResource::make(auth()->user()),
             'account_list' => [
                 'data' => UserResource::collection($data),
             ],

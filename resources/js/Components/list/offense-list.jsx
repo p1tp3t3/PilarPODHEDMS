@@ -72,11 +72,6 @@ const OffenseList = ({ list = null }) => {
         setCurrentPage(1)
     }
 
-    // Count per tab, after the search, so the numbers match what each tab shows.
-    const countFor = (key) => (offenseList ?? []).filter((item) =>
-        (!search.trim() || item.violation_name?.toLowerCase().includes(search.toLowerCase())) &&
-        (key === "all" || String(Number(item.offense_status)) === key)
-    ).length
 
     // PAGINATION LOGIC
     const indexOfLast = currentPage * itemsPerPage;
@@ -90,15 +85,12 @@ const OffenseList = ({ list = null }) => {
             {/* STATUS TABS + SEARCH BAR */}
             <div className="mb-5 grid gap-4 min-w-0">
                 <TabSwitcher
-                    tabs={STATUS_TABS.map((t) => ({
-                        key: t.key,
-                        label: offenseList ? `${t.label} (${countFor(t.key)})` : t.label,
-                    }))}
+                    tabs={STATUS_TABS.map((t) => ({ key: t.key, label: t.label }))}
                     value={status}
                     onChange={handleStatusChange}
                 />
                 <SearchBar
-                    plc="Search Offense"
+                    plc="Search Violation"
                     w="w-full sm:w-[25rem]"
                     search={search}
                     setSearch={setSearch}

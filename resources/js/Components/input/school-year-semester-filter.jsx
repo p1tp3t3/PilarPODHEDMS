@@ -19,7 +19,8 @@ export const useSchoolYearSemester = (defaults = null) => {
 
 // `allowAll` false: no "All School Years" / "All Semesters" options, so a
 // specific period is always selected (used with `defaults`).
-const SchoolYearSemesterFilter = ({ schoolYears = [], defaults = null, allowAll = true }) => {
+// `allLabels`: the text of the "all" option, e.g. ["Select School Year", "Select Semester"].
+const SchoolYearSemesterFilter = ({ schoolYears = [], defaults = null, allowAll = true, allLabels = ["All School Years", "All Semesters"] }) => {
     const { schoolYear, semester } = useSchoolYearSemester(defaults)
 
     const change = (field, value) => {
@@ -27,6 +28,7 @@ const SchoolYearSemesterFilter = ({ schoolYears = [], defaults = null, allowAll 
         url.set("school-year", schoolYear)
         url.set("semester", semester)
         url.set(field, value)
+        url.delete("id") // a single-row view ends when a filter changes
         router.get(`${window.location.pathname}?${url.toString()}`, {}, { preserveState: true, preserveScroll: true })
     }
 
@@ -34,7 +36,7 @@ const SchoolYearSemesterFilter = ({ schoolYears = [], defaults = null, allowAll 
         <div className="flex flex-wrap gap-3 md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
             <div className="w-full sm:w-56">
                 <DropdownField
-                    default={allowAll ? { val: "all", label: "All School Years" } : null}
+                    default={allowAll ? { val: "all", label: allLabels[0] } : null}
                     list={schoolYears.map((y) => ({ val: y, label: y }))}
                     val={schoolYear}
                     onChange={(e) => change("school-year", e.target.value)}
@@ -42,7 +44,7 @@ const SchoolYearSemesterFilter = ({ schoolYears = [], defaults = null, allowAll 
             </div>
             <div className="w-full sm:w-56">
                 <DropdownField
-                    default={allowAll ? { val: "all", label: "All Semesters" } : null}
+                    default={allowAll ? { val: "all", label: allLabels[1] } : null}
                     list={[
                         { val: 1, label: "1st Semester" },
                         { val: 2, label: "2nd Semester" },

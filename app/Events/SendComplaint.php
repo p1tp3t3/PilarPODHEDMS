@@ -10,6 +10,7 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use App\Http\Resources\Notification\NotificationsResource;
 
 class SendComplaint implements ShouldBroadcastNow
 {
@@ -47,7 +48,7 @@ class SendComplaint implements ShouldBroadcastNow
                               ->get();
 
         return [
-            'response' => $notif
+            'response' => NotificationsResource::collection($notif)->resolve(),
         ];
     }
 }

@@ -20,8 +20,8 @@ class StoreProgramRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'code' => 'required|string',
             'name' => 'required|string',
-            'description' => 'required|string',
             'color' => 'required',
             'logo' => 'nullable|image|max:2048',
         ];

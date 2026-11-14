@@ -24,7 +24,6 @@ const enrollmentCsvColumns = [
 const Students = (props) => {
     const fileName = props.file_name
     const isSuperAdmin = props.auth?.user?.role === "super_admin"
-    const currentSys = props.current_school_year_semester
     const { loadRegister } = useReload()
 
     const [activeTab, setActiveTab] = useState("list")
@@ -110,7 +109,7 @@ const Students = (props) => {
                 finalizeLabel="Finalize & Update"
                 finalizeSuffix="Record(s)"
                 columns={enrollmentCsvColumns}
-                programOptions={(props.program ?? []).map((p) => p.name)}
+                programOptions={(props.program ?? []).map((p) => p.code)}
             />
         )
     }
@@ -150,16 +149,12 @@ const Students = (props) => {
                     />
                 ) : null}
 
-                {/* School year / semester: students enrolled in that period. The
-                    super admin's list opens on the current period. */}
+                {/* Opens on every student; a school year / semester narrows it
+                    to the students enrolled in that period. */}
                 {activeTab === "list" && (
                     <SchoolYearSemesterFilter
                         schoolYears={props.school_years}
-                        defaults={isSuperAdmin && currentSys?.school_year?.year
-                            ? { schoolYear: currentSys.school_year.year, semester: currentSys.semester }
-                            : null}
-                        // Always one period for the super admin (no "All").
-                        allowAll={!(isSuperAdmin && currentSys?.school_year?.year)}
+                        allLabels={["Select School Year", "Select Semester"]}
                     />
                 )}
 

@@ -1,5 +1,6 @@
 import AuthLayout from "@/Layouts/auth-layout";
 import DashboardInfoBar from "@/Components/other/dashboard-info-bar"
+import MyRequestsPanel from "@/Components/card/my-requests-panel";
 import QuantityCard from "@/Components/card/qntty-statistic-card";
 import '../style.css'
 import DashboardTabs from "@/Components/other/dashboard-tabs";
@@ -36,6 +37,10 @@ const ParentDashboard = (props) => {
                             color={{ bg: "bg-white hover:bg-black/5 transition-all" }}
                         />
                     </Link>
+                </div>
+                {/* Their earliest open requests and where each one is now. */}
+                <div className="pt-5">
+                    <MyRequestsPanel data={props.my_requests} />
                 </div>
                 </DashboardTabs>
             </div>

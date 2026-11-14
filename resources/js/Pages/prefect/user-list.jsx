@@ -62,10 +62,9 @@ const PrefectUserList = (props) => {
     const onlyEnrolled = ["1", "true"].includes(params.get("is-enrolled") ?? "")
     // Opens on the current school year / semester (the server does the
     // same), the dashboard's "Total Enrolled Students" link included.
-    const currentSys = props.current_school_year_semester
-    const onDefaultPeriod = !params.has("school-year") && !params.has("semester") && !!currentSys?.school_year?.year
-    const studentSchoolYear = params.get("school-year") ?? (onDefaultPeriod ? currentSys.school_year.year : null)
-    const studentSemester = params.get("semester") ?? (onDefaultPeriod ? String(currentSys.semester) : null)
+    // Opens on every student; a school year / semester narrows it.
+    const studentSchoolYear = params.get("school-year") ?? null
+    const studentSemester = params.get("semester") ?? null
 
     // Staff / Parent tabs: accounts registered in that school year / semester.
     const listSchoolYear = params.get("school-year") ?? "all"
@@ -165,7 +164,7 @@ const PrefectUserList = (props) => {
                         </div>
                         <div className="w-full sm:w-[14rem] flex-shrink-0">
                             <DropdownField
-                                default={{ val: "all", label: "All School Years" }}
+                                default={{ val: "all", label: "Select School Year" }}
                                 list={(props.school_years || []).map((y) => ({ val: y, label: y }))}
                                 val={studentSchoolYear}
                                 onChange={(e) => handleStudentFilter("school-year", e.target.value)}
@@ -173,7 +172,7 @@ const PrefectUserList = (props) => {
                         </div>
                         <div className="w-full sm:w-[14rem] flex-shrink-0">
                             <DropdownField
-                                default={{ val: "all", label: "All Semesters" }}
+                                default={{ val: "all", label: "Select Semester" }}
                                 list={[
                                     { val: 1, label: "1st Semester" },
                                     { val: 2, label: "2nd Semester" },
@@ -209,7 +208,7 @@ const PrefectUserList = (props) => {
                             <div className="w-full sm:w-[14rem] flex-shrink-0">
                                 <DropdownField
                                     default={{ val: "", label: "All Programs" }}
-                                    list={(props.programs ?? []).map((p) => ({ val: p.id, label: p.name }))}
+                                    list={(props.programs ?? []).map((p) => ({ val: p.id, label: p.code }))}
                                     onChange={(e) => updateQuery({ tab: "staff", type: staffType, program: e.target.value })}
                                     name="program"
                                     val={staffProgram}

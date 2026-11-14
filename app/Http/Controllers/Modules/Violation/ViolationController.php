@@ -19,6 +19,10 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use App\Http\Resources\Violation\PenaltyResource;
+use App\Http\Resources\Violation\ViolationResource;
+use App\Http\Resources\Account\UserResource;
+use App\Http\Resources\Complaint\ComplaintSubjectViolationResource;
 
 class ViolationController extends Controller
 {
@@ -72,14 +76,14 @@ class ViolationController extends Controller
      */
     public function getPenaltyList()
     {
-        return response()->json(\App\Models\Penalty::latest('created_at')->get());
+        return response()->json(PenaltyResource::collection(\App\Models\Penalty::latest('created_at')->get()));
     }
 
     public function getOffenseList()
     {
         return response()->json(
-            Violation::active()->with(['penalties.penalty'])->latest('created_at')->get()
-                ->each(fn ($v) => $v->encrypted_id = encrypt_id($v->id))
+            ViolationResource::collection(Violation::active()->with(['penalties.penalty'])->latest('created_at')->get()
+                ->each(fn ($v) => $v->encrypted_id = encrypt_id($v->id)))
         );
     }
 
@@ -114,7 +118,7 @@ class ViolationController extends Controller
 
                 return [
                     'student_id' => $first->student_id,
-                    'user' => $first->user,
+                    'user' => UserResource::make($first->user),
                     'violation_count' => $group->count(),
                 ];
             })
@@ -132,7 +136,7 @@ class ViolationController extends Controller
             ->values();
 
         return Inertia::render('prefect/violation-students', [
-            'violation' => $violation,
+            'violation' => ViolationResource::make($violation),
             'violation_key' => encrypt_id($violation->id),
             'students' => $students,
             'occurrence_breakdown' => $occurrenceBreakdown,
@@ -168,14 +172,14 @@ class ViolationController extends Controller
             ->get(['violation.id', 'violation.violation_name']);
 
         return Inertia::render('shared/student-violation', [
-            'student' => User::with(['profile', 'program', 'enrollments.schoolYear'])->where('id', $id)->first(),
-            'student_violations' => $studentViolations->get()->each(function ($sv) use ($occurrenceByRecord) {
+            'student' => UserResource::make(User::with(['profile', 'program', 'enrollments.schoolYear'])->where('id', $id)->first()),
+            'student_violations' => ComplaintSubjectViolationResource::collection($studentViolations->get()->each(function ($sv) use ($occurrenceByRecord) {
                 $sv->complaint_key = $sv->complaint_id ? encrypt_id($sv->complaint_id) : null;
                 $o = $occurrenceByRecord->get($sv->violation_id.':'.$sv->complaint_id);
                 $sv->occurrence = $o['occurrence'] ?? null;
                 $sv->penalty = $o['penalty'] ?? null;
-            }),
-            'violations' => $violationNames,
+            })),
+            'violations' => ViolationResource::collection($violationNames),
             // Precomputed for every violation this student has, keyed by
             // violation_id, so the Behavioural Analysis tab already has
             // everything it needs on page load/refresh and can call the
@@ -313,7 +317,8 @@ class ViolationController extends Controller
 
             $complaintWithSubjects = Complaint::with(['user.profile', 'subject.profile', 'complaintSubject.user.profile'])
                 ->find($complaintId);
-            $field = (new ComplaintController)->getComplaintDocumentField($complaintWithSubjects, $summary);
+            // Being resolved now, so it includes the Incident Summary.
+            $field = (new ComplaintController)->getComplaintDocumentField($complaintWithSubjects, $summary, true);
             Pdf::loadView('pdf.complaint-subject', $field)->save($filePath);
 
             $generatedFiles[] = $filePath;
@@ -399,7 +404,7 @@ class ViolationController extends Controller
                 ->orderBy('occurrence', 'desc')
                 ->first();
 
-            $byViolation[$violationId]['violation'] = $rec->violation;
+            $byViolation[$violationId]['violation'] = ViolationResource::make($rec->violation);
             $byViolation[$violationId]['occurrences'][] = [
                 'occurrence' => $occurrenceNumber,
                 'complaint_id' => $rec->complaint_id,
@@ -587,6 +592,7 @@ class ViolationController extends Controller
                     ->limit(1)
             )
             ->get()
-            ->groupBy('violation_id');
+            ->groupBy('violation_id')
+            ->map(fn ($records) => ComplaintSubjectViolationResource::collection($records));
     }
 }

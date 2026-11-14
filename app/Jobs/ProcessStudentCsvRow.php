@@ -62,10 +62,10 @@ class ProcessStudentCsvRow implements ShouldQueue
             return;
         }
 
-        $program = Program::whereRaw('LOWER(name) = ?', [strtolower(trim($row['program'] ?? ''))])->first();
+        $program = Program::whereRaw('LOWER(code) = ?', [strtolower(trim($row['program'] ?? ''))])->first();
 
         if (!$program) {
-            $this->recordResult('error', $idNumber, $fullName, "Program '{$row['program']}' does not match any existing program name.");
+            $this->recordResult('error', $idNumber, $fullName, "Program '{$row['program']}' does not match any existing program code.");
             return;
         }
 
@@ -148,7 +148,7 @@ class ProcessStudentCsvRow implements ShouldQueue
                 'id' => $idNumber,
                 'name' => $fullName,
                 'program_id' => $program->id,
-                'program_name' => $program->name,
+                'program_name' => $program->code,
                 'year_level' => $row['year_level'],
                 'username' => $username,
                 'password' => $plainPassword,
@@ -203,7 +203,7 @@ class ProcessStudentCsvRow implements ShouldQueue
 
         try {
             $programId = $program->id;
-            $programSlug = strtoupper(Str::slug($program->name, '-'));
+            $programSlug = strtoupper(Str::slug($program->code, '-'));
 
             $zipPath = storage_path("app/private/zips/student-{$programId}-{$programSlug}.zip");
             $csvName = "student-account-{$programId}-{$programSlug}-year-{$yearLevel}.csv";
@@ -252,7 +252,7 @@ class ProcessStudentCsvRow implements ShouldQueue
     {
         foreach ($groupedRows as $key => $columnData) {
             [$programId, $yearLevel] = explode('_', $key);
-            $programName = Program::where('id', $programId)->value('name') ?? 'unknown';
+            $programName = Program::where('id', $programId)->value('code') ?? 'unknown';
             $programSlug = strtoupper(Str::slug($programName, '-'));
 
             $csvName = "student-account-{$programId}-{$programSlug}-year-{$yearLevel}.csv";

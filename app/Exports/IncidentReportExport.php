@@ -143,7 +143,7 @@ class IncidentReportExport extends StringValueBinder implements
             $sheet->setCellValue('B3', $name ?? 'N/A');
 
             $sheet->setCellValue('A4', 'Program:');
-            $sheet->setCellValue('B4', $this->user['student']['program']['name'] ?? 'N/A');
+            $sheet->setCellValue('B4', $this->user['student']['program']['code'] ?? 'N/A');
 
             $sheet->setCellValue('A5', 'Civil Status:');
             $sheet->setCellValue('B5', ucfirst($this->user['civil_status'] ?? 'N/A'));

@@ -6,7 +6,7 @@ use App\Events\SendReferral;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Referral\StoreReferralRequest;
 use App\Http\Requests\Referral\UpdateReferralRequest;
-use App\Http\Resources\ReferralResource;
+use App\Http\Resources\Referral\ReferralResource;
 use App\Mail\ReferralMail;
 use App\Models\ActionLog;
 use App\Models\Enrollment;
@@ -28,6 +28,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use ZipArchive;
+use App\Http\Resources\System\ProgramResource;
+use App\Http\Resources\Account\UserResource;
 
 class ReferralController extends Controller
 {
@@ -65,15 +67,15 @@ class ReferralController extends Controller
         $user = auth()->user();
         $user->allow_referral = $user->permissions?->allow_referral;
         $props = [
-            'user' => $user,
-            'students' => User::with(['profile', 'program'])
+            'user' => new UserResource($user),
+            'students' => UserResource::collection(User::with(['profile', 'program'])
                 ->whereRole('student')
                 ->where('id', '!=', auth()->user()->id)
-                ->get(),
+                ->get()),
             'referral' => self::getAllReferral(),
             'program_name' => is_program_head(),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
-            'programs' => Program::orderBy('name')->get(['id', 'name']),
+            'programs' => ProgramResource::collection(Program::orderBy('code')->get(['id', 'code'])),
         ];
         $props = ! self::isPrefect() ? $props : array_merge($props, [
             'referral_request' => self::getReferralRequest(),
@@ -265,10 +267,15 @@ class ReferralController extends Controller
         } elseif ($status === 'all') {
             $referrals->latest('created_at');
         } else {
-            $referrals->whereNull('confirmed_at')->whereNull('rejected_at')->whereNull('revoked_at')->latest('created_at');
+            // Pending: a queue, the oldest referral first.
+            $referrals->whereNull('confirmed_at')->whereNull('rejected_at')->whereNull('revoked_at')->oldest('created_at');
         }
 
         SchoolYearSemester::applyFilter($referrals, 'created_at', request('school-year'), request('semester'));
+        // ?id= (from the dashboard's Up next panel): only that one row.
+        if (is_numeric(request('id'))) {
+            $referrals->where('id', (int) request('id'));
+        }
 
         // Program: referrals naming at least one student of that program.
         $program = request('program');

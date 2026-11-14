@@ -9,7 +9,7 @@ use App\Http\Requests\GatePass\ApproveGatePassRequest;
 use App\Http\Requests\GatePass\GatepassRequestRequest;
 use App\Http\Requests\GatePass\RejectGatePassRequest;
 use App\Http\Requests\GatePass\UpdateGatePassRequest;
-use App\Http\Resources\GatePassResource;
+use App\Http\Resources\GatePass\GatePassResource;
 use App\Mail\GatePassMail;
 use App\Models\ActionLog;
 use App\Models\Enrollment;
@@ -25,6 +25,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
+use App\Http\Resources\System\ProgramResource;
+use App\Http\Resources\Account\UserResource;
 
 class GatePassController extends Controller
 {
@@ -35,7 +37,10 @@ class GatePassController extends Controller
         $isPrefect = self::isPrefect() ? 'prefect' : 'shared';
 
         $gatepass = '';
-        if (isset($_GET['status'])) {
+        if (! self::isPrefect()) {
+            // Everyone else only sees their own gate passes (below), never
+            // the prefect's request list.
+        } elseif (isset($_GET['status'])) {
             if ($_GET['status'] == 'all') {
                 $gatepass = self::getAllGatePasses();
             } elseif ($_GET['status'] == 'confirmed-users') {
@@ -57,12 +62,16 @@ class GatePassController extends Controller
         $user->allow_gatepass = $user->permissions?->allow_gatepass;
 
         return Inertia::render("$isPrefect/gatepass", [
-            'user' => $user,
+            'user' => new UserResource($user),
             'program_name' => is_program_head(),
             'gatepass_request_list' => $gatepass,
-            'user_gatepass' => self::getGatePass(auth()->user()->id),
+            // Their own gate passes; ?status= is the page's tab.
+            'user_gatepass' => UserResource::make(self::getGatePass(auth()->user()->id, self::isPrefect() ? null : request('status'))),
+            // Their latest request regardless of tab/filters: decides whether
+            // they may request a new one.
+            'latest_gatepass' => GatePassResource::make(GatePass::where('user_id', auth()->id())->latest('created_at')->first()),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
-            'programs' => Program::orderBy('name')->get(['id', 'name']),
+            'programs' => ProgramResource::collection(Program::orderBy('code')->get(['id', 'code'])),
         ]);
     }
 
@@ -88,6 +97,10 @@ class GatePassController extends Controller
     private static function filterList($query)
     {
         self::filterBySchoolYearSemester($query);
+        // ?id= (from the dashboard's Up next panel): only that one row.
+        if (is_numeric(request('id'))) {
+            $query->where('id', (int) request('id'));
+        }
 
         $program = request('program');
         if ($program && $program !== 'all') {
@@ -109,9 +122,9 @@ class GatePassController extends Controller
         }
 
         return Inertia::render('staff/gatepass-verification', [
-            'user' => $user,
+            'user' => new UserResource($user),
             'program_name' => null,
-            'gatepass_approved_list' => self::getAllGatePass()->get(),
+            'gatepass_approved_list' => UserResource::collection(self::getAllGatePass()->get()),
         ]);
     }
 
@@ -123,7 +136,7 @@ class GatePassController extends Controller
     public function gatePassApproveUserIndex()
     {
         return Inertia::render('staff/gatepass-approval', [
-            'gatepass_approved_list' => self::getAllGatePass()->get(),
+            'gatepass_approved_list' => UserResource::collection(self::getAllGatePass()->get()),
         ]);
     }
 
@@ -197,7 +210,7 @@ class GatePassController extends Controller
                     'last_name' => $student->profile?->last_name,
                     'profile_picture' => $student->profile?->profile_picture,
                     'user_type' => $student->role,
-                    'name' => $student->program?->name,
+                    'name' => $student->program?->code,
                     'reason' => $gatepass->reason,
                     'allow_to' => $gatepass->allow_to,
                     'confirmed_at' => $gatepass->confirmed_at,
@@ -259,7 +272,7 @@ class GatePassController extends Controller
                 'last_name' => $gatepass->user->profile?->last_name,
                 'profile_picture' => $gatepass->user->profile?->profile_picture,
                 'user_type' => $gatepass->user->role,
-                'name' => $gatepass->user->program?->name,
+                'name' => $gatepass->user->program?->code,
                 'reason' => $gatepass->reason,
                 'allow_to' => json_encode(request('allow_to')),
                 'confirmed_at' => $gatepass->confirmed_at,
@@ -357,7 +370,7 @@ class GatePassController extends Controller
             ['status' => ['from' => 'pending', 'to' => 'revoked']]
         );
 
-        return response()->json(self::getGatePass(auth()->id()));
+        return response()->json(UserResource::make(self::getGatePass(auth()->id())));
     }
 
     /**
@@ -410,7 +423,7 @@ class GatePassController extends Controller
 
             DB::commit();
 
-            return response()->json(self::getGatePass(auth()->id()));
+            return response()->json(UserResource::make(self::getGatePass(auth()->id())));
         } catch (Exception $x) {
             DB::rollBack();
 
@@ -433,17 +446,37 @@ class GatePassController extends Controller
 
     public function getAllApprovedGatePass()
     {
-        return self::getAllGatePass()->get();
+        return UserResource::collection(self::getAllGatePass()->get());
     }
 
-    public function getGatePass($id)
+    public function getGatePass($id, ?string $status = null)
     {
-        return User::with(['gatepass' => function ($query) {
+        $user = User::with(['gatepass' => function ($query) use ($status) {
             $query->latest('created_at');
             self::filterBySchoolYearSemester($query);
+            // ?id= (from the dashboard's My requests panel): only that one.
+            if (is_numeric(request('id'))) {
+                $query->where('id', (int) request('id'));
+            }
+            // A status tab: pending / approved (still valid) / expired /
+            // rejected / revoked.
+            $live = fn ($q) => $q->whereNull('rejected_at')->whereNull('revoked_at');
+            match ($status) {
+                'pending' => $live($query)->whereNull('confirmed_at'),
+                'approved' => $live($query)->whereNotNull('confirmed_at')->where('date_expiration', '>', now()),
+                'expired' => $live($query)->whereNotNull('confirmed_at')->where('date_expiration', '<=', now()),
+                'rejected' => $query->whereNotNull('rejected_at')->whereNull('revoked_at'),
+                'revoked' => $query->whereNotNull('revoked_at'),
+                default => null,
+            };
         }])
             ->where('id', $id)
             ->first();
+
+        // Each row's encrypted id, for the View modal (/gatepass/{id}).
+        $user?->gatepass->each(fn ($g) => $g->setAttribute('encrypted_id', encrypt_id($g->id)));
+
+        return $user;
     }
 
     private function isPrefect()
@@ -456,7 +489,7 @@ class GatePassController extends Controller
         $query = GatePass::with(['user.profile', 'user.program', 'user.enrollments'])
             ->where('confirmed_at', null)
             ->whereNull('archived_at')
-            ->latest('created_at');
+            ->oldest('created_at'); // a queue: oldest request first
 
         return GatePassResource::collection(self::filterList($query)->get());
     }
@@ -539,7 +572,7 @@ class GatePassController extends Controller
 
     public function getGatePassExpired()
     {
-        return User::with(['profile', 'program', 'enrollments'])
+        return UserResource::collection(User::with(['profile', 'program', 'enrollments'])
             ->whereHas('gatepass', function ($q) {
                 $q->whereNotNull('confirmed_at')
                     ->whereNull('archived_at')
@@ -563,7 +596,7 @@ class GatePassController extends Controller
                     ->latest()
                     ->limit(1)
             )
-            ->get();
+            ->get());
     }
 
     public function getGatePassRequestNotif($id, $receiver)
@@ -580,7 +613,7 @@ class GatePassController extends Controller
             'last_name' => $user->profile?->last_name,
             'profile_picture' => $user->profile?->profile_picture,
             'user_type' => $user->role,
-            'name' => $user->program?->name ?? null,
+            'name' => $user->program?->code ?? null,
 
             // Gatepass info (only reason is known at request stage)
             'reason' => request('other_reason') ?? null,

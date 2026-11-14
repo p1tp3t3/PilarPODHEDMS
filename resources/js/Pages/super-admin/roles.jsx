@@ -112,6 +112,14 @@ const Roles = (props) => {
 
     const columns = [
         {
+            // Same "#" column as the other tables.
+            field: "i",
+            headerName: "#",
+            width: 60,
+            sortable: false,
+            renderCell: (params) => `${params.api.getRowIndexRelativeToVisibleRows(params.id) + 1}.`,
+        },
+        {
             field: "label",
             headerName: "Role",
             flex: 1,
@@ -178,9 +186,6 @@ const Roles = (props) => {
                 title="Role Management"
                 rightSideComponent={<Btn onclick={() => openForm(true)} icon={<Plus size={20} />}>Add Role</Btn>}
             >
-                <p className="text-[0.8em] text-gray-600 -mt-2">
-                    A role that any user has had can only be activated or deactivated. A role with no linked users can be deleted.
-                </p>
                 <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
                     <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", px: 2.5, py: 1.5 }}>
                         <DataGrid

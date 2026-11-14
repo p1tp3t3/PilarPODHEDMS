@@ -1,4 +1,5 @@
 import AuthLayout from "@/Layouts/auth-layout"
+import SingleRowNotice from "@/Components/other/single-row-notice"
 import PageLayout from "@/Layouts/page-layout"
 import { useState } from "react"
 import DropdownField from "@/Components/input/dropdown"
@@ -146,7 +147,7 @@ const PrefectAbsentForm = (props) => {
                             <div className="w-full sm:w-56">
                                 <DropdownField
                                     default={{ val: 'all', label: 'All Programs' }}
-                                    list={(props.programs || []).map((p) => ({ val: p.id, label: p.name }))}
+                                    list={(props.programs || []).map((p) => ({ val: p.id, label: p.code }))}
                                     val={program === 'all' ? 'all' : Number(program)}
                                     onChange={(e) => handleFilterChange('program', e.target.value)}
                                     name="program"
@@ -180,6 +181,8 @@ const PrefectAbsentForm = (props) => {
                         <div className="w-full overflow-x-auto">
                             <TabSwitcher tabs={option} value={lstOption} onChange={handleOption} />
                         </div>
+
+                        <SingleRowNotice noun="absent form" />
 
                         {/* Table / List Section */}
                         <div className="w-full bg-white rounded-md shadow-sm shadow-black/20 min-w-0">

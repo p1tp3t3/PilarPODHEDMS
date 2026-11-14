@@ -79,7 +79,7 @@ class AbsenceFactory extends Factory
                     'date_approve' => Carbon::parse($absence->confirmed_at)->toFormattedDateString(),
                     'status' => 'Approved',
                     'note' => $absence->note,
-                    'program' => $student?->program?->name,
+                    'program' => $student?->program?->code,
                     'student_id' => $student?->id_number,
                 ];
 

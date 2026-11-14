@@ -157,7 +157,7 @@ const Chat = ({ contacts: initialContacts }) => {
         const timeout = setTimeout(() => {
             UserService.search('/api/all-users/all-2', search, (data) => {
                 const found = Array.isArray(data) ? data : []
-                // The IT admin can't start a chat with a user — only reply to
+                // The System Admin can't start a chat with a user — only reply to
                 // one who messaged first, and those are already in contacts.
                 setSearchResults(user.role === 'super_admin' ? found.filter((u) => isAdminRole(u.role)) : found)
             })

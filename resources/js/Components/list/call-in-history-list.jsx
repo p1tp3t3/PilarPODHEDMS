@@ -131,7 +131,7 @@ const CallInHistoryList = ({ refreshKey = 0, schoolYears = [], programs = [] }) 
                 <div className="w-full sm:w-56">
                     <DropdownField
                         default={{ val: "all", label: "All Programs" }}
-                        list={programs.map((p) => ({ val: p.id, label: p.name }))}
+                        list={programs.map((p) => ({ val: p.id, label: p.code }))}
                         val={filters.program === "all" ? "all" : Number(filters.program)}
                         onChange={(e) => changeFilter("program", e.target.value)}
                         name="call_in_program"

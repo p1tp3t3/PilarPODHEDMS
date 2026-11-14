@@ -9,10 +9,10 @@ import { DashboardService } from "@/others/services/dashboard-service"
 import { AlertCircle } from "lucide-react"
 import DropdownField from "../input/dropdown"
 
-// Admins (IT admin, prefect) see every active user and can narrow the list
+// Admins (System Admin, prefect) see every active user and can narrow the list
 // down by role.
 const ROLE_OPTIONS = [
-    { val: "super_admin", label: "IT Admin" },
+    { val: "super_admin", label: "System Admin" },
     { val: "sub_admin", label: "Prefect" },
     { val: "student", label: "Student" },
     { val: "program_head", label: "Program Head" },
@@ -27,9 +27,10 @@ const LatestActiveAccountList = ({ dataKey = 'active', ...props }) => {
     const [user_list, setUserList] = useState(props.list);
     const [search, setSearch] = useState("");
     const [roleFilter, setRoleFilter] = useState("all");
-    const showRoleFilter = ['super_admin', 'sub_admin', 'program_head', 'faculty'].includes(usr?.role);
-    // Program heads and faculty only ever see students and fellow teachers.
-    const roleOptions = ['program_head', 'faculty'].includes(usr?.role)
+    // Faculty only see students, so they get no role filter.
+    const showRoleFilter = ['super_admin', 'sub_admin', 'program_head'].includes(usr?.role);
+    // Program heads only ever see students and fellow teachers.
+    const roleOptions = usr?.role === 'program_head'
         ? ROLE_OPTIONS.filter((r) => ['student', 'program_head', 'faculty'].includes(r.val))
         : ROLE_OPTIONS;
     const debounceRef = useRef(null);

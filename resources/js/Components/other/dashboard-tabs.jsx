@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePage } from "@inertiajs/react";
 import TabSwitcher from "@/Components/other/tab-switcher";
 import OffenseList from "@/Components/list/offense-list";
 import PenaltyList from "@/Components/list/penalty-list";
@@ -13,6 +14,8 @@ const TABS = [
 // penalty lists, as on the student dashboard.
 const DashboardTabs = ({ children }) => {
   const [choose, setChoose] = useState("overview");
+  // Both lists come with the page (DashboardController::violationLists).
+  const { offense_list, penalty_list } = usePage().props;
 
   return (
     <>
@@ -21,8 +24,8 @@ const DashboardTabs = ({ children }) => {
       </div>
 
       {choose === "overview" && children}
-      {choose === "offense" && <OffenseList />}
-      {choose === "penalty" && <PenaltyList />}
+      {choose === "offense" && <OffenseList list={offense_list} />}
+      {choose === "penalty" && <PenaltyList list={penalty_list} />}
     </>
   );
 };

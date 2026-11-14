@@ -1,3 +1,4 @@
+import { router } from "@inertiajs/react"
 import UpModal from "../up-modal"
 import CheckBoxButton from "../../input/checkbox"
 import RichTextEditor from "@/Components/input/rich-text-editor"
@@ -56,6 +57,8 @@ const RequestGatePassModal = (props) => {
                     ...prev,
                     other_reason: "",
                 }))
+                // Show the new request and hide "Request Gate Pass".
+                router.reload({ only: ["user_gatepass", "latest_gatepass"] })
             }
         )
     }

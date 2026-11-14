@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from "react"
 import AuthContext from "@/context-provider/auth-provider"
 import { usePage } from "@inertiajs/react"
-import { Clock, ChevronRight, Plus, Trash2, CalendarClock, UserCheck, Pencil } from "lucide-react"
+import { Clock, ChevronRight, Plus, Trash2, UserCheck, Pencil } from "lucide-react"
 import { InfoSegment } from "./info-segment"
 import FormButton from "@/Components/button/button"
 import UpModal from "@/Components/modal/up-modal"
@@ -133,17 +133,9 @@ export const PrefectAvailabilityCard = () => {
             w="w-[32rem]"
         >
             <div className="grid gap-5">
-                <div className="flex items-center gap-3">
-                    <span className="w-10 h-10 shrink-0 rounded-full bg-blue-50 text-blue-700 grid place-items-center">
-                        <CalendarClock size={18} />
-                    </span>
-                    <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-semibold text-gray-800">Prefect Availability</span>
-                            {prefects.length > 0 && <NowBadge prefects={prefects} now={now} />}
-                        </div>
-                        <p className="text-[0.85em] text-gray-500">Weekly schedule, Monday to Saturday. Sunday is always off.</p>
-                    </div>
+                <div className="pt-2 pr-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-[1.1em] sm:text-[1.2em]">
+                    <h1><b>{editing ? "Edit Availability" : "Prefect Availability"}</b></h1>
+                    {!editing && prefects.length > 0 && <span className="text-[0.75em]"><NowBadge prefects={prefects} now={now} /></span>}
                 </div>
 
                 {editing ? (
@@ -323,11 +315,15 @@ export const AvailabilityScheduleEditor = ({ userId, reload, embedded = false, o
             {week === null ? (
                 <div className="h-40 rounded-md bg-gray-100 animate-pulse" />
             ) : (
-                <div className="grid gap-3">
+                <div className="grid gap-4">
+                    <div className="rounded-lg border border-gray-200 divide-y divide-gray-100">
                     {DAYS.map((d) => (
-                        <div key={d.n} className="rounded-lg border border-gray-200 px-3 py-3">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <span className="font-semibold text-[0.9em] text-gray-800">{d.label}</span>
+                        <div key={d.n} className="px-3 py-2.5">
+                            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                                <span className="flex items-baseline gap-3 min-w-0">
+                                    <span className="w-24 shrink-0 font-semibold text-[0.9em] text-gray-800">{d.label}</span>
+                                    {week[d.n].length === 0 && <span className="text-[0.8em] text-gray-400">Not available</span>}
+                                </span>
                                 <div className="flex items-center gap-3 text-[0.8em]">
                                     {week[d.n].length > 0 && (
                                         <button type="button" onClick={() => copyToAll(d.n)} className="text-gray-500 hover:text-gray-800">
@@ -345,9 +341,7 @@ export const AvailabilityScheduleEditor = ({ userId, reload, embedded = false, o
                                 </div>
                             </div>
 
-                            {week[d.n].length === 0 ? (
-                                <p className="text-[0.8em] text-gray-400 mt-1">Not available</p>
-                            ) : (
+                            {week[d.n].length > 0 && (
                                 <div className="grid gap-2 mt-2">
                                     {week[d.n].map((r, i) => (
                                         <div key={i} className="flex flex-wrap items-center gap-2">
@@ -382,15 +376,16 @@ export const AvailabilityScheduleEditor = ({ userId, reload, embedded = false, o
                             {errors[d.n] && <p className="text-[#d12323] text-[13px] font-[600] mt-1.5">{errors[d.n]}</p>}
                         </div>
                     ))}
+                    </div>
 
                     {/* In the modal it stays at the bottom while the days scroll. */}
-                    <div className={`flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 pt-3 ${embedded ? "sticky bottom-0 z-10 bg-white pb-1 border-t border-gray-100 max-md:-mx-4 max-md:px-4 max-md:pb-2" : "pt-2"}`}>
+                    <div className={`grid gap-3 ${embedded ? "sticky bottom-0 z-10 bg-white pt-3 pb-1 border-t border-gray-100 max-md:-mx-4 max-md:px-4 max-md:pb-2" : "pt-2"}`}>
                         <span className="text-[0.8em] text-gray-500">
-                            {totalRanges === 0 ? "No times set — you'll show as not available." : `${totalRanges} time range${totalRanges === 1 ? "" : "s"} this week. Sunday is always off.`}
+                            {totalRanges === 0 ? "No times set — you'll show as not available." : `${totalRanges} time range${totalRanges === 1 ? "" : "s"} this week.`} Sunday is always off.
                         </span>
-                        <div className={`grid gap-2 ${onCancel ? "grid-cols-2" : "grid-cols-1"} sm:flex sm:items-center [&_button]:max-sm:!w-full [&_button]:max-sm:!px-3`}>
+                        <div className={`grid gap-2 ${onCancel ? "grid-cols-2" : "grid-cols-1"} sm:flex sm:justify-end sm:items-center [&_button]:max-sm:!w-full [&_button]:max-sm:!px-3`}>
                             {onCancel && (
-                                <button type="button" onClick={onCancel} disabled={saving} className="px-4 py-2 rounded-md border border-gray-300 text-[0.9em] text-gray-700 hover:bg-gray-50">
+                                <button type="button" onClick={onCancel} disabled={saving} className="px-8 py-[0.55rem] rounded-full border border-gray-300 text-[13px] font-medium uppercase text-gray-700 hover:bg-gray-50 disabled:opacity-50">
                                     Cancel
                                 </button>
                             )}

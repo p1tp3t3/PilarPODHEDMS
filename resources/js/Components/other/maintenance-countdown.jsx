@@ -30,7 +30,7 @@ const MaintenanceCountdown = () => {
     // A new page brings the current value.
     useEffect(() => { setScheduledAt(initial ?? null) }, [initial])
 
-    // Live: scheduled / cancelled by the IT admin.
+    // Live: scheduled / cancelled by the System Admin.
     useEffect(() => {
         const channel = window.Echo?.channel("maintenance")
         channel?.listen("MaintenanceScheduleChanged", (e) => {

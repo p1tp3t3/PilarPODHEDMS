@@ -1,4 +1,4 @@
-import { getProfilePic, profileUrl } from "@/others/function"
+import { getProfilePic, profileUrl, studentProgram, studentYearLevel, toTitleCase } from "@/others/function"
 import { Link, router } from "@inertiajs/react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -7,15 +7,24 @@ import {
 } from "@mui/material"
 import { User, Settings, LogOut, ChevronRight, History } from "lucide-react"
 
+// Their program(s): every program a head leads, else their own.
+const teachingPrograms = (identity) => {
+    const handled = (identity?.teaching?.programs_handled ?? []).map((p) => p?.code).filter(Boolean)
+    return handled.length ? handled.join(", ") : identity?.teaching?.program?.code
+}
+
+// Role chip under the name; students show their program and year level,
+// program heads and faculty their program ("Program Head · BSIT").
 const roleLabel = (identity) => {
+    const withProgram = (role) => [role, teachingPrograms(identity)].filter(Boolean).join(" · ")
     switch (identity?.role) {
-        case "super_admin": return "IT Admin"
+        case "super_admin": return "System Admin"
         case "sub_admin": return "Prefect"
-        case "student": return "Student"
-        case "program_head": return "Program Head"
-        case "faculty": return "Faculty"
+        case "student": return [studentProgram(identity), studentYearLevel(identity)].filter(Boolean).join(" · ") || "Student"
+        case "program_head": return withProgram("Program Head")
+        case "faculty": return withProgram("Faculty")
         case "non_teaching_staff": return identity.non_teaching_staff?.position || "Staff"
-        case "parent": return "Parent"
+        case "parent": return ["Parent", identity.parent_role && toTitleCase(identity.parent_role)].filter(Boolean).join(" · ")
         default: return null
     }
 }
@@ -81,7 +90,7 @@ const AccountModal = (props) => {
             transition={{ duration: 0.2 }}
             className="absolute top-0 right-0 mt-[2.8rem] w-full sm:w-[18rem] z-30"
         >
-            <Paper elevation={8} sx={{ borderRadius: 3, overflow: "hidden" }}>
+            <Paper elevation={8} sx={{ borderRadius: 1, overflow: "hidden" }}>
                 <Box
                     sx={{
                         display: "flex",
@@ -109,7 +118,7 @@ const AccountModal = (props) => {
 
                 <List dense disablePadding sx={{ p: 1 }}>
                     <MenuLink href={`${profileUrl(user)}`} icon={User}>See Profile</MenuLink>
-                    {/* Account settings are managed centrally by the IT admin. */}
+                    {/* Account settings are managed centrally by the System Admin. */}
                     {user.role === "super_admin" && (
                         <MenuLink href={'/settings/' + user.username} icon={Settings}>Account Settings</MenuLink>
                     )}

@@ -13,7 +13,7 @@ const UserAccountSettings = (props) => {
     const [roleModal, openRoleModal] = useState(false);
     const { loadRegister } = useReload();
     const target = props.otherUserAccount?.data ?? props.otherUserAccount;
-    // Only present when the IT admin is viewing someone else's settings.
+    // Only present when the System Admin is viewing someone else's settings.
     const canChangeRole = !!props.roles && !!target;
     const roleLabel = props.roles?.find((r) => r.name === target?.role)?.label ?? target?.role;
 

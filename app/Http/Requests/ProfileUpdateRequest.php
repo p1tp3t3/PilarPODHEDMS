@@ -52,7 +52,7 @@ class ProfileUpdateRequest extends FormRequest
             'data.college_school_name' => 'nullable|string',
             'data.college_school_address' => 'nullable|string',
             'data.college_year_graduated' => 'nullable|string',
-            // Only on the prefect's / IT admin's form.
+            // Only on the prefect's / System Admin's form.
             'data.college_program' => in_array($this->user()?->role, ['super_admin', 'sub_admin'], true) ? 'required' : 'nullable',
         ];
     }

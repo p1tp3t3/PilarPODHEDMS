@@ -44,7 +44,7 @@ const EditGatePassModal = (props) => {
         showOutputModal("Gate Pass Updated Successfully", "s", () => {
             props.reload(false)
             props.closeModal(false)
-            router.reload({ only: ["user_gatepass"] })
+            router.reload({ only: ["user_gatepass", "latest_gatepass"] })
         })
     }
 

@@ -1,7 +1,7 @@
 import { ProgramService } from "../services/program-service";
 
 export const userType = [
-    { val: "super_admin", label: 'IT Admin' },
+    { val: "super_admin", label: 'System Admin' },
     { val: "student", label: "Student" },
     { val: "sub_admin", label: "Prefect" },
     { val: "program_head", label: "Program Head" },

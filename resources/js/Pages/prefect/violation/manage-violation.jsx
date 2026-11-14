@@ -12,7 +12,6 @@ const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditR
     // Active violations by default; archived ones sit in their own tab.
     const [view, setView] = useState("active");
     const all = list ?? [];
-    const archivedCount = all.filter((v) => v.archived_at).length;
     const rows = all.filter((v) => (view === "archived") === !!v.archived_at);
 
     const deleteViolation = (e) => {
@@ -76,7 +75,7 @@ const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditR
 
             {/* Toolbar */}
             <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                <TabSwitcher value={view} onChange={setView} tabs={[{ key: "active", label: `Active (${all.length - archivedCount})` }, { key: "archived", label: `Archived (${archivedCount})` }]} />
+                <TabSwitcher value={view} onChange={setView} tabs={[{ key: "active", label: "Active" }, { key: "archived", label: "Archived" }]} />
                 {canAdd && (
                 <button
                     className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full sm:w-auto"

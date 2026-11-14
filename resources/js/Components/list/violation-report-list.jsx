@@ -41,7 +41,7 @@ const ViolationReportList = ({ list = [] }) => {
                 const latestEnrollment = student.enrollments?.[student.enrollments.length - 1]
                 const programName = isStudent
                     ? studentProgram(student)
-                    : student.teaching?.program?.name
+                    : student.teaching?.program?.code
                 const roleDetail = isStudent
                     ? studentYearLevel(student)
                     : (student?.role === "program_head" ? "Program Head" : "Faculty")

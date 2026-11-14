@@ -6,7 +6,7 @@ import { useState } from "react";
 import axios from "axios";
 import { showOutputModal } from "@/others/function";
 import background from '@/images/bg-pilar2.jpg'
-import { ReloadProvider, useReload } from "@/context-provider/reload-provider";
+import { ReloadProvider } from "@/context-provider/reload-provider";
 
 const LogIn = () => (
     <ReloadProvider>
@@ -14,9 +14,15 @@ const LogIn = () => (
     </ReloadProvider>
 );
 
+// A failed login that isn't a wrong username/password (too many tries,
+// server down, …): the output modal.
+const loginErrorText = (err) =>
+    err.response?.status === 429
+        ? "Too many login attempts. Please wait a minute and try again."
+        : err.response?.data?.message || "Something went wrong while logging in. Please try again.";
+
 const LogInInner = () => {
     const route = useRoute();
-    const { loadRegister } = useReload();
 
     const [data, setData] = useState({
         username: "",
@@ -49,8 +55,8 @@ const LogInInner = () => {
         if (Object.keys(errors).length > 0) return;
         if (submitting) return; // avoid double submit
 
+        // The form disables itself and the button spins (LogInForm).
         setSubmitting(true);
-        loadRegister(true, "logo");
 
         // On success the backend calls Inertia::location(intendedUrl). That
         // helper only replies with the interceptable 409 + X-Inertia-Location
@@ -70,11 +76,6 @@ const LogInInner = () => {
             .catch((err) => {
                 const redirect = err.response?.headers?.["x-inertia-location"];
                 if (err.response?.status === 409 && redirect) {
-                    // The modal is the feedback from here — drop the
-                    // loading screen the moment it takes over instead of
-                    // leaving both stacked until the redirect fires.
-                    loadRegister(false);
-
                     // Shown here rather than on the destination page — it
                     // auto-dismisses after 5s (via the timer arg) so the
                     // redirect fires on its own if the user doesn't click
@@ -87,10 +88,13 @@ const LogInInner = () => {
 
                 localStorage.removeItem("show-login-success");
                 localStorage.removeItem("is-unresolved-complaint-modal-clicked");
-                loadRegister(false);
                 setSubmitting(false);
 
                 const backend = err.response?.data || {};
+                if (!backend.username && !backend.password) {
+                    showOutputModal(loginErrorText(err), "e");
+                    return;
+                }
                 setValidationError({
                     username: backend.username || "",
                     password: backend.password || "",
@@ -113,6 +117,7 @@ const LogInInner = () => {
                     data={data}
                     onchange={handleChange}
                     validationErr={validationErr}
+                    submitting={submitting}
                 />
             </div>
         </>

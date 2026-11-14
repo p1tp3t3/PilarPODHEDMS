@@ -10,6 +10,7 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use App\Http\Resources\Notification\NotificationsResource;
 
 class NotifyUser implements ShouldBroadcastNow
 {
@@ -40,10 +41,10 @@ class NotifyUser implements ShouldBroadcastNow
         $notSeenCount = $notif->whereNull('read_since')->count();
 
         return [
-            'response' => $notif
+            'response' => NotificationsResource::collection($notif
                           ->latest('created_at')
                           ->limit(5)
-                          ->get(),
+                          ->get())->resolve(),
             'count' => $notSeenCount,
             'size' => $notif->count()
         ];

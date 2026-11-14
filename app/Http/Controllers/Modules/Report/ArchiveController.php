@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Modules\Report;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Archive\DestroyDocumentRequest;
 use App\Http\Requests\Archive\RecoverDocumentRequest;
-use App\Http\Resources\ArchivedDocumentResource;
+use App\Http\Resources\Report\ArchivedDocumentResource;
 use App\Mail\AbsentFormMail;
 use App\Models\Absence;
 use App\Models\Complaint;
@@ -72,6 +72,11 @@ class ArchiveController extends Controller
 
         abort_unless($record->canViewPdf(auth()->user()), 403);
         $path = $record->documentPdfPath();
+        // The saved complaint PDF includes the Incident Summary, which only
+        // the prefect may see: everyone else gets it built now, without it.
+        if ($record instanceof Complaint && ! can_see_incident_summary()) {
+            $path = null;
+        }
 
         // Not final yet (pending, rejected, revoked...): built now, not saved.
         if (! $path) {
@@ -214,7 +219,7 @@ class ArchiveController extends Controller
                 'date_approve' => now()->toFormattedDateString(),
                 'status' => 'Approved',
                 'note' => $student->note,
-                'program' => $student->user->program?->name,
+                'program' => $student->user->program?->code,
                 'student_id' => $student->user->id_number,
             ];
 

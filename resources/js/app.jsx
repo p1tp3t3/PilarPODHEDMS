@@ -5,13 +5,12 @@ import { createInertiaApp, router } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import { ThemeModeProvider } from './context-provider/theme-mode-provider';
-import InstallAppPrompt, { installPopupAllowed } from './Components/other/install-app-prompt';
+import { installPopupAllowed } from './Components/other/install-app-prompt';
 
-// "Add to Home Screen": keep the browser's install offer for the popup's
-// Install button (install-app-prompt.jsx); it can arrive before React has
-// mounted. Only held back when the popup will show, otherwise the browser
-// offers it the usual way. (Chrome then logs "Banner not shown:
-// beforeinstallpromptevent.preventDefault() called": expected, the popup
+// "Add to Home Screen": keep the browser's install offer for the header
+// button's Install (install-app-prompt.jsx); it can arrive before React has
+// mounted. (Chrome then logs "Banner not shown:
+// beforeinstallpromptevent.preventDefault() called": expected, the panel
 // calls prompt() when Install is clicked.)
 window.addEventListener('beforeinstallprompt', (e) => {
     if (!installPopupAllowed()) return;
@@ -35,7 +34,6 @@ createInertiaApp({
         root.render(
             <ThemeModeProvider>
                 <App {...props} />
-                <InstallAppPrompt />
             </ThemeModeProvider>
         );
 
@@ -43,7 +41,10 @@ createInertiaApp({
             router.reload();
         });
     },
+    // Page-loading line along the top: the sidebar's navy (#1e3a8a), from
+    // the app's own blues and still visible over the blue header.
     progress: {
-        color: '#4B5563',
+        color: '#1e3a8a',
+        delay: 150,
     },
 });

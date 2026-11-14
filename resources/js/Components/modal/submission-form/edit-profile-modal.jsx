@@ -28,8 +28,8 @@ const EditProfileModal = (props) => {
       closeModal={props.closeModal}
       bgColor="bg-white"
       cntr={true}
-      // ✅ Responsive width: full on small screens, capped on desktop
-      w="w-full max-w-[50rem]"
+      // 48rem on computers (UpModal caps it at 95vw; full width on phones)
+      w="w-[48rem]"
     >
       <Body
         data={props.data}
@@ -60,7 +60,7 @@ const Body = (props) => {
   // status are hidden entirely for these roles (see
   // Validator.validateUpdateProfileForm for the matching required-field set).
   const isStaffRole = ['program_head', 'faculty', 'non_teaching_staff'].includes(props.data.user_type);
-  // The IT admin's profile only has a picture, contact number and address.
+  // The System Admin's profile only has a picture, contact number and address.
   const isSuperAdminProfile = props.data.user_type === 'super_admin';
   const hidePersonal = isStaffRole || isSuperAdminProfile;
 
