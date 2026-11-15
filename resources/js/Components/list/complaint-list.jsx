@@ -20,7 +20,7 @@ function CustomNoRowsOverlay() {
         alignItems: "center",
         height: "100%",
         fontSize: "0.9em",
-        color: "#555",
+        color: "text.secondary",
         flexDirection: "column",
       }}
     >

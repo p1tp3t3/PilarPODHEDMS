@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react"
 import { ThemeProvider, createTheme } from "@mui/material/styles"
 import { router } from "@inertiajs/react"
+import { Chart } from "chart.js"
 
 // Light/dark mode for the whole app. The choice is kept in localStorage
 // ("theme") and applied as a `dark` class on <html> — app.blade.php sets it
@@ -27,6 +28,12 @@ export const ThemeModeProvider = ({ children }) => {
     }), [])
 
     useEffect(() => {
+        // Charts (canvas, not CSS): their labels, legends and grid lines
+        // follow the theme too; open charts are redrawn.
+        Chart.defaults.color = mode === "dark" ? "#cbd5e1" : "#666"
+        Chart.defaults.borderColor = mode === "dark" ? "rgba(148,163,184,0.2)" : "rgba(0,0,0,0.1)"
+        Object.values(Chart.instances ?? {}).forEach((chart) => chart.update())
+
         document.documentElement.classList.toggle("dark", mode === "dark")
         document.documentElement.style.colorScheme = mode
         try {

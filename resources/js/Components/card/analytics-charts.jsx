@@ -1,4 +1,5 @@
 import { Bar, Doughnut, Line } from "react-chartjs-2"
+import { useThemeMode } from "@/context-provider/theme-mode-provider"
 import { Chart as ChartJS, ArcElement, BarElement, CategoryScale, LinearScale, LineElement, PointElement, Filler, Tooltip, Legend } from "chart.js"
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, LineElement, PointElement, Filler, Tooltip, Legend)
@@ -46,7 +47,10 @@ export const BarChart = ({ labels, values, colors, horizontal = false, height = 
 }
 
 // One series over time (e.g. per month), filled under the line.
-export const LineChart = ({ labels, values, color = "#1e3a8a", height = 260 }) => {
+export const LineChart = ({ labels, values, color: colorProp, height = 260 }) => {
+  // The navy default would vanish on a dark card: a lighter blue there.
+  const dark = useThemeMode().mode === "dark"
+  const color = colorProp ?? (dark ? "#60a5fa" : "#1e3a8a")
   if (!values.some((v) => v > 0)) return <NoData />
   return (
     <div style={{ height }} className="relative">

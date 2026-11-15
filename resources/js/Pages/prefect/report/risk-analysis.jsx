@@ -13,6 +13,7 @@ import { readableDate } from "@/others/function"
 import SelectedUser from "@/Components/other/selected-user"
 import { Avatar, Box, Button, Chip, Divider, List, ListItem, ListItemAvatar, ListItemButton, ListItemText, Paper, Skeleton, Typography } from "@mui/material"
 import { ChartCard, NoData, BarChart, DoughnutCard } from "@/Components/card/analytics-charts"
+import { useThemeMode } from "@/context-provider/theme-mode-provider"
 
 // Analytical Report: all of it from ReportController::buildAnalyticsData()
 // (via /prefect/analytics/preview), for all time or the filter's range.
@@ -21,6 +22,8 @@ import { ChartCard, NoData, BarChart, DoughnutCard } from "@/Components/card/ana
 const TREND_COLORS = [
   '#1a237e', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#06b6d4', '#6b7280',
 ]
+// Dark mode: the navy series would vanish on the dark card; a lighter blue.
+const trendColor = (i, dark) => (i % TREND_COLORS.length === 0 && dark ? '#60a5fa' : TREND_COLORS[i % TREND_COLORS.length])
 
 // The filter's selected student, as the student search returns one
 // ({ id, role, profile, program, enrollments }): rebuilt from the report's
@@ -121,6 +124,7 @@ const StudentAnalytics = ({ p }) => {
 const STATUS_COLORS = { pending: "#eab308", ongoing: "#f97316", resolved: "#22c55e", rejected: "#ef4444", revoked: "#6b7280" }
 
 const AnalyticalReport = (props) => {
+  const dark = useThemeMode().mode === "dark"
   // Edited in a modal (Filter button). The school years here are plain
   // "2025-2026" strings, so the year itself doubles as the modal's id.
   // The filter lives in the URL (?filter_by=&school_year=&semester= or
@@ -321,8 +325,8 @@ const AnalyticalReport = (props) => {
               dataset={(p.incidentTrendSeries ?? []).map((s, i) => ({
                 label: s.label,
                 data: s.data,
-                borderColor: TREND_COLORS[i % TREND_COLORS.length],
-                backgroundColor: TREND_COLORS[i % TREND_COLORS.length],
+                borderColor: trendColor(i, dark),
+                backgroundColor: trendColor(i, dark),
                 fill: false,
                 tension: 0.3,
               }))}
