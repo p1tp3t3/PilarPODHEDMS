@@ -28,6 +28,47 @@ class Absence extends Model
         return 'absent form';
     }
 
+    protected function canRenderDocumentPdf(): bool
+    {
+        return true;
+    }
+
+    /**
+     * The absent form as it stands now (not saved): the approval form once
+     * approved, otherwise a plain record with its status (pending, rejected
+     * with the reason, revoked). See pdf/absent-form-approval.
+     */
+    public function renderDocumentPdf(): ?\Barryvdh\DomPDF\PDF
+    {
+        $this->loadMissing(['user.profile', 'user.program', 'prefect.profile']);
+        $name = fn ($p) => trim("{$p?->first_name} {$p?->middle_name} {$p?->last_name}");
+        [$status, $label, $date] = match (true) {
+            (bool) $this->revoked_at => ['Revoked', 'Date Revoked', $this->revoked_at],
+            (bool) $this->rejected_at => ['Rejected', 'Date Rejected', $this->rejected_at],
+            (bool) $this->confirmed_at => ['Approved', 'Date Approved', $this->confirmed_at],
+            default => ['Pending', 'Date Submitted', $this->created_at],
+        };
+        $prefect = $this->prefect?->profile
+            ?? User::with('profile')->whereRole('sub_admin')->first()?->profile;
+        $reasons = json_decode($this->reason ?? '[]', true);
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.absent-form-approval', [
+            'form_number' => $this->form_number,
+            'sender_name' => $name($this->user?->profile),
+            'prefect_name' => $name($prefect),
+            'date_from' => $this->date_from,
+            'date_to' => $this->date_to,
+            'reason' => is_array($reasons) ? implode(', ', $reasons) : (string) $this->reason,
+            'date_approve' => $date,
+            'date_label' => $label,
+            'status' => $status,
+            'note' => $this->note,
+            'rejected_reason' => $this->rejected_reason,
+            'program' => $this->user?->program?->code,
+            'student_id' => $this->user?->id_number,
+        ]);
+    }
+
     protected $table = 'absent_form';
 
 

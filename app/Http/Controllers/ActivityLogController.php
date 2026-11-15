@@ -26,8 +26,10 @@ class ActivityLogController extends Controller
         // "All School Years" is that semester of every year).
         \App\Models\SchoolYearSemester::applyFilter($query, 'created_at', request('school-year'), request('semester'));
 
-        return Inertia::render('shared/my-activity', [
-            'logs' => ActionLogResource::collection($query->paginate(50)->withQueryString())->response()->getData(true),
+        return list_page('shared/my-activity', [
+            // The table: loaded by the page from /api/my-activity, every row
+            // (it paginates in the browser), as { data: [...] }.
+            'logs' => list_prop(fn () => ['data' => ActionLogResource::collection($query->get())]),
             'action_types' => ActionLog::where('user_id', auth()->id())->distinct()->orderBy('action_type')->pluck('action_type'),
             'action_type' => request('action_type', 'all'),
             'school_years' => \App\Models\SchoolYear::orderByDesc('year')->pluck('year'),

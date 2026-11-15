@@ -77,21 +77,23 @@ class MaintenanceController extends Controller
         // Prefect only (routes/auth.php).
         $props = ['section' => $section];
 
+        // The tables: loaded by the page from /api/violation-management/{section}
+        // once it opens (every row; they paginate in the browser).
         // The violation form's penalty dropdowns need the penalties too.
         if (in_array($section, ['violations', 'penalties'], true)) {
-            $props['penalty'] = PenaltyResource::collection(Penalty::latest('created_at')->get());
+            $props['penalty'] = list_prop(fn () => PenaltyResource::collection(Penalty::latest('created_at')->get()));
         }
 
         if ($section === 'violations') {
-            $props['violation'] = self::violationManagementList();
+            $props['violation'] = list_prop(fn () => self::violationManagementList());
             $props['program'] = ProgramResource::collection(Program::all(['id', 'code', 'color_code']));
         }
 
         if ($section === 'student-violations') {
-            $props['student_violation_list'] = self::getStudentViolationList();
+            $props['student_violation_list'] = list_prop(fn () => self::getStudentViolationList());
         }
 
-        return Inertia::render('prefect/violation-management', $props);
+        return list_page('prefect/violation-management', $props);
     }
 
     private function getStudentViolationList()
@@ -619,8 +621,9 @@ class MaintenanceController extends Controller
 
     public function programIndex()
     {
-        return Inertia::render('super-admin/program', [
-            'program' => ProgramDetailResource::collection(self::programsWithUserCount()),
+        return list_page('super-admin/program', [
+            // The table: loaded by the page from /api/super-admin/program.
+            'program' => list_prop(fn () => ProgramDetailResource::collection(self::programsWithUserCount())),
         ]);
     }
 
@@ -702,22 +705,20 @@ class MaintenanceController extends Controller
 
         $program = Program::with('programHead.user.profile')->findOrFail($id);
 
-        $faculty = User::with(['profile', 'faculty.program', 'headships.program'])
-            ->whereRole('faculty')
-            ->whereHas('faculty', fn ($q) => $q->where('program_id', $id))
-            ->latest('created_at')
-            ->get();
-
-        $students = User::with(['profile', 'program', 'enrollments'])
-            ->whereRole('student')
-            ->whereHas('enrollments', fn ($q) => $q->where('program_id', $id)->where('status', 'enrolled'))
-            ->latest('created_at')
-            ->get();
-
-        return Inertia::render('super-admin/program-users', [
+        return list_page('super-admin/program-users', [
             'program' => new ProgramDetailResource($program),
-            'faculty' => UserResource::collection($faculty),
-            'students' => UserResource::collection($students),
+            // The tables: loaded by the page from
+            // /api/super-admin/program/{id}/users once it opens.
+            'faculty' => list_prop(fn () => UserResource::collection(User::with(['profile', 'faculty.program', 'headships.program'])
+                ->whereRole('faculty')
+                ->whereHas('faculty', fn ($q) => $q->where('program_id', $id))
+                ->latest('created_at')
+                ->get())),
+            'students' => list_prop(fn () => UserResource::collection(User::with(['profile', 'program', 'enrollments'])
+                ->whereRole('student')
+                ->whereHas('enrollments', fn ($q) => $q->where('program_id', $id)->where('status', 'enrolled'))
+                ->latest('created_at')
+                ->get())),
         ]);
     }
 

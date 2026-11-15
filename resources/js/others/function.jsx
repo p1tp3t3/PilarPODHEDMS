@@ -128,6 +128,62 @@ export const closeLoadingModal = () => {
     if (Swal.isVisible() && Swal.isLoading()) Swal.close();
 };
 
+// The welcome after logging in: a toast at the top-right (no backdrop, the
+// page stays usable) that closes by itself after 3 seconds; hovering pauses
+// it, a click closes it. afterWelcome() runs a follow-up modal once it's
+// gone, since every modal shares the one SweetAlert2 instance.
+let welcomeClosed = null
+const greeting = () => {
+    const h = new Date().getHours()
+    return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"
+}
+export const showWelcomeModal = (user) => {
+    const p = user?.profile ?? {}
+    const name = toTitleCase(`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim()) || "there"
+    const role = user ? showUserType(user, true) : null
+
+    welcomeClosed = MySwal.fire({
+        toast: true,
+        position: "top-end",
+        html: (
+            <div className="flex items-center gap-3 text-left">
+                <img
+                    src={getProfilePic(p.profile_picture, p.sex)}
+                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = getProfilePic(null, p.sex) }}
+                    alt=""
+                    className="w-11 h-11 shrink-0 rounded-full object-cover bg-gray-200 ring-2 ring-blue-100 dark:ring-blue-900"
+                />
+                <div className="min-w-0">
+                    <p className="text-[0.75rem] text-gray-500 dark:text-gray-400 leading-tight">{greeting()}, welcome back</p>
+                    <p className="text-[0.95rem] font-semibold text-gray-900 dark:text-gray-100 leading-snug truncate">{name}</p>
+                    {role && <p className="text-[0.72rem] font-medium text-blue-700 dark:text-blue-300 leading-tight truncate">{role}</p>}
+                </div>
+            </div>
+        ),
+        width: "20rem",
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+        customClass: {
+            // Just under the blue header (it keeps its buttons visible).
+            container: "!pt-16",
+            popup: "!px-4 !py-3 !rounded-xl !shadow-lg cursor-pointer",
+            htmlContainer: "!m-0 !p-0",
+            timerProgressBar: "!bg-blue-600",
+        },
+        didOpen: (toast) => {
+            toast.addEventListener("mouseenter", Swal.stopTimer)
+            toast.addEventListener("mouseleave", Swal.resumeTimer)
+            toast.addEventListener("click", () => Swal.close())
+        },
+    }).then(() => { welcomeClosed = null })
+    return welcomeClosed
+}
+export const afterWelcome = (callBack) => {
+    if (welcomeClosed) welcomeClosed.then(callBack)
+    else callBack()
+}
+
 export const showOutputModal = (text = "Success", type = "s", callBack, htmlContent = null, timer = null) => {
     endBusy();
     const modalAtt = {

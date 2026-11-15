@@ -7,7 +7,7 @@ const AbsentFormList = (props) => {
     const { usr } = useContext(AuthContext)
 
     return (
-        <div className={props.style && "w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm"}>
+        <div className="w-full">
             <TableContainer sx={{ minWidth: "600px" }}>
             <Table sx={{ width: "100%" }}>
                 <TableHead sx={{ "& .MuiTableCell-root": { borderBottom: "1px solid #9ca3af" } }}>

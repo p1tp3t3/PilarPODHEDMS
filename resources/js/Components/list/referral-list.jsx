@@ -7,7 +7,6 @@ import AuthContext from "@/context-provider/auth-provider"
 
 import { getProfilePic, readableDate, readableTime, toTitleCase, formatSchoolYearSemester } from "../../others/function"
 import ProfilePic from "../other/profile-pic"
-import ListSkeleton from "../reload/list-skeleton"
 import ActionBtn from "../button/action-btn"
 import { StatusAvatar, statusLabel } from "@/Components/other/mobile-card-list"
 import { Send, ChevronDown, HeartHandshake, MonitorCog } from "lucide-react"
@@ -279,19 +278,8 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
         return cols
     }, [type, isApprovedView, urlStatus, usr?.role, events, viewReferral])
 
-    // Loading state (same logic as your table)
-    if (list === null) {
-        return (
-            <div className={style ? "w-full px-5 py-10 bg-white rounded-md shadow-black/20 shadow-sm" : ""}>
-                <div className="flex justify-center items-center w-full">
-                    <ListSkeleton rows={4} />
-                </div>
-            </div>
-        )
-    }
-
     return (
-        <div className={style && "w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm"}>
+        <div className="w-full">
             {usr?.role === "sub_admin" && (
                 <iframe src={""} frameBorder="0" className="hidden" id="print-doc"></iframe>
             )}
@@ -301,15 +289,13 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
                     width: "100%",
                     minWidth: 0,
                     overflow: "hidden",
-                    backgroundColor: "var(--dm-surface, #fff)",
-                    borderRadius: 2,
-                    boxShadow: style ? 0 : 2,
-                    p: style ? 0 : 2,
                 }}
             >
                 <DataGrid
                     rows={rows}
                     columns={columns}
+                    // Loading: the table's skeleton rows (same as every table).
+                    loading={list == null}
                     pageSizeOptions={[5, 10, 20]}
                     initialState={{
                         pagination: { paginationModel: { pageSize: 10, page: 0 } },

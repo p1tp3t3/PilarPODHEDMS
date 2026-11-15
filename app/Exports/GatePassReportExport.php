@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Exports\Concerns\FormalSheet;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithCustomStartCell;
@@ -9,10 +10,12 @@ use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Events\AfterSheet;
 
+/** Gate Pass Report spreadsheet (layout: FormalSheet). */
 class GatePassReportExport implements FromCollection, WithEvents, WithCustomStartCell, WithMapping, WithTitle, WithHeadings
 {
+    use FormalSheet;
+
     protected $records;
     protected $title;
     protected $individual;
@@ -24,27 +27,27 @@ class GatePassReportExport implements FromCollection, WithEvents, WithCustomStar
         $this->individual = $individual;
     }
 
-    public function collection()
+    public function collection(): \Illuminate\Support\Enumerable
     {
         return $this->records;
     }
 
     public function headings(): array
     {
-        $data = ['#'];
+        $data = ['No.'];
 
-        if (!$this->individual) {
-            $data = array_merge($data, ['Student ID', 'Name', 'Program']);
+        if (! $this->individual) {
+            $data = array_merge($data, ['Student ID', 'Name of Student', 'Program']);
         }
 
-        return array_merge($data, ['Reason', 'Allow To', 'Date Expiration', 'Confirmed At']);
+        return array_merge($data, ['Reason', 'Allowed To', 'Valid Until', 'Date Confirmed']);
     }
 
     public function map($record): array
     {
         $data = [$record['i'] ?? '—'];
 
-        if (!$this->individual) {
+        if (! $this->individual) {
             $data = array_merge($data, [
                 $record['student_id'] ?? '—',
                 $record['name'] ?? '—',
@@ -54,40 +57,24 @@ class GatePassReportExport implements FromCollection, WithEvents, WithCustomStar
 
         return array_merge($data, [
             $record['reason'] ?? '—',
-            $record['allow_to'] ?? '—',
+            $this->allowedTo($record['allow_to'] ?? null),
             $record['date_expiration'] ?? '—',
             $record['confirmed_at'] ?? '—',
         ]);
     }
 
-    public function startCell(): string
+    // "Go Out, With Companion" (stored as a JSON list like ["go-out"]).
+    private function allowedTo($value): string
     {
-        return 'A2';
+        $list = is_string($value) ? (json_decode($value, true) ?? [$value]) : (array) $value;
+
+        return collect($list)->filter()
+            ->map(fn ($v) => ['go-out' => 'Go Out', 'enter' => 'Enter'][$v] ?? ucwords(str_replace(['-', '_'], ' ', (string) $v)))
+            ->implode(', ') ?: '—';
     }
 
     public function title(): string
     {
-        return $this->title;
-    }
-
-    public function registerEvents(): array
-    {
-        return [
-            AfterSheet::class => function (AfterSheet $event) {
-                $sheet = $event->sheet->getDelegate();
-
-                $columnCount = $this->individual ? 4 : 7;
-                $lastColumn = chr(ord('A') + $columnCount - 1);
-
-                $sheet->mergeCells("A1:{$lastColumn}1");
-                $sheet->setCellValue('A1', $this->title);
-                $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
-                $sheet->getStyle('A1')->getAlignment()->setHorizontal('center');
-
-                foreach (range('A', $lastColumn) as $col) {
-                    $sheet->getColumnDimension($col)->setAutoSize(true);
-                }
-            },
-        ];
+        return mb_substr(preg_replace('/[\\\\\/?*\[\]:]+/', '-', $this->title), 0, 31);
     }
 }

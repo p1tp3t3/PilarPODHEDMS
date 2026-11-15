@@ -1,3 +1,4 @@
+import useListData from "@/others/hooks/use-list-data"
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import TabSwitcher from "@/Components/other/tab-switcher"
@@ -31,6 +32,8 @@ const userTabs = [
 const TEACHING_TYPES = ["program_head", "faculty", "teaching"]
 
 const PrefectUserList = (props) => {
+    // The active tab's table loads from /api/prefect/user-list once the page opens.
+    const { data: lists } = useListData()
     const params = new URLSearchParams(window.location.search)
     const tab = props.tab ?? "student"
 
@@ -184,7 +187,7 @@ const PrefectUserList = (props) => {
                         </MobileFilters>
                     </div>
                     <div className="w-full min-w-0">
-                        <StudentList list={props.students} />
+                        <StudentList list={lists?.students} />
                     </div>
                 </>}
 
@@ -232,7 +235,7 @@ const PrefectUserList = (props) => {
                         <PageActions />
                     </div>
                     <StaffList
-                        list={props.staff}
+                        list={lists?.staff}
                         canManagePosition={canManagePosition}
                     />
                 </>}
@@ -258,7 +261,7 @@ const PrefectUserList = (props) => {
                             {periodDropdowns("parent")}
                         </MobileFilters>
                     </div>
-                    <ParentList list={props.parents} />
+                    <ParentList list={lists?.parents} />
                 </>}
             </PageLayout>
         </>

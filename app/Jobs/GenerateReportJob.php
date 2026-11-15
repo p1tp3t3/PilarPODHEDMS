@@ -36,10 +36,19 @@ class GenerateReportJob implements ShouldQueue
     protected $filters;
     protected $userId;
 
-    public function __construct(array $filters, $userId)
+    /**
+     * Which on-screen item is waiting for this report (e.g. "filter-12" for
+     * a saved filter's Generate, "analytics" for the Analytical Report's
+     * Export): sent back with every status, so the page can show this
+     * report's progress on the right row. Not part of the filters.
+     */
+    protected ?string $trackId;
+
+    public function __construct(array $filters, $userId, ?string $trackId = null)
     {
         $this->filters = $filters;
         $this->userId = $userId;
+        $this->trackId = $trackId;
         $this->onQueue('reports');
     }
 
@@ -55,6 +64,8 @@ class GenerateReportJob implements ShouldQueue
             // never hash the same way twice and defeat duplicate detection.
             $hash = \App\Models\Report::hashFilters($type, $fileType, $this->filters);
 
+            $this->progress(10, 'Starting');
+
             $this->filters = \App\Models\Report::resolveSchoolYearDates($this->filters);
 
             // No dates (All School Years, or a date range left empty) means
@@ -64,9 +75,13 @@ class GenerateReportJob implements ShouldQueue
                 $this->filters['date_to'] = now()->endOfDay()->toDateTimeString();
             }
 
+            $this->progress(25, 'Collecting records');
+
             $result = $type === 'analytics'
                 ? $this->buildAnalyticsFile()
                 : $this->buildListReportFile($type);
+
+            $this->progress(90, 'Saving the report');
 
             $report = \App\Models\Report::create([
                 'user_id' => $this->userId,
@@ -82,14 +97,17 @@ class GenerateReportJob implements ShouldQueue
 
             $this->notify([
                 'status' => 'ready',
-                'download_url' => route('prefect.report.download', ['id' => $report->id]),
-                'view_url' => $isPdf ? route('prefect.report.view', ['id' => $report->id]) : null,
-                'file_name' => $fileName,
+                'percent' => 100,
+                'download_url' => route('prefect.report.download', ['id' => encrypt_id($report->id)], false),
+                'view_url' => $isPdf ? route('prefect.report.view', ['id' => encrypt_id($report->id)], false) : null,
+                'file_name' => $report->readableFileName(),
                 'report_id' => $report->id,
             ]);
         } catch (\App\Exceptions\EmptyReportException $e) {
+            // Not an error: nothing matched (shown as a notice, not a failure).
             $this->notify([
                 'status' => 'failed',
+                'reason' => 'empty',
                 'message' => $e->getMessage(),
             ]);
         } catch (\Throwable $e) {
@@ -113,10 +131,16 @@ class GenerateReportJob implements ShouldQueue
     private function notify(array $data): void
     {
         try {
-            broadcast(new ReportGenerated($this->userId, $data));
+            broadcast(new ReportGenerated($this->userId, $data + ['track_id' => $this->trackId]));
         } catch (\Throwable $e) {
             Log::error('Failed to broadcast report generation status: ' . $e->getMessage());
         }
+    }
+
+    /** A step of the generation (0-100), for the page's progress bar. */
+    private function progress(int $percent, string $stage): void
+    {
+        $this->notify(['status' => 'progress', 'percent' => $percent, 'stage' => $stage]);
     }
 
     private function outputDir(): string
@@ -167,10 +191,30 @@ class GenerateReportJob implements ShouldQueue
 
     private function buildAnalyticsFile(): array
     {
-        $from = $this->filters['date_from'];
-        $to = $this->filters['date_to'];
+        // No range (an individual report can be all time): from the first
+        // complaint up to now, as on the page.
+        // No range ("all time" arrives as 2000-01-01, see handle()): start at
+        // the first complaint, so the monthly charts don't span empty years.
+        $from = $this->filters['date_from'] ?? null;
+        $to = $this->filters['date_to'] ?? null;
+        $first = \App\Models\Complaint::min('created_at');
+        if (! $from || ! $to) {
+            $from = $first ?? now()->startOfYear();
+            $to = now();
+        } elseif ($first && \Carbon\Carbon::parse($from)->lt(\Carbon\Carbon::parse($first)->startOfMonth())) {
+            $from = \Carbon\Carbon::parse($first)->startOfMonth()->toDateTimeString();
+        }
 
-        $data = ReportController::buildAnalyticsData($from, $to, true);
+        // Charts are drawn in the PDF itself (no quickchart.io round-trip).
+        $data = ReportController::buildAnalyticsData(
+            $from, $to, false,
+            ReportController::analyticsStudentId($this->filters['student_id'] ?? null)
+        );
+
+        // Who generated it, for the "Prepared by" line.
+        $preparer = \App\Models\User::with('profile')->find($this->userId)?->profile;
+        $this->progress(60, 'Laying out the report');
+        $data['preparedBy'] = trim(preg_replace('/\s+/', ' ', ($preparer->first_name ?? '') . ' ' . ($preparer->middle_name ?? '') . ' ' . ($preparer->last_name ?? '')));
 
         $pdf = Pdf::loadView('pdf.reports.analytic-report', $data);
         $fileName = Str::uuid() . '-analytics-report.pdf';
@@ -194,10 +238,18 @@ class GenerateReportJob implements ShouldQueue
         };
 
         if (empty($rows)) {
+            // Say what was empty: "No incident records for Juan Dela Cruz in SY 2025-2026."
+            $parts = (new \App\Models\Report(['report_type' => $type, 'file_type' => 'pdf', 'filters' => $this->filters]))->readableParts();
+            $noun = strtolower(str_replace(' Report', '', $parts['type']));
+            $who = $parts['student']
+                ? trim(($parts['student']->profile->first_name ?? '') . ' ' . ($parts['student']->profile->last_name ?? ''))
+                : implode(', ', $parts['scope']);
             throw new \App\Exceptions\EmptyReportException(
-                'No records found for the selected filters. Nothing was generated.'
+                "No {$noun} records for {$who} in " . ($parts['period'] === 'All Time' ? 'any period' : $parts['period']) . '. Nothing was generated.'
             );
         }
+
+        $this->progress(60, 'Laying out the report');
 
         $collection = $individual ? ['data' => $rows, 'student' => $student] : $rows;
 
@@ -594,7 +646,7 @@ class GenerateReportJob implements ShouldQueue
         if ($fileType === 'excel') {
             $fileName = "{$uid}-{$type}-report.xlsx";
             Excel::store(
-                $this->makeExport($type, $collection, $reportName, $individual),
+                $this->withSheetMeta($this->makeExport($type, $collection, $reportName, $individual), $type),
                 "generated-reports/sub-admin/{$this->userId}/{$fileName}",
                 'local'
             );
@@ -649,6 +701,31 @@ class GenerateReportJob implements ShouldQueue
             'civil_status' => $profile->civil_status ?? '',
             'data' => $collection['data'],
         ];
+    }
+
+    /**
+     * The formal spreadsheet's heading (Exports\Concerns\FormalSheet): what
+     * the report is, its scope and period, who prepared it, and the student
+     * (with photo) for an individual report.
+     */
+    private function withSheetMeta($export, string $type)
+    {
+        $parts = (new \App\Models\Report(['report_type' => $type, 'file_type' => 'excel', 'filters' => $this->filters]))->readableParts();
+        $student = $parts['student'];
+
+        $export->sheetMeta = [
+            'title' => $parts['type'],
+            'scope' => $student ? 'Individual Student Report' : implode(' · ', $parts['scope']),
+            'period' => $parts['period'],
+            'student' => $student ? [
+                'name' => trim(preg_replace('/\s+/', ' ', ($student->profile->first_name ?? '') . ' ' . ($student->profile->middle_name ?? '') . ' ' . ($student->profile->last_name ?? ''))),
+                'id_number' => $student->id_number,
+                'program' => trim(($student->program->code ?? '—') . (($level = [1 => '1st Year', 2 => '2nd Year', 3 => '3rd Year', 4 => '4th Year'][(int) ($student->enrollments?->sortByDesc('id')->first()->year_level ?? 0)] ?? null) ? ", {$level}" : '')),
+                'photo_path' => ($pic = $student->profile->profile_picture ?? null) && is_file($path = storage_path('app/public/profile-pictures/' . basename($pic))) ? $path : null,
+            ] : null,
+        ];
+
+        return $export;
     }
 
     private function makeExport(string $type, $collection, string $reportName, bool $individual)

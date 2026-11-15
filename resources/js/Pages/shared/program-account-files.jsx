@@ -1,3 +1,4 @@
+import useListData from "@/others/hooks/use-list-data"
 import StudentList from "@/Components/list/student-list"
 import FacultyList from "@/Components/list/faculty-list"
 import AccountFilesTab from "@/Components/other/account-files-tab"
@@ -14,6 +15,8 @@ const tabs = [
 ]
 
 const ProgramAccountFiles = (props) => {
+    // The tables load from /api/program/account-files once the page opens.
+    const { data: lists } = useListData()
     const activeTab = new URLSearchParams(window.location.search).get("tab") || "students"
     // Switching tabs keeps the school year / semester filters.
     const goToTab = (tab) => {
@@ -31,8 +34,8 @@ const ProgramAccountFiles = (props) => {
             {/* Students: enrolled in that period. Faculty: registered in it. */}
             {activeTab !== "files" && <SchoolYearSemesterFilter schoolYears={props.school_years} />}
 
-            {activeTab === "students" && <StudentList list={props.students} type="program_head" />}
-            {activeTab === "faculty" && <FacultyList list={props.faculty} type="program_head" />}
+            {activeTab === "students" && <StudentList list={lists?.students} type="program_head" />}
+            {activeTab === "faculty" && <FacultyList list={lists?.faculty} type="program_head" />}
             {activeTab === "files" && <AccountFilesTab files={props.account_files} canDelete={false} showRoleFilter={false} />}
         </PageLayout>
         </>

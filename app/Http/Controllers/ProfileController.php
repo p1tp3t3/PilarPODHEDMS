@@ -113,10 +113,13 @@ class ProfileController extends Controller
         // payload for a viewer who shouldn't see it in the first place.
         $canViewIncidents = ViolationController::canViewStudent($account->id);
 
-        if ($account->role == 'student' && $canViewIncidents) {
+        // The tabs' lists below: loaded by the page from /api/profile/{username}
+        // once it opens (list_page()). Which tabs exist is decided here.
+        $props['can_view_incidents'] = $account->role == 'student' && $canViewIncidents;
+        if ($props['can_view_incidents']) {
             $props = array_merge($props, [
-                'incident_groups' => self::getStudentIncidentGroups($account->id),
-                'violation_occurrences' => (new ViolationController)->getStudentViolationOccurence($account->id),
+                'incident_groups' => list_prop(fn () => self::getStudentIncidentGroups($account->id)),
+                'violation_occurrences' => list_prop(fn () => (new ViolationController)->getStudentViolationOccurence($account->id)),
             ]);
         }
 
@@ -128,22 +131,22 @@ class ProfileController extends Controller
 
         // The System Admin doesn't file complaints, so their profile has no such tab.
         if ($canViewOwnComplaints && $account->role !== 'super_admin') {
-            $props['complaints_filed'] = (new ComplaintController)->getComplainantComplaint($account->id);
+            $props['complaints_filed'] = list_prop(fn () => (new ComplaintController)->getComplainantComplaint($account->id));
         }
 
         // Referrals, absent forms and gate passes follow the complaint rule:
         // the prefect or the person who filed them, never super_admin.
         // Program heads and faculty and the prefect (sub_admin) can both refer students.
         if ($canViewOwnComplaints && in_array($account->role, ['program_head', 'faculty', 'sub_admin'], true)) {
-            $props['referrals_filed'] = (new ReferralController)->getReferrerReferral($account->id);
+            $props['referrals_filed'] = list_prop(fn () => (new ReferralController)->getReferrerReferral($account->id));
         }
 
         if ($canViewOwnComplaints && $account->role === 'student') {
-            $props['absent_forms_filed'] = (new AbsentFormController)->getStudentAbsentForms($account->id);
-            $props['gatepass_requested'] = (new GatePassController)->getUserGatePassRequests($account->id);
+            $props['absent_forms_filed'] = list_prop(fn () => (new AbsentFormController)->getStudentAbsentForms($account->id));
+            $props['gatepass_requested'] = list_prop(fn () => (new GatePassController)->getUserGatePassRequests($account->id));
         }
 
-        return Inertia::render('shared/profile', $props);
+        return list_page('shared/profile', $props);
     }
 
     /**

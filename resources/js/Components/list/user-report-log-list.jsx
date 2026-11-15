@@ -3,7 +3,6 @@ import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
 import { getProfilePic, readableDate, readableTime, toTitleCase } from "@/others/function"
 import ProfilePic from "../other/profile-pic"
-import PaginationButton from "../button/pagination-btn"
 
 
 const UserReportLogList = ({ list = null, showUser = true }) => {
@@ -68,11 +67,14 @@ const UserReportLogList = ({ list = null, showUser = true }) => {
 
     return (
         <div className="w-full grid gap-3">
-            <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", backgroundColor: "var(--dm-surface, #fff)", borderRadius: 2, boxShadow: 1, p: 2 }}>
+            <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                 <DataGrid
                     rows={rows}
                     columns={columns}
-                    hideFooter
+                    loading={list == null}
+                    pagination
+                    pageSizeOptions={[20, 50, 100]}
+                    initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
                     disableRowSelectionOnClick
                     getRowHeight={() => "auto"}
                     showToolbar
@@ -81,10 +83,6 @@ const UserReportLogList = ({ list = null, showUser = true }) => {
                     sx={{ "& .MuiDataGrid-cell": { py: 1.25, minHeight: "52px !important" } }}
                 />
             </Box>
-            {(list.data.length != 0 && list.data.length >= 50) &&
-            <div className="justify-self-end">
-                <PaginationButton meta={list} />
-            </div>}
         </div>
     )
 }

@@ -1,4 +1,5 @@
 import { showLoadingModal } from "@/others/function";
+import useListData, { reloadListData } from "@/others/hooks/use-list-data"
 import ParentRequestList from "@/Components/list/parent-request-list"
 import RegisterFamilyModal from "@/Components/modal/submission-form/register-family-modal"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
@@ -15,7 +16,7 @@ const ParentApprovalRequest = (props) => {
     const [viewParent, openParent] = useState(false),
           [rejectReason, openRejectReason] = useState(false),
           [parent, setParent] = useState(null),
-          [parent_request_list, setParentRequestList] = useState(props.parent_requests),
+          [parent_request_list, setParentRequestList] = useState(null),
           [id, setId] = useState(''),
           [familyRegistration, openFamilyRegistration] = useState(false)
 
@@ -34,9 +35,12 @@ const ParentApprovalRequest = (props) => {
         setTab(key)
         router.get(window.location.pathname, key === 'all' ? {} : { status: key }, { preserveState: true, preserveScroll: true, only: ['parent_requests'] })
     }
-    // Follow the server's list after a tab change or reload.
-    useEffect(() => setParentRequestList(props.parent_requests), [props.parent_requests])
-    const shown = parent_request_list ?? []
+    // The table loads from /api/super-admin/parent-request-list once the page
+    // opens, and again after a tab change or a reload.
+    const { data: lists } = useListData()
+    useEffect(() => { if (lists) setParentRequestList(lists.parent_requests) }, [lists])
+    // null while it loads (the table shows its skeleton).
+    const shown = parent_request_list
 
     const setEvent = (t, i, info) => {
         if(t == 'v') {
@@ -103,7 +107,7 @@ const ParentApprovalRequest = (props) => {
                     id,
                     data.reason,
                     // Reload this tab's list (the response holds every request).
-                    () => router.reload({ only: ['parent_requests'] }),
+                    () => reloadListData(),
                     () => {
                         loadRegister(true, "success", "Parent Registration Request Rejected")
                         openRejectReason(false)

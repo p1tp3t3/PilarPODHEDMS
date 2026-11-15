@@ -1,4 +1,6 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import useListData from "@/others/hooks/use-list-data"
+import StatusPill from "@/Components/list/status-pill"
 import { Head } from "@inertiajs/react"
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
@@ -75,7 +77,10 @@ const RoleFormModal = ({ close, closeModal, onSaved, reload }) => {
 }
 
 const Roles = (props) => {
-    const [roles, setRoles] = useState(props.roles ?? [])
+    // The table loads from /api/super-admin/roles once the page opens.
+    const { data: lists } = useListData()
+    const [roles, setRoles] = useState(null)
+    useEffect(() => { if (lists) setRoles(lists.roles ?? []) }, [lists])
     const [formOpen, openForm] = useState(false)
     const { loadRegister } = useReload()
 
@@ -141,9 +146,7 @@ const Roles = (props) => {
             headerName: "Status",
             width: 120,
             renderCell: ({ row }) => (
-                <span className={`font-semibold text-[0.85em] ${row.is_active ? "text-green-600" : "text-gray-500"}`}>
-                    {row.is_active ? "Active" : "Inactive"}
-                </span>
+                <StatusPill status={row.is_active ? "active" : "inactive"} />
             ),
         },
         {
@@ -186,10 +189,11 @@ const Roles = (props) => {
                 title="Role Management"
                 rightSideComponent={<Btn onclick={() => openForm(true)} icon={<Plus size={20} />}>Add Role</Btn>}
             >
-                <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
-                    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", px: 2.5, py: 1.5 }}>
+                <div className="w-full min-w-0">
+                    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                         <DataGrid
-                            rows={roles}
+                            rows={roles ?? []}
+                            loading={roles == null}
                             getRowId={(row) => row.id}
                             columns={columns}
                             disableRowSelectionOnClick

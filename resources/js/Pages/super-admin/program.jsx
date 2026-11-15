@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import useListData from "@/others/hooks/use-list-data";
 import ManageProgram from "./maintenance/manage-program";
 import SetProgramModal from "@/Components/modal/submission-form/set-program-modal";
 import { useReload } from "@/context-provider/reload-provider";
@@ -9,10 +10,12 @@ import { Head } from "@inertiajs/react";
 import { Plus } from "lucide-react";
 
 const ITRCProgram = (props) => {
+    // The table loads from /api/super-admin/program once the page opens.
+    const { data: lists } = useListData();
     const [program, openProgram] = useState(false),
           [action, setAction] = useState("create"),
           [data, setData] = useState(null),
-          [program_list, setProgramList] = useState(props.program),
+          [program_list, setProgramList] = useState(null),
           [clickedOk, setClickOk] = useState(false);
 
     const { loadRegister, setReload, setOnClose } = useReload();
@@ -38,6 +41,8 @@ const ITRCProgram = (props) => {
     }
 
 
+    useEffect(() => { if (lists) setProgramList(lists.program) }, [lists]);
+
     return (
         <>
         <Head title="College Programs" />
@@ -61,7 +66,7 @@ const ITRCProgram = (props) => {
                 </Btn>
             }
         >
-            <ManageProgram list={program_list} original_list={props.program} events={[openActionModal]} setter={setProgramList} reload={loadRegister} />
+            <ManageProgram list={program_list} original_list={lists?.program} events={[openActionModal]} setter={setProgramList} reload={loadRegister} />
         </PageLayout>
         </>
     );

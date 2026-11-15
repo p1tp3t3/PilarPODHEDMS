@@ -2,9 +2,11 @@ import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
 import { getProfilePic, getYearLevel, readableDate, readableTime, toTitleCase, studentProgram, studentYearLevel } from "@/others/function"
 import ProfilePic from "../other/profile-pic"
+import StatusPill from "./status-pill"
 
 const ViolationReportList = ({ list = [] }) => {
-    const rows = list.map((e, i) => ({
+    // null while the list loads (the table shows its loading state).
+    const rows = (list ?? []).map((e, i) => ({
         id: e.id ?? i,
         index: i + 1,
         student_id: e.user.id_number,
@@ -23,7 +25,7 @@ const ViolationReportList = ({ list = [] }) => {
         },
         {
             field: "student_id",
-            headerName: "Student I.D",
+            headerName: "Student ID",
             width: 100,
             sortable: false,
         },
@@ -73,20 +75,7 @@ const ViolationReportList = ({ list = [] }) => {
             field: "status",
             headerName: "Status",
             flex: 0.9,
-            renderCell: (params) => {
-                const status = params.value
-
-                const statusClass =
-                    params.value === "Major"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-yellow-100 text-yellow-700"
-
-                return (
-                    <span className={`px-2 py-1 rounded-full text-[0.75em] font-semibold ${statusClass}`}>
-                        {status}
-                    </span>
-                )
-            },
+            renderCell: (params) => <StatusPill status={params.value} />,
         },
         {
             field: "issued_at",
@@ -94,7 +83,7 @@ const ViolationReportList = ({ list = [] }) => {
             flex: 1.1,
             renderCell: (params) =>
                 params.value ? (
-                    <div className="text-[0.8em]">
+                    <div>
                         {readableDate(params.value)} ({readableTime(params.value)})
                     </div>
                 ) : (
@@ -103,27 +92,16 @@ const ViolationReportList = ({ list = [] }) => {
         },
     ]
 
-    if (!list) {
-        return (
-            <div className="w-full px-5 py-10 bg-white rounded-md shadow-black/20 shadow-sm text-center">
-                Loading...
-            </div>
-        )
-    }
-
     return (
         <Box
             sx={{
                 width: "100%",
                 minWidth: 0,
                 overflow: "auto",
-                backgroundColor: "var(--dm-surface, #fff)",
-                borderRadius: 2,
-                boxShadow: 2,
-                p: 2,
             }}
         >
             <DataGrid
+                loading={list == null}
                 rows={rows}
                 columns={columns}
                 pageSizeOptions={[5, 10, 20]}
@@ -135,7 +113,6 @@ const ViolationReportList = ({ list = [] }) => {
                 pagination
                 disableRowSelectionOnClick
                 sx={{
-                    border: "none",
                     "& .MuiDataGrid-columnHeaders": {
                         backgroundColor: "var(--dm-surface-2, #f9fafb)",
                         fontWeight: "bold",

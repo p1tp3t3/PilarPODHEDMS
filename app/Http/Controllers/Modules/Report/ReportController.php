@@ -15,6 +15,7 @@ use App\Models\ComplaintSubject;
 use App\Models\ComplaintSubjectViolation;
 use App\Models\Enrollment;
 use App\Models\GatePass;
+use App\Models\Profile;
 use App\Models\Program;
 use App\Models\Report;
 use App\Models\ReportFilter;
@@ -110,6 +111,13 @@ class ReportController extends Controller
 
     public function index(string $section = 'incident')
     {
+        // The section's table (Report Generator: the saved filters): loaded
+        // by the page from /api/prefect/report/{section} once it opens, every
+        // row (it paginates in the browser). That request skips the rest.
+        if (is_list_data_request()) {
+            return list_json($this->reportSectionLists($section));
+        }
+
         $top5Students = ComplaintSubjectViolation::select(
             'student_id',
             DB::raw('COUNT(*) as total_offenses')
@@ -191,6 +199,9 @@ class ReportController extends Controller
 
         return Inertia::render('prefect/report', [
             'section' => $section,
+            // Analytical Report: its data comes with the page (filtered by
+            // the URL), not from an API call after it loads.
+            'analytics' => $section === 'analytics' ? fn () => self::analyticsFor(request()) : null,
             // Statistics tab of the report page being viewed (same filter as
             // its table).
             'report_stats' => $this->reportStats($section),
@@ -202,77 +213,105 @@ class ReportController extends Controller
             'resolved' => $resolved,
             'violation_count' => $violationCount,
             'top5_students' => ComplaintSubjectViolationResource::collection($top5Students),
-            'report' => $this->applyReportFilter(self::getAllReport(), 'created_at', 'complaint')
-                ->orderByDesc(
-                    Complaint::select('created_at')
-                        ->whereColumn('complaint.id', 'complaint_subject.complaint_id')
-                )
-                ->paginate(request('report_per_page', 20), ['*'], 'report_page')
-                ->through(fn ($row) => new ComplaintSubjectResource($row)),
-            'violation_report' => $this->applyReportFilter(self::getAllReport('violation'), 'offense_issued_at', 'complaint')
-                ->orderByDesc(
-                    Complaint::select('offense_issued_at')
-                        ->whereColumn('complaint.id', 'complaint_subject_violation.complaint_id')
-                )
-                ->paginate(20)
-                ->through(fn ($row) => new ComplaintSubjectViolationResource($row)),
             'violation_list' => ViolationResource::collection($violation),
             'incident_list' => ViolationResource::collection($incidentList),
             'programs' => ProgramResource::collection(Program::all(['id', 'code'])),
-            'students' => UserResource::collection(User::with(['profile', 'program'])->whereRole('student')->get()),
+            'students' => fn () => UserResource::collection(User::with(['profile', 'program'])->whereRole('student')->get()),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
             'school_years_full' => SchoolYearResource::collection(SchoolYear::orderByDesc('year')->get(['id', 'year'])),
             'violation_program' => $data,
-            'tardy_report' => AbsenceResource::collection($this->applyReportFilter(
+        ]);
+    }
+
+    /**
+     * A report page's table, every row (the page's API request; see index()).
+     * Report pages: their records, with the page's filter. Report Generator
+     * (saved-filters / generated): the prefect's saved report filters.
+     */
+    private function reportSectionLists(string $section): array
+    {
+        return match ($section) {
+            'incident' => ['report' => ['data' => ComplaintSubjectResource::collection(
+                $this->applyReportFilter(self::getAllReport(), 'created_at', 'complaint')
+                    ->orderByDesc(
+                        Complaint::select('created_at')
+                            ->whereColumn('complaint.id', 'complaint_subject.complaint_id')
+                    )
+                    ->get()
+            )]],
+            'violation' => ['violation_report' => ['data' => ComplaintSubjectViolationResource::collection(
+                $this->applyReportFilter(self::getAllReport('violation'), 'offense_issued_at', 'complaint')
+                    ->orderByDesc(
+                        Complaint::select('offense_issued_at')
+                            ->whereColumn('complaint.id', 'complaint_subject_violation.complaint_id')
+                    )
+                    ->get()
+            )]],
+            'tardy' => ['tardy_report' => AbsenceResource::collection($this->applyReportFilter(
                 Absence::with(['user.profile', 'user.program', 'user.enrollments'])
                     ->whereNotNull('confirmed_at')
                     ->whereJsonContains('reason', 'Excused Tardiness'),
                 'confirmed_at'
             )
                 ->latest('confirmed_at')
-                ->get()),
-            'appointment_report' => AppointmentResource::collection($this->applyReportFilter(
+                ->get())],
+            'appointment' => ['appointment_report' => AppointmentResource::collection($this->applyReportFilter(
                 Appointment::with(['user.profile', 'user.program', 'user.enrollments'])
                     ->where('appointment_status', 'accepted'),
                 'confirmed_at'
             )
                 ->latest('confirmed_at')
-                ->get()),
-            'gatepass_report' => GatePassResource::collection($this->applyReportFilter(
+                ->get())],
+            'gatepass' => ['gatepass_report' => GatePassResource::collection($this->applyReportFilter(
                 GatePass::with(['user.profile', 'user.program', 'user.enrollments'])
                     ->whereNotNull('confirmed_at'),
                 'confirmed_at'
             )
                 ->latest('confirmed_at')
-                ->get()),
-        ]);
+                ->get())],
+            'saved-filters', 'generated' => ['report_filters' => $this->reportFilterIndex()],
+            default => [],
+        };
     }
 
     /**
-     * Statistics for one report page's Statistics tab: a few totals
-     * ('cards') and grouped counts ('charts'), over exactly the records the
-     * page's table shows — same base query, same date/school-year filter.
-     * Null for pages that aren't a report type.
+     * The Statistics tab of each prefect report page (same records and
+     * filter as its table). Cards: ['label', 'value', 'hint'?, 'icon'].
+     * Charts: ['title', 'subtitle'?, 'type' (bar | hbar | line | doughnut),
+     * 'data' => [['label', 'value', 'color'?], ...], 'wide'?].
      */
     private function reportStats(string $section): ?array
     {
+        $MAJOR = '#ef4444';
+        $MINOR = '#f59e0b';
+        $pct = fn ($n, $total) => $total ? round($n / $total * 100, 1).'%' : '0%';
+        // Students with 2 or more records.
+        $repeat = fn ($ids) => collect($ids)->countBy()->filter(fn ($n) => $n >= 2)->count();
+        $avg = fn ($total, $people) => $people ? round($total / $people, 1) : 0;
+
         switch ($section) {
             case 'incident':
                 $rows = $this->applyReportFilter(
                     ComplaintSubject::whereHas('complaint', fn ($q) => $q->where('complaint_status', 'resolved')),
                     'created_at', 'complaint'
-                )->with('complaint:id,incident_id')->get(['complaint_id', 'student_id']);
+                )->with('complaint:id,incident_id,created_at')->get(['complaint_id', 'student_id']);
                 $types = Violation::pluck('violation_name', 'id');
+                $students = $rows->pluck('student_id');
 
                 return [
                     'cards' => [
-                        ['label' => 'Total Incidents', 'value' => $rows->count()],
-                        ['label' => 'Students Involved', 'value' => $rows->pluck('student_id')->unique()->count()],
-                        ['label' => 'Incident Types', 'value' => $rows->pluck('complaint.incident_id')->filter()->unique()->count()],
+                        ['label' => 'Total Incidents', 'value' => $rows->count(), 'icon' => 'alert'],
+                        ['label' => 'Students Involved', 'value' => $students->unique()->count(), 'icon' => 'users'],
+                        ['label' => 'Incident Types', 'value' => $rows->pluck('complaint.incident_id')->filter()->unique()->count(), 'icon' => 'list'],
+                        ['label' => 'Repeat Students', 'value' => $repeat($students), 'hint' => 'with 2 or more', 'icon' => 'repeat'],
+                        ['label' => 'Avg. per Student', 'value' => $avg($rows->count(), $students->unique()->count()), 'icon' => 'chart'],
                     ],
                     'charts' => [
-                        ['title' => 'Incidents by Type', 'data' => $this->countBy($rows->map(fn ($r) => $types[$r->complaint?->incident_id] ?? 'Other'), 8)],
-                        ['title' => 'Incidents by Program', 'data' => $this->countByProgram($rows->pluck('student_id'))],
+                        ['title' => 'Incidents per Month', 'type' => 'line', 'data' => $this->countByMonth($rows->pluck('complaint.created_at')), 'wide' => true],
+                        ['title' => 'Incidents by Type', 'subtitle' => 'Top 10', 'type' => 'hbar', 'data' => $this->countBy($rows->map(fn ($r) => ucwords(strtolower($types[$r->complaint?->incident_id] ?? 'Other'))), 10)],
+                        ['title' => 'Incidents by Program', 'type' => 'bar', 'data' => $this->countByProgram($students)],
+                        ['title' => 'Incidents by Year Level', 'type' => 'bar', 'data' => $this->countByYearLevel($students)],
+                        ['title' => 'Incidents by Sex', 'type' => 'doughnut', 'data' => $this->countBySex($students)],
                     ],
                 ];
 
@@ -281,18 +320,30 @@ class ReportController extends Controller
                     ComplaintSubjectViolation::whereNotNull('violation_id')
                         ->whereHas('complaint', fn ($q) => $q->where('complaint_status', 'resolved')),
                     'offense_issued_at', 'complaint'
-                )->with('violation:id,violation_name,offense_status')->get(['complaint_id', 'violation_id', 'student_id']);
+                )->with(['violation:id,violation_name,offense_status', 'complaint:id,offense_issued_at'])->get(['complaint_id', 'violation_id', 'student_id']);
+                $students = $rows->pluck('student_id');
+                $major = $rows->filter(fn ($r) => $r->violation?->offense_status)->count();
+                $top = $rows->groupBy(fn ($r) => $r->violation_id)
+                    ->map(fn ($g) => ['label' => ucwords(strtolower($g->first()->violation?->violation_name ?? 'Unknown')), 'value' => $g->count(), 'color' => $g->first()->violation?->offense_status ? $MAJOR : $MINOR])
+                    ->sortByDesc('value')->take(10)->values()->all();
 
                 return [
                     'cards' => [
-                        ['label' => 'Total Violations', 'value' => $rows->count()],
-                        ['label' => 'Major', 'value' => $rows->filter(fn ($r) => $r->violation?->offense_status)->count()],
-                        ['label' => 'Minor', 'value' => $rows->reject(fn ($r) => $r->violation?->offense_status)->count()],
-                        ['label' => 'Students Involved', 'value' => $rows->pluck('student_id')->unique()->count()],
+                        ['label' => 'Total Violations', 'value' => $rows->count(), 'icon' => 'shield'],
+                        ['label' => 'Major', 'value' => $major, 'hint' => $pct($major, $rows->count()), 'icon' => 'alert'],
+                        ['label' => 'Minor', 'value' => $rows->count() - $major, 'hint' => $pct($rows->count() - $major, $rows->count()), 'icon' => 'shield'],
+                        ['label' => 'Students Involved', 'value' => $students->unique()->count(), 'icon' => 'users'],
+                        ['label' => 'Repeat Offenders', 'value' => $repeat($students), 'hint' => 'with 2 or more', 'icon' => 'repeat'],
                     ],
                     'charts' => [
-                        ['title' => 'Top Violations', 'data' => $this->countBy($rows->map(fn ($r) => $r->violation?->violation_name ?? 'Unknown'), 8)],
-                        ['title' => 'Violations by Program', 'data' => $this->countByProgram($rows->pluck('student_id'))],
+                        ['title' => 'Violations per Month', 'type' => 'line', 'data' => $this->countByMonth($rows->pluck('complaint.offense_issued_at')), 'wide' => true],
+                        ['title' => 'Most Common Violations', 'subtitle' => 'Top 10 · red = major, amber = minor', 'type' => 'hbar', 'data' => $top],
+                        ['title' => 'Severity', 'type' => 'doughnut', 'data' => [
+                            ['label' => 'Major', 'value' => $major, 'color' => $MAJOR],
+                            ['label' => 'Minor', 'value' => $rows->count() - $major, 'color' => $MINOR],
+                        ]],
+                        ['title' => 'Violations by Program', 'type' => 'bar', 'data' => $this->countByProgram($students)],
+                        ['title' => 'Violations by Year Level', 'type' => 'bar', 'data' => $this->countByYearLevel($students)],
                     ],
                 ];
 
@@ -300,16 +351,24 @@ class ReportController extends Controller
                 $rows = $this->applyReportFilter(
                     Absence::whereNotNull('confirmed_at')->whereJsonContains('reason', 'Excused Tardiness'),
                     'confirmed_at'
-                )->get(['id', 'student_id', 'confirmed_at']);
+                )->get(['id', 'student_id', 'confirmed_at', 'date_from']);
+                $students = $rows->pluck('student_id');
+                $names = User::with('profile')->whereIn('id', $students->unique())->get()
+                    ->mapWithKeys(fn ($u) => [$u->id => trim(($u->profile->first_name ?? '').' '.($u->profile->last_name ?? '')) ?: ($u->id_number ?? 'Student')]);
 
                 return [
                     'cards' => [
-                        ['label' => 'Total Tardies', 'value' => $rows->count()],
-                        ['label' => 'Students', 'value' => $rows->pluck('student_id')->unique()->count()],
+                        ['label' => 'Total Tardies', 'value' => $rows->count(), 'icon' => 'clock'],
+                        ['label' => 'Students', 'value' => $students->unique()->count(), 'icon' => 'users'],
+                        ['label' => 'Repeat Late-comers', 'value' => $repeat($students), 'hint' => 'with 2 or more', 'icon' => 'repeat'],
+                        ['label' => 'Avg. per Student', 'value' => $avg($rows->count(), $students->unique()->count()), 'icon' => 'chart'],
                     ],
                     'charts' => [
-                        ['title' => 'Tardies by Program', 'data' => $this->countByProgram($rows->pluck('student_id'))],
-                        ['title' => 'Tardies by Month', 'data' => $this->countByMonth($rows->pluck('confirmed_at'))],
+                        ['title' => 'Tardies per Month', 'type' => 'line', 'data' => $this->countByMonth($rows->pluck('confirmed_at')), 'wide' => true],
+                        ['title' => 'Tardies by Day of the Week', 'subtitle' => 'Day of the tardiness', 'type' => 'bar', 'data' => $this->countByWeekday($rows->map(fn ($r) => $r->date_from ?? $r->confirmed_at))],
+                        ['title' => 'Most Frequent Late-comers', 'subtitle' => 'Top 10', 'type' => 'hbar', 'data' => $this->countBy($students->map(fn ($id) => $names[$id] ?? 'Student'), 10)],
+                        ['title' => 'Tardies by Program', 'type' => 'bar', 'data' => $this->countByProgram($students)],
+                        ['title' => 'Tardies by Year Level', 'type' => 'bar', 'data' => $this->countByYearLevel($students)],
                     ],
                 ];
 
@@ -317,18 +376,30 @@ class ReportController extends Controller
                 $rows = $this->applyReportFilter(
                     Appointment::where('appointment_status', 'accepted'),
                     'confirmed_at'
-                )->get(['id', 'user_id', 'attendance_status', 'confirmed_at']);
+                )->get(['id', 'user_id', 'attendance_status', 'confirmed_at', 'date_time_appoint']);
+                $present = $rows->where('attendance_status', 'present')->count();
+                $absent = $rows->where('attendance_status', 'absent')->count();
+                $marked = $present + $absent;
+                $roles = User::whereIn('id', $rows->pluck('user_id')->unique())->get()->mapWithKeys(fn ($u) => [$u->id => $u->role]);
 
                 return [
                     'cards' => [
-                        ['label' => 'Total Appointments', 'value' => $rows->count()],
-                        ['label' => 'Present', 'value' => $rows->where('attendance_status', 'present')->count()],
-                        ['label' => 'Absent', 'value' => $rows->where('attendance_status', 'absent')->count()],
-                        ['label' => 'Not Marked', 'value' => $rows->where('attendance_status', 'not_marked')->count()],
+                        ['label' => 'Total Appointments', 'value' => $rows->count(), 'icon' => 'calendar'],
+                        ['label' => 'Present', 'value' => $present, 'icon' => 'check'],
+                        ['label' => 'Absent', 'value' => $absent, 'icon' => 'x'],
+                        ['label' => 'Not Marked', 'value' => $rows->count() - $marked, 'icon' => 'clock'],
+                        ['label' => 'Attendance Rate', 'value' => $pct($present, $marked), 'hint' => 'of marked appointments', 'icon' => 'percent'],
                     ],
                     'charts' => [
-                        ['title' => 'Appointments by Program', 'data' => $this->countByProgram($rows->pluck('user_id'))],
-                        ['title' => 'Appointments by Month', 'data' => $this->countByMonth($rows->pluck('confirmed_at'))],
+                        ['title' => 'Appointments per Month', 'type' => 'line', 'data' => $this->countByMonth($rows->map(fn ($r) => $r->date_time_appoint ?? $r->confirmed_at)), 'wide' => true],
+                        ['title' => 'Attendance', 'type' => 'doughnut', 'data' => array_values(array_filter([
+                            ['label' => 'Present', 'value' => $present, 'color' => '#22c55e'],
+                            ['label' => 'Absent', 'value' => $absent, 'color' => '#ef4444'],
+                            ['label' => 'Not Marked', 'value' => $rows->count() - $marked, 'color' => '#9ca3af'],
+                        ], fn ($d) => $d['value'] > 0))],
+                        ['title' => 'Appointments by Day of the Week', 'type' => 'bar', 'data' => $this->countByWeekday($rows->map(fn ($r) => $r->date_time_appoint ?? $r->confirmed_at))],
+                        ['title' => 'Appointments by Program', 'subtitle' => 'Students', 'type' => 'bar', 'data' => $this->countByProgram($rows->pluck('user_id')->filter(fn ($id) => ($roles[$id] ?? null) === 'student'))],
+                        ['title' => 'With Whom', 'type' => 'doughnut', 'data' => $this->countBy($rows->map(fn ($r) => ucwords(str_replace('_', ' ', $roles[$r->user_id] ?? 'Other'))))],
                     ],
                 ];
 
@@ -336,20 +407,27 @@ class ReportController extends Controller
                 $rows = $this->applyReportFilter(
                     GatePass::whereNotNull('confirmed_at'),
                     'confirmed_at'
-                )->get(['id', 'user_id', 'allow_to', 'date_expiration', 'prefect_id']);
+                )->get(['id', 'user_id', 'allow_to', 'date_expiration', 'prefect_id', 'reason', 'confirmed_at']);
                 $allowed = $rows->flatMap(fn ($r) => (array) (is_string($r->allow_to) ? json_decode($r->allow_to, true) : $r->allow_to))
                     ->map(fn ($v) => $v === 'go-out' ? 'Go Out' : ($v === 'enter' ? 'Enter' : ucfirst((string) $v)));
+                $active = $rows->filter(fn ($r) => $r->date_expiration && now()->lt($r->date_expiration))->count();
+                $byPrefect = $rows->whereNotNull('prefect_id')->count();
+                $students = $rows->pluck('user_id');
 
                 return [
                     'cards' => [
-                        ['label' => 'Total Issued', 'value' => $rows->count()],
-                        ['label' => 'Active', 'value' => $rows->filter(fn ($r) => $r->date_expiration && now()->lt($r->date_expiration))->count()],
-                        ['label' => 'Expired', 'value' => $rows->filter(fn ($r) => $r->date_expiration && now()->gte($r->date_expiration))->count()],
-                        ['label' => 'Issued by Prefect', 'value' => $rows->whereNotNull('prefect_id')->count()],
+                        ['label' => 'Total Issued', 'value' => $rows->count(), 'icon' => 'door'],
+                        ['label' => 'Active', 'value' => $active, 'icon' => 'check'],
+                        ['label' => 'Expired', 'value' => $rows->count() - $active, 'icon' => 'clock'],
+                        ['label' => 'Issued by Prefect', 'value' => $byPrefect, 'hint' => $pct($byPrefect, $rows->count()), 'icon' => 'user'],
+                        ['label' => 'Requested by Students', 'value' => $rows->count() - $byPrefect, 'hint' => $pct($rows->count() - $byPrefect, $rows->count()), 'icon' => 'users'],
                     ],
                     'charts' => [
-                        ['title' => 'Gate Passes by Program', 'data' => $this->countByProgram($rows->pluck('user_id'))],
-                        ['title' => 'Allowed To', 'data' => $this->countBy($allowed)],
+                        ['title' => 'Gate Passes per Month', 'type' => 'line', 'data' => $this->countByMonth($rows->pluck('confirmed_at')), 'wide' => true],
+                        ['title' => 'Allowed To', 'type' => 'doughnut', 'data' => $this->countBy($allowed)],
+                        ['title' => 'Reasons', 'subtitle' => 'Top 10', 'type' => 'hbar', 'data' => $this->countBy($rows->map(fn ($r) => ucfirst(trim((string) $r->reason)) ?: 'Not given'), 10)],
+                        ['title' => 'Gate Passes by Program', 'type' => 'bar', 'data' => $this->countByProgram($students)],
+                        ['title' => 'Gate Passes by Year Level', 'type' => 'bar', 'data' => $this->countByYearLevel($students)],
                     ],
                 ];
         }
@@ -384,25 +462,78 @@ class ReportController extends Controller
         return $this->countBy($ids->map(fn ($id) => $programOf[$id] ?? 'Staff / Other'));
     }
 
-    // Counts per calendar month, oldest first ("Jan 2026").
+    // Counts per calendar month, oldest first ("Jan 2026"), the months in
+    // between included (zero), so a trend line has no gaps.
     private function countByMonth($dates): array
     {
-        return collect($dates)->filter()
-            ->map(fn ($d) => Carbon::parse($d)->startOfMonth())
-            ->sort()
-            ->map(fn ($d) => $d->format('M Y'))
-            ->countBy()
-            ->map(fn ($n, $label) => ['label' => $label, 'value' => $n])
+        $months = collect($dates)->filter()->map(fn ($d) => Carbon::parse($d)->startOfMonth());
+        if ($months->isEmpty()) {
+            return [];
+        }
+        $counts = $months->countBy(fn ($d) => $d->format('Y-m'));
+        $out = [];
+        for ($c = $months->min()->copy(); $c->lte($months->max()); $c->addMonth()) {
+            $out[] = ['label' => $c->format('M Y'), 'value' => (int) ($counts[$c->format('Y-m')] ?? 0)];
+        }
+
+        return $out;
+    }
+
+    // Counts per year level (latest enrollment), 1st to 4th Year.
+    private function countByYearLevel($userIds): array
+    {
+        $ids = collect($userIds)->filter();
+        if ($ids->isEmpty()) {
+            return [];
+        }
+        $levelOf = Enrollment::whereIn('id', Enrollment::whereIn('student_id', $ids->unique())->selectRaw('MAX(id)')->groupBy('student_id'))
+            ->pluck('year_level', 'student_id');
+        $counts = $ids->map(fn ($id) => (int) ($levelOf[$id] ?? 0))->countBy();
+
+        return collect([1 => '1st Year', 2 => '2nd Year', 3 => '3rd Year', 4 => '4th Year'])
+            ->map(fn ($label, $level) => ['label' => $label, 'value' => (int) ($counts[$level] ?? 0)])
+            ->values()->all();
+    }
+
+    // Counts by sex (profile), male / female (and "Not set").
+    private function countBySex($userIds): array
+    {
+        $ids = collect($userIds)->filter();
+        if ($ids->isEmpty()) {
+            return [];
+        }
+        $sexOf = Profile::whereIn('user_id', $ids->unique())->pluck('sex', 'user_id');
+        $counts = $ids->map(fn ($id) => $sexOf[$id] ?? 'u')->countBy();
+
+        return array_values(array_filter([
+            ['label' => 'Male', 'value' => (int) ($counts['m'] ?? 0), 'color' => '#3b82f6'],
+            ['label' => 'Female', 'value' => (int) ($counts['f'] ?? 0), 'color' => '#ec4899'],
+            ['label' => 'Not set', 'value' => (int) ($counts['u'] ?? 0), 'color' => '#9ca3af'],
+        ], fn ($d) => $d['value'] > 0));
+    }
+
+    // Counts per day of the week, Monday first.
+    private function countByWeekday($dates): array
+    {
+        $counts = collect($dates)->filter()->map(fn ($d) => Carbon::parse($d)->dayOfWeekIso)->countBy();
+        if ($counts->isEmpty()) {
+            return [];
+        }
+
+        return collect([1 => 'Mon', 2 => 'Tue', 3 => 'Wed', 4 => 'Thu', 5 => 'Fri', 6 => 'Sat', 7 => 'Sun'])
+            ->map(fn ($label, $d) => ['label' => $label, 'value' => (int) ($counts[$d] ?? 0)])
             ->values()->all();
     }
 
     public function itrcIndex(string $section = 'statistics')
     {
-        return Inertia::render('super-admin/report', [
+        return list_page('super-admin/report', [
             'section' => $section,
-            'students' => UserResource::collection(User::with(['profile', 'program', 'faculty.program', 'headships.program', 'parent'])->get()),
-            'action_log_list' => self::getAllActionLogs(),
-            'statistics' => self::buildAccountStatistics('date', null, null, null, null),
+            'students' => fn () => UserResource::collection(User::with(['profile', 'program', 'faculty.program', 'headships.program', 'parent'])->get()),
+            // The Action Log table: loaded by the page from
+            // /api/super-admin/report/action-log (every row, paginated in the browser).
+            'action_log_list' => list_prop(fn () => $section === 'action-log' ? self::getAllActionLogs() : null),
+            'statistics' => fn () => self::buildAccountStatistics('date', null, null, null, null),
             'school_years' => SchoolYearResource::collection(SchoolYear::orderByDesc('year')->get(['id', 'year'])),
         ]);
     }
@@ -519,7 +650,7 @@ class ReportController extends Controller
 
     public function generateAnalyticReport(Request $request)
     {
-        GenerateReportJob::dispatch(array_merge($request->all(), ['type' => 'analytics']), auth()->id());
+        GenerateReportJob::dispatch(array_merge($request->all(), ['type' => 'analytics']), auth()->id(), 'analytics');
 
         return response()->json(['message' => 'queued']);
     }
@@ -586,13 +717,20 @@ class ReportController extends Controller
     {
         $filter = ReportFilter::where('user_id', auth()->id())->findOrFail($id);
 
-        $filters = $request->all();
-        $type = $filters['type'] ?? $filter->report_type;
+        // Only the period can change: by date range or by school year (either
+        // one), and its dates or school year + semester. The report type,
+        // scope (individual / program), sub-type, file type and name stay as
+        // saved.
+        $saved = $filter->filters ?? [];
+        $bySchoolYear = $request->filled('school_year');
+        $period = $request->validate($bySchoolYear
+            ? ['school_year' => 'required|string|max:20', 'semester' => 'nullable|in:1,2']
+            : ['date_from' => 'nullable|date', 'date_to' => 'nullable|date|after_or_equal:date_from']);
 
         $filter->update([
-            'report_type' => $type,
-            'name' => $filters['report_name'] ?: (ucfirst($type).' Filter'),
-            'filters' => $filters,
+            'filters' => array_merge($saved, $bySchoolYear
+                ? ['school_year' => $period['school_year'], 'semester' => $period['semester'] ?? '', 'date_from' => '', 'date_to' => '']
+                : ['date_from' => $period['date_from'] ?? '', 'date_to' => $period['date_to'] ?? '', 'school_year' => '', 'semester' => '']),
         ]);
 
         return response()->json(['filter' => $filter]);
@@ -605,13 +743,21 @@ class ReportController extends Controller
         return response()->json(['message' => 'deleted']);
     }
 
-    public function generateFromFilter($id)
+    public function generateFromFilter(Request $request, $id)
     {
         $filter = ReportFilter::where('user_id', auth()->id())->findOrFail($id);
 
-        GenerateReportJob::dispatch($filter->filters, auth()->id());
+        // The file type is chosen per generation (the row's PDF / Excel
+        // buttons), not saved with the filter. The Analytical Report is a
+        // PDF only.
+        $fileType = $request->validate([
+            'file_type' => ['nullable', $filter->report_type === 'analytics' ? 'in:pdf' : 'in:pdf,excel'],
+        ])['file_type'] ?? 'pdf';
 
-        return response()->json(['message' => 'queued']);
+        // Its progress is shown on the saved filter's row (track id).
+        GenerateReportJob::dispatch(array_merge($filter->filters ?? [], ['file_type' => $fileType]), auth()->id(), "filter-{$filter->id}");
+
+        return response()->json(['message' => 'queued', 'track_id' => "filter-{$filter->id}"]);
     }
 
     public function reportHistory()
@@ -672,6 +818,11 @@ class ReportController extends Controller
         }
 
         if ($reportType === 'analytics') {
+            if ($studentId = self::analyticsStudentId($filters['student_id'] ?? null)) {
+                $student = User::with('profile')->find($studentId);
+                $parts[] = 'Student: '.trim(($student->profile->first_name ?? '').' '.($student->profile->last_name ?? ''));
+            }
+
             return $parts ? implode(' • ', $parts) : 'All Time';
         }
 
@@ -719,6 +870,18 @@ class ReportController extends Controller
      */
     public function analyticsPreview(Request $request)
     {
+        return response()->json(self::analyticsFor($request));
+    }
+
+    /**
+     * The Analytical Report's data for the request's filter (school_year /
+     * semester, or date_from / date_to; none = all time, from the first
+     * complaint up to now). Sent with the page itself (index(), section
+     * "analytics"), so loading or refreshing it is no API call. The top
+     * violators go through their Resource (only the fields the page shows).
+     */
+    public static function analyticsFor(Request $request): array
+    {
         $filters = Report::resolveSchoolYearDates([
             'school_year' => $request->input('school_year'),
             'semester' => $request->input('semester'),
@@ -726,9 +889,32 @@ class ReportController extends Controller
             'date_to' => $request->input('date_to'),
         ]);
 
-        return response()->json(
-            self::buildAnalyticsData($filters['date_from'] ?? null, $filters['date_to'] ?? null, false)
-        );
+        $from = $filters['date_from'] ?? null;
+        $to = $filters['date_to'] ?? null;
+        if (! $from || ! $to) {
+            $from = Complaint::min('created_at') ?? now()->startOfYear();
+            $to = now();
+        }
+
+        $data = self::buildAnalyticsData($from, $to, false, self::analyticsStudentId($request->input('student_id')));
+        unset($data['incidentTrend']); // raw rows; the page uses the labels/series
+        $data['top5Students'] = ComplaintSubjectViolationResource::collection($data['top5Students'])->resolve();
+
+        return $data;
+    }
+
+    /**
+     * The student an individual Analytical Report is about: only a student
+     * (the filter's student search lists students only). The id arrives
+     * already decrypted (DecryptEncryptedIds).
+     */
+    public static function analyticsStudentId($id): ?int
+    {
+        if (! is_numeric($id)) {
+            return null;
+        }
+
+        return User::whereKey((int) $id)->whereRole('student')->exists() ? (int) $id : null;
     }
 
     /**
@@ -808,11 +994,12 @@ class ReportController extends Controller
      * many distinct types exist system-wide. Same chronological, gap-filled
      * month-walking as the aggregate trend above, just one series per type.
      */
-    private static function incidentTrendSeries($from, $to, bool $excludePending = false, int $topN = 6): array
+    private static function incidentTrendSeries($from, $to, bool $excludePending = false, int $topN = 6, ?int $studentId = null): array
     {
         $rows = Complaint::selectRaw('YEAR(complaint.created_at) as year, MONTH(complaint.created_at) as month, violation.violation_name as type, COUNT(*) as total')
             ->join('violation', 'violation.id', '=', 'complaint.incident_id')
             ->whereBetween('complaint.created_at', [$from, $to])
+            ->when($studentId, fn ($q) => $q->whereHas('complaintSubject', fn ($s) => $s->where('student_id', $studentId)))
             ->when($excludePending, fn ($q) => $q->whereNot('complaint.complaint_status', 'pending'))
             ->groupBy('year', 'month', 'type')
             ->get();
@@ -860,20 +1047,183 @@ class ReportController extends Controller
     }
 
     /**
+     * The Analytical Report's breakdowns, all within the same range
+     * (complaint.created_at): violations by year level, severity, type and
+     * sex; incidents by status and weekday; resolution rate and time; and
+     * repeat offenders. A violation is a complaint_subject_violation row
+     * with a violation set; a student's year level is their latest
+     * enrollment's.
+     */
+    private static function analyticsBreakdowns($from, $to, int $incidentCount, int $resolved, ?int $studentId = null): array
+    {
+        // Individual report: that student's violations, and the complaints
+        // they're a subject of.
+        $violations = fn () => DB::table('complaint_subject_violation AS cso')
+            ->join('complaint AS c', 'c.id', '=', 'cso.complaint_id')
+            ->whereNotNull('cso.violation_id')
+            ->whereBetween('c.created_at', [$from, $to])
+            ->when($studentId, fn ($q) => $q->where('cso.student_id', $studentId));
+
+        $latestEnrollment = DB::table('enrollment')->selectRaw('student_id, MAX(id) AS id')->groupBy('student_id');
+        $byYearLevel = $violations()
+            ->joinSub($latestEnrollment, 'le', 'le.student_id', '=', 'cso.student_id')
+            ->join('enrollment AS e', 'e.id', '=', 'le.id')
+            ->selectRaw('e.year_level AS level, COUNT(*) AS total')
+            ->groupBy('e.year_level')
+            ->pluck('total', 'level');
+        $yearLabels = [1 => '1st Year', 2 => '2nd Year', 3 => '3rd Year', 4 => '4th Year'];
+
+        $bySeverity = $violations()
+            ->join('violation AS v', 'v.id', '=', 'cso.violation_id')
+            ->selectRaw('v.offense_status AS major, COUNT(*) AS total')
+            ->groupBy('v.offense_status')
+            ->pluck('total', 'major');
+
+        $topTypes = $violations()
+            ->join('violation AS v', 'v.id', '=', 'cso.violation_id')
+            ->selectRaw('v.violation_name AS name, v.offense_status AS major, COUNT(*) AS total')
+            ->groupBy('v.id', 'v.violation_name', 'v.offense_status')
+            ->orderByDesc('total')
+            ->limit(10)
+            ->get()
+            ->map(fn ($r) => ['name' => ucwords(strtolower($r->name)), 'major' => (bool) $r->major, 'total' => (int) $r->total]);
+
+        $bySex = $violations()
+            ->leftJoin('profiles AS pr', 'pr.user_id', '=', 'cso.student_id')
+            ->selectRaw("COALESCE(pr.sex, 'u') AS sex, COUNT(*) AS total")
+            ->groupBy('sex')
+            ->pluck('total', 'sex');
+
+        // Per student: how many violations, for repeat offenders.
+        $perStudent = $violations()
+            ->selectRaw('cso.student_id, COUNT(*) AS total')
+            ->groupBy('cso.student_id')
+            ->pluck('total');
+        $studentsWithViolations = $perStudent->count();
+        $repeatOffenders = $perStudent->filter(fn ($n) => $n >= 2)->count();
+
+        $complaints = fn () => Complaint::whereBetween('created_at', [$from, $to])
+            ->when($studentId, fn ($q) => $q->whereHas('complaintSubject', fn ($s) => $s->where('student_id', $studentId)));
+        $statusCounts = $complaints()->selectRaw('complaint_status AS status, COUNT(*) AS total')
+            ->groupBy('complaint_status')->pluck('total', 'status');
+        $statuses = ['pending', 'ongoing', 'resolved', 'rejected', 'revoked'];
+
+        // MySQL DAYOFWEEK: 1 = Sunday ... 7 = Saturday.
+        $byWeekday = $complaints()->selectRaw('DAYOFWEEK(created_at) AS d, COUNT(*) AS total')
+            ->groupBy('d')->pluck('total', 'd');
+        $weekdays = [2 => 'Mon', 3 => 'Tue', 4 => 'Wed', 5 => 'Thu', 6 => 'Fri', 7 => 'Sat', 1 => 'Sun'];
+
+        $avgDays = $complaints()->where('complaint_status', 'resolved')->whereNotNull('resolved_at')
+            ->selectRaw('AVG(TIMESTAMPDIFF(HOUR, created_at, resolved_at)) / 24 AS days')
+            ->value('days');
+
+        return [
+            'violationsByYearLevel' => collect($yearLabels)->map(fn ($label, $level) => ['label' => $label, 'total' => (int) ($byYearLevel[$level] ?? 0)])->values(),
+            'violationsBySeverity' => [
+                ['label' => 'Major', 'total' => (int) ($bySeverity[1] ?? 0)],
+                ['label' => 'Minor', 'total' => (int) ($bySeverity[0] ?? 0)],
+            ],
+            'topViolationTypes' => $topTypes,
+            'violationsBySex' => [
+                ['label' => 'Male', 'total' => (int) ($bySex['m'] ?? 0)],
+                ['label' => 'Female', 'total' => (int) ($bySex['f'] ?? 0)],
+            ] + (($bySex['u'] ?? 0) ? [2 => ['label' => 'Not set', 'total' => (int) $bySex['u']]] : []),
+            'complaintStatus' => collect($statuses)->map(fn ($st) => ['label' => ucfirst($st), 'status' => $st, 'total' => (int) ($statusCounts[$st] ?? 0)])->values(),
+            'incidentsByWeekday' => collect($weekdays)->map(fn ($label, $d) => ['label' => $label, 'total' => (int) ($byWeekday[$d] ?? 0)])->values(),
+            'resolutionRate' => $incidentCount ? round($resolved / $incidentCount * 100, 1) : 0,
+            'avgResolutionDays' => $avgDays !== null ? round((float) $avgDays, 1) : null,
+            'studentsWithViolations' => $studentsWithViolations,
+            'repeatOffenders' => $repeatOffenders,
+            'repeatRate' => $studentsWithViolations ? round($repeatOffenders / $studentsWithViolations * 100, 1) : 0,
+        ];
+    }
+
+    /**
+     * Individual Analytical Report: who the student is, and each of their
+     * violations in the range (newest first).
+     */
+    private static function analyticsStudent(int $studentId, $from, $to): array
+    {
+        $user = User::with(['profile', 'program', 'enrollments'])->find($studentId);
+        $p = $user?->profile;
+        $level = (int) ($user?->enrollments?->sortByDesc('id')->first()->year_level ?? 0);
+
+        $violations = DB::table('complaint_subject_violation AS cso')
+            ->join('complaint AS c', 'c.id', '=', 'cso.complaint_id')
+            ->join('violation AS v', 'v.id', '=', 'cso.violation_id')
+            ->where('cso.student_id', $studentId)
+            ->whereBetween('c.created_at', [$from, $to])
+            ->orderByDesc('c.offense_issued_at')
+            ->get(['v.violation_name', 'v.offense_status', 'c.case_number', 'c.complaint_number', 'c.offense_issued_at', 'c.created_at'])
+            ->map(fn ($r) => [
+                'name' => ucwords(strtolower($r->violation_name)),
+                'major' => (bool) $r->offense_status,
+                'case_number' => $r->case_number,
+                'complaint_number' => $r->complaint_number,
+                'issued_at' => $r->offense_issued_at ?? $r->created_at,
+            ])->values();
+
+        // Their violations per month (the range's months, gaps filled).
+        $perMonth = $violations->countBy(fn ($v) => Carbon::parse($v['issued_at'])->format('Y-n'));
+        $fromMonth = Carbon::parse($from)->startOfMonth();
+        $toMonth = Carbon::parse($to)->startOfMonth();
+        $multiYear = $fromMonth->year !== $toMonth->year;
+        $trendLabels = [];
+        $trendValues = [];
+        for ($c = $fromMonth->copy(); $c->lte($toMonth); $c->addMonth()) {
+            $trendLabels[] = $multiYear ? $c->format("M 'y") : $c->format('M');
+            $trendValues[] = (int) ($perMonth["{$c->year}-{$c->month}"] ?? 0);
+        }
+
+        $byType = $violations->groupBy('name')
+            ->map(fn ($g, $name) => ['name' => $name, 'major' => $g->first()['major'], 'total' => $g->count()])
+            ->sortByDesc('total')->values();
+
+        return [
+            'encrypted_id' => encrypt_id($studentId),
+            'total' => $violations->count(),
+            'major' => $violations->where('major', true)->count(),
+            'minor' => $violations->where('major', false)->count(),
+            // Complaints they filed themselves (as complainant).
+            'complaints_filed' => Complaint::where('complainant_id', $studentId)->whereBetween('created_at', [$from, $to])->count(),
+            // Violation types committed more than once.
+            'repeated_types' => $byType->filter(fn ($t) => $t['total'] >= 2)->count(),
+            'by_type' => $byType,
+            'trend_labels' => $trendLabels,
+            'trend_values' => $trendValues,
+            'name' => trim(preg_replace('/\s+/', ' ', ($p->first_name ?? '').' '.($p->middle_name ?? '').' '.($p->last_name ?? ''))),
+            'id_number' => $user?->id_number,
+            'program' => $user?->program?->code,
+            'year_level' => [1 => '1st Year', 2 => '2nd Year', 3 => '3rd Year', 4 => '4th Year'][$level] ?? null,
+            // For the filter's selected-student chip after a refresh.
+            'first_name' => $p?->first_name,
+            'last_name' => $p?->last_name,
+            'level' => $level ?: null,
+            'profile_picture' => $p?->profile_picture,
+            'sex' => $p?->sex,
+            'violations' => $violations,
+        ];
+    }
+
+    /**
      * Shared by the analytics PDF job and analyticsPreview(). $withChartImage
      * skips the quickchart.io round-trip for the on-screen preview, which
      * renders its own chart client-side.
      */
-    public static function buildAnalyticsData($from, $to, $withChartImage = true)
+    public static function buildAnalyticsData($from, $to, $withChartImage = true, ?int $studentId = null)
     {
+        // Individual report (one student): the complaints they're a subject
+        // of and their own violations; no program / Top 5 rankings.
+        $aboutStudent = fn ($q) => $q->when($studentId, fn ($qq) => $qq->whereHas('complaintSubject', fn ($s) => $s->where('student_id', $studentId)));
+
         // === Top 5 Students ===
         $top5Students = ComplaintSubjectViolation::select(
             'student_id',
             DB::raw('COUNT(*) as total_offenses')
         )
             ->with(['user.profile', 'user.program', 'user.enrollments'])
-            ->whereHas('complaint', function ($q) {
-                $q->where('complaint_status', 'resolved');
+            ->whereHas('complaint', function ($q) use ($from, $to) {
+                $q->where('complaint_status', 'resolved')->whereBetween('created_at', [$from, $to]);
             })
             ->where(function ($q) {
                 $q->whereNotNull('violation_id');
@@ -883,6 +1233,9 @@ class ReportController extends Controller
             ->take(5)
             ->get()
             ->each(fn ($s) => $s->user->encrypted_id = encrypt_id($s->user->id));
+        if ($studentId) {
+            $top5Students = collect();
+        }
 
         // === Violations Per Program ===
         $violationPerProgram = DB::query()
@@ -921,18 +1274,22 @@ class ReportController extends Controller
             ->groupBy('program')
             ->orderByDesc('total_violations')
             ->get();
+        if ($studentId) {
+            $violationPerProgram = collect();
+        }
 
         // === Summary Data ===
 
         $totalViolations = ComplaintSubjectViolation::with('complaint')
             ->whereHas('complaint', fn ($q) => $q->whereBetween('offense_issued_at', [$from, $to]))
+            ->when($studentId, fn ($q) => $q->where('student_id', $studentId))
             ->count();
 
-        $resolved = Complaint::where('complaint_status', 'resolved')
-            ->whereBetween('created_at', [$from, $to])
+        $resolved = $aboutStudent(Complaint::where('complaint_status', 'resolved')
+            ->whereBetween('created_at', [$from, $to]))
             ->count();
 
-        $incidentCount = Complaint::whereBetween('created_at', [$from, $to])->count();
+        $incidentCount = $aboutStudent(Complaint::whereBetween('created_at', [$from, $to]))->count();
 
         // === Incident Trend (Monthly) ===
         // Grouping by MONTH() alone (the old approach) merges same-numbered
@@ -942,8 +1299,8 @@ class ReportController extends Controller
         // in the range (filling in zero-count gaps) keeps the line
         // chronological and evenly spaced even where a month had no
         // incidents at all.
-        $incidentTrend = Complaint::selectRaw('YEAR(created_at) as year, MONTH(created_at) as month, COUNT(*) as total')
-            ->whereBetween('created_at', [$from, $to])
+        $incidentTrend = $aboutStudent(Complaint::selectRaw('YEAR(created_at) as year, MONTH(created_at) as month, COUNT(*) as total')
+            ->whereBetween('created_at', [$from, $to]))
             ->groupBy('year', 'month')
             ->get()
             ->keyBy(fn ($row) => "{$row->year}-{$row->month}");
@@ -959,7 +1316,7 @@ class ReportController extends Controller
             $values[] = (int) ($incidentTrend->get("{$cursor->year}-{$cursor->month}")->total ?? 0);
         }
 
-        $incidentTrendByType = self::incidentTrendSeries($from, $to);
+        $incidentTrendByType = self::incidentTrendSeries($from, $to, studentId: $studentId);
 
         $data = [
             'from' => $from,
@@ -973,7 +1330,8 @@ class ReportController extends Controller
             'totalViolations' => $totalViolations,
             'resolved' => $resolved,
             'incidentCount' => $incidentCount,
-        ];
+        ] + self::analyticsBreakdowns($from, $to, $incidentCount, $resolved, $studentId)
+          + ['student' => $studentId ? self::analyticsStudent($studentId, $from, $to) : null];
 
         if (! $withChartImage) {
             return $data;
@@ -1030,7 +1388,8 @@ class ReportController extends Controller
         // No deleteFileAfterSend — the report is kept on disk so it stays
         // downloadable/viewable from the Generated Reports history until
         // the prefect explicitly deletes it (destroyReport()).
-        return response()->download($path, $fileName, [
+        // Saved under a readable name (Report::readableFileName()).
+        return response()->download($path, $report->readableFileName(), [
             'Content-Type' => mime_content_type($path),
         ]);
     }
@@ -1050,8 +1409,14 @@ class ReportController extends Controller
             abort(404);
         }
 
+        // Inline, under its readable name (the tab title and "Save as").
+        $name = $report->readableFileName();
+
         return response()->file($path, [
             'Content-Type' => mime_content_type($path),
+            'Content-Disposition' => \Symfony\Component\HttpFoundation\HeaderUtils::makeDisposition(
+                'inline', $name, \Illuminate\Support\Str::ascii($name)
+            ),
         ]);
     }
 
@@ -1236,7 +1601,8 @@ class ReportController extends Controller
 
         $this->applyActionLogRange($query, $this->resolveActionLogRange(request()));
 
-        return ActionLogResource::collection($query->paginate(100)->withQueryString());
+        // Every row (the table paginates in the browser), as { data: [...] }.
+        return ['data' => ActionLogResource::collection($query->get())];
     }
 
     /**

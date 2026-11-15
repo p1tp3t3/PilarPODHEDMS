@@ -1,3 +1,4 @@
+import useListData from "@/others/hooks/use-list-data"
 import Btn from "@/Components/button/normal-btn"
 import SearchUserBar from "@/Components/input/search-user-bar"
 import FacultyList from "@/Components/list/faculty-list"
@@ -6,6 +7,8 @@ import { Head } from "@inertiajs/react"
 import { useState } from "react"
 
 const Faculty = (props) => {
+    // The table loads from its API endpoint once the page opens.
+    const { data: lists } = useListData()
 
     const fileName = props.file_name
 
@@ -49,7 +52,7 @@ const Faculty = (props) => {
                     </div>}
                 </div>
                 <div>
-                    <FacultyList list={props.faculty} />
+                    <FacultyList list={lists?.faculty} />
                 </div>
             </div>
         </div>

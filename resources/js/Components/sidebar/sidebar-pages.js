@@ -25,7 +25,6 @@ import {
     KeyRound,
     Clock,
     Filter,
-    FileText,
     ScrollText,
 } from "lucide-react"
 
@@ -99,19 +98,19 @@ export const sidebarPages = [
             { id: "violation-management/student-violations", href: "/violation-management/student-violations", icon: GraduationCap, label: "Student Violations" },
         ],
     },
-    { type: "link", id: "appointment", href: "/prefect/appointment", icon: Calendar, label: "Appointment", roles: ["sub_admin"] },
-    { type: "link", id: "gatepass", href: "/prefect/gatepass", icon: DoorOpen, label: "Gate-Pass", roles: ["sub_admin"] },
+    { type: "link", id: "prefect/appointment", href: "/prefect/appointment", icon: Calendar, label: "Appointment", roles: ["sub_admin"] },
+    { type: "link", id: "prefect/gatepass", href: "/prefect/gatepass", icon: DoorOpen, label: "Gate-Pass", roles: ["sub_admin"] },
     {
         type: "dropdown", id: "prefect/report", icon: BarChart3, label: "Reports", roles: ["sub_admin"],
         items: [
+            // Generated Reports is a tab of the Report Generator (also: its URL).
+            { id: "report/saved-filters", href: "/prefect/report/saved-filters", also: ["/prefect/report/generated"], icon: Filter, label: "Report Generator" },
             { id: "report/incident", href: "/prefect/report/incident", icon: FileWarning, label: "Incident Report" },
             { id: "report/violation", href: "/prefect/report/violation", icon: AlertTriangle, label: "Violation Report" },
             { id: "report/tardy", href: "/prefect/report/tardy", icon: Clock, label: "Tardy Report" },
             { id: "report/appointment", href: "/prefect/report/appointment", icon: Calendar, label: "Appointment Report" },
             { id: "report/gatepass", href: "/prefect/report/gatepass", icon: DoorOpen, label: "Gate Pass Report" },
             { id: "report/analytics", href: "/prefect/report/analytics", icon: LineChart, label: "Analytical Report" },
-            { id: "report/saved-filters", href: "/prefect/report/saved-filters", icon: Filter, label: "Saved Filters" },
-            { id: "report/generated", href: "/prefect/report/generated", icon: FileText, label: "Generated Reports" },
         ],
     },
 

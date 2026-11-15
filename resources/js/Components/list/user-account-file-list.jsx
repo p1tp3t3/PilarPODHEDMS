@@ -71,7 +71,7 @@ const UserAccountFileList = ({ list = null, deleteFile }) => {
     ];
 
     return (
-        <Box className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3" sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
+        <Box className="w-full" sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
             <AccountFilePreviewModal
                 close={previewFile !== null}
                 closeModal={() => setPreviewFile(null)}

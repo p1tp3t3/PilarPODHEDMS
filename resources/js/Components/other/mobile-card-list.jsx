@@ -1,10 +1,14 @@
-import { useMemo, useState, useEffect, isValidElement } from "react"
-import { Search, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react"
-import ProfilePic from "@/Components/other/profile-pic"
+import { Fragment, useMemo, useState, useEffect, isValidElement } from "react"
+import {
+    Avatar, Box, Collapse, Divider, InputAdornment, List, ListItem, ListItemAvatar,
+    ListItemButton, ListItemText, Pagination, Paper, Skeleton, TextField, Typography,
+} from "@mui/material"
+import { ExpandMoreRounded, SearchRounded } from "@mui/icons-material"
 import { getProfilePic } from "@/others/function"
 
-// Phone rendering of a DataGrid: the same `rows`/`columns` definitions, laid
-// out as one card per row instead of a horizontally-scrolling table. The
+// Phone rendering of a DataGrid, built from MUI (Paper + List, TextField
+// search, Pagination): the same `rows`/`columns` definitions, laid out as
+// one list item per row instead of a horizontally-scrolling table. The
 // first data column becomes the card's heading, the rest become labelled
 // lines, and any actions column becomes a button row at the bottom.
 //
@@ -16,21 +20,24 @@ import { getProfilePic } from "@/others/function"
 // `avatar: false` for none.
 
 // Collapsed-row avatar for records (complaints, referrals, forms...) rather
-// than people: the record's icon, tinted by its status.
+// than people: the record's icon, tinted by its status (an MUI Avatar).
 const STATUS_TONE = {
-    pending: "bg-amber-100 text-amber-700",
-    ongoing: "bg-blue-100 text-blue-700",
-    approved: "bg-green-100 text-green-700",
-    confirmed: "bg-green-100 text-green-700",
-    resolved: "bg-green-100 text-green-700",
-    rejected: "bg-red-100 text-red-700",
-    revoked: "bg-red-100 text-red-700",
+    pending: ["#fef3c7", "#b45309"],
+    ongoing: ["#dbeafe", "#1d4ed8"],
+    approved: ["#dcfce7", "#15803d"],
+    confirmed: ["#dcfce7", "#15803d"],
+    resolved: ["#dcfce7", "#15803d"],
+    rejected: ["#fee2e2", "#b91c1c"],
+    revoked: ["#fee2e2", "#b91c1c"],
 }
-export const StatusAvatar = ({ icon: Icon, status }) => (
-    <div className={`h-9 w-9 grid place-items-center rounded-full ${STATUS_TONE[String(status ?? "").toLowerCase()] ?? "bg-gray-100 text-gray-600"}`}>
-        <Icon size={18} />
-    </div>
-)
+export const StatusAvatar = ({ icon: Icon, status }) => {
+    const [bg, fg] = STATUS_TONE[String(status ?? "").toLowerCase()] ?? ["#f3f4f6", "#4b5563"]
+    return (
+        <Avatar sx={{ width: 36, height: 36, bgcolor: bg, color: fg }}>
+            <Icon size={18} />
+        </Avatar>
+    )
+}
 
 // "Pending", "Approved"... for the collapsed row's second line.
 export const statusLabel = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1).toLowerCase() : "")
@@ -124,150 +131,155 @@ const MobileCardList = ({
     const isEmpty = (node) => node === null || node === undefined || node === false || node === "" || (Array.isArray(node) && node.length === 0)
 
     const NoRows = slots?.noRowsOverlay
+
+    // Label / value lines of a row's details.
+    const details = (cols, row, id) => (
+        <Box component="dl" sx={{ display: "grid", gap: 1, m: 0 }}>
+            {cols.map((col) => {
+                const content = cell(col, row, id)
+                if (isEmpty(content)) return null
+                return (
+                    <Box key={col.field} sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+                        <Typography component="dt" variant="caption" color="text.secondary" sx={{ width: "6.5rem", flexShrink: 0, pt: 0.25 }}>
+                            {col.headerName || col.field}
+                        </Typography>
+                        <Typography component="dd" variant="body2" sx={{ flex: 1, minWidth: 0, m: 0, overflowWrap: "anywhere" }}>
+                            {content}
+                        </Typography>
+                    </Box>
+                )
+            })}
+        </Box>
+    )
+    const actionRow = (actions, stop = false) => actions.length > 0 && (
+        <Box
+            sx={{ pt: 1.5, mt: 1.5, borderTop: 1, borderColor: "divider", display: "flex", flexWrap: "wrap", gap: 1 }}
+            onClick={stop ? (e) => e.stopPropagation() : undefined}
+        >
+            {actions.map((a, k) => <Fragment key={k}>{a}</Fragment>)}
+        </Box>
+    )
+
     return (
-        <div className="w-full h-full min-w-0 flex flex-col gap-3 overflow-y-auto">
+        <Box sx={{ width: "100%", height: "100%", minWidth: 0, display: "flex", flexDirection: "column", gap: 1.5, overflowY: "auto" }}>
             {showToolbar && !isServer && (
-                <div className="relative">
-                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                        type="search"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search..."
-                        className="w-full rounded-full border border-gray-300 bg-white pl-9 pr-3 py-2 text-[0.85em] focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                </div>
+                <TextField
+                    size="small"
+                    type="search"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search..."
+                    fullWidth
+                    slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchRounded fontSize="small" /></InputAdornment> } }}
+                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 999, bgcolor: "background.paper" } }}
+                />
             )}
 
-            {loading ? (
-                <div className="grid gap-3">
-                    {[0, 1, 2].map((i) => (
-                        <div key={i} className="h-24 rounded-xl bg-gray-200/70 animate-pulse" />
-                    ))}
-                </div>
-            ) : shown.length === 0 ? (
-                NoRows ? <div className="py-6"><NoRows /></div> : (
-                    <div className="py-8 text-center text-[0.85em] text-gray-500">
-                        {localeText?.noRowsLabel ?? "No records found"}
-                    </div>
-                )
-            ) : (
-                <div className="grid gap-3">
-                    {shown.map((row, i) => {
-                        const id = idOf(row, i)
-                        const actions = actionColumns.map((c) => cell(c, row, id)).filter((n) => !isEmpty(n))
-                        if (mobileSummary) {
-                            const sum = mobileSummary(row)
-                            const open = openId === id
-                            const hidden = sum.hide ?? []
-                            return (
-                                <div key={id} className="rounded-xl border border-gray-200 bg-white shadow-sm text-[0.85em] overflow-hidden">
-                                    <div className="flex items-center">
-                                    {sum.select && (
-                                        <label className="shrink-0 pl-3 py-2.5 grid place-items-center">{sum.select}</label>
+            <Paper variant="outlined" sx={{ borderRadius: 2, overflow: "hidden" }}>
+                {loading ? (
+                    <List disablePadding>
+                        {[0, 1, 2].map((i) => (
+                            <Fragment key={i}>
+                                {i > 0 && <Divider component="li" />}
+                                <ListItem>
+                                    <ListItemAvatar><Skeleton variant="circular" width={36} height={36} /></ListItemAvatar>
+                                    <ListItemText primary={<Skeleton width="60%" />} secondary={<Skeleton width="40%" />} />
+                                </ListItem>
+                            </Fragment>
+                        ))}
+                    </List>
+                ) : shown.length === 0 ? (
+                    NoRows ? <Box sx={{ py: 3 }}><NoRows /></Box> : (
+                        <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
+                            {localeText?.noRowsLabel ?? "No records found"}
+                        </Typography>
+                    )
+                ) : (
+                    <List disablePadding>
+                        {shown.map((row, i) => {
+                            const id = idOf(row, i)
+                            const actions = actionColumns.map((c) => cell(c, row, id)).filter((n) => !isEmpty(n))
+
+                            if (mobileSummary) {
+                                const sum = mobileSummary(row)
+                                const open = openId === id
+                                const hidden = sum.hide ?? []
+                                return (
+                                    <Fragment key={id}>
+                                        {i > 0 && <Divider component="li" />}
+                                        <ListItem disablePadding sx={{ display: "block" }}>
+                                            <Box sx={{ display: "flex", alignItems: "center" }}>
+                                                {sum.select && (
+                                                    <Box component="label" sx={{ pl: 1.5, display: "grid", placeItems: "center" }}>{sum.select}</Box>
+                                                )}
+                                                <ListItemButton onClick={() => setOpenId(open ? null : id)} selected={open} sx={{ py: 1.25 }}>
+                                                    {sum.avatar !== false && (
+                                                        <ListItemAvatar sx={{ minWidth: 48 }}>
+                                                            {sum.avatar ?? <Avatar src={getProfilePic(sum.picture, sum.sex)} sx={{ width: 36, height: 36 }} />}
+                                                        </ListItemAvatar>
+                                                    )}
+                                                    <ListItemText
+                                                        primary={sum.name || "—"}
+                                                        secondary={sum.role}
+                                                        slotProps={{
+                                                            primary: { noWrap: true, fontWeight: 600, fontSize: "0.9rem" },
+                                                            secondary: { noWrap: true, fontSize: "0.75rem" },
+                                                        }}
+                                                    />
+                                                    <ExpandMoreRounded sx={{ color: "text.secondary", transition: "transform .2s", transform: open ? "rotate(180deg)" : "none" }} />
+                                                </ListItemButton>
+                                            </Box>
+                                            <Collapse in={open} timeout="auto" unmountOnExit>
+                                                <Box sx={{ px: 2, pt: 1.5, pb: 2, borderTop: 1, borderColor: "divider" }}>
+                                                    {details(dataColumns.filter((c) => !hidden.includes(c.field)), row, id)}
+                                                    {actionRow(actions)}
+                                                </Box>
+                                            </Collapse>
+                                        </ListItem>
+                                    </Fragment>
+                                )
+                            }
+
+                            const title = titleColumn ? cell(titleColumn, row, id) : null
+                            const body = (
+                                <Box sx={{ width: "100%", minWidth: 0 }}>
+                                    {!isEmpty(title) && (
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: detailColumns.length ? 1 : 0, overflowWrap: "anywhere" }}>
+                                            {title}
+                                        </Typography>
                                     )}
-                                    <button
-                                        type="button"
-                                        onClick={() => setOpenId(open ? null : id)}
-                                        className="flex-1 min-w-0 flex items-center gap-3 px-3 py-2.5 text-left active:bg-gray-50"
-                                    >
-                                        {sum.avatar !== false && (
-                                            <div className="shrink-0">
-                                                {sum.avatar ?? <ProfilePic size={2.25} src={getProfilePic(sum.picture, sum.sex)} />}
-                                            </div>
-                                        )}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="font-semibold text-gray-900 truncate">{sum.name || "—"}</div>
-                                            {sum.role && <div className="text-[0.85em] text-gray-500 truncate">{sum.role}</div>}
-                                        </div>
-                                        <ChevronDown size={18} className={`shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
-                                    </button>
-                                    </div>
-                                    {open && (
-                                        <div className="px-4 pb-4 pt-3 border-t border-gray-100 grid gap-3">
-                                            <dl className="grid gap-2">
-                                                {dataColumns.filter((c) => !hidden.includes(c.field)).map((col) => {
-                                                    const content = cell(col, row, id)
-                                                    if (isEmpty(content)) return null
-                                                    return (
-                                                        <div key={col.field} className="flex gap-3 items-start">
-                                                            <dt className="w-[6.5rem] shrink-0 text-[0.85em] text-gray-500 pt-0.5">
-                                                                {col.headerName || col.field}
-                                                            </dt>
-                                                            <dd className="flex-1 min-w-0 break-words text-gray-800">{content}</dd>
-                                                        </div>
-                                                    )
-                                                })}
-                                            </dl>
-                                            {actions.length > 0 && (
-                                                <div className="pt-3 border-t border-gray-100 flex flex-wrap gap-2">
-                                                    {actions.map((a, k) => <div key={k} className="contents">{a}</div>)}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
+                                    {detailColumns.length > 0 && details(detailColumns, row, id)}
+                                    {actionRow(actions, !!onRowClick)}
+                                </Box>
                             )
-                        }
-                        const title = titleColumn ? cell(titleColumn, row, id) : null
-                        return (
-                            <div
-                                key={id}
-                                onClick={onRowClick ? () => onRowClick({ row, id }) : undefined}
-                                className={`rounded-xl border border-gray-200 bg-white shadow-sm p-4 grid gap-3 text-[0.85em] ${onRowClick ? "cursor-pointer active:bg-gray-50" : ""}`}
-                            >
-                                {!isEmpty(title) && (
-                                    <div className="font-semibold text-gray-900 min-w-0 break-words">{title}</div>
-                                )}
-                                {detailColumns.length > 0 && (
-                                    <dl className="grid gap-2">
-                                        {detailColumns.map((col) => {
-                                            const content = cell(col, row, id)
-                                            if (isEmpty(content)) return null
-                                            return (
-                                                <div key={col.field} className="flex gap-3 items-start">
-                                                    <dt className="w-[6.5rem] shrink-0 text-[0.85em] text-gray-500 pt-0.5">
-                                                        {col.headerName || col.field}
-                                                    </dt>
-                                                    <dd className="flex-1 min-w-0 break-words text-gray-800">{content}</dd>
-                                                </div>
-                                            )
-                                        })}
-                                    </dl>
-                                )}
-                                {actions.length > 0 && (
-                                    <div className="pt-3 border-t border-gray-100 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
-                                        {actions.map((a, k) => <div key={k} className="contents">{a}</div>)}
-                                    </div>
-                                )}
-                            </div>
-                        )
-                    })}
-                </div>
-            )}
+                            return (
+                                <Fragment key={id}>
+                                    {i > 0 && <Divider component="li" />}
+                                    {onRowClick ? (
+                                        <ListItemButton onClick={() => onRowClick({ row, id })} sx={{ py: 1.5, alignItems: "flex-start" }}>{body}</ListItemButton>
+                                    ) : (
+                                        <ListItem sx={{ py: 1.5 }}>{body}</ListItem>
+                                    )}
+                                </Fragment>
+                            )
+                        })}
+                    </List>
+                )}
+            </Paper>
 
             {usePaging && pageCount > 1 && (
-                <div className="flex items-center justify-between gap-2 text-[0.85em] pb-1">
-                    <button
-                        type="button"
-                        onClick={() => goTo(currentPage - 1)}
-                        disabled={currentPage === 0}
-                        className="flex items-center gap-1 px-3 py-2 rounded-full border border-gray-300 bg-white disabled:opacity-40"
-                    >
-                        <ChevronLeft size={15} /> Prev
-                    </button>
-                    <span className="text-gray-600">Page {currentPage + 1} of {pageCount}</span>
-                    <button
-                        type="button"
-                        onClick={() => goTo(currentPage + 1)}
-                        disabled={currentPage >= pageCount - 1}
-                        className="flex items-center gap-1 px-3 py-2 rounded-full border border-gray-300 bg-white disabled:opacity-40"
-                    >
-                        Next <ChevronRight size={15} />
-                    </button>
-                </div>
+                <Box sx={{ display: "flex", justifyContent: "center", pb: 0.5 }}>
+                    <Pagination
+                        size="small"
+                        color="primary"
+                        count={pageCount}
+                        page={currentPage + 1}
+                        onChange={(_, p) => goTo(p - 1)}
+                        siblingCount={0}
+                    />
+                </Box>
             )}
-        </div>
+        </Box>
     )
 }
 

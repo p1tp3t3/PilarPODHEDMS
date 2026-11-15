@@ -3,7 +3,6 @@ import StatusPill from "@/Components/list/status-pill";
 import ProfilePic from "../other/profile-pic";
 import { getProfilePic, readableDate, readableTime, showUserType, toTitleCase, formatSchoolYearSemester } from "../../others/function";
 import { useMemo, useState } from "react";
-import ListSkeleton from "../reload/list-skeleton";
 import ActionBtn from "../button/action-btn";
 import { DataGrid, GridActionsCellItem, GridToolbarContainer } from "@/Components/other/data-grid";
 import { Box, Button } from "@mui/material";
@@ -267,11 +266,13 @@ const ComplaintList = ({
 
   return (
     <>
-      {list?.data ? (
+      {/* Loading: the table's skeleton rows (same as every table). */}
+      {(
         <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
           <DataGrid
-            rows={rows}
+            rows={rows ?? []}
             columns={columns}
+            loading={!list?.data}
             pagination
             disableSelectionOnClick
             hideFooterSelectedRowCount
@@ -299,13 +300,6 @@ const ComplaintList = ({
             }) })}
           />
         </Box>
-
-      ) : (
-        <div className="flex justify-center items-center w-full">
-          <div className="text-center py-10 text-[0.9em]">
-            <ListSkeleton rows={5} />
-          </div>
-        </div>
       )}
     </>
   );

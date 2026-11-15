@@ -25,7 +25,7 @@ const ManageProgram = ({ list, original_list, events, reload, setter }) => {
       return;
     }
 
-    const filtered = list.filter(item => {
+    const filtered = (list ?? []).filter(item => {
       const acronym = (item.code ?? "").toLowerCase();
       const name = (item.name ?? "").toLowerCase();
 
@@ -199,10 +199,11 @@ const ManageProgram = ({ list, original_list, events, reload, setter }) => {
       <div className="min-w-0 flex-1"><TabSwitcher value={view} onChange={setView} tabs={[{ key: "active", label: "Active" }, { key: "archived", label: "Archived" }]} /></div>
       <PageActions />
     </div>
-    <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
-      <div className="w-full px-5 py-3 min-w-0 overflow-hidden">
+    <div className="w-full min-w-0">
+      <div className="w-full min-w-0 overflow-hidden">
         <DataGrid
           rows={rows}
+          loading={list == null}
           getRowId={(row) => row.id}
           columns={columns}
           pagination

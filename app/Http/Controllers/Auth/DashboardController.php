@@ -73,19 +73,23 @@ class DashboardController extends Controller
      * dashboard's active-user widgets whenever the online-presence channel changes,
      * so the list updates in real time without a full page refresh.
      */
+    // Active Users panel: each row's subtitle (program and year level,
+    // the program taught, the staff position) needs these.
+    private const ACTIVE_USER_RELATIONS = ['profile', 'program', 'enrollments.program', 'faculty.program', 'headships.program', 'nonTeachingStaff', 'parent'];
+
     public function getActiveUsers()
     {
         switch (auth()->user()->role) {
             case 'super_admin':
                 return response()->json([
-                    'active' => UserResource::collection(User::with('profile')
+                    'active' => UserResource::collection(User::with(self::ACTIVE_USER_RELATIONS)
                         ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
                         ->whereNot('id', auth()->id())
                         ->get()),
                 ]);
             case 'sub_admin':
                 return response()->json([
-                    'active' => UserResource::collection(User::with('profile')
+                    'active' => UserResource::collection(User::with(self::ACTIVE_USER_RELATIONS)
                         ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
                         ->whereNot('id', auth()->id())
                         ->get()),
@@ -125,7 +129,7 @@ class DashboardController extends Controller
             'students_week_end' => now()->endOfWeek()->toDateString(),
             'appointment_today' => $appointment->getAppointmentToday(),
             'incident_risk_list' => [],
-            'active' => UserResource::collection(User::with('profile')
+            'active' => UserResource::collection(User::with(self::ACTIVE_USER_RELATIONS)
                 ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
                 ->whereNot('id', auth()->id())
                 ->get()),
@@ -184,7 +188,7 @@ class DashboardController extends Controller
             'user_graph' => self::getUserGraph(),
             'graph_school_years' => SchoolYearResource::collection(\App\Models\SchoolYear::orderByDesc('year')->get(['id', 'year'])),
             'current_school_year_id' => SchoolYearSemester::current()?->school_year_id,
-            'active' => UserResource::collection(User::with('profile')
+            'active' => UserResource::collection(User::with(self::ACTIVE_USER_RELATIONS)
                 ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
                 ->whereNot('id', auth()->id())
                 ->get()),
@@ -280,7 +284,6 @@ class DashboardController extends Controller
     private static function myRequests(bool $studentForms = false): array
     {
         $id = auth()->id();
-        $reasons = fn ($r) => is_array($list = json_decode((string) $r, true)) ? implode(', ', $list) : (string) $r;
         $column = fn (string $key, $query, $any, callable $shape) => [
             'key' => $key,
             'any' => (bool) $any,
@@ -289,12 +292,11 @@ class DashboardController extends Controller
 
         $columns = [
             $column('complaint',
-                Complaint::with('violation:id,violation_name')->where('complainant_id', $id)
+                Complaint::where('complainant_id', $id)
                     ->whereIn('complaint_status', ['pending', 'ongoing'])->whereNull('archived_at'),
                 Complaint::where('complainant_id', $id)->exists(),
                 fn ($c) => [
                     'number' => ($c->case_number ? 'Case #' : 'Complaint #').($c->case_number ?? $c->complaint_number),
-                    'detail' => $c->violation?->violation_name,
                     'status' => $c->complaint_status,
                     'created_at' => $c->created_at,
                 ]),
@@ -307,18 +309,18 @@ class DashboardController extends Controller
             $columns[] = $column('referral',
                 $pending(Referral::where('referrer_id', $id)),
                 Referral::where('referrer_id', $id)->exists(),
-                fn ($r) => ['number' => 'Referral #'.$r->referral_number, 'detail' => \Illuminate\Support\Str::limit((string) $r->reason_description, 80), 'status' => 'pending', 'created_at' => $r->created_at]);
+                fn ($r) => ['number' => 'Referral #'.$r->referral_number, 'status' => 'pending', 'created_at' => $r->created_at]);
         }
 
         if ($studentForms) {
             $columns[] = $column('absent_form',
                 $pending(Absence::where('student_id', $id)),
                 Absence::where('student_id', $id)->exists(),
-                fn ($a) => ['number' => 'Absent Form #'.$a->form_number, 'detail' => $reasons($a->reason), 'status' => 'pending', 'created_at' => $a->created_at]);
+                fn ($a) => ['number' => 'Absent Form #'.$a->form_number, 'status' => 'pending', 'created_at' => $a->created_at]);
             $columns[] = $column('gatepass',
                 $pending(GatePass::where('user_id', $id)),
                 GatePass::where('user_id', $id)->exists(),
-                fn ($g) => ['number' => 'Gate Pass #'.$g->gatepass_number, 'detail' => (string) $g->reason, 'status' => 'pending', 'created_at' => $g->created_at]);
+                fn ($g) => ['number' => 'Gate Pass #'.$g->gatepass_number, 'status' => 'pending', 'created_at' => $g->created_at]);
         }
 
         return $columns;
@@ -326,53 +328,41 @@ class DashboardController extends Controller
 
     /**
      * What the prefect should handle next, one card per kind: the oldest
-     * item still waiting (first in, first out) and how many are waiting.
+     * item still waiting (first in, first out).
      * The "pending" rules match each page's Pending tab.
      */
     private static function reviewQueue(): array
     {
-        $name = fn ($u) => $u ? trim(($u->profile?->first_name ?? '').' '.($u->profile?->last_name ?? '')) : null;
         $pending = fn ($q) => $q->whereNull('confirmed_at')->whereNull('rejected_at')->whereNull('revoked_at')->whereNull('archived_at');
         $item = function (string $key, $query, callable $shape) {
             $first = (clone $query)->oldest('created_at')->first();
 
-            return ['key' => $key, 'waiting' => (clone $query)->count(), 'item' => $first ? ['encrypted_id' => encrypt_id($first->id)] + $shape($first) : null];
+            return ['key' => $key, 'item' => $first ? ['encrypted_id' => encrypt_id($first->id)] + $shape($first) : null];
         };
 
         return [
             $item('complaint_pending',
-                Complaint::with(['user.profile', 'violation'])->where('complaint_status', 'pending')->whereNull('archived_at'),
+                Complaint::where('complaint_status', 'pending')->whereNull('archived_at'),
                 fn ($c) => [
                     'number' => ($c->case_number ? 'Case #' : 'Complaint #').($c->case_number ?? $c->complaint_number),
-                    'detail' => $c->violation?->violation_name,
-                    'by' => $c->complainant_name ?: $name($c->user),
                     'created_at' => $c->created_at,
                 ]),
             $item('complaint_ongoing',
-                Complaint::with(['user.profile', 'violation'])->where('complaint_status', 'ongoing')->whereNull('archived_at'),
+                Complaint::where('complaint_status', 'ongoing')->whereNull('archived_at'),
                 fn ($c) => [
                     'number' => ($c->case_number ? 'Case #' : 'Complaint #').($c->case_number ?? $c->complaint_number),
-                    'detail' => $c->violation?->violation_name,
-                    'by' => $c->complainant_name ?: $name($c->user),
                     'created_at' => $c->created_at,
                 ]),
-            $item('referral', $pending(Referral::with('user.profile')), fn ($r) => [
+            $item('referral', $pending(Referral::query()), fn ($r) => [
                 'number' => 'Referral #'.$r->referral_number,
-                'detail' => \Illuminate\Support\Str::limit((string) $r->reason_description, 80),
-                'by' => $name($r->user),
                 'created_at' => $r->created_at,
             ]),
-            $item('absent_form', $pending(Absence::with('user.profile')), fn ($a) => [
+            $item('absent_form', $pending(Absence::query()), fn ($a) => [
                 'number' => 'Absent Form #'.$a->form_number,
-                // reason is a JSON list of the reasons picked.
-                'detail' => \Illuminate\Support\Str::limit(is_array($r = json_decode((string) $a->reason, true)) ? implode(', ', $r) : (string) $a->reason, 80),
-                'by' => $name($a->user),
                 'created_at' => $a->created_at,
             ]),
-            $item('gatepass', $pending(GatePass::with('user.profile')), fn ($g) => [
+            $item('gatepass', $pending(GatePass::query()), fn ($g) => [
                 'number' => 'Gate Pass #'.$g->gatepass_number,
-                'detail' => \Illuminate\Support\Str::limit((string) $g->reason, 80),
-                'by' => $name($g->user),
                 'created_at' => $g->created_at,
             ]),
         ];

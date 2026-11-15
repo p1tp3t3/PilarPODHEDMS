@@ -78,7 +78,8 @@ const GenerateReportModal = (props) => {
         e.preventDefault()
 
         const found = validateForm(data, {
-            program: [requiredIf((d) => !d.individual, "Program")],
+            // The Analytical Report has no program choice (all, or one student).
+            program: [requiredIf((d) => !d.individual && d.type !== 'analytics', "Program")],
             school_year: [requiredIf(() => filterBy === 'school_year', "School year")],
             report_name: [maxLength(100, "Filter name")],
         })
@@ -122,6 +123,19 @@ const GenerateReportModal = (props) => {
     }
 
     const hasSubType = data.type == 'incident' || data.type == 'violation'
+    const isAnalytics = data.type === 'analytics'
+
+    // Editing: only the period can change (date range or school year, and
+    // its dates / school year + semester); the rest is shown read-only.
+    const TYPE_LABEL = { incident: 'Incident Report', violation: 'Violation Report', tardy: 'Tardy Report', appointment: 'Appointment Report', gatepass: 'Gate Pass Report', analytics: 'Analytical Report' }
+    const lockedRows = isEditing ? [
+        ['Filter Name', data.report_name || editingFilter?.name || '—'],
+        ['Report Type', TYPE_LABEL[data.type] ?? toTitleCase(data.type)],
+        ['Scope', data.individual
+            ? `Individual student${searchedComplainant?.[0] ? `: ${[searchedComplainant[0].profile?.first_name, searchedComplainant[0].profile?.last_name].filter(Boolean).join(' ')}` : ''}`
+            : (isAnalytics ? 'All students' : (props.programs?.find((p) => String(p.val ?? Object.values(p)[0]) === String(data.program))?.label ?? (data.program === 'all' ? 'All Programs' : '—')))],
+        ...(hasSubType ? [[data.type == 'incident' ? 'Incident' : 'Violation', data.report_type === 'all' || !data.report_type ? `All ${data.type == 'incident' ? 'Incidents' : 'Violations'}` : (list.find((l) => String(l.val) === String(data.report_type))?.label ?? '—')]] : []),
+    ] : []
 
     const list = (data.type == 'incident')
                 ?
@@ -154,11 +168,22 @@ const GenerateReportModal = (props) => {
                 <div className="pt-3 text-[1.2em] text-center grid gap-1">
                     <h1><b>{isEditing ? 'Edit Report Filter' : 'Create Report Filter'}</b></h1>
                     {!props.allowTypeChoice &&
-                    <p className="text-[0.6em] text-gray-500">{toTitleCase(data.type)} Report</p>}
+                    <p className="text-[0.6em] text-gray-500">{isAnalytics ? 'Analytical' : toTitleCase(data.type)} Report</p>}
                 </div>
                 <div className="py-3 w-full">
                     <form onSubmit={handleSubmit} method="post">
                         <div className="grid gap-5">
+                            {isEditing &&
+                            <dl className="grid gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-[0.85em]">
+                                {lockedRows.map(([k, v]) => (
+                                    <div key={k} className="flex gap-3">
+                                        <dt className="w-28 shrink-0 text-gray-500">{k}</dt>
+                                        <dd className="min-w-0 font-medium text-gray-800 break-words">{v}</dd>
+                                    </div>
+                                ))}
+                                <p className="pt-1 text-[0.85em] text-gray-500">Only the period below can be changed.</p>
+                            </dl>}
+                            {!isEditing &&
                             <div>
                                 <FormTextfield
                                     label="Filter Name (Optional)"
@@ -168,8 +193,8 @@ const GenerateReportModal = (props) => {
                                     val={data.report_name}
                                     change={handleChange}
                                 />
-                            </div>
-                            {props.allowTypeChoice &&
+                            </div>}
+                            {!isEditing && props.allowTypeChoice &&
                             <div className="grid gap-1">
                                 <label className="text-[0.85em] text-gray-700">Report Type</label>
                                 <DropdownField
@@ -179,13 +204,19 @@ const GenerateReportModal = (props) => {
                                         { val: 'tardy', label: 'Tardy Report' },
                                         { val: 'appointment', label: 'Appointment Report' },
                                         { val: 'gatepass', label: 'Gate Pass Report' },
+                                        { val: 'analytics', label: 'Analytical Report' },
                                     ]}
                                     name="type"
                                     val={data.type}
-                                    onChange={handleChange}
+                                    onChange={(e) => {
+                                        const type = e.target.value
+                                        // The Analytical Report has no program choice.
+                                        setData((prev) => ({ ...prev, type, ...(type === 'analytics' ? { program: '' } : {}) }))
+                                    }}
                                     keepCase
                                 />
                             </div>}
+                            {!isEditing &&
                             <div className="grid gap-2">
                                 <CheckBoxButton.CheckBox
                                     label='Individual Student Report'
@@ -228,8 +259,8 @@ const GenerateReportModal = (props) => {
                                     </div>}
                                     <FieldError msg={errs.student} />
                                 </div>}
-                            </div>
-                            {hasSubType &&
+                            </div>}
+                            {!isEditing && hasSubType &&
                             <div className="w-full">
                                 <DropdownField.Search
                                     default={{ val: '', label: `Select ${data.type == 'incident' ? 'Incidents' : 'Violations'}` }}
@@ -239,7 +270,7 @@ const GenerateReportModal = (props) => {
                                     val={data.report_type}
                                 />
                             </div>}
-                            {!individual &&
+                            {!isEditing && !individual && !isAnalytics &&
                             <div className="w-full">
                                 <DropdownField
                                     default={{ val: '', label: 'Select Program' }}
@@ -307,18 +338,7 @@ const GenerateReportModal = (props) => {
                                     keepCase
                                 />
                             </div>}
-                            <div>
-                                <RadioButton
-                                    list={[
-                                        { val: 'pdf', label: 'PDF File' },
-                                        { val: 'excel', label: 'Excel File' },
-                                    ]}
-                                    change={handleChange}
-                                    name="file_type"
-                                    id='file_type'
-                                    val={data.file_type}
-                                />
-                            </div>
+                            {/* No file type here: each saved filter has a PDF and an Excel Generate button. */}
                             <div className="grid">
                                 <FormButton
                                     type="submit"

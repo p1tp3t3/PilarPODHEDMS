@@ -6,7 +6,7 @@ import AuthSideBar from "@/Components/sidebar/auth-side-bar";
 import { useEffect, useState } from "react";
 import { PageTitleSlotContext } from "@/context-provider/page-title-provider";
 import { usePage } from "@inertiajs/react";
-import { showOutputModal } from "@/others/function";
+import { showWelcomeModal } from "@/others/function";
 
 const AuthLayout = ({ children, program = '' }) => {
     const path = window.location.pathname
@@ -26,11 +26,7 @@ const AuthLayout = ({ children, program = '' }) => {
     useEffect(() => {
         if (localStorage.getItem('show-login-success') == 1) {
             localStorage.removeItem('show-login-success')
-            showOutputModal(
-                `Welcome ${user?.profile?.first_name ?? ''} ${user?.profile?.last_name ?? ''}`.trim(),
-                'g',
-                () => {}
-            )
+            showWelcomeModal(user)
         }
     }, [user])
 
@@ -48,7 +44,7 @@ const AuthLayout = ({ children, program = '' }) => {
                     {/* Header + title bar stick together as one unit, so the
                         bar always sits right under the header whatever the
                         header's height (it differs on phones). */}
-                    <div className="sticky top-0 z-20">
+                    <div className="sticky top-0 z-20" data-app-sticky>
                         <AuthHeader
                             user={user}
                             addPicRoute={(path.includes('register')) ? '../' : ''}

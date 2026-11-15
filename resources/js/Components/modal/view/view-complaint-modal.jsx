@@ -109,12 +109,15 @@ const Body = ({ data, usr }) => {
                 {/* Timeline stats */}
                 <StatGrid>
                     <Stat icon={CalendarClock} label="Reported Since" value={`${readableDate(data.created_at)} (${readableTime(data.created_at)})`} sub={formatSchoolYearSemester(data.school_year_semester)} />
-                    {data.confirmed_at &&
+                    {/* Rejected comes before Approved: a rejected complaint
+                        can be approved later (then both show, in order);
+                        while it's rejected, there's no Approved date. */}
+                    {data.rejected_at &&
+                    <Stat icon={XCircle} label="Rejected Since" value={`${readableDate(data.rejected_at)} (${readableTime(data.rejected_at)})`} sub={formatSchoolYearSemester(data.rejected_school_year_semester)} />}
+                    {data.confirmed_at && data.complaint_status !== 'rejected' &&
                     <Stat icon={CheckCircle2} label="Approved Since" value={`${readableDate(data.confirmed_at)} (${readableTime(data.confirmed_at)})`} sub={formatSchoolYearSemester(data.confirmed_school_year_semester)} />}
                     {data.offense_issued_at &&
                     <Stat icon={ShieldCheck} label="Resolved Since" value={`${readableDate(data.offense_issued_at)} (${readableTime(data.offense_issued_at)})`} sub={formatSchoolYearSemester(data.resolved_school_year_semester)} />}
-                    {data.rejected_at &&
-                    <Stat icon={XCircle} label="Rejected Since" value={`${readableDate(data.rejected_at)} (${readableTime(data.rejected_at)})`} sub={formatSchoolYearSemester(data.rejected_school_year_semester)} />}
                     {data.revoked_at &&
                     <Stat icon={Undo2} label="Revoked Since" value={`${readableDate(data.revoked_at)} (${readableTime(data.revoked_at)})`} sub={formatSchoolYearSemester(data.revoked_school_year_semester)} />}
                 </StatGrid>

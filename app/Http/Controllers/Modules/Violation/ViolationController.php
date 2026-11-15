@@ -105,7 +105,9 @@ class ViolationController extends Controller
 
         $violation = Violation::with(['penalties.penalty'])->findOrFail($id);
 
-        $students = ComplaintSubjectViolation::with(['user.profile', 'user.program', 'user.enrollments', 'user.faculty.program', 'user.headships.program'])
+        // The two tables (Occurrences, Students): loaded by the page from
+        // /api/violation-management/{id}/students once it opens.
+        $students = fn () => ComplaintSubjectViolation::with(['user.profile', 'user.program', 'user.enrollments', 'user.faculty.program', 'user.headships.program'])
             ->where('violation_id', $id)
             ->whereHas('complaint', function ($q) {
                 $q->where('complaint_status', 'resolved');
@@ -126,7 +128,7 @@ class ViolationController extends Controller
 
         // How many students currently sit at each occurrence count (1st,
         // 2nd, 3rd... offense of this specific violation).
-        $occurrenceBreakdown = $students
+        $occurrenceBreakdown = fn ($students) => $students
             ->groupBy('violation_count')
             ->map(fn ($group, $occurrence) => [
                 'occurrence' => (int) $occurrence,
@@ -135,11 +137,16 @@ class ViolationController extends Controller
             ->sortBy('occurrence')
             ->values();
 
-        return Inertia::render('prefect/violation-students', [
+        $rows = null;
+        $studentRows = function () use (&$rows, $students) {
+            return $rows ??= $students();
+        };
+
+        return list_page('prefect/violation-students', [
             'violation' => ViolationResource::make($violation),
             'violation_key' => encrypt_id($violation->id),
-            'students' => $students,
-            'occurrence_breakdown' => $occurrenceBreakdown,
+            'students' => list_prop(fn () => $studentRows()),
+            'occurrence_breakdown' => list_prop(fn () => $occurrenceBreakdown($studentRows())),
         ]);
     }
 
@@ -171,14 +178,16 @@ class ViolationController extends Controller
             ->distinct()
             ->get(['violation.id', 'violation.violation_name']);
 
-        return Inertia::render('shared/student-violation', [
+        return list_page('shared/student-violation', [
             'student' => UserResource::make(User::with(['profile', 'program', 'enrollments.schoolYear'])->where('id', $id)->first()),
-            'student_violations' => ComplaintSubjectViolationResource::collection($studentViolations->get()->each(function ($sv) use ($occurrenceByRecord) {
+            // The Recent Violations table: loaded by the page from
+            // /api/student-violation/{id} once it opens.
+            'student_violations' => list_prop(fn () => ComplaintSubjectViolationResource::collection($studentViolations->get()->each(function ($sv) use ($occurrenceByRecord) {
                 $sv->complaint_key = $sv->complaint_id ? encrypt_id($sv->complaint_id) : null;
                 $o = $occurrenceByRecord->get($sv->violation_id.':'.$sv->complaint_id);
                 $sv->occurrence = $o['occurrence'] ?? null;
                 $sv->penalty = $o['penalty'] ?? null;
-            })),
+            }))),
             'violations' => ViolationResource::collection($violationNames),
             // Precomputed for every violation this student has, keyed by
             // violation_id, so the Behavioural Analysis tab already has

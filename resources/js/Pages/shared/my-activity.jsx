@@ -1,3 +1,4 @@
+import useListData from "@/others/hooks/use-list-data"
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import UserReportLogList from "@/Components/list/user-report-log-list"
@@ -7,6 +8,9 @@ import { Head, router } from "@inertiajs/react"
 
 // My Activity: the signed-in user's own action log.
 const MyActivity = (props) => {
+    // The table loads from /api/my-activity once the page opens (and after a
+    // filter change).
+    const { data: lists } = useListData()
     const types = (props.action_types ?? []).map((t) => ({ val: t, label: toTitleCase(t.replace(/_/g, " ")) }))
 
     const current = {
@@ -60,7 +64,7 @@ const MyActivity = (props) => {
                                 />
                             </div>
                     </div>
-                    <UserReportLogList list={props.logs} showUser={false} />
+                    <UserReportLogList list={lists?.logs ?? null} showUser={false} />
                 </div>
             </PageLayout>
         </>

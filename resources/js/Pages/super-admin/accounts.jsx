@@ -1,6 +1,7 @@
 import AuthLayout from "@/Layouts/auth-layout";
 import PageLayout from "@/Layouts/page-layout";
 import { useEffect, useState } from "react";
+import useListData from "@/others/hooks/use-list-data";
 import { Head, router } from "@inertiajs/react";
 import AccountList from "@/Components/list/account-list";
 import AccountFilesTab from "@/Components/other/account-files-tab";
@@ -14,6 +15,8 @@ import { AccountService } from "@/others/services/account-service";
 import { getYearLevel, showOutputModal, showWarningModal, toTitleCase } from "@/others/function";
 
 const Accounts = (props) => {
+  // The table loads from /api/super-admin/user-accounts once the page opens.
+  const { data: lists } = useListData();
   const [editUserInfo, openEditUserInfo] = useState(false),
     [data, setData] = useState(null),
     [profile, setProfile] = useState(""),
@@ -225,7 +228,7 @@ const Accounts = (props) => {
           <div>
             <AccountList
               filters={userFilters}
-              row={props.account_list}
+              row={lists?.account_list}
               openEditUserInfo={showEditUserInfo}
               deleteUser={openDeleteUserAccount}
               roles={props.roles}

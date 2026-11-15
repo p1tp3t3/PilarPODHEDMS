@@ -83,7 +83,7 @@ const StaffGatePassVerification = (props) => {
                 <PageActions />
             </div>
 
-            <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3 min-w-0">
+            <div className="w-full min-w-0">
                 <div className="flex items-center gap-2 pb-2">
                     <span className="font-semibold text-gray-800 text-[0.95em]">Approved Gate Passes</span>
                     {filteredList != null && <Chip size="small" label={`${filteredList.length} active`} />}

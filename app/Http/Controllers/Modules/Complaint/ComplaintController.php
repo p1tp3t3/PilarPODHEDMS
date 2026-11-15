@@ -42,22 +42,20 @@ class ComplaintController extends Controller
     public function index()
     {
         $prefect = (! self::isPrefect()) ? 'shared' : 'prefect';
-        $complaints = self::isPrefect()
-                    ? self::allComplaints()
-                    : self::allUserComplaint();
         $user = auth()->user();
         $user->allow_complaint = $user->permissions?->allow_complaint;
         $props = [
             'user' => new UserResource($user),
             'program' => ProgramResource::collection(Program::latest('id')
                 ->get(['id', 'code'])),
-            'students' => UserResource::collection(User::with(['profile', 'program'])
+            'students' => fn () => UserResource::collection(User::with(['profile', 'program'])
                 ->whereRole('student')
                 ->where('id', '!=', auth()->user()->id)
                 ->get()
                 ->each(fn (User $student) => $student->hidePhotoFrom(auth()->user()))),
             'program_name' => is_program_head(),
-            'complaint_list' => $complaints,
+            // The table: loaded by the page from its API endpoint, /api/complaint or /api/prefect/complaints (list_page()).
+            'complaint_list' => list_prop(fn () => self::isPrefect() ? self::allComplaints() : self::allUserComplaint()),
             // Column order matters here — the frontend's objConvert() reads
             // Object.values() positionally as [value, label], so val/label
             // must stay the first two selected columns; keywords is read by
@@ -68,19 +66,15 @@ class ComplaintController extends Controller
         ];
         if (self::isPrefect()) {
             $props = array_merge($props, [
-                // A queue: the oldest unhandled complaint first.
-                'reported_complaint_list' => ComplaintResource::collection(Complaint::with('user.profile')
-                    ->where('confirmed_at', null)
-                    ->oldest('created_at')
-                    ->get()),
+                // Newest first (the dashboard's Up next keeps the oldest-first queue).
                 'violation_list' => ViolationResource::collection(Violation::active()->select('id', 'violation_name', 'offense_status')
                     ->latest('created_at')
                     ->get()),
-                'all_users' => UserResource::collection(User::with('profile')->get()),
+                'all_users' => fn () => UserResource::collection(User::with('profile')->get()),
             ]);
         }
 
-        return Inertia::render("$prefect/complaint", $props);
+        return list_page("$prefect/complaint", $props);
     }
 
     public function store(StoreComplaintRequest $request)
@@ -263,6 +257,8 @@ class ComplaintController extends Controller
                 'case_number' => $count,
                 'confirmed_at' => DB::raw('NOW()'),
                 'complaint_status' => 'ongoing',
+                // Approving a rejected complaint reopens it: no longer archived.
+                'archived_at' => null,
             ]);
         notify_single_user(
             $complaintNotifField,
@@ -530,6 +526,8 @@ class ComplaintController extends Controller
                             'case_number' => $count,
                             'confirmed_at' => DB::raw('NOW()'),
                             'complaint_status' => 'ongoing',
+                            // Approving a rejected complaint reopens it: no longer archived.
+                            'archived_at' => null,
                         ]);
 
                         notify_single_user(
@@ -662,7 +660,8 @@ class ComplaintController extends Controller
         // gating these two statuses behind whereNull('archived_at') like the
         // active ones would make their tabs permanently empty by
         // construction. Show them by status alone instead, archived or not.
-        if (isset($_GET['status']) && in_array($_GET['status'], ['rejected', 'revoked'])) {
+        // Revoked complaints are in the Archive only (no Revoked tab).
+        if (isset($_GET['status']) && $_GET['status'] === 'rejected') {
             $data = $data->where('complaint_status', $status);
         } elseif (isset($_GET['status']) && in_array($_GET['status'], ['pending', 'ongoing'])) {
             $data = (auth()->user()->role == 'sub_admin')
@@ -673,33 +672,27 @@ class ComplaintController extends Controller
             $data = $data->whereNull('archived_at');
         }
 
-        if (isset($_GET['status']) && $_GET['status'] === 'revoked') {
-            $data = $data->latest('revoked_at');
-        } elseif (isset($_GET['status']) && $_GET['status'] === 'pending') {
-            // A queue: the oldest pending complaint first.
-            $data = $data->oldest('created_at');
-        } elseif (isset($_GET['status']) && $_GET['status'] === 'rejected') {
-            $data = $data->latest('created_at');
-        } elseif (isset($_GET['status']) && $_GET['status'] === 'ongoing') {
-            // Ongoing cases: a queue too, the oldest complaint first.
-            $data = $data->oldest('created_at');
-        } else {
-            $data = $data->latest('confirmed_at');
-        }
+        // Every tab: newest complaint first (the dashboard's Up next panel
+        // is what keeps the oldest-first queue).
+        $data = $data->latest('created_at');
 
         return ['data' => ComplaintResource::collection($data->get())];
     }
 
     public function allUserComplaint()
     {
-        $data = Complaint::where('complainant_id', auth()->user()->id);
+        // A resolved complaint is no longer a complaint (it's a violation
+        // record now), and revoked ones are seen by the prefect only, so the
+        // complainant's list leaves both out.
+        $data = Complaint::where('complainant_id', auth()->user()->id)
+            ->whereNotIn('complaint_status', ['resolved', 'revoked']);
         $status = isset($_GET['status']) ? $_GET['status'] : null;
 
-        // A complainant always sees every complaint they filed. archived_at
-        // is set (as a retention date) the moment a complaint is resolved,
-        // rejected or revoked, so filtering it out hid all of those — the
-        // tabs filter by status alone, archived or not.
-        if (in_array($status, ['pending', 'ongoing', 'resolved', 'rejected', 'revoked'])) {
+        // Otherwise a complainant sees every complaint they filed. archived_at
+        // is set (as a retention date) the moment a complaint is rejected,
+        // so filtering it out hid those — the tabs filter by status alone,
+        // archived or not.
+        if (in_array($status, ['pending', 'ongoing', 'rejected'])) {
             $data = $data->where('complaint_status', $status);
         }
         \App\Models\SchoolYearSemester::applyFilter($data, 'created_at', request('school-year'), request('semester'));
@@ -723,7 +716,7 @@ class ComplaintController extends Controller
         return Complaint::with('user.profile')
             ->whereNull('confirmed_at')
             ->whereNull('archived_at')
-            ->oldest('created_at')
+            ->latest('created_at')
             ->get()
             ->pipe(fn ($c) => ComplaintResource::collection($c)->resolve());
     }

@@ -1,10 +1,10 @@
+import { reloadListData } from "@/others/hooks/use-list-data"
 import UpModal from "../up-modal"
 import SearchUserBar from "@/Components/input/search-user-bar"
 import ProfilePic from "@/Components/other/profile-pic"
 import RichTextEditor from "@/Components/input/rich-text-editor"
 import FormButton from "@/Components/button/button"
 import { useState, useEffect } from "react"
-import { router } from "@inertiajs/react"
 import { getProfilePic, showWarningModal, showOutputModal, toTitleCase, isSamePerson } from "@/others/function"
 import { ReferralService } from "@/others/services/referral-service"
 import { X } from "lucide-react"
@@ -72,7 +72,7 @@ const EditReferralModal = (props) => {
         showOutputModal("Referral Updated Successfully", "s", () => {
             props.reload(false)
             props.closeModal(false)
-            router.reload({ only: ['referral'] })
+            reloadListData()
         })
     }
 

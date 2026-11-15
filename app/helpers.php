@@ -113,15 +113,16 @@ if (!function_exists('get_user_access_field')) {
 
 if (!function_exists('archive_retention_date')) {
     /**
-     * The date an archived record becomes eligible for deletion —
-     * config('app.archive_retention_years') years from now. Every place
+     * The date an archived record is deleted (PurgeExpiredArchiveCommand)
+     * — config('app.archive_retention_years') years from now (5.6 by
+     * default; fractions allowed, counted in days). Every place
      * that archives a complaint/referral/absent-form/gate-pass/appointment
      * should compute archived_at through this, not a hardcoded addYears(5),
      * so changing the retention setting affects everything consistently.
      */
     function archive_retention_date(): \Carbon\Carbon
     {
-        return now()->addYears((int) config('app.archive_retention_years', 5));
+        return now()->addDays((int) round((float) config('app.archive_retention_years', 5.6) * 365.25));
     }
 }
 
@@ -230,5 +231,79 @@ if (!function_exists('registration_username')) {
         } while (\App\Models\User::where('username', $username)->exists());
 
         return $username;
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
+| List pages: tables load from a JSON endpoint
+|--------------------------------------------------------------------------
+|
+| A page's lists/tables aren't sent with the page. The page opens, then
+| calls its API endpoint, GET /api/<page path> (the 'list-data'
+| middleware in routes/api.php), for every row at once; the tables paginate in the
+| browser (useListData() on the frontend). In a page method: wrap each list
+| prop in list_prop(), and return list_page() instead of Inertia::render().
+|
+*/
+
+if (! function_exists('list_prop')) {
+    /** A list/table prop: served by the page's API endpoint, not the page. */
+    function list_prop(Closure $resolve): \App\Support\ListProp
+    {
+        return new \App\Support\ListProp($resolve);
+    }
+}
+
+if (! function_exists('is_list_data_request')) {
+    /** True on a list page's API endpoint (the JSON request for its lists). */
+    function is_list_data_request(): bool
+    {
+        return (bool) request()->attributes->get('list_data');
+    }
+}
+
+if (! function_exists('list_json')) {
+    /**
+     * Values as JSON, each resolved the way Inertia resolves a prop:
+     * closures called, API resources turned into their response arrays.
+     */
+    function list_json(array $values): \Illuminate\Http\JsonResponse
+    {
+        $request = request();
+        $out = [];
+        foreach ($values as $key => $value) {
+            if ($value instanceof \App\Support\ListProp) {
+                $value = $value->resolve;
+            }
+            if ($value instanceof Closure) {
+                $value = app()->call($value);
+            }
+            if ($value instanceof \Illuminate\Http\Resources\Json\JsonResource) {
+                $value = $value->toResponse($request)->getData(true);
+            } elseif ($value instanceof \Illuminate\Contracts\Support\Arrayable) {
+                $value = $value->toArray();
+            }
+            $out[$key] = $value;
+        }
+
+        return response()->json($out);
+    }
+}
+
+if (! function_exists('list_page')) {
+    /**
+     * The page without its list props, or (on its API endpoint) only those
+     * lists, as JSON. Other props given as closures aren't computed
+     * for the JSON request.
+     */
+    function list_page(string $component, array $props)
+    {
+        $lists = array_filter($props, fn ($v) => $v instanceof \App\Support\ListProp);
+        if (is_list_data_request()) {
+            return list_json($lists);
+        }
+
+        return \Inertia\Inertia::render($component, array_diff_key($props, $lists));
     }
 }

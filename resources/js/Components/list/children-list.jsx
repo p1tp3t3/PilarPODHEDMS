@@ -53,17 +53,20 @@ const ChildrenList = ({ list = null, style }) => {
     ], [])
 
     return (
-        <div className={style && "w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm"}>
+        <div className="w-full">
             <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                 <DataGrid
                     rows={rows}
                     columns={columns}
                     mobileSummary={(row) => ({ name: row.name, role: row.subtitle, picture: row.profile_picture, sex: row.sex, hide: ["name"] })}
-                    hideFooter
+                    loading={list == null}
+                    pagination
+                    pageSizeOptions={[10, 20, 50]}
+                    initialState={{ pagination: { paginationModel: { page: 0, pageSize: 10 } } }}
                     disableRowSelectionOnClick
                     rowHeight={64}
                     showToolbar
-                    localeText={{ noRowsLabel: list === null ? "Reloading..." : "No Child Yet" }}
+                    localeText={{ noRowsLabel: "No Child Yet" }}
                 />
             </Box>
         </div>

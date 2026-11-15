@@ -40,11 +40,12 @@ const ManagePenalty = ({ list, events, reload, setter, canAdd = true, canDelete 
                     </div>
                 )}
 
-                <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
-                    <div className="w-full px-5 py-3 min-w-0">
+                <div className="w-full min-w-0">
+                    <div className="w-full min-w-0">
                         <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                             <DataGrid
                                 rows={list ?? []}
+                                loading={list == null}
                                 getRowId={(row) => row.id}
                                 disableRowSelectionOnClick
                                 showToolbar

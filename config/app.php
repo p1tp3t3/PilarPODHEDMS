@@ -147,6 +147,6 @@ return [
     |
     */
 
-    'archive_retention_years' => env('ARCHIVE_RETENTION_YEARS', 5),
+    'archive_retention_years' => env('ARCHIVE_RETENTION_YEARS', 5.6),
 
 ];

@@ -7,7 +7,6 @@ import AuthContext from "@/context-provider/auth-provider"
 import { getProfilePic, readableDate, readableTime, showUserType, toTitleCase, formatSchoolYearSemester } from "../../others/function"
 import ProfilePic from "../other/profile-pic"
 import ActionBtn from "../button/action-btn"
-import ListSkeleton from "../reload/list-skeleton"
 import { statusLabel } from "@/Components/other/mobile-card-list"
 
 
@@ -230,30 +229,19 @@ const GatePassRequestList = (props) => {
         ]
     }, [usr?.role, props, urlStatus, compact])
 
-    // Loading state (props.list === null)
-    if (props.list === null) {
-        return (
-            <div className="w-full px-5 py-10 bg-white rounded-md shadow-black/20 shadow-sm flex justify-center">
-                <ListSkeleton rows={4} />
-            </div>
-        )
-    }
-
     return (
         <Box
             sx={{
                 width: "100%",
                 minWidth: 0,
                 overflow: "hidden",
-                backgroundColor: "var(--dm-surface, #fff)",
-                borderRadius: 2,
-                boxShadow: 2,
-                p: 2,
             }}
         >
             <DataGrid
                 rows={rows}
                 columns={columns}
+                // Loading: the table's skeleton rows (same as every table).
+                loading={props.list == null}
                 pageSizeOptions={[5, 10, 20]}
                 initialState={{
                     pagination: { paginationModel: { pageSize: 10, page: 0 } },

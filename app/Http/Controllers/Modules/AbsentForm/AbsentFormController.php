@@ -42,32 +42,38 @@ class AbsentFormController extends Controller
         ];
         if (self::isPrefect()) {
             $props = array_merge($props, [
-                'absent_form_request_list' => self::getAllAbsentForm(),
+                // The table: loaded by the page from its API endpoint (list_page()).
+                'absent_form_request_list' => list_prop(fn () => self::getAllAbsentForm()),
                 'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
                 'programs' => ProgramResource::collection(Program::orderBy('code')->get(['id', 'code'])),
             ]);
         } else {
-            $mine = Absence::where('student_id', $user->id)->latest('created_at');
-            SchoolYearSemester::applyFilter($mine, 'created_at', request('school-year'), request('semester'));
-            // ?id= (from the dashboard's My requests panel): only that one row.
-            if (is_numeric(request('id'))) {
-                $mine->where('id', (int) request('id'));
-            }
-            // ?status=: the tab (pending / noted = approved / rejected / revoked).
-            match (request('status')) {
-                'pending' => $mine->whereNull('confirmed_at')->whereNull('rejected_at')->whereNull('revoked_at'),
-                'noted' => $mine->whereNotNull('confirmed_at')->whereNull('revoked_at'),
-                'rejected' => $mine->whereNotNull('rejected_at')->whereNull('revoked_at'),
-                'revoked' => $mine->whereNotNull('revoked_at'),
-                default => null,
-            };
+            // Revoked forms: the prefect only (no Revoked tab for students).
+            $mine = fn () => Absence::where('student_id', $user->id)->whereNull('revoked_at')->latest('created_at');
             $props = array_merge($props, [
-                'absent_form_list' => AbsenceResource::collection($mine->get()),
+                // The table: loaded by the page from /api/absent-form (list_page()).
+                'absent_form_list' => list_prop(function () use ($mine) {
+                    $mine = $mine();
+                    SchoolYearSemester::applyFilter($mine, 'created_at', request('school-year'), request('semester'));
+                    // ?id= (from the dashboard's My requests panel): only that one row.
+                    if (is_numeric(request('id'))) {
+                        $mine->where('id', (int) request('id'));
+                    }
+                    // ?status=: the tab (pending / noted = approved / rejected).
+                    match (request('status')) {
+                        'pending' => $mine->whereNull('confirmed_at')->whereNull('rejected_at'),
+                        'noted' => $mine->whereNotNull('confirmed_at'),
+                        'rejected' => $mine->whereNotNull('rejected_at'),
+                        default => null,
+                    };
+
+                    return AbsenceResource::collection($mine->get());
+                }),
                 'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
             ]);
         }
 
-        return Inertia::render("$isPrefect/absent-form", $props);
+        return list_page("$isPrefect/absent-form", $props);
     }
 
     public function store(StoreAbsentFormRequest $request)
@@ -469,7 +475,7 @@ class AbsentFormController extends Controller
     {
         return Absence::with(['user.profile', 'user.program', 'user.enrollments'])
             ->where('confirmed_at', null)
-            ->oldest('created_at'); // a queue: oldest request first
+            ->latest('created_at'); // newest first (Up next on the dashboard keeps the queue)
     }
 
     /**
@@ -494,18 +500,19 @@ class AbsentFormController extends Controller
         $status = request()->has('status') ? request()->status : null;
         // Approved absent forms live in the archive only, not on the
         // prefect's absent form page (no Approved tab, left out of "All").
+        // Revoked ones are in the Archive only (no Revoked tab); an old
+        // ?status=revoked link gets All.
         $absence = Absence::with(['user.profile', 'user.program', 'user.enrollments'])
-            ->whereNull('confirmed_at');
-        if ($status === 'all') {
+            ->whereNull('confirmed_at')
+            ->whereNull('revoked_at');
+        if ($status === 'all' || $status === 'revoked') {
             $absence->latest('created_at');
         } elseif ($status === 'rejected') {
             $absence->whereNotNull('rejected_at')->latest('rejected_at');
-        } elseif ($status === 'revoked') {
-            $absence->whereNotNull('revoked_at')->latest('revoked_at');
         } else {
-            // Pending: a queue, the oldest form first.
+            // Pending: newest first (the dashboard's Up next keeps the queue).
             $absence->whereNull('confirmed_at')->whereNull('rejected_at')->whereNull('revoked_at')
-                ->oldest('created_at');
+                ->latest('created_at');
         }
 
         SchoolYearSemester::applyFilter($absence, 'created_at', request('school-year'), request('semester'));
@@ -519,7 +526,8 @@ class AbsentFormController extends Controller
             $absence->whereIn('student_id', Enrollment::studentIdsInProgram($program));
         }
 
-        return AbsenceResource::collection($absence->paginate(100)->appends(['status' => $status]));
+        // Every row (the table paginates in the browser), as { data: [...] }.
+        return ['data' => AbsenceResource::collection($absence->get())];
     }
 
     public function get($id)

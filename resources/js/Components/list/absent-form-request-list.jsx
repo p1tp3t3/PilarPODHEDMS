@@ -13,7 +13,6 @@ import {
   formatSchoolYearSemester,
 } from "../../others/function";
 import AuthContext from "@/context-provider/auth-provider";
-import ListSkeleton from "../reload/list-skeleton";
 import { useIsMobile } from "@/others/use-is-mobile";
 import { statusLabel } from "@/Components/other/mobile-card-list";
 
@@ -259,19 +258,13 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
   // a fixed-height box.
   const isMobile = useIsMobile();
 
-  if (!list) {
-    return (
-      <div className="flex justify-center items-center w-full py-10">
-        <ListSkeleton rows={4} />
-      </div>
-    );
-  }
-
   return (
-    <Box sx={{ width: "100%", minWidth: 0, overflow: isMobile ? "visible" : "hidden", height: isMobile ? "auto" : 550, p: 2, bgcolor: "var(--dm-surface, white)", borderRadius: 2 }}>
+    <Box sx={{ width: "100%", minWidth: 0, overflow: isMobile ? "visible" : "hidden", height: isMobile ? "auto" : 550 }}>
       <DataGrid
         rows={rows}
         columns={columns}
+        // Loading: the table's skeleton rows (same as every table).
+        loading={!list}
         pageSizeOptions={[5, 10, 25]}
         pagination
         disableRowSelectionOnClick

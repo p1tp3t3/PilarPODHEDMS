@@ -1,4 +1,6 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import useListData from "@/others/hooks/use-list-data"
+import StatusPill from "@/Components/list/status-pill"
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import SetSemesterDatesModal from "@/Components/modal/submission-form/set-semester-dates-modal"
@@ -84,7 +86,10 @@ const ITRCSchoolYear = (props) => {
     const [editSemester, openEditSemester] = useState(false)
     const [semesterToEdit, setSemesterToEdit] = useState(null)
     const [siblingSemester, setSiblingSemester] = useState(null)
-    const [school_year_list, setSchoolYearListState] = useState(props.school_years)
+    // The table loads from /api/super-admin/school-year once the page opens.
+    const { data: lists } = useListData()
+    const [school_year_list, setSchoolYearListState] = useState(null)
+    useEffect(() => { if (lists) setSchoolYearListState(lists.school_years) }, [lists])
     // Editing/deleting the latest school year moves the upcoming one's dates.
     const setSchoolYearList = (list) => {
         setSchoolYearListState(list)
@@ -119,9 +124,7 @@ const ITRCSchoolYear = (props) => {
             width: 120,
             sortable: false,
             renderCell: ({ row }) => (
-                <span className={`font-semibold ${isSchoolYearCurrent(row) ? "text-green-600" : "text-gray-500"}`}>
-                    {isSchoolYearCurrent(row) ? "Active" : row.is_past ? "Ended" : "Inactive"}
-                </span>
+                <StatusPill status={isSchoolYearCurrent(row) ? "active" : row.is_past ? "ended" : "inactive"} />
             ),
         },
         {
@@ -191,10 +194,11 @@ const ITRCSchoolYear = (props) => {
                             upcoming={props.upcoming}
                             onEdit={(s) => { setSemesterToEdit(s); setSiblingSemester(null); openEditSemester(true) }}
                         />
-                        <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
-                            <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", px: 2.5, py: 1.5 }}>
+                        <div className="w-full min-w-0">
+                            <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                                 <DataGrid
-                                    rows={school_year_list}
+                                    rows={school_year_list ?? []}
+                                    loading={school_year_list == null}
                                     getRowId={(row) => row.id}
                                     columns={columns}
                                     pagination

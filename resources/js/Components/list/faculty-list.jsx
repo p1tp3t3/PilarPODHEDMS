@@ -2,7 +2,6 @@ import ProfilePic from "../other/profile-pic"
 import LiveActiveSince from "@/Components/other/live-active-since";
 import { checkActiveStatus, getProfilePic, readableActiveDuration, readableDate, readableTime, showUserType, profileUrl } from "../../others/function"
 import { Link } from "@inertiajs/react"
-import PaginationButton from "../button/pagination-btn"
 import { useEffect, useMemo, useState, useContext } from "react"
 import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
@@ -11,7 +10,10 @@ import AuthContext from "@/context-provider/auth-provider"
 
 const FacultyList = ({ list, style = true, type = 'prefect', paginate = true }) => {
     const { isUserOnline } = useContext(AuthContext)
-    const l = (paginate) ? list.data : list
+    // `list` is { data: [...] } (or the array itself with paginate={false});
+    // null while it loads. Every row: the table paginates in the browser.
+    const loading = list == null
+    const l = (paginate ? list?.data : list) ?? []
 
     // Ticks every 5s so the "Active Since" column's relative-time text and
     // online/offline dot stay live without needing a page refresh.
@@ -96,24 +98,23 @@ const FacultyList = ({ list, style = true, type = 'prefect', paginate = true }) 
     ], [isUserOnline])
 
     return (
-        <div className={style && "w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm"}>
+        <div className="w-full">
             <div className="grid gap-4">
                 <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                     <DataGrid
                         rows={rows}
                         columns={columns}
                         mobileSummary={(row) => ({ name: row.name.trim(), role: row.role_label, picture: row.profile_picture, sex: row.sex, hide: ["name"] })}
-                        hideFooter
+                        loading={loading}
+                        pagination
+                        pageSizeOptions={[20, 50, 100]}
+                        initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
                         disableRowSelectionOnClick
                         rowHeight={60}
                         showToolbar
                         localeText={{ noRowsLabel: "No Faculty Yet" }}
                     />
                 </Box>
-                {paginate &&
-                <div className="justify-self-end">
-                    <PaginationButton meta={list} />
-                </div>}
             </div>
         </div>
     )

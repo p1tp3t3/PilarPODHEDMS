@@ -7,6 +7,7 @@ import { getProfilePic, getYearLevel, readableDate, readableTime, toTitleCase, o
 import { Box, Select, MenuItem } from "@mui/material";
 import { DataGrid } from "@/Components/other/data-grid";
 import { useEffect, useMemo, useState } from "react";
+import useListData from "@/others/hooks/use-list-data";
 import { ShieldHalf, Clock, FolderOpen, GraduationCap, CalendarRange, AlertTriangle, CalendarPlus } from "lucide-react";
 import axios from "axios";
 import { Head } from "@inertiajs/react";
@@ -28,6 +29,9 @@ const bestComplaintDate = (complaint) =>
    MAIN COMPONENT
 ================================ */
 const StudentViolation = (props, { user = demoProps.user, student = demoProps.student, violations = demoProps.violations}) => {
+    // The Recent Violations table loads from /api/student-violation/{id}
+    // once the page opens.
+    const { data: lists } = useListData()
   // ?tab=analysis&violation=<id> (e.g. from the prefect's Watch List) opens
   // Behavioural Analysis with that violation already selected.
   const [option, setOption] = useState(() =>
@@ -117,7 +121,7 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
                     <TabSwitcher tabs={optionList} value={option} onChange={setOption} />
                     <div className="mt-6">
                         {option === "recent_violations" ? (
-                            <RecentViolation violations={props.student_violations} user={props.auth?.user ?? props.user} />
+                            <RecentViolation violations={lists?.student_violations ?? null} user={props.auth?.user ?? props.user} />
                         ) : (
                             <BehaviourAnalysis
                                 studentId={props.student.id}
@@ -247,7 +251,7 @@ const RecentViolation = ({ violations, user }) => {
   // One row per violation; its offenses listed oldest (1st) first. The
   // violations themselves are ordered by their most recent offense.
   const rows = Object.values(
-    violations.reduce((acc, v) => {
+    (violations ?? []).reduce((acc, v) => {
       const id = v.violation_id ?? v.violation?.id;
       (acc[id] ??= { violation: v.violation, records: [] }).records.push(v);
       return acc;
@@ -275,7 +279,7 @@ const RecentViolation = ({ violations, user }) => {
     })
     .sort((a, b) => b.last_date - a.last_date)
     .map((r, i) => ({ id: i + 1, ...r }));
-  const offenseTotal = violations.length;
+  const offenseTotal = (violations ?? []).length;
 
   return (
     <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm p-5">
@@ -301,6 +305,7 @@ const RecentViolation = ({ violations, user }) => {
       <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
         <DataGrid
           rows={rows}
+          loading={violations == null}
           columns={columns}
           getRowHeight={() => "auto"}
           pagination

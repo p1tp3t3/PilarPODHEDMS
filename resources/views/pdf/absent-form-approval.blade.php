@@ -2,8 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Approved Absence Form</title>
     @php
+        // Approved: the approval form (watermark, certification, signature).
+        // Any other status (pending, rejected, revoked; built for viewing or
+        // downloading, never saved) is a plain record of the form.
+        $approved = ($status ?? 'Approved') === 'Approved';
         $fmt = fn ($d) => $d ? \Carbon\Carbon::parse($d)->format('F j, Y') : '—';
         $days = ($date_from && $date_to)
             ? \Carbon\Carbon::parse($date_from)->diffInDays(\Carbon\Carbon::parse($date_to)) + 1
@@ -12,6 +15,7 @@
             ? $fmt($date_from)
             : $fmt($date_from).' to '.$fmt($date_to);
     @endphp
+    <title>{{ $approved ? 'Approved Absence Form' : 'Absence Form' }}</title>
     <style>
         @page { margin: 34px 48px 46px; }
         body { font-family: "DejaVu Serif", "Times New Roman", serif; font-size: 12px; color: #111; margin: 0; }
@@ -44,15 +48,17 @@
     </style>
 </head>
 <body>
+    @if ($approved)
     <div class="watermark"><img src="{{ public_path('default-pic/approved-pic-pdf.png') }}" alt="Approved"></div>
-    <div class="footer">Office of Student Affairs and Discipline &middot; Pilar College of Zamboanga City, Inc. &middot; This form is valid only with the signature of the Prefect of Discipline.</div>
+    @endif
+    <div class="footer">Office of Student Affairs and Discipline &middot; Pilar College of Zamboanga City, Inc.@if ($approved) &middot; This form is valid only with the signature of the Prefect of Discipline.@endif</div>
 
     @include('pdf.partials.letterhead', ['meta' => ['Form No.' => $form_number ?? null, 'Status' => $status]])
 
-    <div class="title">Approved Absence Form</div>
+    <div class="title">{{ $approved ? 'Approved Absence Form' : 'Absence Form' }}</div>
     <div class="subtitle">Office of Student Affairs and Discipline</div>
 
-    <div class="date-row">Date Approved: <strong>{{ $fmt($date_approve) }}</strong></div>
+    <div class="date-row">{{ $date_label ?? 'Date Approved' }}: <strong>{{ $fmt($date_approve) }}</strong></div>
 
     <div class="section">Student Information</div>
     <table class="fields">
@@ -68,6 +74,7 @@
         <tr><td class="label">Reason for Absence:</td><td class="value">{{ $reason }}</td></tr>
     </table>
 
+    @if ($approved)
     <div class="section">Certification</div>
     <p class="certify">
         This is to certify that <strong>{{ trim(preg_replace('/\s+/', ' ', $sender_name)) }}</strong>{{ $program ? ', a student of '.$program.',' : '' }}
@@ -78,7 +85,25 @@
 
     <div class="section">Remarks of the Prefect</div>
     <div class="note">{{ $note ?: 'None.' }}</div>
+    @else
+    <div class="section">Status</div>
+    <p class="certify">
+        This absent form, submitted by <strong>{{ trim(preg_replace('/\s+/', ' ', $sender_name)) }}</strong>{{ $program ? ', a student of '.$program.',' : '' }}
+        for the absence on <strong>{{ $period }}</strong>,
+        @if ($status === 'Pending')
+            is <strong>pending</strong> review by this office.
+        @else
+            was <strong>{{ strtolower($status) }}</strong>{{ $status === 'Revoked' ? ' by the student' : ' by this office' }}. It is not valid as an excuse for the absence.
+        @endif
+    </p>
 
+    @if ($status === 'Rejected')
+    <div class="section">Reason for Rejection</div>
+    <div class="note">{{ $rejected_reason ?: 'None given.' }}</div>
+    @endif
+    @endif
+
+    @if ($approved)
     <table class="sign">
         <tr>
             <td style="width: 45%;">
@@ -93,5 +118,6 @@
             <td><div class="caption">Received by: Instructor (Signature over Printed Name)</div></td>
         </tr>
     </table>
+    @endif
 </body>
 </html>

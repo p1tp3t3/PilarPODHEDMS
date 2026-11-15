@@ -91,12 +91,13 @@ const ParentRequestList = ({ list = null, paginate = true, event }) => {
 
   return (
     <Box
-      className={"w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm"}
+      className="w-full"
       sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}
     >
       <DataGrid
         rows={rows}
         columns={columns}
+        loading={list == null}
         disableRowSelectionOnClick
         hideFooterSelectedRowCount
         pagination

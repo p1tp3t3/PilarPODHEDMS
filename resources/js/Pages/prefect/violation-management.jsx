@@ -1,3 +1,4 @@
+import useListData from "@/others/hooks/use-list-data";
 import AuthLayout from "@/Layouts/auth-layout";
 import { useEffect, useState } from "react";
 import ManageViolation from "./violation/manage-violation";
@@ -23,11 +24,20 @@ const ViolationManagement = (props) => {
           [violation, openViolation] = useState(false),
           [action, setAction] = useState("create"),
           [data, setData] = useState(null),
-          [violation_list, setViolationList] = useState(props.violation ?? []),
-          [penalty_list, setPenaltyList] = useState(props.penalty ?? []),
+          [violation_list, setViolationList] = useState(null),
+          [penalty_list, setPenaltyList] = useState(null),
           [clickedOk, setClickOk] = useState(false);
 
     const { loadRegister, setReload, setOnClose } = useReload();
+
+    // The tables load from /api/violation-management/{section} once the page
+    // opens (and again after a reload).
+    const { data: lists } = useListData();
+    useEffect(() => {
+        if (!lists) return;
+        setViolationList(lists.violation ?? []);
+        setPenaltyList(lists.penalty ?? []);
+    }, [lists]);
 
     useEffect(() => {
         setOnClose((e) => {
@@ -63,7 +73,7 @@ const ViolationManagement = (props) => {
             data={data}
             setClickOk={setClickOk}
             setter={setViolationList}
-            penalty={props.penalty ?? []}
+            penalty={lists?.penalty ?? []}
             keywordOptions={(violation_list ?? []).flatMap((v) => Array.isArray(v.keywords) ? v.keywords : [])}
         />
         <SetPenaltyModal
@@ -83,7 +93,7 @@ const ViolationManagement = (props) => {
                 {section === "violations" && (
                     <ManageViolation
                         list={violation_list}
-                        original_list={props.violation}
+                        original_list={lists?.violation}
                         setter={setViolationList}
                         reload={loadRegister}
                         events={[openActionModal]}
@@ -97,7 +107,7 @@ const ViolationManagement = (props) => {
                 {section === "penalties" && (
                     <ManagePenalty
                         list={penalty_list}
-                        original_list={props.penalty}
+                        original_list={lists?.penalty}
                         setter={setPenaltyList}
                         reload={loadRegister}
                         events={[openActionModal]}
@@ -108,7 +118,7 @@ const ViolationManagement = (props) => {
 
                 {section === "student-violations" && (
                     <div className="grid gap-4">
-                        <StudentViolationList list={props.student_violation_list} />
+                        <StudentViolationList list={lists?.student_violation_list ?? null} />
                     </div>
                 )}
             </div>

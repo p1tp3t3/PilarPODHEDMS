@@ -115,12 +115,13 @@ const StudentList = ({ list = null, style = true, type = "prefect", paginate = t
 
   return (
     <Box
-      className={style ? "w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm" : undefined}
+      className="w-full"
       sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}
     >
       <DataGrid
         rows={rows}
         columns={columns}
+        loading={list == null}
         mobileSummary={(row) => ({
           name: row.fullName.replace(/\s+/g, " ").trim(),
           role: ["Student", row.program].filter(Boolean).join(" • "),

@@ -27,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Vite::prefetch(concurrency: 3);
 
+
         // The frontend was built against plain arrays/objects everywhere —
         // API Resources default to a {"data": ...} envelope, which would
         // silently break every existing consumer. Keep resources unwrapped

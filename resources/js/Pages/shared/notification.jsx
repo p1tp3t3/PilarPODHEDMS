@@ -4,7 +4,8 @@ import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import { NotificationService } from "@/others/services/notification-service"
 import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-read"
-import { useState } from "react"
+import { useMemo, useState } from "react"
+import useListData, { reloadListData } from "@/others/hooks/use-list-data"
 import { X, CheckCheck, ListChecks, Trash2 } from "lucide-react"
 import { Head } from "@inertiajs/react"
 import { LabeledCheckbox, setRowsChecked } from "@/Components/input/select-checkbox"
@@ -13,8 +14,21 @@ const Notification = (props) => {
 
     const [select, enableSelect] = useState(false),
           [choose, setChoose] = useState('all'),
-          [notif_list, setNotifList] = useState(props.notification),
-          [size, setSize] = useState(props.size)
+          // How many are shown ("Load more" adds 10).
+          [shown, setShown] = useState(10)
+
+    // Every notification loads from /api/notifications once the page opens;
+    // the All / Unread tabs and "Load more" work on it in the browser.
+    const { data: lists } = useListData()
+    const all = lists?.notification ?? null
+    const filtered = useMemo(
+        () => (all == null ? null : choose === 'unread' ? all.filter((n) => !n.read_since) : all),
+        [all, choose]
+    )
+    const notif_list = filtered == null ? null : filtered.slice(0, shown)
+    const size = filtered?.length ?? 0
+    // After a delete: the list is fetched again.
+    const setNotifList = () => reloadListData()
 
     useMarkNotificationRead()
 
@@ -24,9 +38,8 @@ const Notification = (props) => {
     ]
     const handleSelect = (type) => {
         if(choose != type) {
-            setNotifList(null)
             setChoose(type)
-            NotificationService.list(type, props.auth.user.encrypted_id, 10, (e) => setNotifList(e.notif))
+            setShown(10)
         }
     }
     const deleteNotif = (e) => {
@@ -41,20 +54,10 @@ const Notification = (props) => {
         setRowsChecked(e.target.checked)
     }
     const markAllAsRead = () => {
-        NotificationService.markAllAsRead(() => {
-            NotificationService.list(choose, props.auth.user.encrypted_id, Math.max(notif_list?.length ?? 0, 10), (e) => {
-                setNotifList(e.notif)
-                setSize(e.size)
-            })
-        })
+        NotificationService.markAllAsRead(() => reloadListData())
     }
 
-    const handlePaginate = () => {
-        NotificationService.list(choose, props.auth.user.encrypted_id, notif_list.length + 10, (e) => {
-            setNotifList(e.notif)
-            setSize(e.size)
-        })
-    }
+    const handlePaginate = () => setShown((n) => n + 10)
 
     return (
         <>

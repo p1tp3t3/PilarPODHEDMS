@@ -15,11 +15,14 @@ import TabSwitcher from "@/Components/other/tab-switcher"
 import { Button, Paper } from "@mui/material"
 import { DataGrid } from '@/Components/other/data-grid';
 import QuickFilteringGrid from "@/Components/text-component"
-import { List, Ban, Clock, RotateCw, Undo2, FilePlus, CheckCircle2 } from "lucide-react"
+import { List, Ban, Clock, RotateCw, FilePlus } from "lucide-react"
 import { ComplaintService } from "@/others/services/complaint-service"
+import useListData, { reloadListData } from "@/others/hooks/use-list-data"
 
 
 const Complaint = (props) => {
+    // The table loads from /api/complaint once the page opens.
+    const { data: lists } = useListData()
     const url = new URLSearchParams(window.location.search)
 
     const [issueComplaint, openIssueComplaint] = useState(false),
@@ -37,7 +40,9 @@ const Complaint = (props) => {
             })
 
     const { loadRegister } = useReload()
-    const [choose, setChoose] = useState(url.get("status") || "all")
+    // No Resolved or Revoked tab (those complaints aren't listed here): an
+    // old ?status=resolved / revoked link lands on All Complaints.
+    const [choose, setChoose] = useState(["rejected", "pending", "ongoing"].includes(url.get("status")) ? url.get("status") : "all")
 
     const handleChange = (e) => {
         change(e, setData)
@@ -47,8 +52,6 @@ const Complaint = (props) => {
       { key: "rejected", label: "Rejected", icon: Ban },
       { key: "pending", label: "Pending", icon: Clock },
       { key: "ongoing", label: "Ongoing", icon: RotateCw },
-      { key: "resolved", label: "Resolved", icon: CheckCircle2 },
-      { key: "revoked", label: "Revoked", icon: Undo2 },
     ];
     const setId = (id) => {
         setComplainantId(id)
@@ -83,7 +86,7 @@ const Complaint = (props) => {
                         () => {},
                         () => {
                             loadRegister(true, "success", "Complaint Revoked Successfully")
-                            router.reload({ only: ['complaint_list'] })
+                            reloadListData()
                         },
                         () => loadRegister(true, "error", "Failed to Revoke Complaint")
                     )
@@ -152,12 +155,12 @@ const Complaint = (props) => {
                 </div>
                 <SingleRowNotice noun="complaint" />
                 {/* Complaint List */}
-                <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3 min-w-0">
+                <div className="w-full min-w-0">
                         <ComplaintList
                             type={props.user.user_type}
                             user={props.user}
                             style={true}
-                            list={props.complaint_list}
+                            list={lists?.complaint_list}
                             setId={setId}
                             actionEvent={handleAction}
                         />

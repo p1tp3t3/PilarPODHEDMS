@@ -25,13 +25,15 @@ class ParentController extends Controller
     {
         // ?status= is the page's tab (pending / approved / rejected; none = all).
         $status = request('status');
-        $parentRequests = ParentRegistrationRequest::oldest('created_at')
-            ->when(in_array($status, ['pending', 'approved', 'rejected'], true), fn ($q) => $q->where('status', $status))
-            ->get()
-            ->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id));
 
-        return Inertia::render('super-admin/parent-approval-request', [
-            'parent_requests' => ParentRegistrationRequestResource::collection($parentRequests),
+        return list_page('super-admin/parent-approval-request', [
+            // The table: loaded by the page from /api/super-admin/parent-request-list.
+            'parent_requests' => list_prop(fn () => ParentRegistrationRequestResource::collection(
+                ParentRegistrationRequest::oldest('created_at')
+                    ->when(in_array($status, ['pending', 'approved', 'rejected'], true), fn ($q) => $q->where('status', $status))
+                    ->get()
+                    ->each(fn ($r) => $r->encrypted_id = encrypt_id($r->id))
+            )),
         ]);
     }
 

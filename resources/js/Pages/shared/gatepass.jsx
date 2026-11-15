@@ -1,6 +1,7 @@
 import SchoolYearSemesterFilter from "@/Components/input/school-year-semester-filter"
 import SingleRowNotice from "@/Components/other/single-row-notice"
 import { useState, useEffect } from "react";
+import useListData from "@/others/hooks/use-list-data";
 import AuthLayout from "@/Layouts/auth-layout";
 import PageLayout from "@/Layouts/page-layout";
 import RequestGatePassModal from "@/Components/modal/submission-form/request-gatepass-modal";
@@ -13,7 +14,7 @@ import { Head, Link, router } from "@inertiajs/react";
 import Btn from "@/Components/button/normal-btn";
 import ActionBtn from "@/Components/button/action-btn";
 import TabSwitcher from "@/Components/other/tab-switcher";
-import { List, Clock, CheckCircle2, XCircle, Ban, Undo2, DoorOpen } from "lucide-react";
+import { List, Clock, CheckCircle2, XCircle, Ban, DoorOpen } from "lucide-react";
 import { DataGrid } from "@/Components/other/data-grid";
 import StatusPill from "@/Components/list/status-pill";
 
@@ -52,7 +53,6 @@ const optionTab = [
   { key: "approved", label: "Approved", icon: CheckCircle2 },
   { key: "expired", label: "Expired", icon: XCircle },
   { key: "rejected", label: "Rejected", icon: Ban },
-  { key: "revoked", label: "Revoked", icon: Undo2 },
 ];
 
 const GatePass = (props) => {
@@ -82,7 +82,10 @@ const GatePass = (props) => {
 
   const { loadRegister } = useReload();
 
-  const shownGatepasses = props.user_gatepass?.gatepass ?? [];
+  // The table loads from /api/gatepass once the page opens (and after a tab
+  // change or a reload).
+  const { data: lists } = useListData();
+  const shownGatepasses = lists?.user_gatepass?.gatepass ?? [];
   // Their latest request regardless of the tab and filters.
   const latestGatepass = props.latest_gatepass;
 
@@ -107,7 +110,7 @@ const GatePass = (props) => {
           () => {},
           () => {
             loadRegister(true, "success", "Gate Pass Revoked Successfully");
-            router.reload({ only: ["user_gatepass", "latest_gatepass"] });
+            router.reload({ only: ["latest_gatepass"] });
           },
           () => loadRegister(true, "error", "Failed to Revoke Gate Pass")
         );
@@ -206,9 +209,10 @@ const GatePass = (props) => {
           <TabSwitcher tabs={optionTab} value={tab} onChange={changeTab} />
           <SingleRowNotice noun="gate pass" />
 
-          <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3 min-w-0">
+          <div className="w-full min-w-0">
             <DataGrid
               rows={shownGatepasses}
+              loading={!lists}
               columns={columns}
               getRowId={(row) => row.id}
               rowHeight={60}

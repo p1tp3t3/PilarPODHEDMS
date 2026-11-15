@@ -9,6 +9,7 @@ import NormalNotif from "../card/notif/normal-notif"
 import ReferralNotif from "../card/notif/referral-notif"
 import { toTitleCase, parseNotifContent } from "@/others/function"
 import { motion } from "framer-motion"
+import { Skeleton } from "@mui/material"
 import { BellOff, Trash2 } from "lucide-react"
 import { SelectCheckbox } from "@/Components/input/select-checkbox"
 
@@ -103,18 +104,16 @@ const NotificationList = ({
                     :
                      <div className={`w-full flex flex-col ${overflow ? 'h-[23rem] overflow-hidden overflow-y-auto' : ''}`}>
                         <div className="grid gap-4 p-3">
+                            {/* Loading: skeleton notifications (MUI, like the tables). */}
                             {[...Array(3)].map((_, i) => (
-                                <motion.div
-                                    key={i}
-                                    className="w-full p-4 rounded-lg bg-gray-200"
-                                    animate={{ opacity: [0.5, 1, 0.5] }}
-                                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                                >
-                                    <div className="h-4 w-32 bg-gray-300 rounded mb-3"></div>
-                                    <div className="h-3 w-full bg-gray-300 rounded mb-2"></div>
-                                    <div className="h-3 w-3/4 bg-gray-300 rounded mb-2"></div>
-                                    <div className="h-3 w-1/2 bg-gray-300 rounded"></div>
-                                </motion.div>
+                                <div key={i} className="w-full flex gap-3 p-3">
+                                    <Skeleton variant="circular" width={40} height={40} />
+                                    <div className="flex-1">
+                                        <Skeleton width="35%" height={20} />
+                                        <Skeleton width="90%" />
+                                        <Skeleton width="60%" />
+                                    </div>
+                                </div>
                             ))}
                         </div>
                     </div>}

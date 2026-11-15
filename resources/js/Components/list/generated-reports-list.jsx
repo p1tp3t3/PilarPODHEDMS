@@ -5,11 +5,25 @@ import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
 import { Chip, IconButton, Tooltip } from "@mui/material"
 import { Trash2, Download, Eye, FolderOpen } from "lucide-react"
+import DropdownField from "@/Components/input/dropdown"
+import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 
-const NoReportsOverlay = () => (
+// The filter dropdowns: the same fields a saved filter has.
+const TYPE_OPTIONS = [
+    { val: "incident", label: "Incident Report" },
+    { val: "violation", label: "Violation Report" },
+    { val: "tardy", label: "Tardy Report" },
+    { val: "appointment", label: "Appointment Report" },
+    { val: "gatepass", label: "Gate Pass Report" },
+    { val: "analytics", label: "Analytical Report" },
+]
+const TYPE_LABEL = Object.fromEntries(TYPE_OPTIONS.map((t) => [t.val, t.label.replace(" Report", "")]))
+const isIndividual = (f) => ["1", "true", true, 1].includes(f?.individual) && !!f?.student_id
+
+const NoReportsOverlay = ({ text = "No reports generated yet." }) => (
     <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 1, color: "var(--dm-text-soft, #6b7280)", fontSize: "0.9em" }}>
         <FolderOpen size="2.2em" style={{ opacity: 0.6 }} />
-        <span>No reports generated yet.</span>
+        <span>{text}</span>
     </Box>
 )
 
@@ -18,8 +32,10 @@ const NoReportsOverlay = () => (
 // ReportController::summarizeReportFilters) instead of just file info.
 // One MUI DataGrid throughout: loading and "none yet" are its own
 // loading/no-rows states rather than separate markup.
-const GeneratedReportsList = () => {
+const GeneratedReportsList = ({ schoolYears = [] }) => {
     const [list, setList] = useState(null)
+    const [filter, setFilter] = useState({ type: "", scope: "", school_year: "", semester: "", file_type: "" })
+    const set = (key) => (e) => setFilter((prev) => ({ ...prev, [key]: e.target.value }))
 
     const load = () => {
         setList(null)
@@ -44,7 +60,19 @@ const GeneratedReportsList = () => {
         )
     }
 
-    const rows = useMemo(() => (list ?? []).map((r) => ({ id: r.id, ...r })), [list])
+    // Narrowed by the dropdowns (each report's own filters).
+    const rows = useMemo(() => (list ?? [])
+        .filter((r) => {
+            const f = r.filters ?? {}
+            if (filter.type && r.report_type !== filter.type) return false
+            if (filter.scope && (filter.scope === "individual") !== isIndividual(f)) return false
+            if (filter.school_year && f.school_year !== filter.school_year) return false
+            if (filter.semester && String(f.semester ?? "") !== filter.semester) return false
+            if (filter.file_type && (r.file_type ?? "pdf") !== filter.file_type) return false
+            return true
+        })
+        .map((r) => ({ id: r.id, ...r })), [list, filter])
+    const filtering = Object.values(filter).some(Boolean)
 
     const columns = useMemo(() => [
         {
@@ -58,7 +86,7 @@ const GeneratedReportsList = () => {
             field: "report_type",
             headerName: "Type",
             width: 140,
-            renderCell: (params) => <Chip label={toTitleCase(params.value)} size="small" variant="outlined" />,
+            renderCell: (params) => <Chip label={TYPE_LABEL[params.value] ?? toTitleCase(params.value)} size="small" variant="outlined" />,
         },
         {
             field: "file_type",
@@ -119,7 +147,26 @@ const GeneratedReportsList = () => {
     ], [])
 
     return (
-        <div className="w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
+        <div className="w-full min-w-0 grid gap-3">
+            <div className="flex flex-wrap gap-3">
+                <MobileFilters active={countActive(...Object.values(filter))}>
+                    <div className="w-full sm:w-52">
+                        <DropdownField default={{ val: "", label: "All Report Types" }} list={TYPE_OPTIONS} onChange={set("type")} name="type" val={filter.type} keepCase />
+                    </div>
+                    <div className="w-full sm:w-44">
+                        <DropdownField default={{ val: "", label: "All Scopes" }} list={[{ val: "group", label: "Group" }, { val: "individual", label: "Individual Student" }]} onChange={set("scope")} name="scope" val={filter.scope} keepCase />
+                    </div>
+                    <div className="w-full sm:w-48">
+                        <DropdownField default={{ val: "", label: "All School Years" }} list={[{ val: "all", label: "All School Years (saved)" }, ...schoolYears.map((y) => ({ val: y, label: y }))]} onChange={set("school_year")} name="school_year" val={filter.school_year} keepCase />
+                    </div>
+                    <div className="w-full sm:w-44">
+                        <DropdownField default={{ val: "", label: "All Semesters" }} list={[{ val: "1", label: "1st Semester" }, { val: "2", label: "2nd Semester" }]} onChange={set("semester")} name="semester" val={filter.semester} keepCase />
+                    </div>
+                    <div className="w-full sm:w-40">
+                        <DropdownField default={{ val: "", label: "All File Types" }} list={[{ val: "pdf", label: "PDF" }, { val: "excel", label: "Excel" }]} onChange={set("file_type")} name="file_type" val={filter.file_type} keepCase />
+                    </div>
+                </MobileFilters>
+            </div>
             <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                 <DataGrid
                     rows={rows}
@@ -132,9 +179,8 @@ const GeneratedReportsList = () => {
                     hideFooterSelectedRowCount
                     getRowHeight={() => "auto"}
                     showToolbar
-                    autoHeight
-                    localeText={{ noRowsLabel: "No reports generated yet." }}
-                    slots={{ noRowsOverlay: NoReportsOverlay }}
+                    localeText={{ noRowsLabel: filtering ? "No reports match these filters." : "No reports generated yet." }}
+                    slots={{ noRowsOverlay: () => <NoReportsOverlay text={filtering ? "No reports match these filters." : "No reports generated yet."} /> }}
                     sx={{ minHeight: 220 }}
                     mobileSummary={(row) => ({
                         name: row.report_name || `${toTitleCase(row.report_type ?? "")} Report`,

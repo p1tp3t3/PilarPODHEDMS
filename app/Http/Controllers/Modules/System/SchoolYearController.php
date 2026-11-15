@@ -19,8 +19,9 @@ class SchoolYearController extends Controller
         // also adds the next school year if the current one has ended.
         SchoolYear::createUpcomingIfDue();
 
-        return Inertia::render('super-admin/school-year', [
-            'school_years' => self::listWithCounts(),
+        return list_page('super-admin/school-year', [
+            // The table: loaded by the page from /api/super-admin/school-year.
+            'school_years' => list_prop(fn () => self::listWithCounts()),
             'upcoming' => SchoolYear::upcoming(),
         ]);
     }

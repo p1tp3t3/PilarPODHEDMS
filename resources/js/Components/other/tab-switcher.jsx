@@ -24,9 +24,8 @@ const TabSwitcher = ({ tabs, value, onChange, fullWidth = false }) => {
                 <Tab
                     key={tab.key}
                     value={tab.key}
+                    // Text only: a tab's `icon` (still in some pages' tab lists) isn't shown.
                     label={tabLabel(tab.label)}
-                    icon={tab.icon ? <tab.icon size={16} /> : undefined}
-                    iconPosition="start"
                     sx={{
                         minHeight: "2.5rem",
                         textTransform: "none",

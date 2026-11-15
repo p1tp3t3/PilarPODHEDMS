@@ -1,5 +1,8 @@
 <?php
 
+// Pages and form actions. JSON endpoints (a list page's table data, and the
+// other /api/... calls) are in routes/api.php.
+
 use App\Http\Controllers\Modules\AbsentForm\AbsentFormController;
 use App\Http\Controllers\Modules\System\BackupController;
 use App\Http\Controllers\Modules\Complaint\ComplaintController;
@@ -47,7 +50,6 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      Route::get('/maintenance/logs', [MaintenanceController::class, 'getLogs']);
      Route::post('/maintenance/logs/clear', [MaintenanceController::class, 'clearLogs']);
      // Model Training page: status/training of the two Python ML models.
-     Route::post('/api/user-graph', [\App\Http\Controllers\Auth\DashboardController::class, 'getUserGraphRoute']);
      Route::get('/super-admin/model-training', [\App\Http\Controllers\Modules\System\ModelTrainingController::class, 'index']);
      Route::get('/super-admin/security-monitor', [\App\Http\Controllers\Modules\System\SecurityMonitorController::class, 'index']);
      Route::get('/super-admin/security-monitor/pdf', [\App\Http\Controllers\Modules\System\SecurityMonitorController::class, 'pdf']);
@@ -202,6 +204,7 @@ Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(functi
     Route::get('/prefect/user-list', [AccountController::class, 'userListIndex']);
 
     Route::get('/prefect/archive', [ArchiveController::class, 'index']);
+    Route::get('/prefect/archive/download', [ArchiveController::class, 'downloadArchive']);
 
     Route::post('/prefect/call-in', [NotificationController::class, 'notifyCallIn']);
     Route::get('/prefect/call-in/history', [NotificationController::class, 'callInHistory']);
@@ -249,7 +252,6 @@ Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(functi
     Route::post('/prefect/report-filter/{id}/delete', [ReportController::class, 'destroyReportFilter']);
     Route::post('/prefect/report-filter/{id}/generate', [ReportController::class, 'generateFromFilter']);
     Route::post('/prefect/archive/recover', [ArchiveController::class, 'recoverDocument']);
-    Route::post('/prefect/archive/delete', [ArchiveController::class, 'destroy']);
     Route::post('/prefect/archive/transfer', [ArchiveController::class, 'transfer']);
 });
 
@@ -300,7 +302,6 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/maintenance-schedule', [MaintenanceController::class, 'scheduleStatus']);
      // Each user's own action log ("My Activity").
      Route::get('/my-activity', [\App\Http\Controllers\ActivityLogController::class, 'index']);
-     Route::post('/api/bargraph', [DashboardController::class, 'getBargraph']);
      Route::get('/dashboard/my-current-semester-records', [DashboardController::class, 'myCurrentSemesterRecords']);
      Route::get('/dashboard/all-current-semester-records', [DashboardController::class, 'allCurrentSemesterRecords']);
 
@@ -358,31 +359,16 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::get('/gatepass/approved-users', [GatePassController::class, 'getAllApprovedGatePass']);
 
      Route::get('/notification/{receiver}/{l}', [NotificationController::class, 'getNotif']);
-     // All / Unread lists for the notifications page and the header's
-     // notification dropdown. {id} is the user's encrypted id and must be
-     // the signed-in user's own.
-     Route::get('/api/notification/list/{type}/{id}/{lim}', [NotificationController::class, 'getNotifType'])
-         ->whereIn('type', ['all', 'unread'])
-         ->whereNumber('lim');
-     Route::get('/api/notification/{type}', [NotificationController::class, 'getStudentNotification']);
      Route::get('/notifications', [NotificationController::class, 'index']);
      Route::post('/notifications/delete/{type}', [NotificationController::class, 'destroy']);
      Route::post('/notification/read', [NotificationController::class, 'markAsRead']);
 
      Route::get('/student-violation/{id}', [ViolationController::class, 'studentViolationIndex']);
      Route::get('/violation-occurence/list/{id}', [ViolationController::class, 'getStudentViolationOccurenceRoute']);
-     Route::get('/api/offense-list', [ViolationController::class, 'getOffenseList']);
-     Route::get('/api/penalty-list', [ViolationController::class, 'getPenaltyList']);
-     Route::post('/api/student/violation/predict', [ViolationController::class, 'predictViolationRisk']);
-     Route::post('/api/student/violation/recommend', [ViolationController::class, 'recommendViolationAction']);
 
      Route::post('/profile/{username}/edit', [ProfileController::class, 'update']);
      Route::get('/profile/{username}/edit', [ProfileController::class, 'edit']);
 
-     Route::get('/api/all-users/{type}', [AccountController::class, 'searchAllUsers']);
-     Route::get('/api/user-account/file', [FileController::class, 'getUserAccountZipFileList']);
-     Route::get('/api/user-account/file/{fileName}/preview', [FileController::class, 'previewAccountFile']);
-     Route::get('/api/user-account/file/{fileName}/preview-entry', [FileController::class, 'previewAccountFileEntry']);
      Route::get('/all-students', function() {
           return \App\Http\Resources\Account\UserResource::collection(User::with(['profile', 'program', 'enrollments'])->whereRole('student')->get());
      })->middleware('role:sub_admin');
@@ -402,7 +388,6 @@ Route::middleware(['auth', 'activate'])->group(function() {
      // A complaint / referral / absent form's PDF, opened in a new tab
      // (ArchiveController::viewDocument checks who may open it).
      Route::get('/document/pdf/{type}/{id}', [\App\Http\Controllers\Modules\Report\ArchiveController::class, 'viewDocument']);
-     Route::get('/api/password/verify/{value}/{id}', [AccountController::class, 'checkCurrentPassword']);
      Route::post('/account-setup/complete', [\App\Http\Controllers\AccountSetupController::class, 'complete']);
      Route::get('/force-change/{key}', [\App\Http\Controllers\AccountSetupController::class, 'showStep']);
      Route::get('/force-password', [\App\Http\Controllers\AccountSetupController::class, 'forcePassword']);

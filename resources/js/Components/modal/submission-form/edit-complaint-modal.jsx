@@ -1,9 +1,9 @@
+import { reloadListData } from "@/others/hooks/use-list-data"
 import UpModal from "../up-modal"
 import RichTextEditor from "../../input/rich-text-editor"
 import FormButton from "../../button/button"
 import '../style.css'
 import { useState, useEffect } from "react"
-import { router } from "@inertiajs/react"
 import SearchUserBar from "@/Components/input/search-user-bar"
 import DropdownField from "../../input/dropdown"
 import { ComplaintService } from "@/others/services/complaint-service"
@@ -121,7 +121,7 @@ const EditComplaintModal = (props) => {
         showOutputModal("Complaint Updated Successfully", "s", () => {
             props.reload(false)
             props.closeModal(false)
-            router.reload({ only: ['complaint_list'] })
+            reloadListData()
         })
     }
     const error = (e) => {

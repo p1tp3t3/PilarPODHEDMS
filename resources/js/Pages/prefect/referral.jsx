@@ -17,9 +17,10 @@ import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
 import { showOutputModal, showWarningModal } from "@/others/function"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
-import { List, Clock, Ban, Undo2, Send } from "lucide-react"
+import { List, Clock, Ban, Send } from "lucide-react"
 import { Head } from "@inertiajs/react"
 import { PageActions } from "@/context-provider/page-title-provider"
+import useListData from "@/others/hooks/use-list-data"
 
 const PrefectReferral = (props) => {
     const MySwal = withReactContent(Swal)
@@ -28,9 +29,9 @@ const PrefectReferral = (props) => {
     const [viewReferral, openViewReferral] = useState(false),
           [id, setId] = useState(''),
           [reportReferral, openReportReferral] = useState(false),
-          [referral_req_list, setReferralRequestList] = useState(props.referral_request.data),
-          [referral_list, setReferralList] = useState(props.referral.data),
-          [choose, setChoose] = useState((url.has('status') ? url.get('status') : 'req')),
+          [referral_list, setReferralList] = useState(null),
+          // No Revoked tab (revoked referrals are in the Archive).
+          [choose, setChoose] = useState(url.get('status') === 'revoked' ? 'all' : (url.has('status') ? url.get('status') : 'req')),
           [schoolYear, setSchoolYear] = useState(url.get('school-year') || 'all'),
           [semester, setSemester] = useState(url.get('semester') || 'all'),
           [program, setProgram] = useState(url.get('program') || 'all'),
@@ -44,15 +45,14 @@ const PrefectReferral = (props) => {
         { key: 'all', label: 'All Referrals', icon: List },
         { key: 'req', label: 'Pending Referrals', icon: Clock },
         { key: 'rejected', label: 'Rejected Referrals', icon: Ban },
-        { key: 'revoked', label: 'Revoked Referrals', icon: Undo2 },
     ]
 
-    // The Report Referral modal reloads via router.reload({ only: ['referral'] })
-    // instead of a full page navigation now, so referral_list (seeded once from
-    // props at mount) needs to stay in sync with that prop on its own.
+    // The table loads from /api/prefect/referrals once the page opens (and
+    // again after a tab change or a reload, e.g. from the Report Referral modal).
+    const { data: lists } = useListData()
     useEffect(() => {
-        setReferralList(props.referral.data)
-    }, [props.referral])
+        if (lists) setReferralList(lists.referral?.data ?? [])
+    }, [lists])
 
     const setViewReferralId = (i) => {
         openViewReferral(true)
@@ -274,7 +274,7 @@ const PrefectReferral = (props) => {
                         <SingleRowNotice noun="referral" />
 
                         {/* Table/List */}
-                        <div className="flex w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
+                        <div className="flex w-full min-w-0">
                             <div className="w-full min-w-0">
                                 <ReferralList
                                     list={referral_list}

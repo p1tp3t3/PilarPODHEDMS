@@ -5,6 +5,7 @@ import PageLayout from "@/Layouts/page-layout"
 import ReferralList from "@/Components/list/referral-list"
 import { useReload } from "@/context-provider/reload-provider"
 import { useState, useEffect } from "react"
+import useListData, { reloadListData } from "@/others/hooks/use-list-data"
 import { Head, router } from "@inertiajs/react"
 import Btn from "@/Components/button/normal-btn"
 import ViewReferralModal from "@/Components/modal/view/view-referral-modal"
@@ -13,17 +14,18 @@ import ReportReferralModal from "@/Components/modal/submission-form/report-refer
 import { showWarningModal } from "@/others/function"
 import { ReferralService } from "@/others/services/referral-service"
 import TabSwitcher from "@/Components/other/tab-switcher"
-import { List, Clock, CheckCircle2, Ban, Undo2, Send } from "lucide-react"
+import { List, Clock, CheckCircle2, Ban, Send } from "lucide-react"
 
 const optionTab = [
     { key: 'all', label: 'All Referrals', icon: List },
     { key: 'req', label: 'Pending', icon: Clock },
     { key: 'approve', label: 'Approved', icon: CheckCircle2 },
     { key: 'rejected', label: 'Rejected', icon: Ban },
-    { key: 'revoked', label: 'Revoked', icon: Undo2 },
 ]
 
 const Referral = (props) => {
+    // The table loads from /api/referral once the page opens.
+    const { data: lists } = useListData()
     const [viewReferral, openViewReferral] = useState(false),
           [id, setId] = useState(''),
           [editReferral, openEditReferral] = useState(false),
@@ -31,7 +33,12 @@ const Referral = (props) => {
           [reportReferral, openReportReferral] = useState(false)
 
     const { loadRegister } = useReload()
-    const [choose, setChoose] = useState(new URLSearchParams(window.location.search).get('status') || 'req')
+    // No Revoked tab (only the prefect sees revoked referrals): an old
+    // ?status=revoked link lands on All Referrals, as the server does.
+    const [choose, setChoose] = useState(() => {
+        const s = new URLSearchParams(window.location.search).get('status')
+        return s === 'revoked' ? 'all' : (s || 'req')
+    })
 
     const handleSelect = (type) => {
         if (choose === type) return
@@ -68,7 +75,7 @@ const Referral = (props) => {
                         () => {},
                         () => {
                             loadRegister(true, "success", "Referral Revoked Successfully")
-                            router.reload({ only: ['referral'] })
+                            reloadListData()
                         },
                         () => loadRegister(true, "error", "Failed to Revoke Referral")
                     )
@@ -126,7 +133,7 @@ const Referral = (props) => {
             <SingleRowNotice noun="referral" />
             <div className="w-full min-w-0">
                 <ReferralList
-                    list={props.referral.data}
+                    list={lists?.referral.data}
                     style={true}
                     viewReferral={setViewReferralId}
                     type={props.user.role}

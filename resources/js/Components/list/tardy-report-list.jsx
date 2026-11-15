@@ -13,7 +13,8 @@ const parseReason = (reason) => {
 }
 
 const TardyReportList = ({ list = [] }) => {
-    const rows = list.map((e, i) => ({
+    // null while the list loads (the table shows its loading state).
+    const rows = (list ?? []).map((e, i) => ({
         id: e.id ?? i,
         index: i + 1,
         student_id: e.user?.id_number,
@@ -32,7 +33,7 @@ const TardyReportList = ({ list = [] }) => {
         },
         {
             field: "student_id",
-            headerName: "Student I.D",
+            headerName: "Student ID",
             width: 100,
             sortable: false,
         },
@@ -73,7 +74,7 @@ const TardyReportList = ({ list = [] }) => {
             headerName: "Reason",
             flex: 1.2,
             renderCell: (params) => (
-                <span className="text-[0.85em]">{toTitleCase(params.value || "-")}</span>
+                <span>{toTitleCase(params.value || "-")}</span>
             ),
         },
         {
@@ -87,20 +88,12 @@ const TardyReportList = ({ list = [] }) => {
             flex: 1,
             renderCell: (params) =>
                 params.value ? (
-                    <div className="text-[0.8em]">{readableDate(params.value)}</div>
+                    <div>{readableDate(params.value)}</div>
                 ) : (
                     "-"
                 ),
         },
     ]
-
-    if (!list) {
-        return (
-            <div className="w-full px-5 py-10 bg-white rounded-md shadow-black/20 shadow-sm text-center">
-                Loading...
-            </div>
-        )
-    }
 
     return (
         <Box
@@ -108,13 +101,10 @@ const TardyReportList = ({ list = [] }) => {
                 width: "100%",
                 minWidth: 0,
                 overflow: "auto",
-                backgroundColor: "var(--dm-surface, #fff)",
-                borderRadius: 2,
-                boxShadow: 2,
-                p: 2,
             }}
         >
             <DataGrid
+                loading={list == null}
                 rows={rows}
                 columns={columns}
                 pageSizeOptions={[5, 10, 20]}
@@ -126,7 +116,6 @@ const TardyReportList = ({ list = [] }) => {
                 pagination
                 disableRowSelectionOnClick
                 sx={{
-                    border: "none",
                     "& .MuiDataGrid-columnHeaders": {
                         backgroundColor: "var(--dm-surface-2, #f9fafb)",
                         fontWeight: "bold",

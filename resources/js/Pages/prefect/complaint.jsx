@@ -21,10 +21,11 @@ import { ReportArchiveService } from "@/others/services/report-archive-service"
 import ActionBtn from "@/Components/button/action-btn"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
 import IssueViolationModal2 from "@/Components/modal/submission-form/issue-violation-modal2"
-import { List, Clock, RotateCw, Ban, Undo2, X, Check, FilePlus } from "lucide-react"
+import { List, Clock, RotateCw, Ban, X, Check, FilePlus } from "lucide-react"
 import { Head } from "@inertiajs/react"
 import { LabeledCheckbox, setRowsChecked } from "@/Components/input/select-checkbox"
 import { PageActions } from "@/context-provider/page-title-provider"
+import useListData from "@/others/hooks/use-list-data"
 
 const PrefectComplaint = (props) => {
   const url = new URLSearchParams(window.location.search)
@@ -49,10 +50,15 @@ const PrefectComplaint = (props) => {
   const [rejectReason, openRejectReason] = useState(false)
   const [issueViolation, openIssueViolation] = useState(false)
   const { loadRegister } = useReload()
-  const [complaintList, setComplaintList] = useState(props.complaint_list)
+  // The table loads from /api/prefect/complaints once the page opens.
+  const { data: lists } = useListData()
+  const [complaintList, setComplaintList] = useState(null)
+  useEffect(() => { if (lists) setComplaintList(lists.complaint_list) }, [lists])
   const [select, enableSelect] = useState(false)
   const [select2, enableSelect2] = useState(false)
-  const [choose, setChoose] = useState(url.get("status") || "all")
+  // No Revoked tab (revoked complaints are in the Archive): an old
+  // ?status=revoked link lands on All Complaints.
+  const [choose, setChoose] = useState(url.get("status") === "revoked" ? "all" : (url.get("status") || "all"))
   const params = new URLSearchParams(window.location.search)
   const [role, setRole] = useState(params.get("role") || "all")
   const [schoolYear, setSchoolYear] = useState(params.get("school-year") || "all")
@@ -62,7 +68,6 @@ const PrefectComplaint = (props) => {
     { key: "pending", label: "Pending", icon: Clock },
     { key: "ongoing", label: "Ongoing", icon: RotateCw },
     { key: "rejected", label: "Rejected", icon: Ban },
-    { key: "revoked", label: "Revoked", icon: Undo2 },
   ];
 
 
@@ -321,7 +326,8 @@ const PrefectComplaint = (props) => {
 
               {/* Tabs */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                <div className="min-w-0 overflow-x-auto">
+                {/* flex-1: the tab bar's line runs the full width, like the other pages */}
+                <div className="min-w-0 flex-1 overflow-x-auto">
                   <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
                 </div>
                 {/* Bulk select (Pending tab only) */}
@@ -355,7 +361,7 @@ const PrefectComplaint = (props) => {
             <SingleRowNotice noun="complaint" />
 
             {/* Complaint List */}
-            <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3 min-w-0">
+            <div className="w-full min-w-0">
                 <ComplaintList
                   type="prefect"
                   list={complaintList}

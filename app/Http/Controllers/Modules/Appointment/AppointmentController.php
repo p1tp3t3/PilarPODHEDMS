@@ -43,21 +43,22 @@ class AppointmentController extends Controller
         if (auth()->user()->role == 'sub_admin') {
             $props = array_merge($props, [
                 'appointment_request_list' => null,
-                'student_parent_list' => UserResource::collection(User::with('profile')->whereRole(['student', 'parent'])->get()),
+                'student_parent_list' => fn () => UserResource::collection(User::with('profile')->whereRole(['student', 'parent'])->get()),
                 // For the Call-In History's filter dropdowns.
                 'school_years' => \App\Models\SchoolYear::orderByDesc('year')->pluck('year'),
                 'programs' => ProgramResource::collection(\App\Models\Program::orderBy('code')->get(['id', 'code'])),
             ]);
         } else {
             $props = array_merge($props, [
-                'appointment_history' => self::getAppointmentHistory(auth()->user()->id),
-                'call_in_history' => self::getCallInHistory(auth()->user()->id),
+                // The tables: loaded by the page from /api/appointment (list_page()).
+                'appointment_history' => list_prop(fn () => self::getAppointmentHistory(auth()->user()->id)),
+                'call_in_history' => list_prop(fn () => self::getCallInHistory(auth()->user()->id)),
                 // For the School Year / Semester dropdowns.
                 'school_years' => \App\Models\SchoolYear::orderByDesc('year')->pluck('year'),
             ]);
         }
 
-        return Inertia::render("$isPrefect/appointment2", $props);
+        return list_page("$isPrefect/appointment2", $props);
     }
 
     /**

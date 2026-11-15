@@ -1,7 +1,6 @@
 import ProfilePic from "../other/profile-pic"
 import { checkActiveStatus, getProfilePic, readableDate, readableTime, showUserType, profileUrl } from "@/others/function"
 import { Link } from "@inertiajs/react"
-import PaginationButton from "../button/pagination-btn"
 import { useEffect, useMemo, useState, useContext } from "react"
 import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
@@ -10,7 +9,10 @@ import AuthContext from "@/context-provider/auth-provider"
 
 const StaffList = ({ list, canManagePosition = false }) => {
     const { isUserOnline } = useContext(AuthContext)
-    const l = list.data
+    // { data: [...] }, null while it loads. Every row: the table paginates
+    // in the browser.
+    const loading = list == null
+    const l = list?.data ?? []
 
     // Ticks every 5s so the "Active Since" column's relative-time text and
     // online/offline dot stay live without needing a page refresh.
@@ -96,23 +98,23 @@ const StaffList = ({ list, canManagePosition = false }) => {
     ], [isUserOnline, canManagePosition])
 
     return (
-        <div className="w-full px-5 py-3 bg-white rounded-md shadow-black/20 shadow-sm">
+        <div className="w-full">
             <div className="grid gap-4">
                 <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                     <DataGrid
                         rows={rows}
                         columns={columns}
                         mobileSummary={(row) => ({ name: row.name.trim(), role: row.subtitle, picture: row.profile_picture, sex: row.sex, hide: ["name"] })}
-                        hideFooter
+                        loading={loading}
+                        pagination
+                        pageSizeOptions={[20, 50, 100]}
+                        initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
                         disableRowSelectionOnClick
                         rowHeight={60}
                         showToolbar
                         localeText={{ noRowsLabel: "No Staff Found" }}
                     />
                 </Box>
-                <div className="justify-self-end">
-                    <PaginationButton meta={list} />
-                </div>
             </div>
         </div>
     )

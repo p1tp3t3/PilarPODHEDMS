@@ -4,13 +4,19 @@ import TabSwitcher from "@/Components/other/tab-switcher"
 import { Head } from "@inertiajs/react"
 import { Chip, Paper } from "@mui/material"
 import { useState } from "react"
+import useListData from "@/others/hooks/use-list-data"
 import { ordinal } from "@/others/function"
 import BreadcrumbNav from "@/Components/other/breadcrumb-nav"
 import { PageTitle } from "@/context-provider/page-title-provider"
 
 // Prefect only: the backend sends the super admin back to the violations list.
-const ViolationStudents = ({ violation, violation_key, students = [], occurrence_breakdown = [] }) => {
+const ViolationStudents = ({ violation, violation_key }) => {
     const [tab, setTab] = useState("occurrences")
+    // Both tables load from /api/violation-management/{id}/students once the
+    // page opens.
+    const { data: lists } = useListData()
+    const students = lists?.students ?? []
+    const occurrence_breakdown = lists?.occurrence_breakdown ?? []
 
     const occurrenceCount = (occ) =>
         occurrence_breakdown.find((o) => o.occurrence === occ)?.student_count ?? 0
@@ -114,7 +120,7 @@ const ViolationStudents = ({ violation, violation_key, students = [], occurrence
                     </Paper>
                 )}
 
-                {tab === "students" && <StudentViolationList list={students} fromKey={violation_key} />}
+                {tab === "students" && <StudentViolationList list={lists ? students : null} fromKey={violation_key} />}
             </div>
         </>
     )

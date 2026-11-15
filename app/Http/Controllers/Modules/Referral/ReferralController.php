@@ -68,20 +68,17 @@ class ReferralController extends Controller
         $user->allow_referral = $user->permissions?->allow_referral;
         $props = [
             'user' => new UserResource($user),
-            'students' => UserResource::collection(User::with(['profile', 'program'])
+            'students' => fn () => UserResource::collection(User::with(['profile', 'program'])
                 ->whereRole('student')
                 ->where('id', '!=', auth()->user()->id)
                 ->get()),
-            'referral' => self::getAllReferral(),
+            // The table: loaded by the page from its API endpoint (list_page()).
+            'referral' => list_prop(fn () => self::getAllReferral()),
             'program_name' => is_program_head(),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
             'programs' => ProgramResource::collection(Program::orderBy('code')->get(['id', 'code'])),
         ];
-        $props = ! self::isPrefect() ? $props : array_merge($props, [
-            'referral_request' => self::getReferralRequest(),
-        ]);
-
-        return Inertia::render("$isPrefect/referral", $props);
+        return list_page("$isPrefect/referral", $props);
     }
 
     /**
@@ -95,8 +92,8 @@ class ReferralController extends Controller
             return redirect('/dashboard');
         }
 
-        return Inertia::render('guidance/referral', [
-            'referral' => self::getAllReferral(),
+        return list_page('guidance/referral', [
+            'referral' => list_prop(fn () => self::getAllReferral()),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
         ]);
     }
@@ -257,18 +254,22 @@ class ReferralController extends Controller
         if ($prefectView) {
             $referrals->whereNull('confirmed_at');
         }
+        // Revoked referrals are in the prefect's Archive only (no Revoked
+        // tab anywhere); an old ?status=revoked link gets All.
+        $referrals->whereNull('revoked_at');
+        if ($status === 'revoked') {
+            $status = 'all';
+        }
 
         if ($status === 'approve' && ! $prefectView) {
             $referrals->whereNotNull('confirmed_at')->latest('confirmed_at');
         } elseif ($status === 'rejected') {
             $referrals->whereNotNull('rejected_at')->latest('rejected_at');
-        } elseif ($status === 'revoked') {
-            $referrals->whereNotNull('revoked_at')->latest('revoked_at');
         } elseif ($status === 'all') {
             $referrals->latest('created_at');
         } else {
-            // Pending: a queue, the oldest referral first.
-            $referrals->whereNull('confirmed_at')->whereNull('rejected_at')->whereNull('revoked_at')->oldest('created_at');
+            // Pending: newest first (the dashboard's Up next keeps the queue).
+            $referrals->whereNull('confirmed_at')->whereNull('rejected_at')->whereNull('revoked_at')->latest('created_at');
         }
 
         SchoolYearSemester::applyFilter($referrals, 'created_at', request('school-year'), request('semester'));
@@ -283,7 +284,8 @@ class ReferralController extends Controller
             $referrals->whereHas('referralReferredStudent', fn ($q) => $q->whereIn('student_id', Enrollment::studentIdsInProgram($program)));
         }
 
-        return ReferralResource::collection($referrals->paginate(20));
+        // Every row (the table paginates in the browser), as { data: [...] }.
+        return ['data' => ReferralResource::collection($referrals->get())];
     }
 
     /**
@@ -299,20 +301,6 @@ class ReferralController extends Controller
                 ->latest('created_at')
                 ->get()
         )];
-    }
-
-    public function getReferralRequest()
-    {
-        return ReferralResource::collection(Referral::with([
-            'user.profile',
-            'user.faculty.program', 'user.headships.program',
-            'referredStudent.profile',
-            'referredStudent.program',
-        ])
-            ->whereNot('confirmed_at', null)
-            ->whereNull('archived_at')
-            ->latest('created_at')
-            ->get());
     }
 
     public function confirmReferral($id)

@@ -5,6 +5,7 @@ import { useReload } from "@/context-provider/reload-provider"
 import { AppointmentService } from "@/others/services/appointment-service"
 import { showOutputModal, showWarningModal, readableDate, readableTime } from "@/others/function"
 import { useState, useEffect } from "react"
+import useListData from "@/others/hooks/use-list-data"
 import { Head, usePage, router } from "@inertiajs/react"
 import DropdownField from "@/Components/input/dropdown"
 import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
@@ -14,7 +15,12 @@ import PageLayout from "@/Layouts/page-layout"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import { CalendarDays, PhoneCall } from "lucide-react"
 
-const OtherAppointment = ({ appointment_history = [], call_in_history = [], ...props }) => {
+const OtherAppointment = (props) => {
+    // The tables load from /api/appointment once the page opens (and after a
+    // filter change or a reload).
+    const { data: lists } = useListData()
+    const appointment_history = lists?.appointment_history ?? []
+    const call_in_history = lists?.call_in_history ?? []
     // The controller doesn't pass `user` — fall back to the signed-in user.
     const user = props.user ?? usePage().props.auth.user
     const [reasonModalOpen, setReasonModalOpen] = useState(false)
@@ -40,7 +46,6 @@ const OtherAppointment = ({ appointment_history = [], call_in_history = [], ...p
         router.get(window.location.pathname, query, {
             preserveState: true,
             preserveScroll: true,
-            only: ["appointment_history", "call_in_history"],
         })
     }
     const tabs = [
@@ -155,6 +160,7 @@ const OtherAppointment = ({ appointment_history = [], call_in_history = [], ...p
                             <DataGrid
                                 key="appointments"
                                 rows={appointments.map((a, i) => ({ ...a, i: i + 1 }))}
+                                loading={!lists}
                                 columns={appointmentColumns(handleAccept, handleDeclineOpen)}
                                 mobileSummary={(row) => ({
                                     name: row.appointment_number ? `Ref. No. ${row.appointment_number}` : "Appointment",
@@ -172,6 +178,7 @@ const OtherAppointment = ({ appointment_history = [], call_in_history = [], ...p
                             <DataGrid
                                 key="call-ins"
                                 rows={call_in_history.map((c, i) => ({ ...c, i: i + 1, text: plainText(c.message) }))}
+                                loading={!lists}
                                 columns={CALL_IN_COLUMNS}
                                 mobileSummary={(row) => ({
                                     name: "Office call-in",

@@ -1,25 +1,40 @@
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import TabSwitcher from "@/Components/other/tab-switcher"
-import { useState } from "react"
-import { showOutputModal, showWarningModal, toTitleCase } from "@/others/function"
+import { useState, useEffect } from "react"
+import useListData from "@/others/hooks/use-list-data"
 import ArchiveList from "@/Components/list/archive-list"
 import ViewComplaintModal from "@/Components/modal/view/view-complaint-modal"
 import ViewReferralModal from "@/Components/modal/view/view-referral-modal"
 import ViewAbsentFormModal from "@/Components/modal/view/view-absent-form-modal"
 import ViewGatePassModal from "@/Components/modal/view/view-gatepass-modal"
 import { useReload } from "@/context-provider/reload-provider"
-import { ReportArchiveService } from "@/others/services/report-archive-service"
 import { router } from "@inertiajs/react"
 import NoteAbsentFormModal from "@/Components/modal/submission-form/note-absent-form-modal"
 import DropdownField from "@/Components/input/dropdown"
 import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import { Head } from "@inertiajs/react"
+import DownloadArchiveModal from "@/Components/modal/submission-form/download-archive-modal"
+import { PageActions } from "@/context-provider/page-title-provider"
+import Btn from "@/Components/button/normal-btn"
+import { Download } from "lucide-react"
 
+
+// Each document type's final statuses, for the Status dropdown: it changes
+// with the tab (All Documents: every one any type can have). Pending and
+// ongoing aren't options; such records still show under All Statuses.
+const STATUS_OPTIONS = {
+    complaint: ['resolved', 'rejected', 'revoked'],
+    referral: ['approved', 'rejected', 'revoked'],
+    'absent form': ['approved', 'rejected', 'revoked'],
+    all: ['resolved', 'approved', 'rejected', 'revoked'],
+}
+const statusList = (type) => (STATUS_OPTIONS[type] ?? STATUS_OPTIONS.all)
+    .map((s) => ({ val: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))
 
 const PrefectArchive = (props) => {
     const optionTab = [
-        { key: 'all', label: 'All' },
+        { key: 'all', label: 'All Documents' },
         { key: 'complaint', label: 'Complaint' },
         { key: 'referral', label: 'Referral' },
         { key: 'absent form', label: 'Absent Form' },
@@ -28,16 +43,22 @@ const PrefectArchive = (props) => {
     const [choose, setChoose] = useState(url.has("type") ? url.get("type") : "all"),
           [schoolYear, setSchoolYear] = useState(url.get("school_year") ?? ''),
           [semester, setSemester] = useState(url.get("semester") ?? ''),
+          [status, setStatus] = useState(url.get("status") ?? ''),
           [complaint, openViewComplaint] = useState(false),
           [referral, openViewReferral] = useState(false),
           [absent, openAbsentForm] = useState(false),
           [gatepass, openViewGatepass] = useState(false),
           [id, setDocId] = useState(''),
 
-          [archive_list, setArchiveList] = useState(props.document)
+          [archive_list, setArchiveList] = useState(null)
+    // The table loads from /api/prefect/archive once the page opens (and
+    // after each filter change).
+    const { data: lists } = useListData()
+    useEffect(() => { if (lists) setArchiveList(lists.document) }, [lists])
 
     const { loadRegister } = useReload()
-    const [noteAbsent, openNoteAbsent] = useState(false)
+    const [noteAbsent, openNoteAbsent] = useState(false),
+          [downloadForm, openDownloadForm] = useState(false)
 
     // Preserves every other active filter (search, school year, etc.) when
     // only one of them changes — switching tabs used to silently drop the
@@ -55,8 +76,17 @@ const PrefectArchive = (props) => {
     const handleSelect = (type) => {
         if(choose != type) {
             setChoose(type)
-            updateQuery({ type })
+            // A status the new tab's type doesn't have (e.g. Resolved on
+            // Referral) is cleared.
+            const keep = (STATUS_OPTIONS[type] ?? STATUS_OPTIONS.all).includes(status)
+            if (!keep) setStatus('')
+            updateQuery({ type, status: keep ? status : '' })
         }
+    }
+    const handleStatusChange = (e) => {
+        const value = e.target.value
+        setStatus(value)
+        updateQuery({ status: value })
     }
     const handleSchoolYearChange = (e) => {
         const value = e.target.value
@@ -80,46 +110,17 @@ const PrefectArchive = (props) => {
             openViewGatepass(true)
         }
     }
-    // The archive is read-only: records can be viewed, downloaded and
-    // deleted, but not approved from here.
-    const deleteDocument = (docType, docId) => {
-        const label = `Are You Sure You Want To Permanently Remove ${toTitleCase(docType)} No. ${docId}?`
-        const buttonLabel = `Delete ${toTitleCase(docType)} No. ${docId}`
-
-        showWarningModal(
-            label,
-            buttonLabel,
-            'Cancel',
-            () => {
-                loadRegister(true, 'text-wait', `Removing ${toTitleCase(docType)} No. ${docId} In The Archive is Processing`)
-                ReportArchiveService.deleteArchived(
-                    docType, docId,
-                    () => {
-                        showOutputModal(
-                            `${toTitleCase(docType)} No. ${docId} Has Been Removed Successfully`,
-                            's',
-                            () => {
-                                loadRegister(false)
-                                window.location.reload()
-                            }
-                        )
-                    },
-                    () => {
-                        showOutputModal(
-                            `Failed to Removed ${toTitleCase(docType)} No. ${docId}`,
-                            'e',
-                            () => {
-                                loadRegister(false)
-                            }
-                        )
-                    }
-                )
-            }
-        )
-    }
     return (
         <>
         <Head title="Archive" />
+        <DownloadArchiveModal
+            close={downloadForm}
+            closeModal={openDownloadForm}
+            type={choose}
+            schoolYear={schoolYear}
+            semester={semester}
+            schoolYears={props.school_years}
+        />
         <NoteAbsentFormModal
             close={noteAbsent}
             closeModal={openNoteAbsent}
@@ -161,10 +162,17 @@ const PrefectArchive = (props) => {
             setApprove={() => {}}
             events={() => {}}
         />
-            <PageLayout title="ARCHIVES">
+            <PageLayout actionsWithFilters
+                title="ARCHIVES"
+                rightSideComponent={
+                    <Btn onclick={() => openDownloadForm(true)} icon={<Download size={19} />}>
+                        Download Archive
+                    </Btn>
+                }
+            >
                     <div className="grid gap-3">
                         <div className="flex flex-col sm:flex-row gap-3 sm:items-center md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
-                            <MobileFilters active={countActive(schoolYear, semester)}>
+                            <MobileFilters active={countActive(schoolYear, semester, status)}>
                             <div className="w-full sm:w-[14rem] flex-shrink-0">
                                 <DropdownField
                                     default={{ val: '', label: 'All School Years' }}
@@ -186,7 +194,18 @@ const PrefectArchive = (props) => {
                                     val={semester}
                                 />
                             </div>
+                            <div className="w-full sm:w-[14rem] flex-shrink-0">
+                                <DropdownField
+                                    default={{ val: '', label: 'All Statuses' }}
+                                    list={statusList(choose)}
+                                    onChange={handleStatusChange}
+                                    name="status"
+                                    val={status}
+                                    keepCase
+                                />
+                            </div>
                             </MobileFilters>
+                            <PageActions />
                         </div>
                         <div className="w-full">
                             <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
@@ -196,7 +215,7 @@ const PrefectArchive = (props) => {
                         <ArchiveList
                             list={archive_list}
                             viewDocument={setId}
-                            deleteDocument={deleteDocument}
+                            showType={choose === "all"}
                         />
                     </div>
             </PageLayout>

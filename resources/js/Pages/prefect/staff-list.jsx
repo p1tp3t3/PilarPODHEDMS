@@ -1,3 +1,4 @@
+import useListData from "@/others/hooks/use-list-data"
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import { useState } from "react"
@@ -15,6 +16,8 @@ import { PageActions } from "@/context-provider/page-title-provider"
 const TEACHING_TYPES = ["program_head", "faculty", "teaching"]
 
 const PrefectStaffList = (props) => {
+    // The table loads from its API endpoint once the page opens.
+    const { data: lists } = useListData()
     const url = new URLSearchParams(window.location.search)
     const [tab, setTab] = useState(url.get("type") ?? "all")
     const [program, setProgram] = useState(url.get("program") ?? "")
@@ -144,7 +147,7 @@ const PrefectStaffList = (props) => {
                     </div>
 
                     <StaffList
-                        list={props.staff}
+                        list={lists?.staff}
                         canManagePosition={canManagePosition}
                     />
             </PageLayout>

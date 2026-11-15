@@ -16,8 +16,9 @@ class SecurityMonitorController extends Controller
 {
     public function index()
     {
-        return Inertia::render('super-admin/security-monitor', [
-            'entries' => BreachLog::entries(),
+        return list_page('super-admin/security-monitor', [
+            // The table: loaded by the page from /api/super-admin/security-monitor.
+            'entries' => list_prop(fn () => BreachLog::entries()),
             'types' => collect(BreachLog::TYPES)->map(fn ($label, $val) => ['val' => $val, 'label' => $label])->values(),
             'school_years' => SchoolYearResource::collection(SchoolYear::with('semesters:id,school_year_id,semester,date_start,date_end')
                 ->orderByDesc('year')->get(['id', 'year'])),

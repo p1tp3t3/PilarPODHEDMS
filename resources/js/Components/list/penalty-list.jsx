@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { DataGrid } from "@/Components/other/data-grid"
 import Box from "@mui/material/Box"
-import ListSkeleton from "../reload/list-skeleton"
 import { toTitleCase } from "@/others/function"
 import { ViolationService } from "@/others/services/violation-service";
 import { useIsMobile } from "@/others/use-is-mobile"
@@ -35,21 +34,15 @@ const PenaltyList = ({ list = null }) => {
         { field: "description", headerName: "Penalty Name", flex: 1, minWidth: 200 },
     ], [])
 
-    if (penaltyList === null) {
-        return (
-            <div className="w-full px-5 py-10 bg-white rounded-md shadow-black/20 shadow-sm flex justify-center">
-                <ListSkeleton rows={3} />
-            </div>
-        )
-    }
-
     if (isMobile) return <MobilePenaltyList rows={rows} />
 
     return (
-        <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", backgroundColor: "var(--dm-surface, #fff)", borderRadius: 2, boxShadow: 1, p: 2 }}>
+        <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
             <DataGrid
                 rows={rows}
                 columns={columns}
+                // Loading: the table's skeleton rows (same as every table).
+                loading={penaltyList == null}
                 hideFooter
                 disableRowSelectionOnClick
                 showToolbar

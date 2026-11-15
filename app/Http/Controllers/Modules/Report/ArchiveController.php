@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Modules\Report;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Archive\DestroyDocumentRequest;
 use App\Http\Requests\Archive\RecoverDocumentRequest;
 use App\Http\Resources\Report\ArchivedDocumentResource;
 use App\Mail\AbsentFormMail;
@@ -44,7 +43,7 @@ class ArchiveController extends Controller
      * associated document folder to clean up on disk. Gate pass has no
      * uploaded files, so it has nothing to clean up (falls to default null).
      */
-    private function folderFor(string $type, $record): ?string
+    public static function folderFor(string $type, $record): ?string
     {
         return match ($type) {
             'complaint' => storage_path("app/private/complaints/complaint-{$record->complaint_number}"),
@@ -94,8 +93,10 @@ class ArchiveController extends Controller
 
     public function index()
     {
-        return Inertia::render('prefect/archive', [
-            'document' => self::getDocuments('all'),
+        return list_page('prefect/archive', [
+            // The table: loaded by the page from /api/prefect/archive (every
+            // row; it paginates in the browser).
+            'document' => list_prop(fn () => self::getDocuments('all')),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
         ]);
     }
@@ -123,31 +124,24 @@ class ArchiveController extends Controller
         return response()->json(['message' => ucfirst($request->type).' archived successfully.']);
     }
 
-    public function destroy(DestroyDocumentRequest $request)
+    /** The archivable types, with their models (PurgeExpiredArchiveCommand). */
+    public static function archivableModels(): array
     {
-        $model = self::$archivable[$request->type]['model'];
-        $doc = $model::find($request->id);
+        return array_map(fn ($t) => $t['model'], self::$archivable);
+    }
 
-        if (! $doc) {
-            return response()->json(['message' => 'Document not found.'], 404);
-        }
-        // archived_at isn't cast to Carbon on these models — it's a plain
-        // string from the DB, so it's parsed explicitly here.
-        $archivedAt = $doc->archived_at ? Carbon::parse($doc->archived_at) : null;
-        if (! $archivedAt || now()->lt($archivedAt)) {
-            return response()->json([
-                'message' => 'This record cannot be deleted until '.
-                    ($archivedAt ? $archivedAt->format('F j, Y') : 'it is archived').'.',
-            ], 403);
-        }
-
-        $folder = $this->folderFor($request->type, $doc);
+    /**
+     * Permanently removes an archived record and its saved files. Only the
+     * daily PurgeExpiredArchiveCommand does this, once the record's
+     * archived_at (its keep-until date) has passed.
+     */
+    public static function purge(string $type, $doc): void
+    {
+        $folder = self::folderFor($type, $doc);
         if ($folder && File::exists($folder)) {
             File::deleteDirectory($folder);
         }
         $doc->delete();
-
-        return self::getDocuments();
     }
 
     public function recoverDocument(RecoverDocumentRequest $request)
@@ -257,7 +251,8 @@ class ArchiveController extends Controller
             }
         }
 
-        return self::getDocuments();
+        // The whole list again (the page's table paginates in the browser).
+        return self::getDocuments('all');
     }
 
     public function getDocuments($type = 'paginate')
@@ -389,6 +384,12 @@ class ArchiveController extends Controller
             })->values();
         }
 
+        // Status dropdown: the record's own status (see archiveStatus()).
+        $status = request()->input('status');
+        if (! empty($status) && $status !== 'all') {
+            $merged = $merged->filter(fn ($item) => self::archiveStatus($item) === $status)->values();
+        }
+
         // -----------------------
         // 6. FILTER BY SEMESTER
         // -----------------------
@@ -446,6 +447,11 @@ class ArchiveController extends Controller
 
                 return false;
             })->values();
+        }
+
+        // downloadArchive(): the filtered records themselves.
+        if ($type === 'records') {
+            return $merged;
         }
 
         $paginated = $merged;
@@ -545,6 +551,176 @@ class ArchiveController extends Controller
         return false;
     }
 
+    /** The archive tabs that have files, with the ZIP's folder for each. */
+    private const ZIP_FOLDERS = [
+        'complaint' => 'Complaints',
+        'referral' => 'Referrals',
+        'absent form' => 'Absent Forms',
+    ];
+
+    /**
+     * An archived record's status, as the Archives table shows it
+     * (archive-list.jsx statusValueFor): complaints and referrals have a
+     * status column; absent forms and gate passes follow from which
+     * decision date is set.
+     */
+    private static function archiveStatus($item): string
+    {
+        return match ($item->type) {
+            'complaint' => (string) $item->complaint_status,
+            'referral' => (string) $item->referral_status,
+            default => $item->revoked_at ? 'revoked'
+                : ($item->rejected_at ? 'rejected'
+                : ($item->confirmed_at ? 'approved' : 'pending')),
+        };
+    }
+
+    /** A student's side of a complaint, and its folder inside Complaints/. */
+    private const COMPLAINT_SIDES = [
+        'complainant' => 'As Complainant',
+        'subject' => 'As Subject',
+    ];
+
+    /**
+     * Download Archive form: one ZIP of every archived document for a school
+     * year, a semester, or both, and/or one person, named
+     * {tab}-{sy}-{semester}[-{id number}].zip, with one folder per document
+     * type (all three for All Documents). For a student, Complaints/ holds a
+     * folder per side ticked: As Complainant, As Subject.
+     */
+    public function downloadArchive(Request $request)
+    {
+        $data = $request->validate([
+            'type' => 'required|in:all,complaint,referral,absent form',
+            'school_year' => ['nullable', 'regex:/^\d{4}-\d{4}$/', 'required_without_all:semester,user_id'],
+            'semester' => 'nullable|in:1,2',
+            // Individual: the person who sent it, or for a student, their
+            // side of it (complaint: complainant and/or subject; referral: referred).
+            'user_id' => 'nullable|integer|exists:users,id',
+            'sides' => 'nullable|array',
+            'sides.*' => 'in:complainant,subject',
+        ], [
+            'school_year.required_without_all' => 'Choose a school year, a semester, or a person.',
+        ]);
+
+        $types = $data['type'] === 'all' ? self::ZIP_FOLDERS : [$data['type'] => self::ZIP_FOLDERS[$data['type']]];
+        $person = ! empty($data['user_id']) ? \App\Models\User::find($data['user_id']) : null;
+        // The complaint sides to include (as folders), for a student only.
+        $sides = ($person?->role === 'student')
+            ? array_values(array_intersect(array_keys(self::COMPLAINT_SIDES), $data['sides'] ?? array_keys(self::COMPLAINT_SIDES)))
+            : null;
+        if ($sides === [] && isset($types['complaint'])) {
+            if (count($types) === 1) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['sides' => 'Tick As Complainant, As Subject, or both.']);
+            }
+            unset($types['complaint']);
+        }
+
+        // Each record with the folder(s) it goes in, under its type's folder.
+        $placed = self::getDocuments('records')
+            ->filter(fn ($r) => isset($types[$r->type]))
+            ->map(fn ($r) => [$r, $person ? self::placements($r, $person, $sides) : ['']])
+            ->filter(fn ($pair) => $pair[1] !== []);
+        if ($placed->isEmpty()) {
+            return response()->json(['message' => 'No archived documents for that period.'], 404);
+        }
+
+        $tempZipPath = storage_path('app/temp/'.Str::random(20).'.zip');
+        File::ensureDirectoryExists(dirname($tempZipPath));
+        $zip = new ZipArchive;
+        if ($zip->open($tempZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            abort(500, 'Cannot create ZIP file.');
+        }
+        foreach ($types as $type => $folder) {
+            $zip->addEmptyDir($folder);
+            if ($type === 'complaint' && $sides) {
+                foreach ($sides as $side) {
+                    $zip->addEmptyDir($folder.'/'.self::COMPLAINT_SIDES[$side]);
+                }
+            }
+        }
+
+        foreach ($placed as [$record, $subFolders]) {
+            $folderPath = self::folderFor($record->type, $record);
+            if (! $folderPath) {
+                continue;
+            }
+            foreach ($subFolders as $sub) {
+                self::addRecordToZip($zip, $record, $folderPath, $types[$record->type].($sub !== '' ? '/'.$sub : '').'/'.basename($folderPath));
+            }
+        }
+        $zip->close();
+
+        return response()->download($tempZipPath, self::archiveZipName($data, $person))->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Where an archived record goes for the person picked in the Download
+     * Archive form, as folders under its type's folder ('' = the type's
+     * folder itself); none when it isn't theirs. Anyone gets what they sent.
+     * A student also gets the referrals they were referred in, and their
+     * complaints split by side ($sides): As Complainant, As Subject.
+     */
+    private static function placements($record, \App\Models\User $person, ?array $sides): array
+    {
+        $sentBy = ($record->usr->id ?? null) === $person->id;
+        $named = fn () => collect($record->students ?? [])->contains(fn ($s) => (int) $s->student_id === $person->id);
+        $isStudent = $person->role === 'student';
+
+        return match ($record->type) {
+            'complaint' => $isStudent
+                ? array_values(array_filter([
+                    in_array('complainant', $sides ?? [], true) && $sentBy ? self::COMPLAINT_SIDES['complainant'] : null,
+                    in_array('subject', $sides ?? [], true) && $named() ? self::COMPLAINT_SIDES['subject'] : null,
+                ]))
+                : ($sentBy ? [''] : []),
+            'referral' => ($sentBy || ($isStudent && $named())) ? [''] : [],
+            'absent form' => (($record->student->id ?? null) === $person->id) ? [''] : [],
+            default => [],
+        };
+    }
+
+    /** e.g. all-documents-2025-2026-1st-semester.zip (same rule as archive.jsx). */
+    private static function archiveZipName(array $data, ?\App\Models\User $person = null): string
+    {
+        $parts = [$data['type'] === 'all' ? 'all-documents' : Str::slug($data['type'])];
+        if (! empty($data['school_year'])) {
+            $parts[] = $data['school_year'];
+        }
+        if (! empty($data['semester'])) {
+            $parts[] = $data['semester'] == 1 ? '1st-semester' : '2nd-semester';
+        }
+
+        // Individual: their ID number (or username) at the end.
+        if ($person) {
+            $parts[] = Str::slug($person->id_number ?: $person->username);
+        }
+
+        return implode('-', $parts).'.zip';
+    }
+
+    /**
+     * Puts a record's saved files (its PDF and evidence) in the ZIP under
+     * $dir. With no saved PDF (pending, rejected, revoked, or evidence only),
+     * its PDF is built now and added. Returns how many files went in.
+     */
+    private static function addRecordToZip(ZipArchive $zip, $record, string $folderPath, string $dir): int
+    {
+        $files = is_dir($folderPath) ? File::allFiles($folderPath) : [];
+        $hasPdf = collect($files)->contains(fn ($f) => strtolower($f->getExtension()) === 'pdf');
+        $added = 0;
+        if (! $hasPdf && ($pdf = $record->renderDocumentPdf())) {
+            $zip->addFromString($dir.'/'.basename($folderPath).'.pdf', $pdf->output());
+            $added++;
+        }
+        foreach ($files as $file) {
+            $zip->addFile($file->getRealPath(), $dir.'/'.str_replace(DIRECTORY_SEPARATOR, '/', $file->getRelativePathname()));
+            $added++;
+        }
+
+        return $added;
+    }
+
     public function downloadDocument($type, $id)
     {
         $id = decrypt_id($id) ?? abort(404);
@@ -573,34 +749,21 @@ class ArchiveController extends Controller
                 abort(404, 'Invalid type.');
         }
 
-        if (! is_dir($folderPath)) {
-            abort(404, 'Document folder not found.');
-        }
-
         // Create ZIP in temp directory
         $tempZipPath = storage_path('app/temp/'.Str::random(20).'.zip');
-
-        if (! file_exists(dirname($tempZipPath))) {
-            mkdir(dirname($tempZipPath), 0775, true);
-        }
+        File::ensureDirectoryExists(dirname($tempZipPath));
 
         $zip = new ZipArchive;
         if ($zip->open($tempZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             abort(500, 'Cannot create ZIP file.');
         }
-
-        // Add all files inside folder
-        $files = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($folderPath, \FilesystemIterator::SKIP_DOTS)
-        );
-
-        foreach ($files as $file) {
-            $filePath = $file->getRealPath();
-            $relativePath = substr($filePath, strlen($folderPath) + 1);
-            $zip->addFile($filePath, $relativePath);
-        }
-
+        // Its files at the ZIP's top level; a missing PDF (e.g. rejected) is built now.
+        $added = self::addRecordToZip($zip, $doc, $folderPath, basename($folderPath));
         $zip->close();
+        if ($added === 0) {
+            @unlink($tempZipPath);
+            abort(404, 'This record has no files.');
+        }
 
         // Download + delete after response finishes
         return response()->download($tempZipPath, $zipName)->deleteFileAfterSend(true);

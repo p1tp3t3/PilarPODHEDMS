@@ -1,18 +1,29 @@
 import UpModal from "../up-modal"
-import { useState, useEffect } from "react"
+import { Fragment, useState, useEffect } from "react"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
-import { AlertCircle } from "lucide-react"
+import { UserX } from "lucide-react"
 import { getProfilePic, showUserType, readableDate, toTitleCase } from "@/others/function"
-import ProfilePic from "@/Components/other/profile-pic"
-import { Link } from "@inertiajs/react"
-import { ViewModalSkeleton } from "./view-modal-parts"
+import { router } from "@inertiajs/react"
+import { ModalHeader, ViewModalSkeleton } from "./view-modal-parts"
+import StatusPill from "@/Components/list/status-pill"
+import {
+  Avatar, Box, Button, Chip, Collapse, Divider, List, ListItem, ListItemAvatar,
+  ListItemButton, ListItemText, Paper, Typography,
+} from "@mui/material"
+import { ExpandMoreRounded, OpenInNewRounded } from "@mui/icons-material"
+
+// "Violations per Program" drill-down (Analytical Report): the program's
+// students with violations, most first; each opens to its violations.
+const fullName = (u) => [u?.profile?.first_name, u?.profile?.middle_name, u?.profile?.last_name].filter(Boolean).join(" ")
 
 const ViewProgramViolationModal = (props) => {
   const [data, setData] = useState(null)
+  const [openIdx, setOpenIdx] = useState(0)
 
   useEffect(() => {
     if (props.close && props.program) {
       setData(null)
+      setOpenIdx(0)
       ReportArchiveService.getProgramViolationDetail(
         {
           program: props.program,
@@ -29,94 +40,91 @@ const ViewProgramViolationModal = (props) => {
       close={props.close}
       closeModal={props.closeModal}
       isEnableOuterClose={props.isEnableOuterClose}
-      pd={props.pd}
+      pd={["p-0", ""]}
       bgColor="bg-white"
-      w="w-full sm:w-[90%] md:w-[36rem]"
+      w="w-[40rem] max-w-[92vw]"
     >
-      <div className="w-full grid gap-4">
+      <div className="w-full">
         {data ? (
           <>
-            <div className="text-center text-xl sm:text-2xl font-bold">
-              {props.program}
-            </div>
-            <div className="flex justify-center gap-3">
-              <span className="text-[0.85em] font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full">
-                {data.students_with_violations} Student{data.students_with_violations !== 1 ? "s" : ""} With Violations
-              </span>
-              <span className="text-[0.85em] font-semibold text-red-700 bg-red-100 px-3 py-1 rounded-full">
-                {data.total_violations} Total Violations
-              </span>
-            </div>
+            <ModalHeader title={`${props.program} Violations`} />
 
-            <div className="space-y-4 max-h-[28rem] overflow-y-auto mt-2">
+            <div className="p-4 sm:p-6 space-y-4">
               {data.students.length ? (
-                data.students.map((row, i) => (
-                  <div key={i} className="border border-gray-300 bg-white shadow-sm rounded-lg px-4 py-3">
-                    <Link
-                      href={`/student-violation/${row.user.encrypted_id}`}
-                      className="flex justify-between items-center gap-3 hover:opacity-80"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-blue-700 text-[1em] w-6 text-center">
-                          {i + 1}.
-                        </span>
-                        <ProfilePic
-                          size={2.3}
-                          src={getProfilePic(row.user.profile?.profile_picture, row.user.profile?.sex)}
-                        />
-                        <div>
-                          <h1 className="text-[0.9em] font-semibold text-gray-900 leading-tight">
-                            {`${row.user.profile?.first_name ?? ""} ${
-                              row.user.profile?.middle_name ? row.user.profile.middle_name + " " : ""
-                            }${row.user.profile?.last_name ?? ""}`}
-                          </h1>
-                          <p className="text-[0.75em] text-gray-500">{showUserType(row.user)}</p>
-                        </div>
-                      </div>
-                      <span className="text-[0.85em] font-semibold text-red-600 bg-red-100 px-3 py-1 rounded-full self-start sm:self-auto">
-                        {row.total_violations} Violation{row.total_violations !== 1 ? "s" : ""}
-                      </span>
-                    </Link>
+                <Paper variant="outlined" sx={{ borderRadius: 3, overflow: "hidden" }}>
+                  <List disablePadding sx={{ maxHeight: "26rem", overflowY: "auto" }}>
+                    {data.students.map((row, i) => {
+                      const open = openIdx === i
+                      return (
+                        <Fragment key={i}>
+                          {i > 0 && <Divider component="li" />}
+                          <ListItem disablePadding sx={{ display: "block" }}>
+                            <ListItemButton onClick={() => setOpenIdx(open ? null : i)} selected={open} sx={{ py: 1.25 }}>
+                              <Typography sx={{ width: 24, fontWeight: 700, color: "primary.main", fontSize: "0.9rem" }}>{i + 1}</Typography>
+                              <ListItemAvatar sx={{ minWidth: 48 }}>
+                                <Avatar src={getProfilePic(row.user?.profile?.profile_picture, row.user?.profile?.sex)} sx={{ width: 36, height: 36 }} />
+                              </ListItemAvatar>
+                              <ListItemText
+                                primary={fullName(row.user) || "Unknown"}
+                                secondary={row.user ? showUserType(row.user) : null}
+                                slotProps={{ primary: { noWrap: true, fontWeight: 600, fontSize: "0.9rem" }, secondary: { noWrap: true, fontSize: "0.75rem" } }}
+                              />
+                              <Chip
+                                size="small"
+                                color="error"
+                                variant="outlined"
+                                label={`${row.total_violations} violation${row.total_violations !== 1 ? "s" : ""}`}
+                                sx={{ mx: 1, flexShrink: 0 }}
+                              />
+                              <ExpandMoreRounded sx={{ color: "text.secondary", transition: "transform .2s", transform: open ? "rotate(180deg)" : "none" }} />
+                            </ListItemButton>
 
-                    <div className="mt-3 grid gap-2">
-                      {row.violations.map((v, j) => {
-                        const isMajor = String(v.offense_status) === "1"
-                        return (
-                          <div
-                            key={j}
-                            className={`border rounded-md px-3 py-2 text-gray-800 text-[0.85em] ${
-                              isMajor ? "border-red-500 bg-red-100" : "border-yellow-500 bg-yellow-100"
-                            }`}
-                          >
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <b>{toTitleCase(v.violation_name || "Unknown")}</b>
-                              {v.case_number && (
-                                <span className="text-[0.9em] px-2 py-0.5 bg-blue-500 rounded-full text-white">
-                                  Case Number {v.case_number}
-                                </span>
-                              )}
-                            </div>
-                            {v.offense_issued_at && (
-                              <div className="text-[0.85em] mt-1">
-                                Issued Since {readableDate(v.offense_issued_at)}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ))
+                            <Collapse in={open} timeout="auto" unmountOnExit>
+                              <Box sx={{ px: 2, pb: 1.5, pt: 0.5, bgcolor: "action.hover" }}>
+                                <List dense disablePadding>
+                                  {row.violations.map((v, j) => (
+                                    <ListItem key={j} disableGutters sx={{ py: 0.75, gap: 1.5, borderBottom: j < row.violations.length - 1 ? 1 : 0, borderColor: "divider" }}>
+                                      <Box sx={{ flexShrink: 0, fontSize: "0.72rem", width: 52 }}>
+                                        <StatusPill status={String(v.offense_status) === "1" ? "major" : "minor"} />
+                                      </Box>
+                                      <ListItemText
+                                        primary={toTitleCase(v.violation_name || "Unknown")}
+                                        secondary={[v.case_number && `Case #${v.case_number}`, v.offense_issued_at && readableDate(v.offense_issued_at)].filter(Boolean).join(" · ")}
+                                        slotProps={{ primary: { fontSize: "0.85rem", fontWeight: 500 }, secondary: { fontSize: "0.72rem" } }}
+                                      />
+                                    </ListItem>
+                                  ))}
+                                </List>
+                                {row.user?.encrypted_id && (
+                                  <Box sx={{ display: "flex", justifyContent: "flex-end", pt: 1 }}>
+                                    <Button
+                                      size="small"
+                                      endIcon={<OpenInNewRounded fontSize="small" />}
+                                      onClick={() => router.visit(`/student-violation/${row.user.encrypted_id}`)}
+                                      sx={{ textTransform: "none", fontWeight: 600 }}
+                                    >
+                                      Open profile
+                                    </Button>
+                                  </Box>
+                                )}
+                              </Box>
+                            </Collapse>
+                          </ListItem>
+                        </Fragment>
+                      )
+                    })}
+                  </List>
+                </Paper>
               ) : (
-                <div className="text-center text-gray-500 py-10">
-                  <AlertCircle size="1.5rem" />
-                  <h1 className="text-lg">No Students With Violations</h1>
+                <div className="py-10 grid place-items-center gap-2 text-gray-400">
+                  <UserX size={28} />
+                  <p className="text-[0.9em]">No students with violations in this period</p>
                 </div>
               )}
             </div>
           </>
         ) : (
-          <ViewModalSkeleton variant="list" />
+          <div className="p-6"><ViewModalSkeleton variant="list" /></div>
         )}
       </div>
     </UpModal>

@@ -58,7 +58,7 @@ const RequestGatePassModal = (props) => {
                     other_reason: "",
                 }))
                 // Show the new request and hide "Request Gate Pass".
-                router.reload({ only: ["user_gatepass", "latest_gatepass"] })
+                router.reload({ only: ["latest_gatepass"] })
             }
         )
     }

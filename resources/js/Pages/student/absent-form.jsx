@@ -6,12 +6,13 @@ import RequestAbsentFormModal from "@/Components/modal/submission-form/request-a
 import EditAbsentFormModal from "@/Components/modal/submission-form/edit-absent-form-modal"
 import ViewAbsentFormModal from "@/Components/modal/view/view-absent-form-modal"
 import { useState, useEffect } from "react"
+import useListData, { reloadListData } from "@/others/hooks/use-list-data"
 import { useReload } from "@/context-provider/reload-provider"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import Btn from "@/Components/button/normal-btn"
 import { readableDate, readableTime, showWarningModal, showOutputModal, toTitleCase } from "@/others/function"
 import { AbsentFormService } from "@/others/services/absent-form-service"
-import { Send, List, Clock, CheckCircle2, Ban, Undo2 } from "lucide-react"
+import { Send, List, Clock, CheckCircle2, Ban } from "lucide-react"
 import { DataGrid } from "@/Components/other/data-grid"
 import ActionBtn from "@/Components/button/action-btn"
 import StatusPill from "@/Components/list/status-pill"
@@ -39,7 +40,6 @@ const optionTab = [
     { key: "pending", label: "Pending", icon: Clock },
     { key: "noted", label: "Approved", icon: CheckCircle2 },
     { key: "rejected", label: "Rejected", icon: Ban },
-    { key: "revoked", label: "Revoked", icon: Undo2 },
 ]
 
 const AbsentForm = (props) => {
@@ -67,7 +67,10 @@ const AbsentForm = (props) => {
     const [viewOpen, setViewOpen] = useState(false)
 
     const { loadRegister } = useReload();
-    const allForms = props.absent_form_list ?? []
+    // The table loads from /api/absent-form once the page opens (and after
+    // a tab change or a reload).
+    const { data: lists } = useListData()
+    const allForms = lists?.absent_form_list ?? []
     const shownForms = allForms
 
     // Lets the "My Records This Semester" dashboard modal deep-link straight
@@ -94,7 +97,7 @@ const AbsentForm = (props) => {
                         loadRegister(true, "")
                         showOutputModal("Absent Form Revoked Successfully", "s", () => {
                             loadRegister(false)
-                            router.reload({ only: ["absent_form_list"] })
+                            reloadListData()
                         })
                     },
                     () => {
@@ -174,7 +177,7 @@ const AbsentForm = (props) => {
                 data={editForm}
                 reload={(...args) => {
                     loadRegister(...args)
-                    if (args[0] === false) router.reload({ only: ['absent_form_list'] })
+                    if (args[0] === false) reloadListData()
                 }}
             />
             <RequestAbsentFormModal
@@ -184,7 +187,7 @@ const AbsentForm = (props) => {
                 isEnableOuterClose={true}
                 id={props.user.id}
                 reload={loadRegister}
-                onIssued={() => router.reload({ only: ["absent_form_list"] })}
+                onIssued={() => reloadListData()}
             />
             <PageLayout actionsWithFilters
                 title="ABSENT FORM"
@@ -198,9 +201,10 @@ const AbsentForm = (props) => {
                     <TabSwitcher tabs={optionTab} value={tab} onChange={changeTab} />
                     <SingleRowNotice noun="absent form" />
 
-                    <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm px-5 py-3 min-w-0">
+                    <div className="w-full min-w-0">
                         <DataGrid
                             rows={shownForms}
+                            loading={!lists}
                             columns={columns}
                             getRowId={(row) => row.id}
                             getRowHeight={() => "auto"}

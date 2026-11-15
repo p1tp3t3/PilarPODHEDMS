@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import useListData from "@/others/hooks/use-list-data"
 import { Head } from "@inertiajs/react"
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
@@ -121,7 +122,10 @@ const EntryModal = ({ entry, close }) => (
     </UpModal>
 )
 
-const SecurityMonitor = ({ entries = [], types = [], school_years = [] }) => {
+const SecurityMonitor = ({ types = [], school_years = [] }) => {
+    // The log loads from /api/super-admin/security-monitor once the page opens.
+    const { data: lists } = useListData()
+    const entries = useMemo(() => lists?.entries ?? [], [lists])
     const [filter, setFilter] = useState(EMPTY_FILTER)
     const [filterModal, openFilterModal] = useState(false)
     const [viewing, setViewing] = useState(null)
@@ -246,9 +250,10 @@ const SecurityMonitor = ({ entries = [], types = [], school_years = [] }) => {
                         </div>
                     </div>
 
-                    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", backgroundColor: "var(--dm-surface, #fff)", borderRadius: 2, boxShadow: 1, p: 2 }}>
+                    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                         <DataGrid
                             rows={shown}
+                            loading={!lists}
                             columns={columns}
                             showToolbar
                             filterModel={gridFilter}

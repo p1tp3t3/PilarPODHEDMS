@@ -22,6 +22,8 @@ import ViewGatePassModal from "@/Components/modal/view/view-gatepass-modal";
 import AuthLayout from "@/Layouts/auth-layout";
 import TabSwitcher from "@/Components/other/tab-switcher";
 import { Head } from "@inertiajs/react";
+import useListData from "@/others/hooks/use-list-data";
+import ListSkeleton from "@/Components/reload/list-skeleton";
 import { Button } from "@mui/material";
 import { User as UserIcon, ShieldAlert, GraduationCap, FileWarning, FileText, CalendarX, DoorOpen, UserPen, Settings } from "lucide-react";
 
@@ -37,6 +39,10 @@ const calculateAge = (dateOfBirth) => {
 };
 
 const Profile = (props) => {
+    // The tabs' lists (incidents, complaints / referrals / absent forms /
+    // gate passes filed) load from /api/profile/{username} once the page
+    // opens; null until then (the lists show their loading state).
+    const { data: lists } = useListData();
     const { isUserOnline } = useContext(AuthContext);
 
     const address = (address, t) => {
@@ -96,7 +102,7 @@ const Profile = (props) => {
     // The backend loads every one of this person's complaints once — the
     // status dropdown filters that in-memory list rather than reloading.
     const filteredComplaintsFiled = {
-        data: (props.complaints_filed?.data ?? []).filter(
+        data: lists && (lists.complaints_filed?.data ?? []).filter(
             (c) => (complaintStatus === 'all' || c.complaint_status === complaintStatus) &&
                    matchesSchoolYearSemester(c, filterSchoolYear, filterSemester)
         ),
@@ -121,7 +127,7 @@ const Profile = (props) => {
         if (r.confirmed_at) return 'confirmed'
         return 'pending'
     };
-    const filteredReferralsFiled = (props.referrals_filed?.data ?? []).filter(
+    const filteredReferralsFiled = lists && (lists.referrals_filed?.data ?? []).filter(
         (r) => (referralStatus === 'all' || referralStatusFor(r) === referralStatus) &&
                matchesSchoolYearSemester(r, filterSchoolYear, filterSemester)
     );
@@ -140,7 +146,7 @@ const Profile = (props) => {
         if (a.confirmed_at) return 'noted'
         return 'pending'
     };
-    const filteredAbsentFormsFiled = (props.absent_forms_filed ?? []).filter(
+    const filteredAbsentFormsFiled = lists && (lists.absent_forms_filed ?? []).filter(
         (a) => (absentFormStatus === 'all' || absentFormStatusFor(a) === absentFormStatus) &&
                matchesSchoolYearSemester(a, filterSchoolYear, filterSemester)
     );
@@ -159,7 +165,7 @@ const Profile = (props) => {
         if (g.confirmed_at) return 'approved'
         return 'pending'
     };
-    const filteredGatepassRequested = (props.gatepass_requested ?? []).filter(
+    const filteredGatepassRequested = lists && (lists.gatepass_requested ?? []).filter(
         (g) => (gatepassStatus === 'all' || gatepassStatusFor(g) === gatepassStatus) &&
                matchesSchoolYearSemester(g, filterSchoolYear, filterSemester)
     );
@@ -249,11 +255,14 @@ const Profile = (props) => {
                     />
                 );
             case "incidents":
+                // Until the page's lists arrive (the tab's lists would
+                // otherwise fetch their own copies).
+                if (!lists) return <ListSkeleton rows={4} />;
                 return (
                     <Incident
                         data={props.otherUserProfile}
-                        incidentGroups={props.incident_groups}
-                        violationOccurrences={props.violation_occurrences}
+                        incidentGroups={lists.incident_groups ?? []}
+                        violationOccurrences={lists.violation_occurrences ?? []}
                     />
                 );
             case "enrollment_history":
@@ -372,7 +381,7 @@ const Profile = (props) => {
     // the system admin, and not a plain (non-program-head) faculty member.
     // The backend only sends this data for a student in the program head's
     // own program(s), so the tab follows whether it arrived.
-    const showIncidentsTab = props.otherUserProfile.role === 'student' && props.incident_groups != null;
+    const showIncidentsTab = !!props.can_view_incidents;
     // Complaint content itself is private from super_admin (data privacy)
     // — only the sub_admin (prefect) who actually handles it, or the
     // person who filed it, can view it.

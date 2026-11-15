@@ -56,11 +56,13 @@ const AccountList = (props) => {
   const { isUserOnline } = useContext(AuthContext);
   const [isSearchFocus, focusSearch] = useState(false),
     [search, setSearch] = useState(""),
-    [accountList, setAccountList] = useState(props.row.data),
+    [accountList, setAccountList] = useState(props.row?.data ?? null),
     [select, enableSelect] = useState(false),
     [activate, setActivate] = useState(false);
 
   const handleSearch = (e) => setSearch(e.target.value);
+  // The rows arrive from the page's API after it opens (null until then).
+  useEffect(() => setAccountList(props.row?.data ?? null), [props.row]);
 
   const actionAll = (e, type) => {
     const status = e.target.checked ? 1 : 0;
@@ -148,12 +150,13 @@ const AccountList = (props) => {
           </div>
         </div>
 
-        <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
-          <div className="w-full px-5 py-3 min-w-0">
+        <div className="w-full min-w-0">
+          <div className="w-full min-w-0">
             {/* === DATAGRID === */}
         <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
           <DataGrid
             rows={accountList ?? []}
+            loading={accountList == null}
             getRowId={(row) => row.id}
             mobileSummary={(row) => ({
               name: [row.profile?.first_name, row.profile?.middle_name, row.profile?.last_name].filter(Boolean).join(" "),

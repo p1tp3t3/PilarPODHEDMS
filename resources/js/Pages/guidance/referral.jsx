@@ -3,10 +3,13 @@ import PageLayout from "@/Layouts/page-layout"
 import { useState } from "react"
 import ReferralList from "@/Components/list/referral-list"
 import ViewReferralModal from "@/Components/modal/view/view-referral-modal"
+import useListData from "@/others/hooks/use-list-data"
 import { Head } from "@inertiajs/react"
 import SchoolYearSemesterFilter from "@/Components/input/school-year-semester-filter"
 
 const GuidanceReferral = (props) => {
+    // The table loads from /api/guidance/referral once the page opens.
+    const { data: lists } = useListData()
     const [viewReferral, openViewReferral] = useState(false)
     const [referralId, setReferralId] = useState('')
 
@@ -29,7 +32,7 @@ const GuidanceReferral = (props) => {
                     <SchoolYearSemesterFilter schoolYears={props.school_years} />
                     <div className="w-full bg-white rounded-md shadow-sm shadow-black/20 min-w-0">
                         <ReferralList
-                            list={props.referral?.data}
+                            list={lists?.referral?.data}
                             type="sub_admin"
                             viewReferral={setId}
                         />

@@ -24,11 +24,45 @@ const itemSx = {
     "&.Mui-selected": { backgroundColor: "#1e3a8a", color: "#fff" },
     "&.Mui-selected:hover": { backgroundColor: "#1e3a8a", color: "#fff" },
 }
+// Dropdown pages: a tree hanging off a thin guide line under the parent's
+// icon. Text only, softer than the top level; the open page gets a light
+// blue tint, white semi-bold text and a blue marker on the guide line.
+const subListSx = {
+    ml: "1.75rem",
+    pl: 1,
+    my: 0.5,
+    borderLeft: "1px solid rgba(255,255,255,0.14)",
+    display: "grid",
+    gap: 0.25,
+}
 const subItemSx = {
-    ...itemSx,
-    pl: 6,
-    pr: 2.5,
-    fontSize: "1em",
+    position: "relative",
+    px: 1.5,
+    py: 0.75,
+    borderRadius: "0.375rem",
+    color: "rgba(255,255,255,0.68)",
+    fontSize: "1.05em",
+    transition: "background-color 0.2s, color 0.2s",
+    // the marker, sitting on the guide line
+    "&::before": {
+        content: '""',
+        position: "absolute",
+        left: "calc(-0.5rem - 1.5px)",
+        top: "50%",
+        width: "2px",
+        height: 0,
+        borderRadius: "2px",
+        backgroundColor: "#60a5fa",
+        transform: "translateY(-50%)",
+        transition: "height 0.2s",
+    },
+    "&:hover": { backgroundColor: "rgba(255,255,255,0.06)", color: "#fff" },
+    "&.Mui-selected, &.Mui-selected:hover": {
+        backgroundColor: "rgba(59,130,246,0.18)",
+        color: "#fff",
+        "& .MuiListItemText-primary": { fontWeight: 600 },
+        "&::before": { height: "60%" },
+    },
 }
 const iconSx = { color: "inherit", minWidth: "auto" }
 const textSx = { "& .MuiListItemText-primary": { color: "inherit", fontSize: "inherit" } }
@@ -68,6 +102,17 @@ const SidebarNav = ({ list, height = "h-[26rem]", onNavigate }) => {
 // `id` is matched as a literal substring of the current URL — the same
 // convention `sidebar-pages.js` documents (ids are deliberately reused
 // across roles' entries since only one role's items ever render at once).
+// The page's own link also counts (path equal to href, or below it), so an
+// id that isn't in the URL (e.g. "archives" for /prefect/archive) still
+// highlights.
+const isActive = (item, url) => {
+    if (url.includes(item.id)) return true
+    if (!item.href) return false
+    const path = url.split("?")[0].split("#")[0]
+    // `also`: other pages that belong to this item (e.g. a tab with its own URL).
+    return [item.href, ...(item.also ?? [])].some((href) => path === href || path.startsWith(href + "/"))
+}
+
 const NavLink = ({ item, url, onNavigate }) => (
     <ListItemButton
         component={Link}
@@ -77,7 +122,7 @@ const NavLink = ({ item, url, onNavigate }) => (
         className="nav"
         disableGutters
         title={item.label}
-        selected={url.includes(item.id)}
+        selected={isActive(item, url)}
         sx={itemSx}
     >
         <ListItemIcon sx={iconSx}>
@@ -96,7 +141,7 @@ const DropdownItem = ({ item, isOpen, toggle, url, onNavigate }) => (
             disableGutters
             sx={itemSx}
             title={item.label}
-            selected={item.items.some((sub) => url.includes(sub.id))}
+            selected={item.items.some((sub) => isActive(sub, url))}
         >
             <ListItemIcon sx={iconSx}>
                 <item.icon size={16} />
@@ -108,7 +153,7 @@ const DropdownItem = ({ item, isOpen, toggle, url, onNavigate }) => (
             />
         </ListItemButton>
         <Collapse in={isOpen} timeout={300} unmountOnExit className="rail-hide">
-            <List disablePadding className="dropdown-nav-list text-[0.8em]">
+            <List disablePadding className="dropdown-nav-list text-[0.8em]" sx={subListSx}>
                 {item.items.filter((sub) => sub.show ?? true).map((sub) => (
                     <ListItemButton
                         key={sub.id}
@@ -118,12 +163,10 @@ const DropdownItem = ({ item, isOpen, toggle, url, onNavigate }) => (
                         id={sub.id}
                         className="nav"
                         disableGutters
-                        selected={url.includes(sub.id)}
+                        selected={isActive(sub, url)}
                         sx={subItemSx}
+                        title={sub.label}
                     >
-                        <ListItemIcon sx={iconSx}>
-                            <sub.icon size={16} />
-                        </ListItemIcon>
                         <ListItemText className="rail-hide" primary={sub.label} sx={textSx} />
                     </ListItemButton>
                 ))}

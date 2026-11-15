@@ -1,3 +1,4 @@
+import useListData from "@/others/hooks/use-list-data"
 import SchoolYearSemesterFilter from "@/Components/input/school-year-semester-filter"
 import Btn from "@/Components/button/normal-btn"
 import StudentList from "@/Components/list/student-list"
@@ -22,6 +23,8 @@ const enrollmentCsvColumns = [
 ]
 
 const Students = (props) => {
+    // The table loads from its API endpoint once the page opens.
+    const { data: lists } = useListData()
     const fileName = props.file_name
     const isSuperAdmin = props.auth?.user?.role === "super_admin"
     const { loadRegister } = useReload()
@@ -160,7 +163,7 @@ const Students = (props) => {
 
                 {activeTab === "list" && (
                     <StudentList
-                        list={props.students}
+                        list={lists?.students}
                     />
                 )}
 

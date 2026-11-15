@@ -69,8 +69,8 @@ class GenerateAccountStatisticsReportJob implements ShouldQueue
 
             $this->notify([
                 'status' => 'ready',
-                'download_url' => route('super-admin.report.download', ['id' => $report->id]),
-                'view_url' => route('super-admin.report.view', ['id' => $report->id]),
+                'download_url' => route('super-admin.report.download', ['id' => encrypt_id($report->id)], false),
+                'view_url' => route('super-admin.report.view', ['id' => encrypt_id($report->id)], false),
                 'file_name' => $fileName,
             ]);
         } catch (\Throwable $e) {

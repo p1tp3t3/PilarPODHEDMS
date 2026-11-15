@@ -6,7 +6,9 @@ import Box from '@mui/material/Box'
 
 const GatePassList = (props) => {
 
-    const rows = props.list.length !== 0
+    // null while the list loads (the table shows its loading state).
+    const loading = props.list == null
+    const rows = !loading && props.list.length !== 0
         ? props.list.map((e, i) => ({
             id: e.gatepass?.[0]?.id ?? i,
             encrypted_id: e.gatepass?.[0]?.encrypted_id,
@@ -124,14 +126,11 @@ const GatePassList = (props) => {
                 width: '100%',
                 minWidth: 0,
                 overflow: 'hidden',
-                backgroundColor: 'var(--dm-surface, #fff)',
-                borderRadius: 2,
-                boxShadow: 2,
-                p: 2,
             }}
         >
             <DataGrid
                 rows={rows}
+                loading={loading}
                 columns={columns}
                 pageSizeOptions={[5, 10, 20]}
                 initialState={{
@@ -151,7 +150,6 @@ const GatePassList = (props) => {
                     hide: ["user"],
                 })}
                 sx={{
-                    border: 'none',
                     '& .MuiDataGrid-columnHeaders': {
                         backgroundColor: 'var(--dm-surface-2, #f9fafb)',
                         fontWeight: 'bold'

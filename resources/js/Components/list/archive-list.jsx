@@ -5,6 +5,8 @@ import { getProfilePic, readableDate, readableTime, showUserType, toTitleCase, f
 import ActionBtn from "../button/action-btn";
 import ProfilePic from "../other/profile-pic";
 import StatusPill from "@/Components/list/status-pill";
+import { StatusAvatar, statusLabel } from "@/Components/other/mobile-card-list";
+import { Archive } from "lucide-react";
 
 const referenceNumberFor = (data) => {
   if (data.type === "complaint") return data.complaint_number;
@@ -62,9 +64,13 @@ const downloadDocument = (type, id, data) => {
   document.body.removeChild(link);
 };
 
-const ArchiveList = ({ list = [], viewDocument, deleteDocument }) => {
+// showType: the Type column, only useful when the list mixes types (the All tab).
+// Records are deleted automatically on their Kept Until date (archived_at;
+// see PurgeExpiredArchiveCommand), so there's no Delete action.
+const ArchiveList = ({ list = [], viewDocument, showType = true }) => {
   const rows = useMemo(
-    () => list.map((data, i) => ({ id: `${data.type}-${data.id}`, i: i + 1, data })),
+    // null while the list loads.
+    () => (list ?? []).map((data, i) => ({ id: `${data.type}-${data.id}`, i: i + 1, data })),
     [list]
   );
 
@@ -130,16 +136,25 @@ const ArchiveList = ({ list = [], viewDocument, deleteDocument }) => {
         ),
       },
       {
+        field: "archived_at",
+        headerName: "Kept Until",
+        width: 150,
+        renderCell: ({ row }) => (
+          <span className="text-[0.85em]" title="Deleted automatically on this date">
+            {row.data.archived_at ? readableDate(row.data.archived_at) : "-"}
+          </span>
+        ),
+      },
+      {
         field: "actions",
         type: "actions",
         headerName: "Action",
-        width: 420,
+        width: 200,
         align: "start",
         headerAlign: "start",
         renderCell: ({ row }) => {
           const data = row.data;
           const t = data.type === "complaint" ? "c" : data.type === "referral" ? "r" : data.type === "absent form" ? "a" : data.type === "gate pass" ? "g" : null;
-          const canDelete = data.archived_at ? new Date() >= new Date(data.archived_at) : false;
 
           return (
             <div className="flex flex-wrap gap-2 items-center py-1">
@@ -149,34 +164,26 @@ const ArchiveList = ({ list = [], viewDocument, deleteDocument }) => {
                 </ActionBtn>
               )}
 
-              {((data.type === "complaint" && data.complaint_status === "resolved") ||
-                (data.type === "absent form" && data.confirmed_at != null) ||
-                data.type === "referral") && (
+              {/* Any status: a record with no saved PDF (e.g. rejected)
+                  gets its PDF built into the ZIP. Gate passes have none. */}
+              {["complaint", "referral", "absent form"].includes(data.type) && (
                 <ActionBtn className="bg-orange-600 hover:bg-orange-700" onClick={() => downloadDocument(data.type, data.id, data)}>
                   Download
                 </ActionBtn>
               )}
-
-              <ActionBtn
-                className={canDelete ? "bg-red-600 hover:bg-red-700" : "bg-gray-400 cursor-not-allowed"}
-                onClick={() => canDelete && deleteDocument(data.type, data.id)}
-                disabled={!canDelete}
-                title={canDelete ? "Delete document" : `You can delete this after ${new Date(data.archived_at).toLocaleDateString()}`}
-              >
-                Delete
-              </ActionBtn>
             </div>
           );
         },
       },
-    ],
-    [viewDocument, deleteDocument]
+    ].filter((c) => showType || c.field !== "type"),
+    [viewDocument, showType]
   );
 
   return (
-    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", backgroundColor: "var(--dm-surface, #fff)", borderRadius: 2, boxShadow: 1, p: 2 }}>
+    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
       <DataGrid
         rows={rows}
+        loading={list == null}
         columns={columns}
         showToolbar
         disableRowSelectionOnClick
@@ -185,6 +192,19 @@ const ArchiveList = ({ list = [], viewDocument, deleteDocument }) => {
         pageSizeOptions={[20, 50, 100]}
         getRowHeight={() => "auto"}
         localeText={{ noRowsLabel: "No Documents Yet" }}
+        // Phones: one row per document (the person's photo and name, then
+        // type, reference no. and status); tap for the details and actions.
+        mobileSummary={({ data }) => {
+          const person = personFor(data);
+          return {
+            name: nameFor(data),
+            role: `${toTitleCase(data.type)} #${referenceNumberFor(data)} · ${statusLabel(statusValueFor(data))}`,
+            ...(person
+              ? { picture: person.profile?.profile_picture, sex: person.profile?.sex }
+              : { avatar: <StatusAvatar icon={Archive} status={statusValueFor(data)} /> }),
+            hide: ["name", "type", "reference", "status"],
+          };
+        }}
       />
     </Box>
   );

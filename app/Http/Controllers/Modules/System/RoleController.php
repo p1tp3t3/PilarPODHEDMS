@@ -19,8 +19,9 @@ class RoleController extends Controller
 {
     public function index()
     {
-        return Inertia::render('super-admin/roles', [
-            'roles' => self::list(),
+        return list_page('super-admin/roles', [
+            // The table: loaded by the page from /api/super-admin/roles.
+            'roles' => list_prop(fn () => self::list()),
         ]);
     }
 

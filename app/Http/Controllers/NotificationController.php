@@ -49,12 +49,13 @@ class NotificationController extends Controller
         $type = ($notif != null) ? str_replace('_', '-', $notif->notif_type) : '';
         $filePath = ($notif != null) ? "shared/notification/$type" : 'shared/notification';
 
-        return Inertia::render($filePath, [
-            'notification' => Notifications::where('receiver_id', auth()->id())
+        return list_page($filePath, [
+            // The list: loaded by the notifications page from
+            // /api/notifications once it opens, every notification (it shows
+            // them 10 at a time and filters All / Unread in the browser).
+            'notification' => list_prop(fn () => Notifications::where('receiver_id', auth()->id())
                 ->latest('created_at')
-                ->limit(10)
-                ->get(),
-            'size' => Notifications::where('receiver_id', auth()->id())->count(),
+                ->get()),
             'notif' => $notif,
         ]);
     }

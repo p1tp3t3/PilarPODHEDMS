@@ -9,7 +9,7 @@ import Calendar from "@/Components/schedule/calendar"
 import AbsentFormList from "@/Components/list/absent-form-list"
 import StudentList from "@/Components/list/student-list"
 import { useEffect, useRef, useState } from "react"
-import { getWebLink, showWarningModal, toTitleCase } from "@/others/function"
+import { afterWelcome, getWebLink, showWarningModal, toTitleCase } from "@/others/function"
 import { DashboardService } from "@/others/services/dashboard-service"
 import BarGraph from "@/Components/card/bar-graph-statistic-card"
 import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
@@ -87,11 +87,10 @@ const PrefectDashBoard = (props) => {
         // Right after logging in, AuthLayout's own "Welcome" modal is also
         // about to fire (its effect runs after this one, since child
         // effects run before parent effects) — both use the same shared
-        // SweetAlert2 instance, so firing this one in the same tick makes
-        // it clobber/get clobbered by that one. Let the welcome modal have
-        // its moment first, then follow up with this one.
+        // SweetAlert2 instance. Once it has opened (next tick), wait for it
+        // to close (3 seconds, or a click), then follow up with this one.
         if (localStorage.getItem('show-login-success')) {
-          setTimeout(fire, 400)
+          setTimeout(() => afterWelcome(fire), 0)
         } else {
           fire()
         }
@@ -283,11 +282,9 @@ const PrefectDashBoard = (props) => {
                 <UpNextPanel columns={(props.review_queue ?? []).filter((q) => QUEUE[q.key]).map((q) => ({
                   key: q.key,
                   label: QUEUE[q.key].label,
-                  meta: q.waiting,
                   // ?id=<encrypted id>: the page lists only that row.
                   href: q.item ? `${QUEUE[q.key].href}${QUEUE[q.key].href.includes("?") ? "&" : "?"}id=${q.item.encrypted_id}` : QUEUE[q.key].href,
                   item: q.item,
-                  titleCaseDetail: q.key.startsWith("complaint"),
                 }))} />
 
                 {/* Bar Graph + Doughnut Chart */}
@@ -447,11 +444,11 @@ const PrefectDashBoard = (props) => {
 
 // One column per kind in the prefect's "Up next" panel: the oldest waiting item.
 const QUEUE = {
-  complaint_pending: { label: "Pending complaints", href: "/prefect/complaints?status=pending" },
-  complaint_ongoing: { label: "Ongoing cases", href: "/prefect/complaints?status=ongoing" },
-  referral: { label: "Referrals", href: "/prefect/referrals" },
-  absent_form: { label: "Absent forms", href: "/prefect/absent-form" },
-  gatepass: { label: "Gate passes", href: "/prefect/gatepass" },
+  complaint_pending: { label: "Pending complaint", href: "/prefect/complaints?status=pending" },
+  complaint_ongoing: { label: "Ongoing case", href: "/prefect/complaints?status=ongoing" },
+  referral: { label: "Referral", href: "/prefect/referrals" },
+  absent_form: { label: "Absent form", href: "/prefect/absent-form" },
+  gatepass: { label: "Gate pass", href: "/prefect/gatepass" },
 }
 
 PrefectDashBoard.layout = (page) => <AuthLayout user={page.props.user}>{page}</AuthLayout>

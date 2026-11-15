@@ -1,38 +1,35 @@
 import { Link } from "@inertiajs/react"
 import { Card, CardActionArea, IconButton } from "@mui/material"
 import ChevronRightRounded from "@mui/icons-material/ChevronRightRounded"
+import StatusPill from "@/Components/list/status-pill"
 
 // "Up next" panel on the dashboards: one column per kind of request, each
 // showing the oldest one still waiting (first in, first out). Same MUI card
 // and click effect as the quantity cards.
 //
-// columns: [{ key, label, meta, href, item, empty, titleCaseDetail }]
-//   label / meta: the small line on top ("Pending complaints · 7").
-//   item: { number, detail, created_at } or null (shows `empty`).
-//   titleCaseDetail: true for violation names; typed reasons stay as typed.
+// columns: [{ key, label, status, href, item, empty }]
+//   label: the small line on top ("Pending complaint", "My complaint"): singular, no counts.
+//   status: optional; a status pill beside the item's number (My requests).
+//   item: { number, created_at } or null (shows `empty`); no description line.
 const daysAgo = (date) => {
     const days = Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 86400000))
     return days === 0 ? "Today" : days === 1 ? "1 day ago" : `${days} days ago`
 }
 
-const titleCase = (text) => text.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
 
 const UpNextColumn = ({ col }) => {
     const c = col.item
-    const label = (
-        <>
-            {col.label}
-            {col.meta != null && col.meta !== "" && <span className="font-semibold text-gray-700"> · {col.meta}</span>}
-        </>
-    )
+    const label = col.label
     return (
         <CardActionArea component={Link} href={col.href} sx={{ bgcolor: "background.paper", display: "flex", alignItems: "flex-start", gap: 1, px: 2, py: 1.5, minWidth: 0, height: "100%", textAlign: "left" }}>
             <div className="min-w-0 flex-1">
                 <div className="text-[0.75em] text-gray-500">{label}</div>
                 {c ? (
                     <>
-                        <div className="font-semibold text-gray-800 truncate">{c.number}</div>
-                        {c.detail && <div className="text-[0.8em] text-gray-600 truncate">{col.titleCaseDetail ? titleCase(c.detail) : c.detail}</div>}
+                        <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-semibold text-gray-800 truncate">{c.number}</span>
+                            {col.status && <span className="shrink-0 text-[0.7em]"><StatusPill status={col.status} /></span>}
+                        </div>
                         <div className="text-[0.72em] text-gray-400">{daysAgo(c.created_at)}</div>
                     </>
                 ) : (

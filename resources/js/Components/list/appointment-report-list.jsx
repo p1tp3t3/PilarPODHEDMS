@@ -4,7 +4,8 @@ import { getProfilePic, getYearLevel, readableDate, readableTime, studentProgram
 import ProfilePic from "../other/profile-pic"
 
 const AppointmentReportList = ({ list = [] }) => {
-    const rows = list.map((e, i) => ({
+    // null while the list loads (the table shows its loading state).
+    const rows = (list ?? []).map((e, i) => ({
         id: e.id ?? i,
         index: i + 1,
         appointment_number: e.appointment_number,
@@ -30,7 +31,7 @@ const AppointmentReportList = ({ list = [] }) => {
         },
         {
             field: "student_id",
-            headerName: "Student I.D",
+            headerName: "Student ID",
             width: 100,
             sortable: false,
         },
@@ -71,7 +72,7 @@ const AppointmentReportList = ({ list = [] }) => {
             headerName: "Description",
             flex: 1.4,
             renderCell: (params) => (
-                <span className="text-[0.85em] line-clamp-2">{params.value || "-"}</span>
+                <span className="line-clamp-2">{params.value || "-"}</span>
             ),
         },
         {
@@ -80,7 +81,7 @@ const AppointmentReportList = ({ list = [] }) => {
             flex: 1,
             renderCell: (params) =>
                 params.value ? (
-                    <div className="text-[0.8em]">{readableDate(params.value)} ({readableTime(params.value)})</div>
+                    <div>{readableDate(params.value)} ({readableTime(params.value)})</div>
                 ) : "-",
         },
         {
@@ -89,18 +90,10 @@ const AppointmentReportList = ({ list = [] }) => {
             flex: 1,
             renderCell: (params) =>
                 params.value ? (
-                    <div className="text-[0.8em]">{readableDate(params.value)}</div>
+                    <div>{readableDate(params.value)}</div>
                 ) : "-",
         },
     ]
-
-    if (!list) {
-        return (
-            <div className="w-full px-5 py-10 bg-white rounded-md shadow-black/20 shadow-sm text-center">
-                Loading...
-            </div>
-        )
-    }
 
     return (
         <Box
@@ -108,13 +101,10 @@ const AppointmentReportList = ({ list = [] }) => {
                 width: "100%",
                 minWidth: 0,
                 overflow: "auto",
-                backgroundColor: "var(--dm-surface, #fff)",
-                borderRadius: 2,
-                boxShadow: 2,
-                p: 2,
             }}
         >
             <DataGrid
+                loading={list == null}
                 rows={rows}
                 columns={columns}
                 pageSizeOptions={[5, 10, 20]}
@@ -126,7 +116,6 @@ const AppointmentReportList = ({ list = [] }) => {
                 pagination
                 disableRowSelectionOnClick
                 sx={{
-                    border: "none",
                     "& .MuiDataGrid-columnHeaders": {
                         backgroundColor: "var(--dm-surface-2, #f9fafb)",
                         fontWeight: "bold",

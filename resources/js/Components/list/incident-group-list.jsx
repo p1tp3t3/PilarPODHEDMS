@@ -1,3 +1,4 @@
+import ListSkeleton from "../reload/list-skeleton";
 import { ReportArchiveService } from "@/others/services/report-archive-service";
 import { readableDate, readableTime, toTitleCase } from "@/others/function";
 import React, { useState, memo, useEffect } from "react";
@@ -39,7 +40,7 @@ const IncidentGroupList = ({ user_id, list: listProp = null }) => {
     });
   };
 
-  if (loading) return <div style={{ padding: 12 }}>Loading…</div>;
+  if (loading) return <ListSkeleton rows={4} />;
   if (!Array.isArray(list) || list.length === 0) {
     return <div style={{ padding: 12 }}>No violations found.</div>;
   }

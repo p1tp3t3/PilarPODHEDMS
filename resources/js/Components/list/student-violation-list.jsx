@@ -11,7 +11,8 @@ import ActionBtn from "@/Components/button/action-btn";
 const StudentViolationList = ({ list = [], fromKey = null }) => {
   const rows = useMemo(
   () =>
-    list.map((e, i) => {
+    // null while the list loads.
+    (list ?? []).map((e, i) => {
       const isStudent = e.user?.role === "student"
       const latestEnrollment = e.user?.enrollments?.[e.user.enrollments.length - 1]
       const programName = isStudent
@@ -37,7 +38,7 @@ const StudentViolationList = ({ list = [], fromKey = null }) => {
 );
 
 
-  const hasRepeats = list.some((e) => Array.isArray(e.repeat_violations))
+  const hasRepeats = (list ?? []).some((e) => Array.isArray(e.repeat_violations))
 
   // Define columns
   const columns = [
@@ -126,9 +127,10 @@ const StudentViolationList = ({ list = [], fromKey = null }) => {
   ];
 
   return (
-    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", p: 2, bgcolor: "var(--dm-surface, white)", borderRadius: 2 }}>
+    <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
       <DataGrid
         rows={rows}
+        loading={list == null}
         columns={columns}
         rowsPerPageOptions={[20, 50, 100]} // user-selectable options
         disableSelectionOnClick

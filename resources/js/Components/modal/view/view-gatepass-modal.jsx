@@ -168,7 +168,7 @@ const Body = ({ data, handleSubmit, approved, setData2, data2, validationErr }) 
                 {/* Timeline stats */}
                 <StatGrid>
                     <Stat icon={CalendarClock} label="Requested Since" value={`${readableDate(info.created_at)} (${readableTime(info.created_at)})`} sub={formatSchoolYearSemester(info.school_year_semester)} />
-                    {info.confirmed_at &&
+                    {info.confirmed_at && !info.rejected_at &&
                     <Stat icon={CheckCircle2} label="Confirmed Since" value={`${readableDate(info.confirmed_at)} (${readableTime(info.confirmed_at)})`} sub={formatSchoolYearSemester(info.confirmed_school_year_semester)} />}
                     {info.rejected_at &&
                     <Stat icon={XCircle} label="Rejected Since" value={`${readableDate(info.rejected_at)} (${readableTime(info.rejected_at)})`} sub={formatSchoolYearSemester(info.rejected_school_year_semester)} />}

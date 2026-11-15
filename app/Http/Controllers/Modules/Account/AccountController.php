@@ -57,8 +57,10 @@ class AccountController extends Controller
     {
         $account = new User;
 
-        return Inertia::render('super-admin/accounts',
-            array_merge($account->allUserAccount(), [
+        return list_page('super-admin/accounts', [
+                'user' => UserResource::make(auth()->user()),
+                // The table: loaded by the page from /api/super-admin/user-accounts.
+                'account_list' => list_prop(fn () => $account->allUserAccount()['account_list']),
                 'program_name' => is_program_head(),
                 'program' => ProgramResource::collection(Program::all(['id', 'code'])),
                 'account_files' => FileController::scopedAccountFiles(),
@@ -68,7 +70,7 @@ class AccountController extends Controller
                 'school_years_full' => SchoolYearResource::collection(\App\Models\SchoolYear::orderByDesc('year')->get(['id', 'year'])),
                 // Non-teaching staff positions, for that role's filter.
                 'positions' => PositionResource::collection(Position::orderBy('name')->get(['id', 'name'])),
-            ]));
+            ]);
     }
 
     /**
@@ -325,11 +327,12 @@ class AccountController extends Controller
         $schoolYears = SchoolYear::orderByDesc('year')->pluck('year');
         $schoolYearsFull = SchoolYearResource::collection(SchoolYear::orderByDesc('year')->get(['id', 'year']));
 
+        // The table: loaded by the page from its API endpoint (list_page()).
+        $students = list_prop(fn () => ['data' => self::getStudent()]);
+
         $props = $programHead
                  ? array_merge([
-                     'students' => [
-                         'data' => self::getStudent(),
-                     ],
+                     'students' => $students,
                      'program' => ProgramResource::collection(Program::all(['id', 'code'])),
                      'program_name' => is_program_head(),
                      'file_name' => "student-{$programHead->program_id}-{$programHead->program->code}.zip",
@@ -338,15 +341,13 @@ class AccountController extends Controller
                      'school_years_full' => $schoolYearsFull,
                  ])
                  : [
-                     'students' => [
-                         'data' => self::getStudent(),
-                     ],
+                     'students' => $students,
                      'program' => ProgramResource::collection(Program::all(['id', 'code', 'name', 'color_code'])),
                      'school_years' => $schoolYears,
                      'school_years_full' => $schoolYearsFull,
                  ];
 
-        return Inertia::render("$isPrefect/students", $props);
+        return list_page("$isPrefect/students", $props);
     }
 
     /**
@@ -546,19 +547,22 @@ class AccountController extends Controller
             ->orderBy('program_id')
             ->first();
 
+        // The table: loaded by the page from its API endpoint (list_page()).
+        $faculty = list_prop(fn () => self::getFaculty());
+
         $props = $programHead
                  ? array_merge([
-                     'faculty' => self::getFaculty(),
+                     'faculty' => $faculty,
                      'program_name' => is_program_head(),
                      'file_name' => "faculty-account-{$programHead->program_id}-{$programHead->program->code}.csv",
                  ])
                  : [
-                     'faculty' => self::getFaculty(),
+                     'faculty' => $faculty,
                      'program_name' => is_program_head(),
                      'program' => ProgramResource::collection(Program::all(['id', 'code'])),
                  ];
 
-        return Inertia::render("$isPrefect/faculty", $props);
+        return list_page("$isPrefect/faculty", $props);
     }
 
     /**
@@ -605,22 +609,15 @@ class AccountController extends Controller
         // School year / semester: staff accounts registered in that period.
         \App\Models\SchoolYearSemester::applyFilter($data, 'users.created_at', request('school-year'), request('semester'));
 
-        return UserResource::collection(
-            $data->latest('created_at')
-                ->paginate(100)
-                ->appends([
-                    'search' => $_GET['search'] ?? '',
-                    'type' => $_GET['type'] ?? 'all',
-                    'program' => $_GET['program'] ?? 'all',
-                    'position' => $_GET['position'] ?? 'all',
-                ])
-        );
+        // Every row (the table paginates in the browser), as { data: [...] }.
+        return ['data' => UserResource::collection($data->latest('created_at')->get())];
     }
 
     public function staffListIndex()
     {
-        return Inertia::render('prefect/staff-list', [
-            'staff' => self::getStaffList(),
+        return list_page('prefect/staff-list', [
+            // The table: loaded by the page from its API endpoint (list_page()).
+            'staff' => list_prop(fn () => self::getStaffList()),
             'programs' => ProgramResource::collection(Program::all(['id', 'code'])),
             'positions' => PositionResource::collection(Position::orderBy('name')->get()),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
@@ -629,8 +626,9 @@ class AccountController extends Controller
 
     public function parentListIndex()
     {
-        return Inertia::render('prefect/parent-list', [
-            'parents' => self::getParentList(),
+        return list_page('prefect/parent-list', [
+            // The table: loaded by the page from /api/prefect/parent-list.
+            'parents' => list_prop(fn () => self::getParentList()),
         ]);
     }
 
@@ -654,20 +652,21 @@ class AccountController extends Controller
 
         switch ($tab) {
             case 'staff':
-                $props['staff'] = self::getStaffList();
+                $props['staff'] = list_prop(fn () => self::getStaffList());
                 $props['programs'] = ProgramResource::collection(Program::all(['id', 'code']));
                 $props['positions'] = PositionResource::collection(Position::orderBy('name')->get());
                 break;
             case 'parent':
-                $props['parents'] = self::getParentList();
+                $props['parents'] = list_prop(fn () => self::getParentList());
                 break;
             default:
-                $props['students'] = ['data' => self::getStudent()];
+                $props['students'] = list_prop(fn () => ['data' => self::getStudent()]);
                 $props['program'] = ProgramResource::collection(Program::all(['id', 'code', 'name', 'color_code']));
                 break;
         }
 
-        return Inertia::render('prefect/user-list', $props);
+        // The active tab's table: loaded by the page from /api/prefect/user-list.
+        return list_page('prefect/user-list', $props);
     }
 
     public function getParentList()
@@ -686,11 +685,8 @@ class AccountController extends Controller
             $data->whereHas('parent', fn ($q) => $q->where('parent_role', request('parent-role')));
         }
 
-        return UserResource::collection(
-            $data->latest('created_at')
-                ->paginate(100)
-                ->appends(['search' => $_GET['search'] ?? ''])
-        );
+        // Every row (the table paginates in the browser), as { data: [...] }.
+        return ['data' => UserResource::collection($data->latest('created_at')->get())];
     }
 
     /**
@@ -843,10 +839,11 @@ class AccountController extends Controller
             abort(403);
         }
 
-        return Inertia::render('shared/program-account-files', [
+        return list_page('shared/program-account-files', [
             'program_name' => is_program_head(),
-            'students' => ['data' => self::getStudent()],
-            'faculty' => self::getFaculty(),
+            // The tables: loaded by the page from /api/program/account-files.
+            'students' => list_prop(fn () => ['data' => self::getStudent()]),
+            'faculty' => list_prop(fn () => self::getFaculty()),
             'school_years' => SchoolYear::orderByDesc('year')->pluck('year'),
             'account_files' => FileController::scopedAccountFiles(),
         ]);
@@ -856,11 +853,12 @@ class AccountController extends Controller
     {
         $familyId = FamilyMember::where('member_id', auth()->user()->id)->value('family_id');
 
-        return Inertia::render('parent/children-monitoring', [
-            'children' => UserResource::collection(User::with(['profile', 'program', 'enrollments'])
+        return list_page('parent/children-monitoring', [
+            // The list: loaded by the page from /api/children/monitor.
+            'children' => list_prop(fn () => UserResource::collection(User::with(['profile', 'program', 'enrollments'])
                 ->whereIn('id', FamilyMember::where('family_id', $familyId)->pluck('member_id'))
                 ->whereRole('student')
-                ->get()),
+                ->get())),
         ]);
     }
 
@@ -1449,40 +1447,27 @@ class AccountController extends Controller
             if (isset($_GET['search']) && $_GET['search'] !== '') {
                 $data = $data->where('id_number', 'like', "%{$_GET['search']}%")
                     ->latest('created_at')
-                    ->paginate(100)
-                    ->appends([
-                        'search' => $_GET['search'],
-                    ]);
+                    ->get();
             } else {
                 $programIds = $isProgramHead ? $myTeaching->programs_handled->pluck('id') : collect();
 
                 $data = $programIds->isEmpty()
-                        ?
-                        $data->latest('created_at')
-                            ->paginate(100)
-                            ->appends([
-                                'program' => $_GET['program'] ?? 'all',
-                            ])
-                        :
-                        $data->latest('created_at')
-                            ->teachingInPrograms($programIds)
-                            ->paginate(100)
-                            ->appends([
-                                'program' => $_GET['program'] ?? 'all',
-                            ]);
+                        ? $data->latest('created_at')->get()
+                        : $data->latest('created_at')->teachingInPrograms($programIds)->get();
             }
 
-            return UserResource::collection($data);
+            // Every row (the table paginates in the browser), as { data: [...] }.
+            return ['data' => UserResource::collection($data)];
         } else {
             // A faculty member sees the faculty of their own program — as
             // users, the same shape as the branch above (the faculty list
             // reads id / profile / teaching from each row).
             $programId = $myTeaching?->program_id;
 
-            return UserResource::collection($data
+            return ['data' => UserResource::collection($data
                 ->teachingInPrograms([$programId])
                 ->latest('created_at')
-                ->paginate(100));
+                ->get())];
         }
     }
 

@@ -7,6 +7,7 @@ import { SlidersHorizontal, X } from "lucide-react"
 import Btn from "@/Components/button/normal-btn"
 import { Head, router } from "@inertiajs/react"
 import { useState } from "react"
+import useListData from "@/others/hooks/use-list-data"
 import GenerateActionLogReportMoodal from "@/Components/modal/submission-form/generate-action-log-report-modal"
 import AccountStatistics from "./report/account-statistics"
 
@@ -42,6 +43,9 @@ const logFilterChips = (f, actionList, schoolYears) => {
 const ITRCReport = (props) => {
     const params = new URLSearchParams(window.location.search)
     const tab = props.section ?? "statistics"
+    // Action Log: the table loads from /api/super-admin/report/action-log
+    // once the page opens (and after a filter change).
+    const { data: lists } = useListData(null, null, { enabled: tab === "action-log" })
     const actionList = [
         { val: 'login', label: 'Login' },
         { val: 'logout', label: 'Logout' },
@@ -78,7 +82,7 @@ const ITRCReport = (props) => {
         router.get(window.location.pathname, query, {
             preserveState: true,
             preserveScroll: true,
-            only: ['action_log_list'],
+
         })
     }
 
@@ -159,7 +163,7 @@ const ITRCReport = (props) => {
                 </div>
                 <div>
                     <UserReportLogList
-                        list={props.action_log_list}
+                        list={lists?.action_log_list ?? null}
                     />
                 </div>
             </div>}

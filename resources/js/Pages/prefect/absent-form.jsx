@@ -1,7 +1,8 @@
 import AuthLayout from "@/Layouts/auth-layout"
 import SingleRowNotice from "@/Components/other/single-row-notice"
 import PageLayout from "@/Layouts/page-layout"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import useListData from "@/others/hooks/use-list-data"
 import DropdownField from "@/Components/input/dropdown"
 import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import RequestAbsentFormModal from "@/Components/modal/submission-form/request-absent-form-modal"
@@ -18,7 +19,7 @@ import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
 import { showWarningModal, showOutputModal } from "@/others/function"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
-import { List, Clock, Ban, Undo2, CalendarX } from "lucide-react"
+import { List, Clock, Ban, CalendarX } from "lucide-react"
 import { Head } from "@inertiajs/react"
 import { PageActions } from "@/context-provider/page-title-provider"
 
@@ -27,8 +28,12 @@ const PrefectAbsentForm = (props) => {
     const url = new URLSearchParams(window.location.search)
 
     const [id, setId] = useState('')
-    const [lstOption, setLstOption] = useState(url.has('status') ? url.get('status') : 'req-current')
-    const [absent_form_list, setAbsentFormRequestList] = useState(props.absent_form_request_list)
+    // No Revoked tab (revoked forms are in the Archive).
+    const [lstOption, setLstOption] = useState(url.get('status') === 'revoked' ? 'all' : (url.has('status') ? url.get('status') : 'req-current'))
+    // The table loads from /api/prefect/absent-form once the page opens.
+    const { data: lists } = useListData()
+    const [absent_form_list, setAbsentFormRequestList] = useState(null)
+    useEffect(() => { if (lists) setAbsentFormRequestList(lists.absent_form_request_list) }, [lists])
     const [schoolYear, setSchoolYear] = useState(url.get('school-year') || 'all')
     const [semester, setSemester] = useState(url.get('semester') || 'all')
     const [program, setProgram] = useState(url.get('program') || 'all')
@@ -50,7 +55,6 @@ const PrefectAbsentForm = (props) => {
         { key: 'all', label: 'All Absent Forms', icon: List },
         { key: 'req-current', label: 'Pending', icon: Clock },
         { key: 'rejected', label: 'Rejected', icon: Ban },
-        { key: 'revoked', label: 'Revoked', icon: Undo2 },
     ]
 
     const handleOption = (type) => {
@@ -188,7 +192,7 @@ const PrefectAbsentForm = (props) => {
                         <div className="w-full bg-white rounded-md shadow-sm shadow-black/20 min-w-0">
                                 <AbsentFormRequestList
                                     style={true}
-                                    list={absent_form_list.data}
+                                    list={absent_form_list?.data ?? null}
                                     events={setEvents}
                                     noted={new URLSearchParams(window.location.search).get('status') === 'noted'}
                                 />

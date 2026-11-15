@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { SlidersHorizontal } from "lucide-react"
 import UpModal from "@/Components/modal/up-modal"
+import { Button } from "@mui/material"
 
 // How many of these filter values are set ('' / 'all' / null mean "not set").
 export const countActive = (...values) =>
@@ -35,23 +36,26 @@ const MobileFilters = ({ children, active = 0, title = "Filters" }) => {
 
     return (
         <>
-            <button
-                type="button"
+            <Button
+                fullWidth
+                variant={active > 0 ? "contained" : "outlined"}
+                disableElevation
                 onClick={() => setOpen(true)}
-                className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 text-[0.9em] rounded-md border transition-colors ${
-                    active > 0
-                        ? "border-blue-600 bg-blue-600 text-white"
-                        : "border-gray-300 bg-white text-gray-700"
-                }`}
+                startIcon={<SlidersHorizontal size={16} />}
+                sx={{
+                    textTransform: "none", fontSize: "0.9em", borderRadius: "0.375rem", py: 1.1, gap: 0.5,
+                    ...(active > 0
+                        ? { bgcolor: "#2563eb", "&:hover": { bgcolor: "#1d4ed8" } }
+                        : { bgcolor: "#fff", color: "#374151", borderColor: "#d1d5db", "&:hover": { bgcolor: "#f9fafb", borderColor: "#9ca3af" } }),
+                }}
             >
-                <SlidersHorizontal size={16} />
                 {title}
                 {active > 0 && (
                     <span className="min-w-[1.25rem] px-1.5 rounded-full bg-white text-blue-700 text-[0.8em] font-semibold">
                         {active}
                     </span>
                 )}
-            </button>
+            </Button>
 
             <UpModal
                 close={open}
@@ -71,13 +75,15 @@ const MobileFilters = ({ children, active = 0, title = "Filters" }) => {
                     <div className="grid gap-3 [&>*]:!w-full [&_*]:!max-w-none [&>div]:!flex-col">
                         {children}
                     </div>
-                    <button
-                        type="button"
+                    <Button
+                        fullWidth
+                        variant="contained"
+                        disableElevation
                         onClick={() => setOpen(false)}
-                        className="w-full px-4 py-2.5 text-[0.9em] rounded-md bg-blue-600 text-white hover:bg-blue-700"
+                        sx={{ textTransform: "none", fontSize: "0.9em", borderRadius: "0.375rem", py: 1.1, bgcolor: "#2563eb", "&:hover": { bgcolor: "#1d4ed8" } }}
                     >
                         Done
-                    </button>
+                    </Button>
                 </div>
             </UpModal>
         </>

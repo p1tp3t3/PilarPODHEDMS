@@ -1,4 +1,5 @@
-import { checkActiveStatus, getProfilePic, toTitleCase, profileUrl } from "@/others/function"
+import ListSkeleton from "../reload/list-skeleton";
+import { checkActiveStatus, getProfilePic, toTitleCase, profileUrl, showUserType } from "@/others/function"
 import LiveActiveSince from "@/Components/other/live-active-since"
 import ProfilePic from "../other/profile-pic"
 import { Link } from "@inertiajs/react"
@@ -147,8 +148,8 @@ const LatestActiveAccountList = ({ dataKey = 'active', ...props }) => {
                     </div>
                  </div>)
                 :
-                <div className="w-full h-full flex justify-center items-center text-[0.9em] text-gray-500">
-                    Loading...
+                <div className="w-full p-3">
+                    <ListSkeleton rows={4} height={3} />
                 </div>
                 }
             </div>
@@ -173,8 +174,10 @@ const Row = ({ data }) => {
                         />
                     </div>
                     <div>
-                        <h1 className="text-[0.9em] overflow-hidden w-20 text-ellipsis text-nowrap"><b>{data.profile?.first_name}</b></h1>
-                        <h1 className="text-[0.7em]">{ROLE_OPTIONS.find((r) => r.val === data.role)?.label ?? toTitleCase(data.role ?? "")}</h1>
+                        {/* First and last name; the subtitle is what's unique to
+                            their role (program and year, program taught, position). */}
+                        <h1 className="text-[0.9em] overflow-hidden max-w-[11rem] text-ellipsis text-nowrap"><b>{toTitleCase([data.profile?.first_name, data.profile?.last_name].filter(Boolean).join(" "))}</b></h1>
+                        <h1 className="text-[0.7em] overflow-hidden max-w-[11rem] text-ellipsis text-nowrap">{showUserType(data) ?? ROLE_OPTIONS.find((r) => r.val === data.role)?.label ?? toTitleCase(data.role ?? "")}</h1>
                     </div>
                 </div>
                 <div className="text-[0.7em] flex mt-1">

@@ -90,4 +90,70 @@ class Report extends Model
 
         return $filters;
     }
+
+    /**
+     * The name a generated file is downloaded / viewed under (the file on
+     * disk stays {id}-{type}-report.{ext}). A group report:
+     *   "Incident Report - All Programs - SY 2025-2026, 1st Semester.pdf"
+     * An individual report (one student):
+     *   "Analytical Report - Juan Dela Cruz (2025-00001) - All Time.pdf"
+     */
+    public function readableFileName(): string
+    {
+        ['type' => $type, 'scope' => $scope, 'period' => $period] = $this->readableParts();
+
+        $ext = ['excel' => 'xlsx', 'word' => 'docx'][$this->file_type] ?? 'pdf';
+        // No characters a file name can't hold.
+        $name = trim(preg_replace('/[\\\\\/:*?"<>|]+/', '-', implode(' - ', array_filter([$type, ...$scope, $period]))));
+
+        return "{$name}.{$ext}";
+    }
+
+    /**
+     * What the report is, in words: type ("Incident Report"), scope (the
+     * student, or the incident / violation and program), period ("SY
+     * 2025-2026, 1st Semester"), and the student (individual reports). Used
+     * by the file name and the spreadsheet's heading.
+     */
+    public function readableParts(): array
+    {
+        $f = $this->filters ?? [];
+        $type = [
+            'incident' => 'Incident Report', 'violation' => 'Violation Report', 'tardy' => 'Tardy Report',
+            'appointment' => 'Appointment Report', 'gatepass' => 'Gate Pass Report', 'analytics' => 'Analytical Report',
+        ][$this->report_type] ?? ucwords(str_replace(['-', '_'], ' ', (string) $this->report_type)).' Report';
+
+        // The period.
+        $sem = [1 => '1st Semester', 2 => '2nd Semester'][(int) ($f['semester'] ?? 0)] ?? null;
+        if (! empty($f['school_year'])) {
+            $period = ($f['school_year'] === 'all' ? 'All School Years' : "SY {$f['school_year']}").($sem ? ", {$sem}" : '');
+        } elseif (! empty($f['date_from']) && ! empty($f['date_to']) && ! str_starts_with((string) $f['date_from'], '2000-01-01')) {
+            $period = \Carbon\Carbon::parse($f['date_from'])->format('M j, Y').' to '.\Carbon\Carbon::parse($f['date_to'])->format('M j, Y');
+        } else {
+            $period = 'All Time';
+        }
+
+        $parts = [];
+        $student = null;
+        $individual = filter_var($f['individual'] ?? false, FILTER_VALIDATE_BOOLEAN) && ! empty($f['student_id']);
+        if ($individual) {
+            // Who it's about.
+            $student = User::with(['profile', 'program', 'enrollments'])->find($f['student_id']);
+            $p = $student?->profile;
+            $name = trim(preg_replace('/\s+/', ' ', ($p->first_name ?? '').' '.($p->middle_name ?? '').' '.($p->last_name ?? '')));
+            $parts[] = trim(($name ?: 'Student').($student?->id_number ? " ({$student->id_number})" : ''));
+        } else {
+            // Which incident / violation, and which program (group reports).
+            if (in_array($this->report_type, ['incident', 'violation']) && ! empty($f['report_type']) && $f['report_type'] !== 'all') {
+                $parts[] = ucwords(strtolower((string) Violation::whereKey($f['report_type'])->value('violation_name')));
+            }
+            if (in_array($this->report_type, ['incident', 'violation', 'tardy', 'appointment', 'gatepass'])) {
+                $parts[] = ! empty($f['program']) && $f['program'] !== 'all'
+                    ? (Program::whereKey($f['program'])->value('code') ?? 'Program')
+                    : 'All Programs';
+            }
+        }
+
+        return ['type' => $type, 'scope' => array_values(array_filter($parts)), 'period' => $period, 'student' => $student];
+    }
 }

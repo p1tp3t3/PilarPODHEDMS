@@ -26,7 +26,7 @@ class ActionLogReportExport implements FromCollection, WithHeadings, WithMapping
         $this->individual = $individual;
     }
 
-    public function collection()
+    public function collection(): \Illuminate\Support\Enumerable
     {
         return $this->logs;
     }
@@ -66,7 +66,7 @@ class ActionLogReportExport implements FromCollection, WithHeadings, WithMapping
         ];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         if ($this->individual && !is_null($this->user)) {
             $sheet->setCellValue('A1', 'User ID:');
@@ -95,7 +95,7 @@ class ActionLogReportExport implements FromCollection, WithHeadings, WithMapping
         return [];
     }
 
-    public function drawings()
+    public function drawings(): \PhpOffice\PhpSpreadsheet\Worksheet\BaseDrawing|array
     {
         if (!$this->individual || empty($this->user['profile_picture'])) {
             return [];

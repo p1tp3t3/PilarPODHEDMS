@@ -6,6 +6,7 @@ import Btn from "@/Components/button/normal-btn"
 import DropdownField from "@/Components/input/dropdown"
 import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import { useState, useEffect } from "react"
+import useListData from "@/others/hooks/use-list-data"
 import GatePassRequestList from "@/Components/list/gatepass-request-list"
 import GatePassList from "@/Components/list/gate-pass-list"
 import { useReload } from "@/context-provider/reload-provider"
@@ -25,7 +26,10 @@ const PrefectGatePass = (props) => {
     const [requestGatePass, openRequestGatePass] = useState(false)
     const [viewGatePass, openViewGatePass] = useState(false)
     const [lstOption, setLstOption] = useState(url.has("status") ? url.get("status") : "req-current")
-    const [gatepassRequestList, setGatePassRequestList] = useState(props.gatepass_request_list)
+    // The table loads from /api/prefect/gatepass once the page opens.
+    const { data: lists } = useListData()
+    const [gatepassRequestList, setGatePassRequestList] = useState(null)
+    useEffect(() => { if (lists) setGatePassRequestList(lists.gatepass_request_list) }, [lists])
     const [schoolYear, setSchoolYear] = useState(url.get("school-year") || "all")
     const [semester, setSemester] = useState(url.get("semester") || "all")
     const [program, setProgram] = useState(url.get("program") || "all")

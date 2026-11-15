@@ -1,3 +1,4 @@
+import useListData from "@/others/hooks/use-list-data"
 import AuthLayout from "@/Layouts/auth-layout"
 import { Head, router } from "@inertiajs/react"
 import { getProgramLogo, getProfilePic } from "@/others/function"
@@ -13,7 +14,11 @@ const tabs = [
     { key: "students", label: "Students" },
 ]
 
-const ProgramUsers = ({ program, faculty, students }) => {
+const ProgramUsers = ({ program }) => {
+    // The tables load from /api/super-admin/program/{id}/users once the page opens.
+    const { data: lists } = useListData()
+    const faculty = lists?.faculty ?? null
+    const students = lists?.students ?? null
     const head = program.program_head
     const activeTab = new URLSearchParams(window.location.search).get("tab") || "faculty"
     const goToTab = (tab) => router.visit(`/super-admin/program/${program.encrypted_id}/users?tab=${tab}`)

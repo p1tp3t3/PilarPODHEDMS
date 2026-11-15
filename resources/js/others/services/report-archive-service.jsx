@@ -1,3 +1,4 @@
+import axios from "axios";
 import { APIRequest } from "../classes/api-req";
 import { openPdfTab } from "../function";
 
@@ -9,12 +10,38 @@ export const ReportArchiveService = {
         const api = new APIRequest("/prefect/archive/recover", "post", f, () => {}, success, error);
         api.sendPostData();
     },
-    deleteArchived(type, id, success, error) {
-        const f = new FormData();
-        f.append("type", type);
-        f.append("id", id);
-        const api = new APIRequest("/prefect/archive/delete", "post", f, () => {}, success, error);
-        api.sendPostData();
+    // Download Archive form: one ZIP for the school year / semester. On an
+    // error the blob body is read for the server's message.
+    downloadArchive(data, fileName, success, error) {
+        // Arrays (the complaint sides) go as sides[]=..&sides[]=..
+        const params = new URLSearchParams();
+        Object.entries(data).forEach(([key, value]) => {
+            if (Array.isArray(value)) value.forEach((v) => params.append(`${key}[]`, v));
+            else params.append(key, value ?? "");
+        });
+        const query = params.toString();
+        axios.get(`/prefect/archive/download?${query}`, { responseType: "blob" })
+            .then((response) => {
+                const url = window.URL.createObjectURL(new Blob([response.data]));
+                const link = document.createElement("a");
+                link.href = url;
+                // The server's name (it adds the picked person's ID number).
+                const named = /filename="?([^";]+)"?/.exec(response.headers["content-disposition"] ?? "");
+                link.setAttribute("download", named ? named[1] : fileName);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.URL.revokeObjectURL(url);
+                success();
+            })
+            .catch(async (e) => {
+                let message = null;
+                try {
+                    const body = JSON.parse(await e.response.data.text());
+                    message = body.message ?? null;
+                } catch {}
+                error(message);
+            });
     },
     deleteReport(id, setter) {
         const api = new APIRequest("/prefect/report/delete", "post", { id }, setter);
@@ -89,8 +116,9 @@ export const ReportArchiveService = {
         const api = new APIRequest(`/prefect/report-filter/${id}/delete`, "post", {}, () => {}, success, error);
         api.sendPostData();
     },
-    generateFromReportFilter(id, success, error) {
-        const api = new APIRequest(`/prefect/report-filter/${id}/generate`, "post", {}, () => {}, success, error);
+    // fileType: "pdf" or "excel" (the row's two Generate buttons).
+    generateFromReportFilter(id, fileType, success, error) {
+        const api = new APIRequest(`/prefect/report-filter/${id}/generate`, "post", { file_type: fileType }, () => {}, success, error);
         api.sendPostData();
     },
     getStudentIncidentGroups(userId, setter) {

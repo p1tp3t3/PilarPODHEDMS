@@ -36,37 +36,34 @@ class GatePassController extends Controller
     {
         $isPrefect = self::isPrefect() ? 'prefect' : 'shared';
 
-        $gatepass = '';
-        if (! self::isPrefect()) {
-            // Everyone else only sees their own gate passes (below), never
-            // the prefect's request list.
-        } elseif (isset($_GET['status'])) {
-            if ($_GET['status'] == 'all') {
-                $gatepass = self::getAllGatePasses();
-            } elseif ($_GET['status'] == 'confirmed-users') {
-                $gatepass = self::getAllApprovedGatePass();
-            } elseif ($_GET['status'] == 'expired-users') {
-                $gatepass = self::getGatePassExpired();
-            } elseif ($_GET['status'] == 'rejected-requests') {
-                $gatepass = self::getAllRejectedGatePass();
-            } elseif ($_GET['status'] == 'revoked-requests') {
-                $gatepass = self::getAllRevokedGatePass();
-            } else {
-                $gatepass = self::getAllGatePassRequest();
+        // The prefect's request list for the ?status= tab. Everyone else only
+        // sees their own gate passes (user_gatepass), never this list.
+        $gatepass = function () {
+            if (! self::isPrefect()) {
+                return '';
             }
-        } else {
-            $gatepass = self::getAllGatePassRequest();
-        }
+
+            return match (request('status')) {
+                'all' => self::getAllGatePasses(),
+                'confirmed-users' => self::getAllApprovedGatePass(),
+                'expired-users' => self::getGatePassExpired(),
+                'rejected-requests' => self::getAllRejectedGatePass(),
+                'revoked-requests' => self::getAllRevokedGatePass(),
+                default => self::getAllGatePassRequest(),
+            };
+        };
 
         $user = auth()->user();
         $user->allow_gatepass = $user->permissions?->allow_gatepass;
 
-        return Inertia::render("$isPrefect/gatepass", [
+        return list_page("$isPrefect/gatepass", [
             'user' => new UserResource($user),
             'program_name' => is_program_head(),
-            'gatepass_request_list' => $gatepass,
-            // Their own gate passes; ?status= is the page's tab.
-            'user_gatepass' => UserResource::make(self::getGatePass(auth()->user()->id, self::isPrefect() ? null : request('status'))),
+            // The tables: loaded by the page from its API endpoint (list_page()).
+            'gatepass_request_list' => list_prop($gatepass),
+            // Their own gate passes; ?status= is the page's tab (not on the
+            // prefect's page, which lists everyone's).
+            'user_gatepass' => list_prop(fn () => self::isPrefect() ? null : UserResource::make(self::getGatePass(auth()->user()->id, request('status')))),
             // Their latest request regardless of tab/filters: decides whether
             // they may request a new one.
             'latest_gatepass' => GatePassResource::make(GatePass::where('user_id', auth()->id())->latest('created_at')->first()),
@@ -124,7 +121,6 @@ class GatePassController extends Controller
         return Inertia::render('staff/gatepass-verification', [
             'user' => new UserResource($user),
             'program_name' => null,
-            'gatepass_approved_list' => UserResource::collection(self::getAllGatePass()->get()),
         ]);
     }
 
@@ -458,15 +454,17 @@ class GatePassController extends Controller
             if (is_numeric(request('id'))) {
                 $query->where('id', (int) request('id'));
             }
-            // A status tab: pending / approved (still valid) / expired /
-            // rejected / revoked.
+            // Revoked gate passes: the prefect only (no Revoked tab here).
+            if (! self::isPrefect()) {
+                $query->whereNull('revoked_at');
+            }
+            // A status tab: pending / approved (still valid) / expired / rejected.
             $live = fn ($q) => $q->whereNull('rejected_at')->whereNull('revoked_at');
             match ($status) {
                 'pending' => $live($query)->whereNull('confirmed_at'),
                 'approved' => $live($query)->whereNotNull('confirmed_at')->where('date_expiration', '>', now()),
                 'expired' => $live($query)->whereNotNull('confirmed_at')->where('date_expiration', '<=', now()),
                 'rejected' => $query->whereNotNull('rejected_at')->whereNull('revoked_at'),
-                'revoked' => $query->whereNotNull('revoked_at'),
                 default => null,
             };
         }])
@@ -489,7 +487,7 @@ class GatePassController extends Controller
         $query = GatePass::with(['user.profile', 'user.program', 'user.enrollments'])
             ->where('confirmed_at', null)
             ->whereNull('archived_at')
-            ->oldest('created_at'); // a queue: oldest request first
+            ->latest('created_at'); // newest first (Up next on the dashboard keeps the queue)
 
         return GatePassResource::collection(self::filterList($query)->get());
     }

@@ -1,4 +1,5 @@
 import { ViolationService } from "@/others/services/violation-service";
+import StatusPill from "@/Components/list/status-pill"
 import { readableDate, readableTime, showWarningModal, toTitleCase } from "@/others/function";
 import ActionBtn from "@/Components/button/action-btn";
 import TabSwitcher from "@/Components/other/tab-switcher";
@@ -87,11 +88,12 @@ const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditR
             </div>
 
             {/* DATA TABLE */}
-            <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm min-w-0">
-                <div className="w-full px-5 py-3 min-w-0">
+            <div className="w-full min-w-0">
+                <div className="w-full min-w-0">
                     <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                         <DataGrid
                             rows={rows}
+                            loading={list == null}
                             getRowId={(row) => row.id}
                             disableRowSelectionOnClick
                             showToolbar
@@ -138,21 +140,9 @@ const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditR
                                     headerName: "Status",
                                     width: 110,
                                     renderCell: ({ row }) => (
-                                        <div className="py-2">
-                                            <span
-                                                className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                                    row.offense_status
-                                                        ? "bg-red-100 text-red-600"
-                                                        : "bg-yellow-100 text-yellow-700"
-                                                }`}
-                                            >
-                                                {row.offense_status ? "Major" : "Minor"}
-                                            </span>
-                                            {row.archived_at && (
-                                                <span className="ml-1.5 px-2 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-600">
-                                                    Archived
-                                                </span>
-                                            )}
+                                        <div className="py-2 flex flex-wrap gap-1.5">
+                                            <StatusPill status={row.offense_status ? "major" : "minor"} />
+                                            {row.archived_at && <StatusPill status="archived" />}
                                         </div>
                                     ),
                                 },

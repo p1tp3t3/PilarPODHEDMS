@@ -1,3 +1,4 @@
+import useListData from "@/others/hooks/use-list-data"
 import DropdownField from "@/Components/input/dropdown"
 import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import SearchUserBar from "@/Components/input/search-user-bar"
@@ -8,6 +9,8 @@ import { useState } from "react"
 import { Head, router } from "@inertiajs/react"
 
 const PrefectStudents = (props) => {
+    // The table loads from its API endpoint once the page opens.
+    const { data: lists } = useListData()
   const [search, setSearch] = useState("")
   const [isSearchFocus, focusSearch] = useState(false)
 
@@ -68,7 +71,7 @@ const PrefectStudents = (props) => {
 
           {/* Student List */}
           <div className="w-full min-w-0">
-            <StudentList list={props.students} />
+            <StudentList list={lists?.students} />
           </div>
       </PageLayout>
     </>
