@@ -2,7 +2,7 @@ import AuthLayout from "@/Layouts/auth-layout"
 import SingleRowNotice from "@/Components/other/single-row-notice"
 import PageLayout from "@/Layouts/page-layout"
 import { useState, useEffect } from "react"
-import useListData from "@/others/hooks/use-list-data"
+import useListData, { setListQuery } from "@/others/hooks/use-list-data"
 import DropdownField from "@/Components/input/dropdown"
 import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import RequestAbsentFormModal from "@/Components/modal/submission-form/request-absent-form-modal"
@@ -57,15 +57,20 @@ const PrefectAbsentForm = (props) => {
         { key: 'rejected', label: 'Rejected', icon: Ban },
     ]
 
+    // Tabs and filters: the address bar follows and the table is fetched
+    // again from its API (no page request).
     const handleOption = (type) => {
+        if (type === lstOption) return
         setLstOption(type)
-        const link = window.location.pathname
-        router.visit(`${link}?status=${type}&${filterQuery()}`)
+        setAbsentFormRequestList(null)
+        setListQuery(`status=${type}&${filterQuery()}`)
     }
 
     const handleFilterChange = (field, value) => {
-        const link = window.location.pathname
-        router.visit(`${link}?status=${lstOption}&${filterQuery({ [field]: value })}`)
+        if (field === 'school-year') setSchoolYear(value)
+        if (field === 'semester') setSemester(value)
+        if (field === 'program') setProgram(value)
+        setListQuery(`status=${lstOption}&${filterQuery({ [field]: value })}`)
     }
 
     const setEvents = (i, type) => {
@@ -135,7 +140,7 @@ const PrefectAbsentForm = (props) => {
                     isEnableOuterClose={true}
                     reload={loadRegister}
                     issue={true}
-                    onIssued={() => router.visit(`${window.location.pathname}?status=all&${filterQuery()}`)}
+                    onIssued={() => { setLstOption('all'); setListQuery(`status=all&${filterQuery()}`) }}
                 />
                 <PageLayout actionsWithFilters
                     title="STUDENT ABSENT FORMS"
@@ -145,6 +150,10 @@ const PrefectAbsentForm = (props) => {
                         </Btn>
                     }
                 >
+                        {/* Tabs */}
+                        <div className="w-full overflow-x-auto">
+                            <TabSwitcher tabs={option} value={lstOption} onChange={handleOption} />
+                        </div>
                         {/* Filters */}
                         <div className="flex flex-wrap gap-3 md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
                             <MobileFilters active={countActive(program, schoolYear, semester)}>
@@ -181,10 +190,6 @@ const PrefectAbsentForm = (props) => {
                             <PageActions />
                         </div>
 
-                        {/* Tabs */}
-                        <div className="w-full overflow-x-auto">
-                            <TabSwitcher tabs={option} value={lstOption} onChange={handleOption} />
-                        </div>
 
                         <SingleRowNotice noun="absent form" />
 

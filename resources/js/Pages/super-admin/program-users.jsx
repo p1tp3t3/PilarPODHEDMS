@@ -1,4 +1,4 @@
-import useListData from "@/others/hooks/use-list-data"
+import useListData, { setListQuery, useListQuery } from "@/others/hooks/use-list-data"
 import AuthLayout from "@/Layouts/auth-layout"
 import { Head, router } from "@inertiajs/react"
 import { getProgramLogo, getProfilePic } from "@/others/function"
@@ -20,8 +20,9 @@ const ProgramUsers = ({ program }) => {
     const faculty = lists?.faculty ?? null
     const students = lists?.students ?? null
     const head = program.program_head
-    const activeTab = new URLSearchParams(window.location.search).get("tab") || "faculty"
-    const goToTab = (tab) => router.visit(`/super-admin/program/${program.encrypted_id}/users?tab=${tab}`)
+    // Both lists are already loaded: a tab only changes the address bar.
+    const activeTab = useListQuery().get("tab") || "faculty"
+    const goToTab = (tab) => setListQuery({ tab })
 
     return (
         <>

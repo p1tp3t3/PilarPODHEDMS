@@ -704,6 +704,33 @@ class AccountController extends Controller
         return response()->json(PositionResource::collection(Position::orderBy('name')->get()));
     }
 
+    /**
+     * Staff Positions page (super admin): the list of non-teaching-staff
+     * positions, each with how many staff hold it and whether it's one the
+     * system depends on (can't be renamed or deleted). The table loads from
+     * /api/super-admin/positions (list_page()).
+     */
+    public function positionsPageIndex()
+    {
+        return list_page('super-admin/positions', [
+            'positions' => list_prop(fn () => self::positionsWithCounts()),
+        ]);
+    }
+
+    /** Every position with its staff count and protected flag (name order). */
+    public static function positionsWithCounts()
+    {
+        $counts = NonTeachingStaff::selectRaw('position_id, COUNT(*) AS n')->groupBy('position_id')->pluck('n', 'position_id');
+
+        return Position::orderBy('name')->get()->map(fn (Position $p) => [
+            'id' => $p->id,
+            'name' => $p->name,
+            'created_at' => $p->created_at,
+            'staff_count' => (int) ($counts[$p->id] ?? 0),
+            'protected' => in_array($p->name, self::PROTECTED_POSITIONS, true),
+        ])->values();
+    }
+
     public function positionStore(Request $request)
     {
         $data = $request->validate([

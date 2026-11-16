@@ -118,55 +118,94 @@
     th, td { font-size: 11px !important; padding: 5px 6px !important; line-height: 1.3 !important; }
     tr { page-break-inside: avoid; }
     img { max-width: 100%; }
+    .label { color: #333; font-weight: bold; background: #f3f7fb; }
+    .figure { margin-top: 12px; page-break-inside: avoid; }
+    .figure-title { font-weight: bold; color: #003366; font-size: 12px; margin-bottom: 4px; }
+    .figure-sub { font-weight: normal; color: #555; font-size: 11px; }
+    .figure-empty { color: #777; font-style: italic; font-size: 11px; padding: 4px 0; }
+    table.bars { margin-top: 2px !important; }
+    table.bars td { border: none !important; border-bottom: 1px solid #eee !important; }
+    .bar-track { width: 100%; height: 10px; background: #eef2f7; }
+    .bar { height: 10px; }
   </style>
 @endsection
 
 @section('content')
 
-  <div class="summary-box">
-    <table class="summary-grid">
-      <tr>
-        <td class="label">Students:</td>
-        <td>{{ $students }}</td>
-        <td class="label">Program Heads:</td>
-        <td>{{ $program_head }}</td>
-      </tr>
-      <tr>
-        <td class="label">Faculty:</td>
-        <td>{{ $faculty }}</td>
-        <td class="label">Non-Teaching Staff:</td>
-        <td>{{ $non_teaching_staff }}</td>
-      </tr>
-      <tr>
-        <td class="label">Parents:</td>
-        <td>{{ $parents }}</td>
-        <td></td>
-        <td></td>
-      </tr>
-    </table>
-  </div>
+  {{-- KEY FIGURES (same as the Statistics page's cards) --}}
+  <h4 style="margin-top:6px; color:#003366;">I. Key Figures</h4>
+  <table class="data figures">
+    <tbody>
+      @foreach(array_chunk($cards ?? [], 2) as $pair)
+        <tr>
+          @foreach($pair as $c)
+            <td class="label" style="width:32%;">{{ $c['label'] }}</td>
+            <td style="width:18%; font-weight:bold;">{{ $c['value'] }}@if(!empty($c['hint'])) <span style="font-weight:normal; color:#555;">({{ $c['hint'] }})</span>@endif</td>
+          @endforeach
+          @if(count($pair) === 1)<td></td><td></td>@endif
+        </tr>
+      @endforeach
+    </tbody>
+  </table>
 
-  {{-- STUDENTS PER PROGRAM --}}
-  <h4 style="margin-top:15px; color:#003366;">Students Per Program</h4>
+  {{-- RECORDS: ACCOUNTS PER PROGRAM --}}
+  <h4 style="margin-top:15px; color:#003366;">II. Accounts per Program</h4>
   <table class="data">
     <thead>
       <tr>
         <th>Program</th>
-        <th>Students</th>
+        <th>Program Name</th>
+        <th style="text-align:center;">Students</th>
+        <th style="text-align:center;">Program Heads</th>
+        <th style="text-align:center;">Faculty</th>
+        <th style="text-align:center;">Total</th>
       </tr>
     </thead>
     <tbody>
-      @forelse($students_per_program as $row)
+      @forelse($program_accounts ?? [] as $row)
         <tr>
-          <td>{{ is_array($row) ? $row['program'] : $row->program }}</td>
-          <td>{{ is_array($row) ? $row['total'] : $row->total }}</td>
+          <td>{{ $row['program'] }}</td>
+          <td>{{ $row['name'] }}</td>
+          <td style="text-align:center;">{{ $row['students'] }}</td>
+          <td style="text-align:center;">{{ $row['program_heads'] }}</td>
+          <td style="text-align:center;">{{ $row['faculty'] }}</td>
+          <td style="text-align:center; font-weight:bold;">{{ $row['total'] }}</td>
         </tr>
       @empty
-        <tr>
-          <td colspan="2" style="text-align:center;">No data available</td>
-        </tr>
+        <tr><td colspan="6" style="text-align:center;">No data available</td></tr>
       @endforelse
     </tbody>
   </table>
+
+  {{-- FIGURES: each chart of the Statistics page as a table with bars --}}
+  <h4 style="margin-top:15px; color:#003366;">III. Statistics</h4>
+  @foreach(($charts ?? []) as $i => $chart)
+    @php
+      $rows = $chart['data'] ?? [];
+      $max = max(1, collect($rows)->max('value') ?? 1);
+      $sum = max(1, collect($rows)->sum('value'));
+    @endphp
+    <div class="figure">
+      <div class="figure-title">Figure {{ $i + 1 }}. {{ $chart['title'] }}@if(!empty($chart['subtitle'])) <span class="figure-sub">&mdash; {{ $chart['subtitle'] }}</span>@endif</div>
+      @if(count($rows))
+        <table class="data bars">
+          <tbody>
+            @foreach($rows as $r)
+              <tr>
+                <td style="width:30%;">{{ $r['label'] }}</td>
+                <td style="width:55%;">
+                  <div class="bar-track"><div class="bar" style="width: {{ round($r['value'] / $max * 100) }}%; background: {{ $r['color'] ?? '#1e3a8a' }};"></div></div>
+                </td>
+                <td style="width:7%; text-align:right; font-weight:bold;">{{ $r['value'] }}</td>
+                <td style="width:8%; text-align:right; color:#555;">{{ round($r['value'] / $sum * 100) }}%</td>
+              </tr>
+            @endforeach
+          </tbody>
+        </table>
+      @else
+        <div class="figure-empty">No records for this period.</div>
+      @endif
+    </div>
+  @endforeach
 
 @endsection

@@ -1,4 +1,4 @@
-import useListData from "@/others/hooks/use-list-data"
+import useListData, { setListQuery, useListQuery } from "@/others/hooks/use-list-data"
 import StudentList from "@/Components/list/student-list"
 import FacultyList from "@/Components/list/faculty-list"
 import AccountFilesTab from "@/Components/other/account-files-tab"
@@ -17,12 +17,13 @@ const tabs = [
 const ProgramAccountFiles = (props) => {
     // The tables load from /api/program/account-files once the page opens.
     const { data: lists } = useListData()
-    const activeTab = new URLSearchParams(window.location.search).get("tab") || "students"
+    const activeTab = useListQuery().get("tab") || "students"
     // Switching tabs keeps the school year / semester filters.
     const goToTab = (tab) => {
         const q = new URLSearchParams(window.location.search)
         q.set("tab", tab)
-        router.visit(`/program/account-files?${q.toString()}`)
+        // Both tables are already loaded: the address bar follows, the lists refresh.
+        setListQuery(q)
     }
 
     return (

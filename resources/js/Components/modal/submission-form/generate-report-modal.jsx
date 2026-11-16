@@ -29,7 +29,7 @@ const DEFAULT_DATA = {
 
 // Creates or edits a saved, reusable report filter — this used to generate
 // a file immediately, but generating is now a separate step from the
-// Saved Filters page (see report-filter-list.jsx) so the same filter can
+// Report Generator (the shared @/Components/report-generator) so the same filter can
 // be re-run later, edited, or deleted instead of retyped every time.
 const GenerateReportModal = (props) => {
     const editingFilter = props.editingFilter ?? null

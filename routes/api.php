@@ -51,6 +51,7 @@ Route::middleware('web')->group(function () {
         Route::post('/user-graph', [DashboardController::class, 'getUserGraphRoute']);
         Route::get('/super-admin/user-accounts', [AccountController::class, 'index'])->middleware('list-data');
         Route::get('/super-admin/staff-list', [AccountController::class, 'staffListIndex'])->middleware('list-data');
+        Route::get('/super-admin/positions', [AccountController::class, 'positionsPageIndex'])->middleware('list-data');
         Route::get('/super-admin/student-list', [AccountController::class, 'studentListIndex'])->middleware('list-data');
         Route::get('/super-admin/parent-request-list', [ParentController::class, 'index'])->middleware('list-data');
         Route::get('/super-admin/program', [MaintenanceController::class, 'programIndex'])->middleware('list-data');
@@ -58,7 +59,7 @@ Route::middleware('web')->group(function () {
         Route::get('/super-admin/roles', [RoleController::class, 'index'])->middleware('list-data');
         Route::get('/super-admin/school-year', [SchoolYearController::class, 'index'])->middleware('list-data');
         Route::get('/super-admin/security-monitor', [SecurityMonitorController::class, 'index'])->middleware('list-data');
-        Route::get('/super-admin/report/{section}', [ReportController::class, 'itrcIndex'])->whereIn('section', ['statistics', 'action-log'])->middleware('list-data');
+        Route::get('/super-admin/report/{section}', [ReportController::class, 'itrcIndex'])->whereIn('section', ['statistics', 'action-log', 'account-activity', 'account-setup', 'enrollment', 'generator', 'generated'])->middleware('list-data');
     });
 
     /*

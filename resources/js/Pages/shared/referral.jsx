@@ -5,7 +5,7 @@ import PageLayout from "@/Layouts/page-layout"
 import ReferralList from "@/Components/list/referral-list"
 import { useReload } from "@/context-provider/reload-provider"
 import { useState, useEffect } from "react"
-import useListData, { reloadListData } from "@/others/hooks/use-list-data"
+import useListData, { reloadListData, setListQuery } from "@/others/hooks/use-list-data"
 import { Head, router } from "@inertiajs/react"
 import Btn from "@/Components/button/normal-btn"
 import ViewReferralModal from "@/Components/modal/view/view-referral-modal"
@@ -47,7 +47,8 @@ const Referral = (props) => {
         const q = new URLSearchParams(window.location.search)
         q.set("status", type)
         q.delete("id")
-        router.visit(`${window.location.pathname}?${q.toString()}`)
+        // The table is fetched again from its API (no page request).
+        setListQuery(q)
     }
 
     const setViewReferralId = (i) => {
@@ -128,8 +129,8 @@ const Referral = (props) => {
             }
         >
             {/* School year / semester (Report Referral sits at the end of this row). */}
-            <SchoolYearSemesterFilter schoolYears={props.school_years} />
             <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
+            <SchoolYearSemesterFilter schoolYears={props.school_years} />
             <SingleRowNotice noun="referral" />
             <div className="w-full min-w-0">
                 <ReferralList

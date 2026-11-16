@@ -1,7 +1,7 @@
 import AuthLayout from "@/Layouts/auth-layout";
 import PageLayout from "@/Layouts/page-layout";
 import { useEffect, useState } from "react";
-import useListData from "@/others/hooks/use-list-data";
+import useListData, { setListQuery, useListQuery } from "@/others/hooks/use-list-data";
 import { Head, router } from "@inertiajs/react";
 import AccountList from "@/Components/list/account-list";
 import AccountFilesTab from "@/Components/other/account-files-tab";
@@ -42,7 +42,8 @@ const Accounts = (props) => {
     });
   }, [clickedOk]);
 
-  const url = new URLSearchParams(window.location.search);
+  // The filters / tab live in the address bar (re-read when they change).
+  const url = useListQuery();
   const activeTab = url.get("tab") || "users";
   const roleFilter = url.get("role") || "all";
   const schoolYear = url.get("school-year") || "all";
@@ -56,7 +57,8 @@ const Accounts = (props) => {
       if (value && value !== "all") params.set(key, value);
       else params.delete(key);
     });
-    router.visit(`/super-admin/user-accounts?${params.toString()}`);
+    // The table is fetched again from its API (no page request).
+    setListQuery(params);
   };
 
   const goToTab = (tab) => updateQuery({ tab });

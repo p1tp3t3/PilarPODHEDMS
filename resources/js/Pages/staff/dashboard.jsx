@@ -24,7 +24,7 @@ const NonTeachingStaffDashboard = (props) => {
                     <div className="w-full flex gap-5 pt-6">
                         <div className={`h-full w-full grid ${props.is_guard || props.is_guidance ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-3`}>
                             <Link href="/complaint">
-                                <QuantityCard
+                                <QuantityCard clickable
                                     h='h-[6rem]'
                                     num={props.complaint}
                                     icon={FileText}
@@ -34,7 +34,7 @@ const NonTeachingStaffDashboard = (props) => {
                             </Link>
                             {props.is_guard &&
                             <Link href="/gatepass-verification">
-                                <QuantityCard 
+                                <QuantityCard clickable 
                                     h='h-[6rem]' 
                                     num={props.approved_gatepass}
                                     icon={FileText}
@@ -44,7 +44,7 @@ const NonTeachingStaffDashboard = (props) => {
                             </Link> }
                             {props.is_guidance &&
                             <Link href="/guidance/referral">
-                                <QuantityCard
+                                <QuantityCard clickable
                                     h='h-[6rem]'
                                     num={props.referral}
                                     icon={Share2}

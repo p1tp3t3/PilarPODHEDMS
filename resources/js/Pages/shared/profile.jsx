@@ -396,12 +396,12 @@ const Profile = (props) => {
 
     const tabOptions = [
         { key: 'about', label: 'About', icon: UserIcon },
-        ...(showIncidentsTab ? [{ key: 'incidents', label: 'Incidents and Violations', icon: ShieldAlert }] : []),
-        ...(showEnrollmentHistoryTab ? [{ key: 'enrollment_history', label: 'Enrollment History', icon: GraduationCap }] : []),
-        ...(showComplaintsFiledTab ? [{ key: 'complaints_filed', label: 'Complaints Filed', icon: FileWarning }] : []),
-        ...(showAbsentFormsFiledTab ? [{ key: 'absent_forms_filed', label: 'Absent Forms Filed', icon: CalendarX }] : []),
-        ...(showGatepassRequestedTab ? [{ key: 'gatepass_requested', label: 'Gatepass Requested', icon: DoorOpen }] : []),
-        ...(showReferralsFiledTab ? [{ key: 'referrals_filed', label: 'Referral Filed', icon: FileText }] : []),
+        ...(showIncidentsTab ? [{ key: 'incidents', label: 'Incidents and Violations', short: 'Incidents', icon: ShieldAlert }] : []),
+        ...(showEnrollmentHistoryTab ? [{ key: 'enrollment_history', label: 'Enrollment History', short: 'Enrolled', icon: GraduationCap }] : []),
+        ...(showComplaintsFiledTab ? [{ key: 'complaints_filed', label: 'Complaints Filed', short: 'Complaint', icon: FileWarning }] : []),
+        ...(showAbsentFormsFiledTab ? [{ key: 'absent_forms_filed', label: 'Absent Forms Filed', short: 'Absences', icon: CalendarX }] : []),
+        ...(showGatepassRequestedTab ? [{ key: 'gatepass_requested', label: 'Gatepass Requested', short: 'Gate Passes', icon: DoorOpen }] : []),
+        ...(showReferralsFiledTab ? [{ key: 'referrals_filed', label: 'Referral Filed', short: 'Referrals', icon: FileText }] : []),
     ];
 
     const updateProfile = (data) => {
@@ -566,7 +566,8 @@ const Profile = (props) => {
         {/* A single tab (just About) needs no tab bar. */}
         {tabOptions.length > 1 && (
                             <div className="w-full bg-white shadow-black/20 shadow-md border-t border-gray-300 px-4 sm:px-6 md:px-10 flex flex-wrap items-center justify-between gap-3 py-2">
-                                <div className="min-w-0">
+                                {/* Phones: the full row, so every tab gets an equal share. */}
+                                <div className="min-w-0 max-sm:w-full">
                                     <TabSwitcher tabs={tabOptions} value={tab} onChange={setTab} />
                                 </div>
                                 {/* School year / semester filters don't apply to the System Admin's

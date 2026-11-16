@@ -1,4 +1,4 @@
-import useListData from "@/others/hooks/use-list-data"
+import useListData, { setListQuery, useListQuery } from "@/others/hooks/use-list-data"
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import { useState } from "react"
@@ -18,7 +18,8 @@ const TEACHING_TYPES = ["program_head", "faculty", "teaching"]
 const PrefectStaffList = (props) => {
     // The table loads from its API endpoint once the page opens.
     const { data: lists } = useListData()
-    const url = new URLSearchParams(window.location.search)
+    // The filters live in the address bar (re-read when they change).
+    const url = useListQuery()
     const [tab, setTab] = useState(url.get("type") ?? "all")
     const [program, setProgram] = useState(url.get("program") ?? "")
     const [positionFilter, setPositionFilter] = useState(url.get("position") ?? "")
@@ -44,7 +45,8 @@ const PrefectStaffList = (props) => {
             if (value) params.set(key, value)
             else params.delete(key)
         })
-        router.visit(`${window.location.pathname}?${params.toString()}`)
+        // The table is fetched again from its API (no page request).
+        setListQuery(params)
     }
 
     const handleTab = (type) => {

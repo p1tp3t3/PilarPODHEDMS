@@ -1,15 +1,16 @@
 import DropdownField from "@/Components/input/dropdown"
 import { PageActions } from "@/context-provider/page-title-provider"
-import { router } from "@inertiajs/react"
+import { setListQuery, useListQuery } from "@/others/hooks/use-list-data"
 
 // School year + semester dropdowns for a list page, with the page's title
 // actions beside them (use with <PageLayout actionsWithFilters>). Choosing a
-// value reloads the page with ?school-year=&semester= (other query params,
-// e.g. the current tab, are kept); the server filters the list.
+// value sets ?school-year=&semester= in the address bar (other query params,
+// e.g. the current tab, are kept) and the page's lists are fetched again
+// from their API with it — no page request.
 // `defaults` ({ schoolYear, semester }): what to show while the URL has
 // neither, e.g. the current period on a list the server opens on it.
 export const useSchoolYearSemester = (defaults = null) => {
-    const url = new URLSearchParams(window.location.search)
+    const url = useListQuery()
     const unset = !url.has("school-year") && !url.has("semester")
     return {
         schoolYear: url.get("school-year") || (unset && defaults?.schoolYear) || "all",
@@ -29,7 +30,7 @@ const SchoolYearSemesterFilter = ({ schoolYears = [], defaults = null, allowAll 
         url.set("semester", semester)
         url.set(field, value)
         url.delete("id") // a single-row view ends when a filter changes
-        router.get(`${window.location.pathname}?${url.toString()}`, {}, { preserveState: true, preserveScroll: true })
+        setListQuery(url)
     }
 
     return (

@@ -21,6 +21,7 @@ const ParentDashboard = (props) => {
                 <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 pt-6">
                     <Link href="/children/monitor">
                         <QuantityCard
+                          clickable
                             h="h-[6rem]"
                             num={props.children}
                             icon={Users}
@@ -30,6 +31,7 @@ const ParentDashboard = (props) => {
                     </Link>
                     <Link href="/complaint">
                         <QuantityCard
+                          clickable
                             h="h-[6rem]"
                             num={props.complaint}
                             icon={FileText}

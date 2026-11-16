@@ -5,7 +5,7 @@ import { useReload } from "@/context-provider/reload-provider"
 import { AppointmentService } from "@/others/services/appointment-service"
 import { showOutputModal, showWarningModal, readableDate, readableTime } from "@/others/function"
 import { useState, useEffect } from "react"
-import useListData from "@/others/hooks/use-list-data"
+import useListData, { setListQuery, useListQuery } from "@/others/hooks/use-list-data"
 import { Head, usePage, router } from "@inertiajs/react"
 import DropdownField from "@/Components/input/dropdown"
 import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
@@ -37,16 +37,14 @@ const OtherAppointment = (props) => {
     const [tab, setTab] = useState("appointments")
 
     // School year / semester, kept in the URL; changing one reloads only the two lists.
-    const url = new URLSearchParams(window.location.search)
+    const url = useListQuery()
     const schoolYear = url.get("school-year") || "all"
     const semester = url.get("semester") || "all"
     const applyFilter = (patch) => {
         const next = { "school-year": schoolYear, semester, ...patch }
         const query = Object.fromEntries(Object.entries(next).filter(([, v]) => v && v !== "all"))
-        router.get(window.location.pathname, query, {
-            preserveState: true,
-            preserveScroll: true,
-        })
+        // The two lists are fetched again from their API (no page request).
+        setListQuery(query)
     }
     const tabs = [
         { key: "appointments", label: "Appointments", icon: CalendarDays },

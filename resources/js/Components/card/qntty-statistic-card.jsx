@@ -3,8 +3,12 @@ import { Card, CardActionArea, CardContent, Box, Typography, Tooltip } from "@mu
 // Every quantity card uses the same blue icon accent.
 const ACCENT = { bg: "bg-blue-100", text: "text-blue-600" };
 
-const QuantityCard = ({ label, icon: Icon, num, h = "h-[6rem]" }) => {
+// `clickable`: the card leads somewhere (wrapped in a Link): hover shadow,
+// ripple and pointer. Without it the card is a plain figure, so it doesn't
+// look clickable when nothing happens on click.
+const QuantityCard = ({ label, icon: Icon, num, h = "h-[6rem]", clickable = false }) => {
     const accent = ACCENT;
+    const Area = clickable ? CardActionArea : Box;
 
     return (
         <Tooltip title={`${label}: ${num}`} arrow placement="top">
@@ -14,15 +18,17 @@ const QuantityCard = ({ label, icon: Icon, num, h = "h-[6rem]" }) => {
             sx={{
                 width: "100%",
                 borderRadius: "0.5rem",
-                transition: "box-shadow 0.2s ease",
-                "&:hover": { boxShadow: 4 },
+                ...(clickable && {
+                    transition: "box-shadow 0.2s ease",
+                    "&:hover": { boxShadow: 4 },
+                }),
             }}
         >
-            <CardActionArea
+            <Area
                 component="div"
                 sx={{
                     height: "100%",
-                    "& .MuiCardActionArea-focusHighlight": { borderRadius: "0.5rem" },
+                    ...(clickable && { "& .MuiCardActionArea-focusHighlight": { borderRadius: "0.5rem" } }),
                 }}
             >
                 <CardContent
@@ -61,7 +67,7 @@ const QuantityCard = ({ label, icon: Icon, num, h = "h-[6rem]" }) => {
                         </Typography>
                     </Box>
                 </CardContent>
-            </CardActionArea>
+            </Area>
         </Card>
         </Tooltip>
     );

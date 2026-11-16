@@ -115,7 +115,15 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      // Reports is a sidebar group of pages; the old single page redirects
      // to the first one.
      Route::get('/super-admin/report', fn () => redirect('/super-admin/report/statistics'));
-     Route::get('/super-admin/report/{section}', [ReportController::class, 'itrcIndex'])->whereIn('section', ['statistics', 'action-log']);
+     // Statistics, Action Log, and (SystemReportController, via itrcIndex)
+     // Account Activity / Account Setup / Enrollment / Generated Reports.
+     Route::get('/super-admin/report/{section}', [ReportController::class, 'itrcIndex'])->whereIn('section', ['statistics', 'action-log', 'account-activity', 'account-setup', 'enrollment', 'generator', 'generated']);
+     // Report Generator: saved report filters, generated as PDF / Excel (queued).
+     Route::post('/super-admin/report-filter/create', [\App\Http\Controllers\Modules\Report\SystemReportController::class, 'storeFilter']);
+     Route::post('/super-admin/report-filter/{id}/update', [\App\Http\Controllers\Modules\Report\SystemReportController::class, 'updateFilter']);
+     Route::post('/super-admin/report-filter/{id}/delete', [\App\Http\Controllers\Modules\Report\SystemReportController::class, 'destroyFilter']);
+     Route::post('/super-admin/report-filter/{id}/generate', [\App\Http\Controllers\Modules\Report\SystemReportController::class, 'generate']);
+     Route::post('/super-admin/report/delete/{id}', [ReportController::class, 'destroyReport']);
      Route::get('/super-admin/report/generate', [ReportController::class, 'actionLogStore']);
      Route::get('/super-admin/report/statistics-preview', [ReportController::class, 'accountStatisticsPreview']);
      Route::post('/super-admin/report/statistics/generate', [ReportController::class, 'generateAccountStatisticsReport']);
@@ -127,6 +135,8 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      Route::post('/super-admin/staff/position/remove', [AccountController::class, 'removeStaffPosition']);
 
      Route::get('/super-admin/staff/positions', [AccountController::class, 'positionIndex']);
+     // Staff Positions page (the list of positions).
+     Route::get('/super-admin/positions', [AccountController::class, 'positionsPageIndex']);
      Route::post('/super-admin/staff/positions/create', [AccountController::class, 'positionStore']);
      Route::post('/super-admin/staff/positions/update', [AccountController::class, 'updatePosition']);
      Route::post('/super-admin/staff/positions/delete', [AccountController::class, 'destroyPosition']);

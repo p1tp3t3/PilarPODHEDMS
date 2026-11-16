@@ -1,4 +1,7 @@
 import {
+    Activity,
+    UserCog,
+    FileText,
     LineChart,
     User,
     UserPlus,
@@ -53,7 +56,8 @@ export const sidebarPages = [
             { id: "accounts/register", href: "/super-admin/accounts/register", icon: UserPlus, label: "New User" },
             { id: "user-accounts", href: "/super-admin/user-accounts", icon: List, label: "User List" },
             { id: "super-admin/roles", href: "/super-admin/roles", icon: ShieldCheck, label: "Roles" },
-            { id: "staff-list", href: "/super-admin/staff-list", icon: UserRoundCog, label: "Staff Positions" },
+            // The list of positions (the staff themselves are in User List).
+            { id: "super-admin/positions", href: "/super-admin/positions", icon: UserRoundCog, label: "Staff Positions" },
             { id: "student-list", href: "/super-admin/student-list", icon: GraduationCap, label: "Students" },
             { id: "parent-request-list", href: "/super-admin/parent-request-list", icon: UserCheck, label: "Parent Registration Requests" },
         ],
@@ -62,8 +66,14 @@ export const sidebarPages = [
     {
         type: "dropdown", id: "super-admin/report", icon: BarChart3, label: "Reports", roles: ["super_admin"],
         items: [
+            // Report Generator first: saved report filters, generated as PDF / Excel
+            // (its Generated Reports tab has its own URL).
+            { id: "report/generator", href: "/super-admin/report/generator", also: ["/super-admin/report/generated"], icon: Filter, label: "Report Generator" },
             { id: "report/statistics", href: "/super-admin/report/statistics", icon: BarChart3, label: "Statistics" },
             { id: "report/action-log", href: "/super-admin/report/action-log", icon: ScrollText, label: "Action Log" },
+            { id: "report/account-activity", href: "/super-admin/report/account-activity", icon: Activity, label: "Account Activity" },
+            { id: "report/account-setup", href: "/super-admin/report/account-setup", icon: UserCog, label: "Account Setup" },
+            { id: "report/enrollment", href: "/super-admin/report/enrollment", icon: GraduationCap, label: "Enrollment" },
         ],
     },
     {

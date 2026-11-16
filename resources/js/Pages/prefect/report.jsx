@@ -3,12 +3,12 @@ import TabSwitcher from "@/Components/other/tab-switcher"
 import ReportStatistics from "./report/report-statistics"
 import AuthLayout from "@/Layouts/auth-layout"
 import { router } from "@inertiajs/react"
-import useListData, { reloadListData } from "@/others/hooks/use-list-data"
+import useListData, { reloadListData, setListQuery } from "@/others/hooks/use-list-data"
 import { useEffect, useRef, useState } from "react"
 import ReportFilterModal, { EMPTY_REPORT_FILTER, isUsableReportFilter, reportFilterSummary } from "@/Components/modal/submission-form/report-filter-modal"
 import ArchiveList from "@/Components/list/archive-list"
-import ReportFilterList from "@/Components/list/report-filter-list"
-import GeneratedReportsList from "@/Components/list/generated-reports-list"
+import ReportGenerator from "@/Components/report-generator/report-generator"
+import axios from "axios"
 import ViewComplaintModal from "@/Components/modal/view/view-complaint-modal"
 import ViewReferralModal from "@/Components/modal/view/view-referral-modal"
 import IncidentReport from "./report/incident-report"
@@ -53,7 +53,7 @@ const PrefectReport = (props) => {
         window.history.replaceState(window.history.state, '', key === 'generated-reports' ? '/prefect/report/generated' : '/prefect/report/saved-filters')
     }
     // Report-type pages have two tabs: the records table and its statistics.
-    const isReportType = Boolean(props.report_stats)
+    const isReportType = ['incident', 'violation', 'tardy', 'appointment', 'gatepass'].includes(props.section)
     const [view, setView] = useState('records')
 
     // Saved filters are only created from the Saved Filters page ("+ New
@@ -84,8 +84,10 @@ const PrefectReport = (props) => {
     })
     const hasFilter = isUsableReportFilter(appliedFilter)
 
+    // The address bar follows; the table and statistics are fetched again
+    // from the API (no page request).
     const reloadWith = (query) =>
-        router.get(window.location.pathname, query, { preserveState: true, preserveScroll: true, replace: true })
+        setListQuery(Object.fromEntries(Object.entries(query ?? {}).filter(([, v]) => v !== undefined && v !== null && v !== '')))
 
     const applyFilter = (f) => {
         setAppliedFilter(f)
@@ -135,7 +137,7 @@ const PrefectReport = (props) => {
     // edit state.
     // Saved filters: from the page's API (above); after a save, edit or
     // delete the list is fetched again.
-    const reportFilters = lists?.report_filters ?? null
+    const generatorLists = isGenerator && lists ? lists : null
     const [editingFilter, setEditingFilter] = useState(null)
 
     const loadReportFilters = () => reloadListData()
@@ -292,7 +294,7 @@ const PrefectReport = (props) => {
                         />
                         </div>}
                         {isReportType && view === 'statistics' &&
-                        <ReportStatistics stats={props.report_stats} />}
+                        <ReportStatistics stats={lists?.report_stats ?? null} />}
                         {view === 'records' && choose == 'incident-report' &&
                         <IncidentReport
                             report={report_list}
@@ -326,38 +328,30 @@ const PrefectReport = (props) => {
                             userId={props.auth.user.id}
                             schoolYears={props.school_years}
                         />}
+                        {/* Report Generator: shared with the super admin (@/Components/report-generator). */}
                         {isGenerator &&
-                        <TabSwitcher
-                            tabs={[
-                                { key: 'saved-filters', label: 'Report Filters' },
-                                { key: 'generated-reports', label: 'Generated Reports' },
+                        <ReportGenerator
+                            tab={generatorTab === 'generated-reports' ? 'generated' : 'filters'}
+                            onTabChange={(key) => switchGeneratorTab(key === 'generated' ? 'generated-reports' : 'saved-filters')}
+                            filters={generatorLists?.filters ?? null}
+                            generated={generatorLists?.generated ?? null}
+                            typeOptions={[
+                                { val: 'incident', label: 'Incident Report' },
+                                { val: 'violation', label: 'Violation Report' },
+                                { val: 'tardy', label: 'Tardy Report' },
+                                { val: 'appointment', label: 'Appointment Report' },
+                                { val: 'gatepass', label: 'Gate Pass Report' },
+                                { val: 'analytics', label: 'Analytical Report' },
                             ]}
-                            value={generatorTab}
-                            onChange={switchGeneratorTab}
+                            schoolYears={props.school_years ?? []}
+                            canExcel={(row) => row.report_type !== 'analytics'}
+                            generate={(id, fileType) => axios.post(`/prefect/report-filter/${id}/generate`, { file_type: fileType })}
+                            deleteFilter={(id) => axios.post(`/prefect/report-filter/${id}/delete`)}
+                            deleteReport={(id) => axios.post(`/prefect/report/delete/${id}`)}
+                            onNew={() => { setEditingFilter(null); openGenerateReport(true) }}
+                            onEdit={(row) => { setEditingFilter({ id: row.id, name: row.name, report_type: row.report_type, filters: row.filters }); openGenerateReport(true) }}
+                            onChanged={loadReportFilters}
                         />}
-                        {isGenerator &&
-                        <div className={`grid gap-3 ${generatorTab === 'saved-filters' ? '' : 'hidden'}`}>
-                            <div className="flex justify-end -mb-[3.25rem] max-sm:mb-0 relative z-[1] pointer-events-none [&>*]:pointer-events-auto">
-                                <Button
-                                    variant="contained"
-                                    disableElevation
-                                    onClick={() => { setEditingFilter(null); openGenerateReport(true) }}
-                                    startIcon={<Plus size={16} />}
-                                    sx={{ textTransform: "none", fontSize: "0.9em", borderRadius: "0.375rem", px: 2, height: 40, mt: "12px", bgcolor: "#2563eb", "&:hover": { bgcolor: "#1d4ed8" } }}
-                                >
-                                    New Filter
-                                </Button>
-                            </div>
-                            <ReportFilterList
-                                list={reportFilters}
-                                onEdit={(f) => { setEditingFilter(f); openGenerateReport(true) }}
-                                onChange={loadReportFilters}
-                                showFilters
-                                schoolYears={props.school_years}
-                            />
-                        </div>}
-                        {isGenerator && generatorTab === 'generated-reports' &&
-                        <GeneratedReportsList schoolYears={props.school_years} />}
                     </div>
             </PageLayout>
         </>

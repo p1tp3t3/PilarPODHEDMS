@@ -1,4 +1,4 @@
-import useListData from "@/others/hooks/use-list-data"
+import useListData, { setListQuery, useListQuery } from "@/others/hooks/use-list-data"
 import DropdownField from "@/Components/input/dropdown"
 import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import SearchUserBar from "@/Components/input/search-user-bar"
@@ -14,7 +14,8 @@ const PrefectStudents = (props) => {
   const [search, setSearch] = useState("")
   const [isSearchFocus, focusSearch] = useState(false)
 
-  const params = new URLSearchParams(window.location.search)
+  // The filters live in the address bar (re-read when they change).
+  const params = useListQuery()
 
   const handleSearch = (e) => {
     const val = e.target.value
@@ -28,8 +29,9 @@ const PrefectStudents = (props) => {
     const schoolYear = params.get("school-year") || "all"
     const semester = params.get("semester") || "all"
 
-    router.visit(
-      `${link}?program=${
+    // The table is fetched again from its API (no page request).
+    setListQuery(
+      `program=${
         field === "program" ? value : program
       }&school-year=${field === "school-year" ? value : schoolYear}&semester=${
         field === "semester" ? value : semester

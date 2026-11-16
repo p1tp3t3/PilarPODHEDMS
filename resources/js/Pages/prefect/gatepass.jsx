@@ -6,7 +6,7 @@ import Btn from "@/Components/button/normal-btn"
 import DropdownField from "@/Components/input/dropdown"
 import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import { useState, useEffect } from "react"
-import useListData from "@/others/hooks/use-list-data"
+import useListData, { setListQuery } from "@/others/hooks/use-list-data"
 import GatePassRequestList from "@/Components/list/gatepass-request-list"
 import GatePassList from "@/Components/list/gate-pass-list"
 import { useReload } from "@/context-provider/reload-provider"
@@ -57,17 +57,21 @@ const PrefectGatePass = (props) => {
       { key: "rejected-requests", label: "Rejected", icon: Ban },
       { key: "revoked-requests", label: "Revoked", icon: Undo2 },
     ]
+    // Tabs and filters: the address bar follows and the table is fetched
+    // again from its API (no page request). A tab's table has its own shape
+    // (requests vs. users), so it starts empty (skeleton) until its rows come.
     const handleOption = (e) => {
+        if (e === lstOption) return
         setLstOption(e)
-        if (e !== lstOption) {
-            const link = window.location.pathname
-            router.visit(`${link}?status=${e}&${filterQuery()}`)
-        }
+        setGatePassRequestList(null)
+        setListQuery(`status=${e}&${filterQuery()}`)
     }
 
     const handleFilterChange = (field, value) => {
-        const link = window.location.pathname
-        router.visit(`${link}?status=${lstOption}&${filterQuery({ [field]: value })}`)
+        if (field === 'school-year') setSchoolYear(value)
+        if (field === 'semester') setSemester(value)
+        if (field === 'program') setProgram(value)
+        setListQuery(`status=${lstOption}&${filterQuery({ [field]: value })}`)
     }
 
     const setEvents = (i, type, status) => {
@@ -204,7 +208,7 @@ const PrefectGatePass = (props) => {
                 pd={["px-5", "py-7"]}
                 isEnableOuterClose={true}
                 reload={loadRegister}
-                onIssued={() => router.visit(`${window.location.pathname}?status=confirmed-users&${filterQuery()}`)}
+                onIssued={() => { setLstOption('confirmed-users'); setGatePassRequestList(null); setListQuery(`status=confirmed-users&${filterQuery()}`) }}
             />
 
             <SetReasonModal
@@ -237,6 +241,10 @@ const PrefectGatePass = (props) => {
                         </Btn>
                     }
                 >
+                        {/* Tabs */}
+                        <div className="w-full overflow-x-auto">
+                            <TabSwitcher tabs={optionTab} value={lstOption} onChange={handleOption} />
+                        </div>
                         {/* Filters */}
                         <div className="flex flex-wrap gap-3 md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
                             <MobileFilters active={countActive(program, schoolYear, semester)}>
@@ -273,10 +281,6 @@ const PrefectGatePass = (props) => {
                             <PageActions />
                         </div>
 
-                        {/* Tabs */}
-                        <div className="w-full overflow-x-auto">
-                            <TabSwitcher tabs={optionTab} value={lstOption} onChange={handleOption} />
-                        </div>
 
                         <SingleRowNotice noun="gate pass" />
 

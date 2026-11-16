@@ -33,7 +33,7 @@ const ProgramDashboard = (props) => {
             <div className={`grid grid-cols-1 sm:grid-cols-2 ${isProgramHead ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
               {isProgramHead && (
                 <Link href="/program/faculty-list" className="h-full grid">
-                  <QuantityCard
+                  <QuantityCard clickable
                     h="h-[6rem]"
                     num={props.faculty}
                     icon={User}
@@ -46,7 +46,7 @@ const ProgramDashboard = (props) => {
               )}
 
               <Link href="/program/student-list" className="h-full grid">
-                <QuantityCard
+                <QuantityCard clickable
                   h="h-[6rem]"
                   num={props.student_list}
                   icon={GraduationCap}
@@ -58,7 +58,7 @@ const ProgramDashboard = (props) => {
               </Link>
 
               <Link href="/complaint" className="h-full grid">
-                <QuantityCard
+                <QuantityCard clickable
                   h="h-[6rem]"
                   num={props.complaint}
                   icon={FileText}
@@ -71,7 +71,7 @@ const ProgramDashboard = (props) => {
 
               {/* Faculty refer students too, so everyone sees their referral count. */}
               <Link href="/referral" className="h-full grid">
-                <QuantityCard
+                <QuantityCard clickable
                   h="h-[6rem]"
                   num={props.referral}
                   icon={FileText}

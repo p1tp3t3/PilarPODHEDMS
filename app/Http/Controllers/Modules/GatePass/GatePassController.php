@@ -458,12 +458,13 @@ class GatePassController extends Controller
             if (! self::isPrefect()) {
                 $query->whereNull('revoked_at');
             }
-            // A status tab: pending / approved (still valid) / expired / rejected.
+            // A status tab: pending / approved (still valid) / rejected. No
+            // Expired tab: expired passes are under All (an old
+            // ?status=expired link gets All too).
             $live = fn ($q) => $q->whereNull('rejected_at')->whereNull('revoked_at');
             match ($status) {
                 'pending' => $live($query)->whereNull('confirmed_at'),
                 'approved' => $live($query)->whereNotNull('confirmed_at')->where('date_expiration', '>', now()),
-                'expired' => $live($query)->whereNotNull('confirmed_at')->where('date_expiration', '<=', now()),
                 'rejected' => $query->whereNotNull('rejected_at')->whereNull('revoked_at'),
                 default => null,
             };

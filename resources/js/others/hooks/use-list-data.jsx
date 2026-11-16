@@ -10,6 +10,38 @@ const loaders = new Set()
 /** Refresh every list on the current page (each refetches from its API). */
 export const reloadListData = () => Promise.all([...loaders].map((load) => load()))
 
+const QUERY_EVENT = "list-query-change"
+
+/**
+ * A filter / tab change on a list page: the address bar gets the new query
+ * (no page request — it's kept for a refresh or a shared link) and the
+ * page's lists are fetched again from their API with it.
+ * `query`: URLSearchParams, a query string, or an object (empty / "all"
+ * values are kept as given; pass only what the page should carry).
+ */
+export const setListQuery = (query) => {
+    const q = (query instanceof URLSearchParams ? query : new URLSearchParams(query ?? "")).toString()
+    const url = `${window.location.pathname}${q ? `?${q}` : ""}`
+    window.history.replaceState(window.history.state, "", url)
+    window.dispatchEvent(new Event(QUERY_EVENT))
+    return reloadListData()
+}
+
+/** The page's current query (URLSearchParams), re-rendering when setListQuery() changes it. */
+export const useListQuery = () => {
+    const [search, setSearch] = useState(() => window.location.search)
+    useEffect(() => {
+        const onChange = () => setSearch(window.location.search)
+        window.addEventListener(QUERY_EVENT, onChange)
+        window.addEventListener("popstate", onChange)
+        return () => {
+            window.removeEventListener(QUERY_EVENT, onChange)
+            window.removeEventListener("popstate", onChange)
+        }
+    }, [])
+    return new URLSearchParams(search)
+}
+
 /**
  * A list page's tables, fetched from its JSON endpoint once the page opens
  * (every row; the tables paginate in the browser). By default that's the
@@ -52,8 +84,17 @@ export default function useListData(url = null, params = null, { enabled = true 
 
         const ticket = ++latest.current
         setLoading(true)
-        return axios
+        // A request that never reached the server (a network blip): tried
+        // again a few times, so the table doesn't stay on its skeleton.
+        const request = (attempt) => axios
             .get(endpoint, { params: query, headers: { Accept: "application/json" } })
+            .catch((e) => {
+                if (!e.response && attempt < 3 && ticket === latest.current) {
+                    return new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1))).then(() => request(attempt + 1))
+                }
+                throw e
+            })
+        return request(0)
             .then((res) => {
                 if (ticket !== latest.current) return
                 setData(res.data)

@@ -132,7 +132,7 @@ const ITRCDashboard = (props) => {
                 both rows full width. Very wide: all 5 in one row. */}
             <div className="grid grid-cols-2 lg:grid-cols-6 2xl:grid-cols-5 gap-3 sm:gap-4 [&>*]:lg:col-span-2 [&>*:nth-child(n+4)]:lg:col-span-3 [&>*]:2xl:!col-span-1 [&>*:last-child]:max-lg:col-span-2">
               <Link href="/super-admin/user-accounts">
-                <QuantityCard
+                <QuantityCard clickable
                   h="h-[6rem]"
                   num={props.account_total}
                   icon={Users}
@@ -143,7 +143,7 @@ const ITRCDashboard = (props) => {
                 />
               </Link>
               <Link href="/super-admin/program">
-                <QuantityCard
+                <QuantityCard clickable
                   h="h-[6rem]"
                   num={props.program}
                   icon={GraduationCap}
@@ -154,7 +154,7 @@ const ITRCDashboard = (props) => {
                 />
               </Link>
               <Link href="/super-admin/report/statistics">
-                <QuantityCard
+                <QuantityCard clickable
                   h="h-[6rem]"
                   num={props.report}
                   icon={FileText}
@@ -177,7 +177,7 @@ const ITRCDashboard = (props) => {
                 />
               </div>
               <Link href="/super-admin/roles">
-                <QuantityCard
+                <QuantityCard clickable
                   h="h-[6rem]"
                   num={props.total_roles}
                   icon={ShieldCheck}

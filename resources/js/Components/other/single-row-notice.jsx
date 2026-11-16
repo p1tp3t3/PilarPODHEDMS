@@ -1,18 +1,17 @@
-import { router } from "@inertiajs/react"
+import { setListQuery, useListQuery } from "@/others/hooks/use-list-data"
 import { Button } from "@mui/material"
 import { Filter } from "lucide-react"
 
 // Shown on a list page opened with ?id=<encrypted id> (the dashboard's
-// "Up next" panel): the list holds only that one row. "Show all" reloads the
-// page without the id, keeping the other filters.
+// "Up next" panel): the list holds only that one row. "Show all" drops the
+// id (keeping the other filters) and the list is fetched again from its API.
 const SingleRowNotice = ({ noun = "item" }) => {
-    const params = new URLSearchParams(window.location.search)
+    const params = useListQuery()
     if (!params.has("id")) return null
 
     const showAll = () => {
         params.delete("id")
-        const q = params.toString()
-        router.visit(`${window.location.pathname}${q ? `?${q}` : ""}`)
+        setListQuery(params)
     }
 
     return (

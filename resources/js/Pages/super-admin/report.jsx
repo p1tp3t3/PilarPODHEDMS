@@ -4,11 +4,9 @@ import PageLayout from "@/Layouts/page-layout"
 import DropdownField from "@/Components/input/dropdown"
 import ReportFilterModal from "@/Components/modal/submission-form/report-filter-modal"
 import { SlidersHorizontal, X } from "lucide-react"
-import Btn from "@/Components/button/normal-btn"
 import { Head, router } from "@inertiajs/react"
 import { useState } from "react"
-import useListData from "@/others/hooks/use-list-data"
-import GenerateActionLogReportMoodal from "@/Components/modal/submission-form/generate-action-log-report-modal"
+import useListData, { setListQuery } from "@/others/hooks/use-list-data"
 import AccountStatistics from "./report/account-statistics"
 
 // Each is its own page: /super-admin/report/{statistics|action-log}.
@@ -66,7 +64,6 @@ const ITRCReport = (props) => {
         school_year_id: params.get('school_year_id') ? Number(params.get('school_year_id')) : '',
         semester: params.get('semester') ? Number(params.get('semester')) : '',
     })
-    const [report, openGenerateReport] = useState(false)
     const [filterModal, openFilterModal] = useState(false)
 
     const applyFilters = (next) => {
@@ -79,25 +76,14 @@ const ITRCReport = (props) => {
             if (next.school_year_id) query.school_year_id = next.school_year_id
             if (next.semester) query.semester = next.semester
         }
-        router.get(window.location.pathname, query, {
-            preserveState: true,
-            preserveScroll: true,
-
-        })
+        // The table is fetched again from its API (no page request).
+        setListQuery(query)
     }
 
     const chips = logFilterChips(filters, actionList, props.school_years ?? [])
     return (
         <>
         <Head title={TITLES[tab]} />
-        <GenerateActionLogReportMoodal
-            close={report} 
-            closeModal={openGenerateReport} 
-            pd={['px-5', 'py-7']}
-            isEnableOuterClose={true}
-            students={props.students}
-            schoolYears={props.school_years ?? []}
-        />
         <PageLayout title={TITLES[tab].toUpperCase()}>
 
             {tab === "statistics" &&
@@ -157,9 +143,6 @@ const ITRCReport = (props) => {
                             <X size={13} /> Clear
                         </button>}
                     </div>
-                    <Btn onclick={() => openGenerateReport(true)}>
-                        Generate Report
-                    </Btn>
                 </div>
                 <div>
                     <UserReportLogList

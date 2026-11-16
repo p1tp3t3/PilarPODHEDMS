@@ -1,4 +1,4 @@
-import useListData from "@/others/hooks/use-list-data"
+import useListData, { setListQuery, useListQuery } from "@/others/hooks/use-list-data"
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import UserReportLogList from "@/Components/list/user-report-log-list"
@@ -13,17 +13,20 @@ const MyActivity = (props) => {
     const { data: lists } = useListData()
     const types = (props.action_types ?? []).map((t) => ({ val: t, label: toTitleCase(t.replace(/_/g, " ")) }))
 
+    // The filters live in the address bar (re-read when they change).
+    const query = useListQuery()
     const current = {
-        action_type: props.action_type ?? "all",
-        "school-year": props.school_year ?? "all",
-        semester: props.semester ?? "all",
+        action_type: query.get("action_type") ?? "all",
+        "school-year": query.get("school-year") ?? "all",
+        semester: query.get("semester") ?? "all",
     }
 
     // Changes one filter, keeping the others.
     const filter = (key, value) => {
         const next = { ...current, [key]: value }
         const q = new URLSearchParams(Object.entries(next).filter(([, v]) => v && v !== "all")).toString()
-        router.visit(`/my-activity${q ? `?${q}` : ""}`, { preserveScroll: true })
+        // The table is fetched again from its API (no page request).
+        setListQuery(q)
     }
 
     return (

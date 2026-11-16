@@ -51,7 +51,7 @@ const StudentDashboard = (props) => {
             {/* === Complaint / Gate Pass / Absent Form Summary === */}
             <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-5">
               <Link href="/complaint">
-                <QuantityCard
+                <QuantityCard clickable
                   h="h-[6rem]"
                   num={props.complaint}
                   icon={FileText}
@@ -62,7 +62,7 @@ const StudentDashboard = (props) => {
                 />
               </Link>
               <Link href="/gatepass">
-                <QuantityCard
+                <QuantityCard clickable
                   h="h-[6rem]"
                   num={props.gatepass}
                   icon={DoorOpen}
@@ -73,7 +73,7 @@ const StudentDashboard = (props) => {
                 />
               </Link>
               <Link href="/absent-form">
-                <QuantityCard
+                <QuantityCard clickable
                   h="h-[6rem]"
                   num={props.absent_form}
                   icon={CalendarX}

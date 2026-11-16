@@ -17,7 +17,7 @@ import { DataGrid } from '@/Components/other/data-grid';
 import QuickFilteringGrid from "@/Components/text-component"
 import { List, Ban, Clock, RotateCw, FilePlus } from "lucide-react"
 import { ComplaintService } from "@/others/services/complaint-service"
-import useListData, { reloadListData } from "@/others/hooks/use-list-data"
+import useListData, { reloadListData, setListQuery } from "@/others/hooks/use-list-data"
 
 
 const Complaint = (props) => {
@@ -69,8 +69,9 @@ const Complaint = (props) => {
         const q = new URLSearchParams(window.location.search)
         q.set("status", type)
         q.delete("id") // a single-row view ends when the tab changes
-        router.visit(`${url}?${q.toString()}`)
+        // The table is fetched again from its API (no page request).
         setChoose(type)
+        setListQuery(q)
       }
 
     const handleAction = (type, id) => {
@@ -149,10 +150,10 @@ const Complaint = (props) => {
                     </Btn>
                 </div>}
         >
-                <SchoolYearSemesterFilter schoolYears={props.school_years} />
                 <div>
                     <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
                 </div>
+                <SchoolYearSemesterFilter schoolYears={props.school_years} />
                 <SingleRowNotice noun="complaint" />
                 {/* Complaint List */}
                 <div className="w-full min-w-0">

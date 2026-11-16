@@ -125,7 +125,12 @@ class Report extends Model
 
         // The period.
         $sem = [1 => '1st Semester', 2 => '2nd Semester'][(int) ($f['semester'] ?? 0)] ?? null;
-        if (! empty($f['school_year'])) {
+        if ($this->report_type === 'account_setup') {
+            // A snapshot: the accounts still pending when it was made.
+            $period = 'As of '.\Carbon\Carbon::parse($this->created_at ?? now())->format('M j, Y');
+        } elseif (! empty($f['days'])) {
+            $period = (int) $f['days'] === 365 ? 'Last 12 months' : "Last {$f['days']} days";
+        } elseif (! empty($f['school_year'])) {
             $period = ($f['school_year'] === 'all' ? 'All School Years' : "SY {$f['school_year']}").($sem ? ", {$sem}" : '');
         } elseif (! empty($f['date_from']) && ! empty($f['date_to']) && ! str_starts_with((string) $f['date_from'], '2000-01-01')) {
             $period = \Carbon\Carbon::parse($f['date_from'])->format('M j, Y').' to '.\Carbon\Carbon::parse($f['date_to'])->format('M j, Y');

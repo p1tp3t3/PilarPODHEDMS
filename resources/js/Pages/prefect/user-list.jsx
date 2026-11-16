@@ -1,4 +1,4 @@
-import useListData from "@/others/hooks/use-list-data"
+import useListData, { setListQuery, useListQuery } from "@/others/hooks/use-list-data"
 import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import TabSwitcher from "@/Components/other/tab-switcher"
@@ -34,7 +34,8 @@ const TEACHING_TYPES = ["program_head", "faculty", "teaching"]
 const PrefectUserList = (props) => {
     // The active tab's table loads from /api/prefect/user-list once the page opens.
     const { data: lists } = useListData()
-    const params = new URLSearchParams(window.location.search)
+    // The filters live in the address bar (re-read when they change).
+    const params = useListQuery()
     const tab = props.tab ?? "student"
 
     const updateQuery = (patch) => {
@@ -43,7 +44,8 @@ const PrefectUserList = (props) => {
             if (value) next.set(key, value)
             else next.delete(key)
         })
-        router.visit(`/prefect/user-list?${next.toString()}`)
+        // The table is fetched again from its API (no page request).
+        setListQuery(next)
     }
 
     const handleTab = (nextTab) => {

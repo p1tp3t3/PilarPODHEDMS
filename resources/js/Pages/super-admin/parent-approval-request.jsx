@@ -1,5 +1,5 @@
 import { showLoadingModal } from "@/others/function";
-import useListData, { reloadListData } from "@/others/hooks/use-list-data"
+import useListData, { reloadListData, setListQuery } from "@/others/hooks/use-list-data"
 import ParentRequestList from "@/Components/list/parent-request-list"
 import RegisterFamilyModal from "@/Components/modal/submission-form/register-family-modal"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
@@ -33,7 +33,9 @@ const ParentApprovalRequest = (props) => {
     const changeTab = (key) => {
         if (key === tab) return
         setTab(key)
-        router.get(window.location.pathname, key === 'all' ? {} : { status: key }, { preserveState: true, preserveScroll: true, only: ['parent_requests'] })
+        // The table is fetched again from its API (no page request).
+        setParentRequestList(null)
+        setListQuery(key === 'all' ? {} : { status: key })
     }
     // The table loads from /api/super-admin/parent-request-list once the page
     // opens, and again after a tab change or a reload.

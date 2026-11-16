@@ -109,13 +109,22 @@ class ReportController extends Controller
         return $relation ? $query->whereHas($relation, $constrain) : $constrain($query);
     }
 
+    // The report pages with a table and a Statistics tab.
+    private const REPORT_SECTIONS = ['incident', 'violation', 'tardy', 'appointment', 'gatepass'];
+
     public function index(string $section = 'incident')
     {
         // The section's table (Report Generator: the saved filters): loaded
         // by the page from /api/prefect/report/{section} once it opens, every
         // row (it paginates in the browser). That request skips the rest.
         if (is_list_data_request()) {
-            return list_json($this->reportSectionLists($section));
+            $lists = $this->reportSectionLists($section);
+            // A report page's Statistics tab (same filter as its table).
+            if (in_array($section, self::REPORT_SECTIONS, true)) {
+                $lists['report_stats'] = $this->reportStats($section);
+            }
+
+            return list_json($lists);
         }
 
         $top5Students = ComplaintSubjectViolation::select(
@@ -202,9 +211,6 @@ class ReportController extends Controller
             // Analytical Report: its data comes with the page (filtered by
             // the URL), not from an API call after it loads.
             'analytics' => $section === 'analytics' ? fn () => self::analyticsFor(request()) : null,
-            // Statistics tab of the report page being viewed (same filter as
-            // its table).
-            'report_stats' => $this->reportStats($section),
             'incident' => $incident,
             'incident_line_graph' => $monthlyCounts,
             'incident_trend_series' => $incidentTrendByType['series'],
@@ -221,6 +227,55 @@ class ReportController extends Controller
             'school_years_full' => SchoolYearResource::collection(SchoolYear::orderByDesc('year')->get(['id', 'year'])),
             'violation_program' => $data,
         ]);
+    }
+
+    private const PREFECT_REPORT_TYPES = [
+        'incident' => 'Incident', 'violation' => 'Violation', 'tardy' => 'Tardy',
+        'appointment' => 'Appointment', 'gatepass' => 'Gate Pass', 'analytics' => 'Analytical',
+    ];
+
+    /**
+     * The prefect's Report Generator rows (the shared component's shape):
+     * saved filters, and the files generated from them.
+     */
+    private function generatorLists(): array
+    {
+        $individual = fn ($f) => filter_var($f['individual'] ?? false, FILTER_VALIDATE_BOOLEAN) && ! empty($f['student_id']);
+        $term = fn ($f) => [
+            'school_year' => $f['school_year'] ?? null,
+            'semester' => isset($f['semester']) && $f['semester'] !== '' ? (string) $f['semester'] : null,
+        ];
+        $label = fn ($t) => self::PREFECT_REPORT_TYPES[$t] ?? ucwords(str_replace(['_', '-'], ' ', (string) $t));
+
+        return [
+            'filters' => ReportFilter::where('user_id', auth()->id())
+                ->whereIn('report_type', array_keys(self::PREFECT_REPORT_TYPES))
+                ->latest('created_at')->get()
+                ->map(fn ($f) => [
+                    'id' => $f->id,
+                    'name' => $f->name,
+                    'report_type' => $f->report_type,
+                    'type_label' => $label($f->report_type),
+                    'filters' => $f->filters ?? [],
+                    'summary' => $this->summarizeReportFilters($f->filters ?? [], $f->report_type),
+                    'created' => $f->created_at ? Carbon::parse($f->created_at)->format('M d, Y g:i A') : null,
+                    'individual' => $individual($f->filters ?? []),
+                ] + $term($f->filters ?? []))->all(),
+            'generated' => Report::where('user_id', auth()->id())->latest('created_at')->get()
+                ->map(fn (Report $r) => [
+                    'id' => $r->id,
+                    'name' => $r->report_name ?: $label($r->report_type).' Report',
+                    'file_name' => $r->readableFileName(),
+                    'report_type' => $r->report_type,
+                    'type_label' => $label($r->report_type),
+                    'file_type' => $r->file_type,
+                    'summary' => $this->summarizeReportFilters($r->filters ?? [], $r->report_type),
+                    'created' => $r->created_at ? Carbon::parse($r->created_at)->format('M d, Y g:i A') : null,
+                    'view_url' => $r->file_type === 'pdf' ? route('prefect.report.view', ['id' => encrypt_id($r->id)], false) : null,
+                    'download_url' => route('prefect.report.download', ['id' => encrypt_id($r->id)], false),
+                    'individual' => $individual($r->filters ?? []),
+                ] + $term($r->filters ?? []))->all(),
+        ];
     }
 
     /**
@@ -269,7 +324,8 @@ class ReportController extends Controller
             )
                 ->latest('confirmed_at')
                 ->get())],
-            'saved-filters', 'generated' => ['report_filters' => $this->reportFilterIndex()],
+            // Report Generator (shared component): its filters and generated files.
+            'saved-filters', 'generated' => $this->generatorLists(),
             default => [],
         };
     }
@@ -527,6 +583,11 @@ class ReportController extends Controller
 
     public function itrcIndex(string $section = 'statistics')
     {
+        // The other super admin report pages have their own controller.
+        if (in_array($section, SystemReportController::SECTIONS, true)) {
+            return app(SystemReportController::class)->index($section);
+        }
+
         return list_page('super-admin/report', [
             'section' => $section,
             'students' => fn () => UserResource::collection(User::with(['profile', 'program', 'faculty.program', 'headships.program', 'parent'])->get()),
@@ -623,7 +684,7 @@ class ReportController extends Controller
                 ->values();
         }
 
-        return [
+        $base = [
             'students' => $studentCount,
             'program_head' => $countByRole('program_head'),
             'faculty' => $countByRole('faculty'),
@@ -632,6 +693,151 @@ class ReportController extends Controller
             'students_per_program' => $studentsPerProgram,
             'from' => $from,
             'to' => $to,
+        ];
+
+        // The students this report covers (enrollment-based when a school
+        // year / semester is chosen, else accounts registered in the range).
+        $studentIds = isset($studentQuery)
+            ? (clone $studentQuery)->distinct()->pluck('student_id')
+            : User::whereRole('student')
+                ->when($hasRange, fn ($q) => $q->whereBetween('created_at', [$from, $to]))
+                ->when($semesterAcross, fn ($q) => SchoolYearSemester::applyFilter($q, 'created_at', null, $semesterAcross))
+                ->pluck('id');
+
+        return $base + self::accountInsights($base, $studentIds, $hasRange ? [$from, $to] : null, $semesterAcross);
+    }
+
+    private const ROLE_LABELS = [
+        'super_admin' => 'System Admin', 'sub_admin' => 'Prefect', 'student' => 'Student', 'program_head' => 'Program Head',
+        'faculty' => 'Faculty', 'non_teaching_staff' => 'Non-Teaching Staff', 'parent' => 'Parent',
+    ];
+
+    private const ROLE_COLORS = [
+        'student' => '#3b82f6', 'faculty' => '#22c55e', 'program_head' => '#6366f1', 'non_teaching_staff' => '#f59e0b',
+        'parent' => '#ec4899', 'sub_admin' => '#0ea5e9', 'super_admin' => '#9ca3af',
+    ];
+
+    /**
+     * The Statistics page's cards, charts and records (and the PDF's extra
+     * sections): accounts, account setup, students, staff, parents, system
+     * activity and security events, over the same period as the counts.
+     * `$range`: [from, to] (account / log creation), or null for all time.
+     */
+    private static function accountInsights(array $base, $studentIds, ?array $range, $semesterAcross): array
+    {
+        $h = new self;
+        $inRange = fn ($q, $col = 'created_at') => $q
+            ->when($range, fn ($q) => $q->whereBetween($col, $range))
+            ->when($semesterAcross, fn ($q) => SchoolYearSemester::applyFilter($q, $col, null, $semesterAcross));
+
+        // role: from the current role row (no users.role column).
+        $users = $inRange(User::query())->with('currentUserRole.role')
+            ->get(['id', 'created_at', 'activate', 'already_update_profile', 'must_change_password', 'last_seen']);
+        $ids = $users->pluck('id');
+        $total = $users->count();
+        $active = $users->filter(fn ($u) => (bool) $u->activate)->count();
+        $pendingSetup = $users->filter(fn ($u) => ! $u->already_update_profile || $u->must_change_password)->count();
+        $onlineNow = User::where('last_seen', '>=', now()->subMinutes(5))->count();
+        $parentRequests = $inRange(\App\Models\ParentRegistrationRequest::query())->get(['status']);
+        $pct = fn ($n, $of) => $of ? round($n / $of * 100).'%' : '0%';
+
+        // ---- staff and parents (of the accounts in the period) ----
+        $programCode = Program::pluck('code', 'id');
+        $facultyIds = \App\Models\Faculty::whereIn('user_id', $ids)->get(['user_id', 'program_id']);
+        $headIds = \App\Models\ProgramHead::whereIn('user_id', $ids)->get(['user_id', 'program_id']);
+        $teachingPerProgram = $facultyIds->concat($headIds)
+            ->groupBy(fn ($r) => $programCode[$r->program_id] ?? 'Unassigned')
+            ->map(fn ($g, $code) => ['label' => $code, 'value' => $g->pluck('user_id')->unique()->count()])
+            ->sortByDesc('value')->values()->all();
+        $positionName = \App\Models\Position::pluck('name', 'id');
+        $staffByPosition = \App\Models\NonTeachingStaff::whereIn('user_id', $ids)->get(['position_id'])
+            ->countBy(fn ($r) => $positionName[$r->position_id] ?? 'No Position')
+            ->map(fn ($n, $name) => ['label' => $name, 'value' => $n])->sortByDesc('value')->values()->all();
+        $parentsByRole = \App\Models\Parents::whereIn('user_id', $ids)->get(['parent_role'])
+            ->countBy(fn ($r) => ucfirst($r->parent_role ?: 'Not set'))
+            ->map(fn ($n, $role) => ['label' => $role, 'value' => $n])->values()->all();
+
+        // ---- system activity and security (in the period) ----
+        $logs = $inRange(ActionLog::query())->get(['action_type', 'created_at']);
+        $topActions = $logs->countBy('action_type')->sortDesc()->take(8)
+            ->map(fn ($n, $type) => ['label' => ucwords(str_replace('_', ' ', $type)), 'value' => $n])->values()->all();
+        $security = collect(\App\Support\BreachLog::entries())
+            ->filter(fn ($e) => ! $range || ($e['datetime'] >= Carbon::parse($range[0])->toDateTimeString() && $e['datetime'] <= Carbon::parse($range[1])->endOfDay()->toDateTimeString()));
+        $securityByType = $security->countBy('type_label')->sortDesc()
+            ->map(fn ($n, $label) => ['label' => $label, 'value' => $n])->values()->all();
+
+        // ---- records: accounts per program ----
+        $studentsPer = collect($base['students_per_program'])->mapWithKeys(fn ($r) => [$r['program'] => (int) $r['total']]);
+        $programAccounts = Program::orderBy('code')->get(['id', 'code', 'name'])->map(fn ($p) => [
+            'program' => $p->code,
+            'name' => $p->name,
+            'students' => (int) ($studentsPer[$p->code] ?? 0),
+            'program_heads' => $headIds->where('program_id', $p->id)->pluck('user_id')->unique()->count(),
+            'faculty' => $facultyIds->where('program_id', $p->id)->pluck('user_id')->unique()->count(),
+        ])->map(fn ($r) => $r + ['total' => $r['students'] + $r['program_heads'] + $r['faculty']])->values()->all();
+
+        $roleCounts = $users->countBy(fn ($u) => $u->role);
+        // Monthly charts: every month of the period (empty ones as 0), or of
+        // the last 12 months when there's no period (all time would be years
+        // of mostly empty months). A period over 2 years: its months with records.
+        [$spanFrom, $spanTo] = $range
+            ? [Carbon::parse($range[0])->startOfMonth(), Carbon::parse($range[1])->startOfMonth()]
+            : [now()->subMonths(11)->startOfMonth(), now()->startOfMonth()];
+        $monthly = function ($dates) use ($spanFrom, $spanTo, $h) {
+            $dates = collect($dates)->filter()->map(fn ($d) => Carbon::parse($d))
+                ->filter(fn ($d) => $d->gte($spanFrom) && $d->lt($spanTo->copy()->addMonth()));
+            if ($spanFrom->diffInMonths($spanTo) > 24) {
+                return $h->countByMonth($dates);
+            }
+            $counts = $dates->countBy(fn ($d) => $d->format('Y-m'));
+            $out = [];
+            for ($c = $spanFrom->copy(); $c->lte($spanTo); $c->addMonth()) {
+                $out[] = ['label' => $c->format('M Y'), 'value' => (int) ($counts[$c->format('Y-m')] ?? 0)];
+            }
+
+            return $out;
+        };
+        $monthsNote = $range ? null : 'Last 12 months';
+
+        return [
+            'cards' => [
+                ['label' => 'Total Accounts', 'value' => $total, 'icon' => 'users'],
+                ['label' => 'Students', 'value' => $base['students'], 'icon' => 'user'],
+                ['label' => 'Program Heads', 'value' => $base['program_head'], 'icon' => 'user'],
+                ['label' => 'Faculty', 'value' => $base['faculty'], 'icon' => 'user'],
+                ['label' => 'Non-Teaching Staff', 'value' => $base['non_teaching_staff'], 'icon' => 'user'],
+                ['label' => 'Parents', 'value' => $base['parents'], 'icon' => 'users'],
+                ['label' => 'Active Accounts', 'value' => $active, 'hint' => $pct($active, $total), 'icon' => 'check'],
+                ['label' => 'Deactivated Accounts', 'value' => $total - $active, 'icon' => 'x'],
+                ['label' => 'Pending Setup', 'value' => $pendingSetup, 'hint' => $pct($pendingSetup, $total), 'icon' => 'clock'],
+                ['label' => 'Pending Parent Requests', 'value' => $parentRequests->where('status', 'pending')->count(), 'icon' => 'list'],
+            ],
+            'charts' => [
+                ['title' => 'New Accounts per Month', 'subtitle' => $monthsNote ?? 'Accounts registered in the period', 'type' => 'line', 'data' => $monthly($users->pluck('created_at')), 'wide' => true],
+                ['title' => 'Accounts by Role', 'type' => 'doughnut', 'data' => collect(self::ROLE_LABELS)
+                    ->map(fn ($label, $role) => ['label' => $label, 'value' => (int) ($roleCounts[$role] ?? 0), 'color' => self::ROLE_COLORS[$role]])
+                    ->filter(fn ($d) => $d['value'] > 0)->values()->all()],
+                ['title' => 'Account Setup Status', 'subtitle' => 'Profile and password set up after the first login', 'type' => 'doughnut', 'data' => array_values(array_filter([
+                    ['label' => 'Completed', 'value' => $total - $pendingSetup, 'color' => '#22c55e'],
+                    ['label' => 'Profile not set up', 'value' => $users->filter(fn ($u) => ! $u->already_update_profile)->count(), 'color' => '#f59e0b'],
+                    ['label' => 'Must change password', 'value' => $users->filter(fn ($u) => $u->already_update_profile && $u->must_change_password)->count(), 'color' => '#ef4444'],
+                ], fn ($d) => $d['value'] > 0))],
+                ['title' => 'Students per Program', 'type' => 'bar', 'data' => collect($base['students_per_program'])->map(fn ($r) => ['label' => $r['program'], 'value' => (int) $r['total']])->values()->all(), 'wide' => true],
+                ['title' => 'Students by Year Level', 'subtitle' => 'Latest enrollment', 'type' => 'bar', 'data' => $h->countByYearLevel($studentIds)],
+                ['title' => 'Students by Sex', 'type' => 'doughnut', 'data' => $h->countBySex($studentIds)],
+                ['title' => 'Teaching Staff per Program', 'subtitle' => 'Program heads and faculty', 'type' => 'bar', 'data' => $teachingPerProgram],
+                ['title' => 'Non-Teaching Staff by Position', 'type' => 'hbar', 'data' => $staffByPosition],
+                ['title' => 'Parents by Role', 'type' => 'doughnut', 'data' => $parentsByRole],
+                ['title' => 'Parent Registration Requests', 'subtitle' => 'By status', 'type' => 'doughnut', 'data' => $parentRequests->countBy('status')
+                    ->map(fn ($n, $s) => ['label' => ucfirst($s), 'value' => $n, 'color' => ['pending' => '#f59e0b', 'approved' => '#22c55e', 'rejected' => '#ef4444'][$s] ?? '#9ca3af'])->values()->all()],
+                ['title' => 'System Activity per Month', 'subtitle' => 'Recorded actions (action log)'.($monthsNote ? ' · '.$monthsNote : ''), 'type' => 'line', 'data' => $monthly($logs->pluck('created_at')), 'wide' => true],
+                ['title' => 'Most Common Activities', 'type' => 'hbar', 'data' => $topActions],
+                ['title' => 'Security Events by Type', 'subtitle' => 'Security monitor', 'type' => 'hbar', 'data' => $securityByType],
+            ],
+            'program_accounts' => $programAccounts,
+            'online_now' => $onlineNow,
+            'security_events' => $security->count(),
+            'activity_count' => $logs->count(),
         ];
     }
 

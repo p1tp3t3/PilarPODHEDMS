@@ -6,7 +6,7 @@ import RequestAbsentFormModal from "@/Components/modal/submission-form/request-a
 import EditAbsentFormModal from "@/Components/modal/submission-form/edit-absent-form-modal"
 import ViewAbsentFormModal from "@/Components/modal/view/view-absent-form-modal"
 import { useState, useEffect } from "react"
-import useListData, { reloadListData } from "@/others/hooks/use-list-data"
+import useListData, { reloadListData, setListQuery } from "@/others/hooks/use-list-data"
 import { useReload } from "@/context-provider/reload-provider"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import Btn from "@/Components/button/normal-btn"
@@ -57,8 +57,8 @@ const AbsentForm = (props) => {
         params.delete("id")
         if (key === "all") params.delete("status")
         else params.set("status", key)
-        const q = params.toString()
-        router.get(`${window.location.pathname}${q ? `?${q}` : ""}`, {}, { preserveState: true, preserveScroll: true, only: ["absent_form_list"] })
+        // The table is fetched again from its API (no page request).
+        setListQuery(params)
     }
     const [requestOpen, setRequestOpen] = useState(false)
     const [editForm, setEditForm] = useState(null)
@@ -197,8 +197,8 @@ const AbsentForm = (props) => {
                     ) : null
                 }
             >
-                    <SchoolYearSemesterFilter schoolYears={props.school_years} />
                     <TabSwitcher tabs={optionTab} value={tab} onChange={changeTab} />
+                    <SchoolYearSemesterFilter schoolYears={props.school_years} />
                     <SingleRowNotice noun="absent form" />
 
                     <div className="w-full min-w-0">

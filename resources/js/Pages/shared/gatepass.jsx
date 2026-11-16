@@ -1,7 +1,7 @@
 import SchoolYearSemesterFilter from "@/Components/input/school-year-semester-filter"
 import SingleRowNotice from "@/Components/other/single-row-notice"
 import { useState, useEffect } from "react";
-import useListData from "@/others/hooks/use-list-data";
+import useListData, { setListQuery } from "@/others/hooks/use-list-data";
 import AuthLayout from "@/Layouts/auth-layout";
 import PageLayout from "@/Layouts/page-layout";
 import RequestGatePassModal from "@/Components/modal/submission-form/request-gatepass-modal";
@@ -14,7 +14,7 @@ import { Head, Link, router } from "@inertiajs/react";
 import Btn from "@/Components/button/normal-btn";
 import ActionBtn from "@/Components/button/action-btn";
 import TabSwitcher from "@/Components/other/tab-switcher";
-import { List, Clock, CheckCircle2, XCircle, Ban, DoorOpen } from "lucide-react";
+import { List, Clock, CheckCircle2, Ban, DoorOpen } from "lucide-react";
 import { DataGrid } from "@/Components/other/data-grid";
 import StatusPill from "@/Components/list/status-pill";
 
@@ -47,11 +47,11 @@ const canRequestNewGatePass = (gp) => {
   return false;
 };
 
+// No Expired tab: expired passes are listed under All (with their status).
 const optionTab = [
   { key: "all", label: "All Gate Passes", icon: List },
   { key: "pending", label: "Pending", icon: Clock },
   { key: "approved", label: "Approved", icon: CheckCircle2 },
-  { key: "expired", label: "Expired", icon: XCircle },
   { key: "rejected", label: "Rejected", icon: Ban },
 ];
 
@@ -73,8 +73,8 @@ const GatePass = (props) => {
     params.delete("id");
     if (key === "all") params.delete("status");
     else params.set("status", key);
-    const q = params.toString();
-    router.get(`${window.location.pathname}${q ? `?${q}` : ""}`, {}, { preserveState: true, preserveScroll: true, only: ["user_gatepass"] });
+    // The table is fetched again from its API (no page request).
+    setListQuery(params);
   };
   const [viewId, setViewId] = useState("");
   const [viewOpen, setViewOpen] = useState(false);
@@ -205,8 +205,8 @@ const GatePass = (props) => {
           ) : null
         }
       >
-          <SchoolYearSemesterFilter schoolYears={props.school_years} />
           <TabSwitcher tabs={optionTab} value={tab} onChange={changeTab} />
+          <SchoolYearSemesterFilter schoolYears={props.school_years} />
           <SingleRowNotice noun="gate pass" />
 
           <div className="w-full min-w-0">

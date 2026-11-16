@@ -224,6 +224,7 @@ const PrefectDashBoard = (props) => {
                 <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                   <Link href="/prefect/user-list?tab=student&is-enrolled=1" className="h-full grid">
                     <QuantityCard
+                      clickable
                       h="h-[6rem]"
                       num={props.student}
                       icon={GraduationCap}
@@ -233,6 +234,7 @@ const PrefectDashBoard = (props) => {
                   </Link>
                   <Link href="/prefect/complaints?status=pending" className="h-full grid">
                     <QuantityCard
+                      clickable
                       h="h-[6rem]"
                       num={props.pending_complaint}
                       icon={Hourglass}
@@ -242,6 +244,7 @@ const PrefectDashBoard = (props) => {
                   </Link>
                   <Link href="/prefect/complaints?status=ongoing" className="h-full grid">
                     <QuantityCard
+                      clickable
                       h="h-[6rem]"
                       num={props.ongoing_complaint}
                       icon={RefreshCw}
@@ -251,6 +254,7 @@ const PrefectDashBoard = (props) => {
                   </Link>
                   <Link href="/prefect/referrals" className="h-full grid">
                     <QuantityCard
+                      clickable
                       h="h-[6rem]"
                       num={props.referral}
                       icon={FileText}
@@ -260,6 +264,7 @@ const PrefectDashBoard = (props) => {
                   </Link>
                   <Link href="/prefect/archive" className="h-full grid">
                     <QuantityCard
+                      clickable
                       h="h-[6rem]"
                       num={props.archive}
                       icon={Archive}
@@ -269,6 +274,7 @@ const PrefectDashBoard = (props) => {
                   </Link>
                   <Link href="/violation-management/violations" className="h-full grid">
                     <QuantityCard
+                      clickable
                       h="h-[6rem]"
                       num={props.total_violation}
                       icon={ShieldAlert}

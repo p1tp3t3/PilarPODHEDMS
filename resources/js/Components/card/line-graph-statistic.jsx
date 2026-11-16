@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Line } from "react-chartjs-2";
 import { Chart as ChartJS, CategoryScale, LinearScale, LineElement, Title, Tooltip, Legend, PointElement, Filler } from "chart.js";
 import { ChevronDown } from "lucide-react";
-import { Checkbox } from "@mui/material";
+import { Button, Checkbox, Divider, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
 
 ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Title, Tooltip, Legend);
 
@@ -28,8 +28,9 @@ const LineGraph = (props) => {
   // Which type indices are checked — defaults to every type so "All Types"
   // and every individual box start in sync (all checked, nothing dimmed).
   const [selected, setSelected] = useState(() => props.dataset.map((_, i) => i))
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-  const dropdownRef = useRef(null)
+  // The type filter menu (MUI Menu: placed on screen by MUI, never clipped
+  // by the card).
+  const [menuAnchor, setMenuAnchor] = useState(null)
 
   // Re-sync to "everything checked" whenever the set of types itself
   // changes (e.g. a date filter produces a different list of types) —
@@ -38,16 +39,6 @@ const LineGraph = (props) => {
   useEffect(() => {
     setSelected(props.dataset.map((_, i) => i))
   }, [typeKey])
-
-  useEffect(() => {
-    const onOutsideClick = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setDropdownOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", onOutsideClick)
-    return () => document.removeEventListener("mousedown", onOutsideClick)
-  }, [])
 
   const toggleSelected = (idx) => {
     setSelected((prev) =>
@@ -133,51 +124,41 @@ const LineGraph = (props) => {
             <h1><b>{props.title}</b></h1>
             <div className="flex flex-wrap items-center gap-2 max-sm:w-full">
                 {props.dataset.length > 1 && (
-                    <div className="relative" ref={dropdownRef}>
-                        <button
-                            type="button"
-                            onClick={() => setDropdownOpen((prev) => !prev)}
-                            className="flex items-center gap-1 text-[0.8em] border border-gray-300 rounded-md px-2 py-1 bg-white hover:bg-gray-50"
+                    <div>
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            color="inherit"
+                            onClick={(e) => setMenuAnchor(e.currentTarget)}
+                            endIcon={<ChevronDown size={14} />}
+                            sx={{ textTransform: "none", fontSize: "0.8em", borderColor: "divider", fontWeight: 500 }}
                         >
                             {allChecked ? (props.allLabel ?? "All Types") : `${selected.length} Selected`}
-                            <ChevronDown size="0.9em" />
-                        </button>
-
-                        {dropdownOpen && (
-                            <div className="absolute right-0 mt-1 w-64 max-h-64 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg z-10 py-1">
-                                <label className="flex items-center gap-2 px-3 py-1.5 text-[0.8em] hover:bg-gray-50 cursor-pointer border-b border-gray-100 font-semibold">
-                                    <Checkbox
-                                        size="small"
-                                        sx={{ p: 0.25 }}
-                                        checked={allChecked}
-                                        onChange={() =>
-                                            setSelected(
-                                                allChecked ? [] : props.dataset.map((_, i) => i)
-                                            )
-                                        }
-                                    />
-                                    <span>{props.allLabel ?? "All Types"}</span>
-                                </label>
-                                {props.dataset.map((d, i) => (
-                                    <label
-                                        key={i}
-                                        className="flex items-center gap-2 px-3 py-1.5 text-[0.8em] hover:bg-gray-50 cursor-pointer"
-                                    >
-                                        <Checkbox
-                                            size="small"
-                                            sx={{ p: 0.25 }}
-                                            checked={selected.includes(i)}
-                                            onChange={() => toggleSelected(i)}
-                                        />
-                                        <span
-                                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                                            style={{ backgroundColor: d.borderColor }}
-                                        />
-                                        <span className="truncate">{d.label}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        )}
+                        </Button>
+                        <Menu
+                            anchorEl={menuAnchor}
+                            open={Boolean(menuAnchor)}
+                            onClose={() => setMenuAnchor(null)}
+                            anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+                            transformOrigin={{ vertical: "top", horizontal: "left" }}
+                            slotProps={{ paper: { sx: { width: 300, maxWidth: "calc(100vw - 32px)", maxHeight: 320 } } }}
+                        >
+                            <MenuItem
+                                dense
+                                onClick={() => setSelected(allChecked ? [] : props.dataset.map((_, i) => i))}
+                            >
+                                <ListItemIcon><Checkbox size="small" sx={{ p: 0 }} checked={allChecked} /></ListItemIcon>
+                                <ListItemText primary={props.allLabel ?? "All Types"} slotProps={{ primary: { sx: { fontWeight: 600, fontSize: "0.85rem" } } }} />
+                            </MenuItem>
+                            <Divider />
+                            {props.dataset.map((d, i) => (
+                                <MenuItem key={i} dense onClick={() => toggleSelected(i)} title={d.label}>
+                                    <ListItemIcon><Checkbox size="small" sx={{ p: 0 }} checked={selected.includes(i)} /></ListItemIcon>
+                                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 mr-2" style={{ backgroundColor: d.borderColor }} />
+                                    <ListItemText primary={d.label} slotProps={{ primary: { noWrap: true, sx: { fontSize: "0.85rem" } } }} />
+                                </MenuItem>
+                            ))}
+                        </Menu>
                     </div>
                 )}
                 <div className="max-sm:w-full">{props.side}</div>

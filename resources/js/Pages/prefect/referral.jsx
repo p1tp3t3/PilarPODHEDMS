@@ -20,7 +20,7 @@ import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
 import { List, Clock, Ban, Send } from "lucide-react"
 import { Head } from "@inertiajs/react"
 import { PageActions } from "@/context-provider/page-title-provider"
-import useListData from "@/others/hooks/use-list-data"
+import useListData, { setListQuery } from "@/others/hooks/use-list-data"
 
 const PrefectReferral = (props) => {
     const MySwal = withReactContent(Swal)
@@ -69,17 +69,21 @@ const PrefectReferral = (props) => {
         const f = { 'school-year': schoolYear, semester, program, ...over }
         return `school-year=${f['school-year']}&semester=${f.semester}&program=${f.program}`
     }
+    // Tabs and filters: the address bar follows and the table is fetched
+    // again from its API (no page request).
     const handleSelect = (type) => {
         if (choose != type) {
-            const link = window.location.pathname;
-            router.visit(`${link}?status=${type}&${filterQuery()}`)
             setChoose(type)
+            setReferralList(null)
+            setListQuery(`status=${type}&${filterQuery()}`)
         }
     }
 
     const handleFilterChange = (field, value) => {
-        const link = window.location.pathname
-        router.visit(`${link}?status=${choose}&${filterQuery({ [field]: value })}`)
+        if (field === 'school-year') setSchoolYear(value)
+        if (field === 'semester') setSemester(value)
+        if (field === 'program') setProgram(value)
+        setListQuery(`status=${choose}&${filterQuery({ [field]: value })}`)
     }
     const setRequestActionEvent = (type, id) => {
         let route = '',
@@ -230,6 +234,10 @@ const PrefectReferral = (props) => {
                         </div>
                     }
                 >
+                        {/* Tabs */}
+                        <div className="overflow-x-auto">
+                            <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
+                        </div>
                         {/* Filters */}
                         <div className="flex flex-wrap gap-3 md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
                             <MobileFilters active={countActive(program, schoolYear, semester)}>
@@ -266,10 +274,6 @@ const PrefectReferral = (props) => {
                             <PageActions />
                         </div>
 
-                        {/* Tabs */}
-                        <div className="overflow-x-auto">
-                            <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
-                        </div>
 
                         <SingleRowNotice noun="referral" />
 

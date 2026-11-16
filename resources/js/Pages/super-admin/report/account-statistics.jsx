@@ -1,23 +1,16 @@
 import { useEffect, useState } from "react"
 import ReportFilterModal, { EMPTY_REPORT_FILTER, isUsableReportFilter, reportFilterSummary } from "@/Components/modal/submission-form/report-filter-modal"
-import BarGraph from "@/Components/card/bar-graph-statistic-card"
-import Btn from "@/Components/button/normal-btn"
 import { DataGrid } from "@/Components/other/data-grid"
-import Box from "@mui/material/Box"
+import { Box, Button, IconButton, Typography } from "@mui/material"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
-import { configBroadcast } from "@/others/function"
-import { SlidersHorizontal, X, GraduationCap, Presentation, Briefcase, Users } from "lucide-react"
-import QuantityCard from "@/Components/card/qntty-statistic-card"
+import { SlidersHorizontal, X } from "lucide-react"
+import ReportStatistics from "@/Pages/prefect/report/report-statistics"
 
-const AccountStatistics = ({ initial, schoolYears, userId }) => {
+const AccountStatistics = ({ initial, schoolYears }) => {
     // Edited in a modal (Filter button); the statistics reload once applied.
     const [filterModal, openFilterModal] = useState(false)
     const [filter, setFilter] = useState(EMPTY_REPORT_FILTER)
     const [stats, setStats] = useState(initial)
-
-    const [exportStatus, setExportStatus] = useState("idle") // idle | queued | ready | failed
-    const [exportUrl, setExportUrl] = useState(null)
-    const [exportViewUrl, setExportViewUrl] = useState(null)
 
     const currentFilters = () => ({
         filter_by: filter.filter_by,
@@ -38,45 +31,8 @@ const AccountStatistics = ({ initial, schoolYears, userId }) => {
         ReportArchiveService.getAccountStatisticsPreview(currentFilters(), setStats)
     }, [filter])
 
-    useEffect(() => {
-        if (!userId) return
-
-        configBroadcast(
-            "private",
-            `job-status.progress.user.${userId}`,
-            "Account statistics report status",
-            ".ReportGenerated",
-            (e) => {
-                if (e.status === "ready") {
-                    setExportStatus("ready")
-                    setExportUrl(e.download_url)
-                    setExportViewUrl(e.view_url)
-                } else if (e.status === "failed") {
-                    setExportStatus("failed")
-                }
-            }
-        )
-    }, [userId])
-
-    const handleExport = () => {
-        if (!hasUsableFilter) return
-
-        setExportStatus("queued")
-        setExportUrl(null)
-        setExportViewUrl(null)
-
-        ReportArchiveService.generateAccountStatisticsReport(currentFilters(), () => {}, () => setExportStatus("failed"))
-    }
-
-    const cards = [
-        { label: "Students", value: stats.students, icon: GraduationCap },
-        { label: "Program Heads", value: stats.program_head, icon: Presentation },
-        { label: "Faculty", value: stats.faculty, icon: Presentation },
-        { label: "Non-Teaching Staff", value: stats.non_teaching_staff, icon: Briefcase },
-        { label: "Parents", value: stats.parents, icon: Users },
-    ]
-
-    const studentsPerProgram = stats.students_per_program ?? []
+    // Records: accounts per program (students, program heads, faculty).
+    const programAccounts = stats?.program_accounts ?? []
 
     return (
         <div className="w-full grid gap-6 min-w-0">
@@ -90,101 +46,56 @@ const AccountStatistics = ({ initial, schoolYears, userId }) => {
                 allSemestersLabel="All Semesters (Students Only)"
             />
 
-            <div className="flex flex-wrap items-center justify-between gap-3 min-w-0">
-                <div className="flex flex-wrap items-center gap-3">
-                    <Btn onclick={handleExport}>
-                        {exportStatus === "queued" ? "Generating…" : "Export as PDF"}
-                    </Btn>
-                    {exportStatus === "ready" && exportUrl &&
-                    <>
-                        {exportViewUrl &&
-                        <a
-                            href={exportViewUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="px-3 py-1.5 rounded border border-green-600 text-green-700 text-[0.9em] hover:bg-green-50"
-                        >
-                            View
-                        </a>}
-                        <a
-                            href={exportUrl}
-                            className="px-3 py-1.5 rounded bg-green-600 text-white text-[0.9em] hover:bg-green-700"
-                        >
-                            Download
-                        </a>
-                    </>}
-                    {exportStatus === "failed" &&
-                    <span className="text-red-600 text-[0.85em]">Failed to generate report.</span>}
-                    {!hasUsableFilter &&
-                    <span className="text-gray-500 text-[0.85em]">Set a filter to export.</span>}
-                </div>
-
+            <div className="flex flex-wrap items-center justify-end gap-3 min-w-0">
                 <div className="flex flex-wrap items-center justify-end gap-2">
                     {hasUsableFilter &&
                     <span className="flex items-center gap-1.5 max-w-full pl-3 pr-1.5 py-1 rounded-full bg-blue-50 text-blue-800 text-[0.85em]">
                         <span className="truncate">{reportFilterSummary(filter, schoolYears)}</span>
-                        <button
-                            type="button"
-                            onClick={() => setFilter(EMPTY_REPORT_FILTER)}
-                            title="Clear filter"
-                            aria-label="Clear filter"
-                            className="grid place-items-center w-5 h-5 rounded-full hover:bg-blue-100"
-                        >
+                        <IconButton size="small" onClick={() => setFilter(EMPTY_REPORT_FILTER)} title="Clear filter" aria-label="Clear filter" sx={{ p: 0.25, color: "inherit" }}>
                             <X size={13} />
-                        </button>
+                        </IconButton>
                     </span>}
-                    <button
-                        type="button"
+                    <Button
+                        variant={hasUsableFilter ? "contained" : "outlined"}
+                        disableElevation
                         onClick={() => openFilterModal(true)}
-                        className={`flex items-center gap-2 px-4 py-2 text-[0.9em] rounded border transition-colors ${
-                            hasUsableFilter
-                                ? "border-blue-600 bg-blue-600 text-white hover:bg-blue-700"
-                                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                        }`}
+                        startIcon={<SlidersHorizontal size={16} />}
+                        sx={{
+                            textTransform: "none", fontSize: "0.9em", borderRadius: "0.375rem", px: 2,
+                            ...(hasUsableFilter
+                                ? { bgcolor: "#2563eb", "&:hover": { bgcolor: "#1d4ed8" } }
+                                : { bgcolor: "background.paper", color: "text.primary", borderColor: "divider" }),
+                        }}
                     >
-                        <SlidersHorizontal size={16} /> Filter
-                    </button>
+                        Filter
+                    </Button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-                {cards.map((c) => (
-                    // Same card as the dashboards' quantity cards.
-                    <QuantityCard key={c.label} h="h-[6rem]" num={c.value ?? 0} icon={c.icon} label={c.label} />
-                ))}
-            </div>
+            {/* Key figures and charts: accounts, account setup, students,
+                staff, parents, system activity and security events. */}
+            <ReportStatistics stats={stats?.cards ? stats : null} />
 
-            <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm p-4 sm:p-6">
-                <h2 className="text-[1.1em] mb-4 font-bold">Students Per Program</h2>
-
-                {studentsPerProgram.length > 0 &&
-                <div className="mb-5">
-                    {/* Fixed chart height so it stays inside its card; the
-                        section heading above already names it. */}
-                    <BarGraph
-                        label={studentsPerProgram.map((e) => e.program)}
-                        dataset={[{
-                            label: "Students",
-                            data: studentsPerProgram.map((e) => e.total),
-                            backgroundColor: "#3b82f6",
-                        }]}
-                        height={260}
-                        withBorder
-                    />
-                </div>}
-
-                <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden", height: 350 }}>
+            {/* Records: accounts per program. */}
+            <div className="grid gap-2 min-w-0">
+                <Typography sx={{ fontWeight: 700, fontSize: "1.05em" }}>Accounts per Program</Typography>
+                <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                     <DataGrid
-                        rows={studentsPerProgram.map((e, i) => ({ id: i, ...e }))}
+                        rows={programAccounts.map((e, i) => ({ id: i, ...e }))}
+                        loading={!stats?.program_accounts}
                         columns={[
-                            { field: "index", headerName: "#", width: 60, valueGetter: (v, row) => row.id + 1 },
-                            { field: "program", headerName: "Program", flex: 1, minWidth: 200 },
-                            { field: "total", headerName: "Students", width: 160 },
+                            { field: "program", headerName: "Program", width: 120 },
+                            { field: "name", headerName: "Program Name", flex: 1, minWidth: 220 },
+                            { field: "students", headerName: "Students", width: 120, align: "center", headerAlign: "center" },
+                            { field: "program_heads", headerName: "Program Heads", width: 140, align: "center", headerAlign: "center" },
+                            { field: "faculty", headerName: "Faculty", width: 120, align: "center", headerAlign: "center" },
+                            { field: "total", headerName: "Total", width: 110, align: "center", headerAlign: "center" },
                         ]}
                         hideFooter
                         disableRowSelectionOnClick
                         showToolbar
-                        localeText={{ noRowsLabel: "No Students Found" }}
+                        localeText={{ noRowsLabel: "No programs found" }}
+                        mobileSummary={(row) => ({ name: `${row.program} — ${row.name}`, role: `${row.total} accounts`, hide: ["program", "name"] })}
                     />
                 </Box>
             </div>

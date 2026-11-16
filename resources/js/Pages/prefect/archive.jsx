@@ -2,7 +2,7 @@ import AuthLayout from "@/Layouts/auth-layout"
 import PageLayout from "@/Layouts/page-layout"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import { useState, useEffect } from "react"
-import useListData from "@/others/hooks/use-list-data"
+import useListData, { setListQuery } from "@/others/hooks/use-list-data"
 import ArchiveList from "@/Components/list/archive-list"
 import ViewComplaintModal from "@/Components/modal/view/view-complaint-modal"
 import ViewReferralModal from "@/Components/modal/view/view-referral-modal"
@@ -70,7 +70,9 @@ const PrefectArchive = (props) => {
             if (value) params.set(key, value)
             else params.delete(key)
         })
-        router.visit(`${window.location.pathname}?${params.toString()}`)
+        // The address bar follows; the table is fetched again from its API.
+        setArchiveList(null)
+        setListQuery(params)
     }
 
     const handleSelect = (type) => {
@@ -171,6 +173,10 @@ const PrefectArchive = (props) => {
                 }
             >
                     <div className="grid gap-3">
+                        {/* Tabs */}
+                        <div className="w-full">
+                            <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
+                        </div>
                         <div className="flex flex-col sm:flex-row gap-3 sm:items-center md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
                             <MobileFilters active={countActive(schoolYear, semester, status)}>
                             <div className="w-full sm:w-[14rem] flex-shrink-0">
@@ -206,9 +212,6 @@ const PrefectArchive = (props) => {
                             </div>
                             </MobileFilters>
                             <PageActions />
-                        </div>
-                        <div className="w-full">
-                            <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
                         </div>
                     </div>
                     <div className="min-w-0">

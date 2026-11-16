@@ -1,3 +1,4 @@
+import { Skeleton } from "@mui/material"
 import QuantityCard from "@/Components/card/qntty-statistic-card"
 import { ChartCard, BarChart, LineChart, DoughnutChart, NoData } from "@/Components/card/analytics-charts"
 import {
@@ -40,7 +41,19 @@ const Chart = ({ chart }) => {
 }
 
 const ReportStatistics = ({ stats }) => {
-    if (!stats) return null
+    // Loading (from the page's API): skeleton cards and charts.
+    if (!stats) {
+        return (
+            <div className="grid gap-4 sm:gap-5 min-w-0">
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                    {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} variant="rounded" height={96} />)}
+                </div>
+                <div className="grid gap-4 sm:gap-5 grid-cols-1 lg:grid-cols-2">
+                    {[0, 1].map((i) => <Skeleton key={i} variant="rounded" height={300} />)}
+                </div>
+            </div>
+        )
+    }
     const cols = stats.cards.length >= 5 ? "xl:grid-cols-5" : stats.cards.length === 4 ? "xl:grid-cols-4" : "xl:grid-cols-3"
 
     return (

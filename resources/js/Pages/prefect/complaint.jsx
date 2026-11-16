@@ -25,7 +25,7 @@ import { List, Clock, RotateCw, Ban, X, Check, FilePlus } from "lucide-react"
 import { Head } from "@inertiajs/react"
 import { LabeledCheckbox, setRowsChecked } from "@/Components/input/select-checkbox"
 import { PageActions } from "@/context-provider/page-title-provider"
-import useListData from "@/others/hooks/use-list-data"
+import useListData, { setListQuery } from "@/others/hooks/use-list-data"
 
 const PrefectComplaint = (props) => {
   const url = new URLSearchParams(window.location.search)
@@ -198,20 +198,24 @@ const PrefectComplaint = (props) => {
     { val: "parent", label: "Parent" },
   ]
 
+  // Tabs and filters: the address bar follows and the table is fetched
+  // again from its API (no page request).
   const handleSelect = (type) => {
     if (choose !== type) {
-      const link = window.location.pathname
-      router.visit(`${link}?status=${type}&role=${role}&school-year=${schoolYear}&semester=${semester}`)
       setChoose(type)
+      setComplaintList(null)
+      setListQuery(`status=${type}&role=${role}&school-year=${schoolYear}&semester=${semester}`)
     }
   }
 
   const handleFilterChange = (field, value) => {
-    const link = window.location.pathname
     const newRole = field === "role" ? value : role
     const newSchoolYear = field === "school-year" ? value : schoolYear
     const newSemester = field === "semester" ? value : semester
-    router.visit(`${link}?status=${choose}&role=${newRole}&school-year=${newSchoolYear}&semester=${newSemester}`)
+    setRole(newRole)
+    setSchoolYear(newSchoolYear)
+    setSemester(newSemester)
+    setListQuery(`status=${choose}&role=${newRole}&school-year=${newSchoolYear}&semester=${newSemester}`)
   }
   const selectAllRow = (e) => {
     setRowsChecked(e.target.checked)
@@ -282,6 +286,38 @@ const PrefectComplaint = (props) => {
         >
             {/* Search and Filters */}
             <div className="grid gap-3">
+              {/* Tabs */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                {/* flex-1: the tab bar's line runs the full width, like the other pages */}
+                <div className="min-w-0 flex-1 overflow-x-auto">
+                  <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
+                </div>
+                {/* Bulk select (Pending tab only) */}
+                {url.get('status') == 'pending' &&
+                <div className="flex items-center gap-3 shrink-0 justify-end">
+                  {select2 && (
+                    <>
+                      <LabeledCheckbox label="Select All" id="select-all" onChange={selectAllRow} className="text-[0.85em]" />
+                      <ActionBtn
+                          className={"bg-green-600 text-white hover:bg-green-700"}
+                          onClick={() => handleAction('approve')}
+                      >
+                          Approve
+                      </ActionBtn>
+                    </>
+                  )}
+                  <ActionBtn
+                    className="bg-blue-700 hover:bg-blue-800"
+                    onClick={() => enableSelect2(!select2)}
+                    title={select2 ? "Cancel selecting" : "Select complaints"}
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      {select2 ? <X size={16} /> : <Check size={16} />}
+                      {select2 ? "Cancel" : "Select"}
+                    </span>
+                  </ActionBtn>
+                </div>}
+              </div>
               <div className="flex flex-wrap gap-3 items-center md:max-xl:flex-row md:max-xl:flex-nowrap md:max-xl:items-center md:max-xl:[&>div:not(:last-child)]:flex-1 md:max-xl:[&>div:not(:last-child)]:min-w-0 md:max-xl:[&>div:not(:last-child)]:w-auto">
                 <MobileFilters active={countActive(role, schoolYear, semester)}>
                 {/* Dropdowns */}
@@ -324,38 +360,6 @@ const PrefectComplaint = (props) => {
                   <PageActions />
               </div>
 
-              {/* Tabs */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                {/* flex-1: the tab bar's line runs the full width, like the other pages */}
-                <div className="min-w-0 flex-1 overflow-x-auto">
-                  <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
-                </div>
-                {/* Bulk select (Pending tab only) */}
-                {url.get('status') == 'pending' &&
-                <div className="flex items-center gap-3 shrink-0 justify-end">
-                  {select2 && (
-                    <>
-                      <LabeledCheckbox label="Select All" id="select-all" onChange={selectAllRow} className="text-[0.85em]" />
-                      <ActionBtn
-                          className={"bg-green-600 text-white hover:bg-green-700"}
-                          onClick={() => handleAction('approve')}
-                      >
-                          Approve
-                      </ActionBtn>
-                    </>
-                  )}
-                  <ActionBtn
-                    className="bg-blue-700 hover:bg-blue-800"
-                    onClick={() => enableSelect2(!select2)}
-                    title={select2 ? "Cancel selecting" : "Select complaints"}
-                  >
-                    <span className="inline-flex items-center gap-1.5">
-                      {select2 ? <X size={16} /> : <Check size={16} />}
-                      {select2 ? "Cancel" : "Select"}
-                    </span>
-                  </ActionBtn>
-                </div>}
-              </div>
             </div>
 
             <SingleRowNotice noun="complaint" />
