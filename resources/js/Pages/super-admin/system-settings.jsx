@@ -9,7 +9,7 @@ import { change, showOutputModal } from "@/others/function";
 import TabSwitcher from "@/Components/other/tab-switcher";
 import { useReload } from "@/context-provider/reload-provider";
 import { Head } from "@inertiajs/react";
-import { validateForm, hasErrors, required, requiredIf, minLength, maxLength, email } from "@/others/validation";
+import { Validator } from "@/others/classes/validator";
 
 const SystemSettings = (props) => {
     const [activeTab, setActiveTab] = useState("login_portal");
@@ -65,12 +65,9 @@ const LoginPortalPasswordTab = ({ hasPassword, reload }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        const found = validateForm(data, {
-            password: [required("Password"), minLength(8, "Password")],
-            password_confirmation: [required("Password confirmation"), (v, d) => (v && v !== d.password ? "Passwords do not match." : null)],
-        });
-        setError(Object.fromEntries(Object.entries(found).filter(([k]) => !k.endsWith("Asterisk")).map(([k, v]) => [k, [v]])));
-        if (hasErrors(found)) return;
+        const found = Validator.loginPortalPassword(data);
+        setError(Validator.asServerErrors(found));
+        if (Validator.hasErrors(found)) return;
 
         reload(true, "text-wait", "Updating login portal password...");
 
@@ -146,12 +143,9 @@ const MailConfigTab = ({ mailConfig, reload }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        const found = validateForm(data, {
-            username: [requiredIf((d) => !!d.password, "SMTP username"), maxLength(255, "SMTP username")],
-            password: [maxLength(255, "SMTP password")],
-        });
-        setError(Object.fromEntries(Object.entries(found).filter(([k]) => !k.endsWith("Asterisk")).map(([k, v]) => [k, [v]])));
-        if (hasErrors(found)) return;
+        const found = Validator.mailConfig(data);
+        setError(Validator.asServerErrors(found));
+        if (Validator.hasErrors(found)) return;
 
         reload(true, "text-wait", "Saving mail configuration...");
 
@@ -171,9 +165,9 @@ const MailConfigTab = ({ mailConfig, reload }) => {
 
     const handleSendTest = (e) => {
         e.preventDefault();
-        const found = validateForm({ test_email: testEmail }, { test_email: [required("Email address"), email()] });
-        setTestError(found.test_email ?? "");
-        if (hasErrors(found)) return;
+        const emailError = Validator.testEmail(testEmail);
+        setTestError(emailError);
+        if (emailError) return;
 
         reload(true, "text-wait", "Sending test email...");
 

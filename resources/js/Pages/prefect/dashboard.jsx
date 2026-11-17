@@ -100,8 +100,8 @@ const PrefectDashBoard = (props) => {
   const doughnutDataset = [
     {
       data: [props.complaint_piechart.pending, props.complaint_piechart.ongoing],
-      backgroundColor: ["#ff9f40", "#ffce06"],
-      hoverBackgroundColor: ["#ff9f40", "#ffce06"],
+      backgroundColor: ["#ffce06", "#ff9f40"],
+      hoverBackgroundColor: ["#ffce06", "#ff9f40"],
     },
   ]
 

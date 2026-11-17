@@ -30,9 +30,10 @@ class OTPVerificationController extends Controller
             $key = $email.'_otp_hash';
 
             cache()->forget($key);
-            cache()->put($key, Hash::make($pin));
+            // A code is good for 10 minutes.
+            cache()->put($key, Hash::make($pin), now()->addMinutes(10));
             cache()->forget($key.'_verified');
-            cache()->put($key.'_verified', false);
+            cache()->put($key.'_verified', false, now()->addMinutes(10));
             cache()->put($key.'_tries', 0, now()->addMinutes(10));
             Mail::to($email)
                 ->send(new OTPMail($pin));
@@ -60,8 +61,10 @@ class OTPVerificationController extends Controller
 
             return response()->json(['status' => 'error'], 500);
         }
+        // A code works once.
+        cache()->forget($key);
         cache()->forget($key.'_tries');
-        cache()->put($key.'_verified', true);
+        cache()->put($key.'_verified', true, now()->addMinutes(15));
 
         return response()->json(['status' => 'success', 'verified' => cache($key.'_verified')]);
     }

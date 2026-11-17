@@ -12,6 +12,7 @@ import { showOutputModal, showWarningModal, toTitleCase , showLoadingModal } fro
 import CsvStudentPreviewPage from "@/Components/other/csv-student-preview-page";
 import CsvStudentProgressModal from "@/Components/modal/view/csv-student-progress-modal";
 import { Head } from "@inertiajs/react";
+import { Validator } from "@/others/classes/validator"
 
 const Register = (props) => {
     const { loadRegister } = useReload();
@@ -241,121 +242,25 @@ const Register = (props) => {
             URL.revokeObjectURL(url)
         }, 0)
     }
+    // The checks are Validator.csvFile() / csvContent(); the first problem
+    // found is shown under the upload. Resolves [isValid, hasExactOrder, hasRows, invalidPrograms].
     const validateCSV = (file, t) => {
         return new Promise((resolve, reject) => {
-            const validMimeTypes = [
-                "text/csv",
-                "application/vnd.ms-excel", // some browsers use this MIME
-            ];
+            const showError = (message) => setValidationError((prev) => ({ ...prev, file: message }));
 
-            const isCSV =
-                validMimeTypes.includes(file.type) ||
-                file.name.toLowerCase().endsWith(".csv");
-
-            // 1️⃣ Check file type
-            if (!isCSV) {
-                setValidationError((prev) => ({
-                    ...prev,
-                    file: "Invalid file type. Please upload a CSV file.",
-                }));
-                reject("Invalid file type");
+            const fileError = Validator.csvFile(file, t);
+            if (fileError) {
+                showError(fileError);
+                reject(fileError);
                 return;
             }
-
-            // 2️⃣ Validate file name format (student-program-name(...).csv)
-            const fileName = file.name.toLowerCase().replace('.csv', '');
-            const validFileNamePattern =
-                /^(enrolled-pczc-students|faculty-pczc|staff)$/;
-            const f = (type == 'student' ? 'enrolled-pczc-students' : (type == 'faculty' ? 'faculty-pczc' : 'staff'));
-            if (!validFileNamePattern.test(fileName)) {
-                setValidationError((prev) => ({
-                    ...prev,
-                    file:
-                        `Invalid file name format. Expected pattern: ${f}.csv`,
-                }));
-                reject("Invalid file name");
-                return;
-            }
-
-            // 3️⃣ Define required columns
-            const commonCol = ["id", "first_name", "middle_name", "last_name", "sex", "email"];
-            const col = {
-                student: ["id", "first_name", "middle_name", "last_name", "suffix", "sex", "email", "program", "year_level"],
-                faculty: ["id", "first_name", "middle_name", "last_name", "suffix", "sex", "email", "program"],
-                administrative: commonCol.concat(["program"]),
-                staff: ["id", "first_name", "middle_name", "last_name", "suffix", "sex", "email", "position"],
-            };
-
-            const requiredCols = col[t].map((h) => h.toLowerCase().trim());
 
             const reader = new FileReader();
-
-            reader.onload = function (e) {
-                const text = e.target.result.trim();
-                const rows = text.split("\n").map((row) => row.split(","));
-                const headers = rows[0].map((h) => h.toLowerCase().trim());
-
-                // 4️⃣ Check column order & match
-                const hasExactOrder =
-                    headers.length === requiredCols.length &&
-                    headers.every((h, i) => h === requiredCols[i]);
-
-                // 5️⃣ Check row count
-                const rowCount = rows.length - 1;
-                const hasRows = rowCount >= 1;
-
-                // 6️⃣ Validate program (only if "program" column exists)
-                let invalidPrograms = [];
-                const isNameBased = t === 'student' || t === 'faculty';
-                const programIndex = headers.indexOf("program");
-                if (programIndex !== -1) {
-                    const validPrograms = isNameBased
-                        ? props.program.map((p) => p.code.toLowerCase())
-                        : props.program.map((p) => String(p.id));
-                    for (let i = 1; i < rows.length; i++) {
-                        const programVal = rows[i][programIndex]?.trim();
-                        const check = isNameBased ? programVal?.toLowerCase() : programVal;
-                        if (programVal && !validPrograms.includes(check)) {
-                            invalidPrograms.push({ row: i + 1, value: programVal });
-                        }
-                    }
-                }
-
-                // 🧠 Error messages
-                const errCol = () =>
-                    setValidationError((prev) => ({
-                        ...prev,
-                        file: `Invalid column order. Expected: [${requiredCols.join(", ")}]. Found: [${headers.join(", ")}]`,
-                    }));
-
-                const errRowMin = () =>
-                    setValidationError((prev) => ({
-                        ...prev,
-                        file: "CSV must contain at least 1 data row.",
-                    }));
-
-                const errProgram = () =>
-                    setValidationError((prev) => ({
-                        ...prev,
-                        file:
-                            `Invalid program${isNameBased ?' names' : ' IDs'} found at rows: ${invalidPrograms
-                                .map((r) => `${r.row} (${r.value})`)
-                                .join(", ")}. ` +
-                            `Allowed ${isNameBased ?'names' : 'IDs'}:\n` +
-                            props.program.map((p) => `${isNameBased ?p.code : p.id} - ${p.name}`).join("\n"),
-                    }));
-
-                // Final validation results
-                const isValid =
-                    hasExactOrder && hasRows && invalidPrograms.length === 0;
-
-                if (!hasExactOrder) errCol();
-                else if (!hasRows) errRowMin();
-                else if (invalidPrograms.length > 0) errProgram();
-
-                resolve([isValid, hasExactOrder, hasRows, invalidPrograms]);
+            reader.onload = (e) => {
+                const { message, hasExactOrder, hasRows, invalidPrograms } = Validator.csvContent(e.target.result, t, props.program);
+                if (message) showError(message);
+                resolve([!message, hasExactOrder, hasRows, invalidPrograms]);
             };
-
             reader.onerror = () => reject("Error reading file");
             reader.readAsText(file);
         });

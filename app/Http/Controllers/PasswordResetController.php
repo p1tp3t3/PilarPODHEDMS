@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\OTPMail;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -83,14 +84,23 @@ class PasswordResetController extends Controller
 
         cache()->forget($otpKey);
         cache()->forget($triesKey);
-        cache()->put("password_reset_authorized_{$request->username}", true, now()->addMinutes(15));
+        // The approval lives in this browser's session only, so nobody
+        // else can use the 15-minute window to set the password.
+        $request->session()->regenerate();
+        $request->session()->put('password_reset', [
+            'username' => $request->username,
+            'expires_at' => now()->addMinutes(15)->timestamp,
+        ]);
 
         return response()->json(['message' => 'success']);
     }
 
     public function reset(Request $request, $username)
     {
-        if (! cache("password_reset_authorized_{$username}")) {
+        $approval = $request->session()->get('password_reset');
+        if (! is_array($approval)
+            || ! hash_equals((string) $approval['username'], (string) $username)
+            || $approval['expires_at'] < now()->timestamp) {
             return response()->json(['message' => 'This session has expired. Please verify your code again.'], 400);
         }
 
@@ -104,7 +114,11 @@ class PasswordResetController extends Controller
         }
 
         $user->update(['password' => Hash::make($request->new_password)]);
-        cache()->forget("password_reset_authorized_{$username}");
+        $request->session()->forget('password_reset');
+
+        // Sign the account out everywhere: whoever knew the old password
+        // loses access too.
+        DB::table('sessions')->where('user_id', $user->id)->delete();
 
         return response()->json(['message' => 'success']);
     }

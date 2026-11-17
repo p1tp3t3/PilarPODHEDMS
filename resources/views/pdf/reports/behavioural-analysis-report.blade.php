@@ -25,8 +25,8 @@
     table.reco td { padding: 5px 4px; vertical-align: top; border-bottom: 1px solid #e3e8ef; line-height: 1.45; }
     table.reco tr { page-break-inside: avoid; }
     table.reco td.num { width: 22px; color: #555; }
-    table.reco .lead { font-weight: bold; color: #111; }
-    table.reco .rest { margin-top: 2px; color: #444; }
+    table.reco .lead { font-weight: bold; color: #111; text-align: justify; }
+    table.reco .rest { margin-top: 2px; color: #444; text-align: justify; }
     table.timeline { width: 100%; border-collapse: collapse; }
     table.timeline th, table.timeline td { border: 1px solid #333; padding: 4px 5px; vertical-align: top; line-height: 1.35; }
     table.timeline th { background: #eef1f5; text-align: left; }
@@ -68,7 +68,8 @@
         <div class="muted">No contributing factors.</div>
     @endforelse
 
-    <div class="section-title">Recommendations</div>
+    {{-- Recommendations always start on page 2. --}}
+    <div class="section-title" style="page-break-before: always; margin-top: 0;">Recommendations</div>
     @if (count($recommendations))
         <table class="reco">
             @foreach ($recommendations as $i => $r)
@@ -85,7 +86,8 @@
         <div class="muted">No recommendations.</div>
     @endif
 
-    <div class="section-title">Violation Timeline</div>
+    {{-- The timeline starts on its own page. --}}
+    <div class="section-title" style="page-break-before: always; margin-top: 0;">Violation Timeline</div>
     <table class="timeline">
         <thead>
             <tr>

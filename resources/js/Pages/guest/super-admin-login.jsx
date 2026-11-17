@@ -6,6 +6,7 @@ import axios from "axios";
 import { showOutputModal } from "@/others/function";
 import background from '@/images/bg-pilar2.jpg'
 import { ReloadProvider } from "@/context-provider/reload-provider";
+import { Validator } from "@/others/classes/validator"
 
 const SuperAdminLogin = (props) => (
     <ReloadProvider>
@@ -29,20 +30,9 @@ const SuperAdminLoginInner = (props) => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        const errors = {};
-
-        if (!data.username) {
-            errors.username = "Username is required"
-            errors.usernameAsterisk = true
-        }
-        if (!data.password) {
-            errors.password = "Password is required"
-            errors.passwordAsterisk = true
-        };
-
+        const errors = Validator.login(data);
         setValidationError(errors);
-
-        if (Object.keys(errors).length > 0) return;
+        if (Validator.hasErrors(errors)) return;
         if (submitting) return;
 
         // The form disables itself and the button spins (LogInForm).

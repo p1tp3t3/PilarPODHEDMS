@@ -3,7 +3,7 @@ import RichTextEditor from "@/Components/input/rich-text-editor"
 import FormButton from "../../button/button"
 import { showWarningModal } from "../../../others/function"
 import { useState } from "react"
-import { validateForm, required, minLength } from "@/others/validation"
+import { Validator } from "@/others/classes/validator"
 
 const SetAppointmentReasonModal = (props) => {
 
@@ -14,7 +14,7 @@ const SetAppointmentReasonModal = (props) => {
     }
     const handleSubmit = e => {
         e.preventDefault()
-        const reasonError = validateForm({ reason: props.data.reason }, { reason: [required("Reason"), minLength(5, "Reason")] }).reason
+        const reasonError = Validator.reason(props.data.reason)
         if (!reasonError) {
             setErr('')
             showWarningModal(

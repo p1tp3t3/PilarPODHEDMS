@@ -6,7 +6,7 @@ import { Button } from "@mui/material"
 import { CalendarDays } from "lucide-react"
 import { change, ordinal } from "@/others/function"
 import { AccountService } from "@/others/services/account-service"
-import { validateForm, hasErrors, required } from "@/others/validation"
+import { Validator } from "@/others/classes/validator"
 
 const yearLevelList = [
     { val: 1, label: "1st Year" },
@@ -45,12 +45,9 @@ const EditEnrollmentModal = ({ close, closeModal, data, program, schoolYears, re
 
     const handleSubmit = (e) => {
         e.preventDefault()
-        const found = validateForm(form, {
-            program_id: [required("Program")],
-            year_level: [required("Year level")],
-        })
+        const found = Validator.enrollment(form)
         setErrs(found)
-        if (hasErrors(found)) return
+        if (Validator.hasErrors(found)) return
         reload(true, "text-wait", "Updating Program. Please Wait")
         AccountService.updateEnrollment(
             form,

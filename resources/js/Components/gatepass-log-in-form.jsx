@@ -5,7 +5,7 @@ import { useForm } from "@inertiajs/react"
 import { change } from "../others/function"
 import { useRoute } from "../../../vendor/tightenco/ziggy/src/js"
 import { User, Lock } from "lucide-react"
-import { validateForm, hasErrors, required } from "@/others/validation"
+import { Validator } from "@/others/classes/validator"
 
 
 const GatePassLogInForm = (props) => {
@@ -19,9 +19,9 @@ const GatePassLogInForm = (props) => {
 
     const handleSubmit = (e) => {
         e.preventDefault()
-        const found = validateForm(data, { username: [required("Username")], password: [required("Password")] })
+        const found = Validator.login(data)
         clearErrors()
-        if (hasErrors(found)) {
+        if (Validator.hasErrors(found)) {
             Object.entries(found).forEach(([k, v]) => { if (!k.endsWith("Asterisk")) setError(k, v) })
             return
         }

@@ -14,6 +14,7 @@ use App\Models\Violation;
 use App\Models\ViolationPenalty;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
@@ -245,8 +246,8 @@ class ViolationController extends Controller
             $r = trim($r);
 
             return preg_match('/^(.+?[.!?])\s+(.+)$/s', $r, $m)
-                ? ['lead' => $m[1], 'rest' => $m[2]]
-                : ['lead' => $r, 'rest' => ''];
+                ? ['lead' => self::titleCase($m[1]), 'rest' => $m[2]]
+                : ['lead' => self::titleCase($r), 'rest' => ''];
         })->all();
 
         $timeline = ComplaintSubjectViolation::with(['complaint.complaintSubject'])
@@ -295,7 +296,9 @@ class ViolationController extends Controller
             'prepared_by' => trim(($me?->first_name ?? '').' '.($me?->last_name ?? '')) ?: auth()->user()->username,
         ])->setPaper('a4', 'portrait');
 
-        return $pdf->stream('behavioural-analysis-'.now()->format('Ymd-His').'.pdf');
+        // "C2210213 - 2026-11-17 - Behavioural Analysis Report.pdf"
+        $idNumber = preg_replace('/[^A-Za-z0-9-]/', '', (string) $student->id_number) ?: 'student';
+        return $pdf->stream("{$idNumber} - ".now()->format('Y-m-d').' - Behavioural Analysis Report.pdf');
     }
 
     private static function breadcrumbViolation($from)
@@ -619,6 +622,16 @@ class ViolationController extends Controller
             .'Number them 1 to 10. Write each one as exactly four complete sentences in one paragraph: what to do, how to carry it out, who is involved, and why it helps the student. Do not include a title/heading before the list or '
             .'a summary sentence after it — output only the numbered items, nothing else.';
 
+        // The same analysis (same record, verdict and notes, so the same
+        // prompt) always gets the same recommendations: reloading the page or
+        // coming back to it shows the set already written, and the report
+        // generated from it matches. A new record changes the prompt, so a
+        // new set is written then.
+        $cacheKey = 'gemini-reco:'.sha1(config('services.gemini.model').'|'.$prompt);
+        if (is_array($saved = Cache::get($cacheKey))) {
+            return response()->json(['prediction' => (int) $data['prediction'], 'reco' => $saved]);
+        }
+
         try {
             $response = Http::withHeaders(['X-goog-api-key' => $key])
                 // Local PHP installs often lack a CA bundle; production verifies.
@@ -645,11 +658,16 @@ class ViolationController extends Controller
         $text = collect($response->json('candidates.0.content.parts') ?? [])
             ->reject(fn ($part) => $part['thought'] ?? false) // the model's reasoning, not its answer
             ->pluck('text')->implode('');
-        $reco = self::parseRecommendationList($text);
+        $reco = array_slice(self::parseRecommendationList($text), 0, 10);
+
+        // Kept for 30 days; an empty reply isn't kept, so the next load tries again.
+        if ($reco) {
+            Cache::put($cacheKey, $reco, now()->addDays(30));
+        }
 
         return response()->json([
             'prediction' => (int) $data['prediction'],
-            'reco' => array_slice($reco, 0, 10),
+            'reco' => $reco,
         ]);
     }
 
@@ -659,6 +677,41 @@ class ViolationController extends Controller
      * then its sentences, when the reply isn't numbered (as the Python
      * service's parser does).
      */
+    /**
+     * Title case for a recommendation's title: every word capitalised except
+     * short joining words in the middle; words with capitals inside (PE, HR)
+     * are kept. Same rule as the page (behaviour-analysis-parts.jsx titleCase).
+     */
+    private static function titleCase(string $text): string
+    {
+        $small = ['a', 'an', 'the', 'and', 'but', 'or', 'nor', 'for', 'so', 'yet', 'as', 'at', 'by', 'in', 'of', 'on', 'per', 'to', 'via'];
+        $words = explode(' ', $text);
+        $last = count($words) - 1;
+
+        foreach ($words as $i => $word) {
+            $parts = explode('-', $word);
+            foreach ($parts as $j => $part) {
+                if (! preg_match('/[A-Za-z]/', $part, $m, PREG_OFFSET_CAPTURE)) {
+                    continue;
+                }
+                $at = $m[0][1];
+                $core = substr($part, $at);
+                if (preg_match('/[A-Z]/', substr($core, 1))) {
+                    continue;
+                }
+                $inner = ! ($i === 0 && $j === 0) && $i !== $last;
+                if ($inner && in_array(strtolower(preg_replace('/[^A-Za-z]/', '', $core)), $small, true)) {
+                    $parts[$j] = strtolower($part);
+                } else {
+                    $parts[$j] = substr($part, 0, $at).ucfirst($core);
+                }
+            }
+            $words[$i] = implode('-', $parts);
+        }
+
+        return implode(' ', $words);
+    }
+
     private static function parseRecommendationList(string $text): array
     {
         $items = [];

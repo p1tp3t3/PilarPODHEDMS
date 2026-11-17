@@ -305,6 +305,9 @@ class MaintenanceController extends Controller
      */
     private function notifyAllUsers(string $message): int
     {
+        // Shown as HTML on each user's notice page: formatting tags only.
+        $message = (string) clean_rich_text($message);
+
         $senderId = auth()->id();
 
         $userIds = User::where('activate', true)
@@ -735,7 +738,7 @@ class MaintenanceController extends Controller
         ];
 
         if ($request->hasFile('logo')) {
-            $fileName = time().'_'.$request->file('logo')->getClientOriginalName();
+            $fileName = time().'_'.Str::random(32).'.'.$request->file('logo')->extension(); // never the uploaded name
             Storage::disk('public')->putFileAs('program-logos', $request->file('logo'), $fileName);
             $data['logo'] = $fileName;
         }
@@ -818,7 +821,7 @@ class MaintenanceController extends Controller
         ];
 
         if ($request->hasFile('logo')) {
-            $fileName = time().'_'.$request->file('logo')->getClientOriginalName();
+            $fileName = time().'_'.Str::random(32).'.'.$request->file('logo')->extension(); // never the uploaded name
             Storage::disk('public')->putFileAs('program-logos', $request->file('logo'), $fileName);
 
             if ($program->logo) {

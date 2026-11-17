@@ -220,7 +220,9 @@ class AbsentFormController extends Controller
     {
         $id = decrypt_id($id) ?? abort(404);
         $fileName = basename($fileName);
-        $formNumber = Absence::where('id', $id)->value('form_number');
+        $absence = Absence::find($id) ?? abort(404);
+        abort_unless($absence->canView(auth()->user()), 403);
+        $formNumber = $absence->form_number;
         $path = storage_path("app/private/absent-forms/absent-form-{$formNumber}/evidences/$fileName");
 
         if (! file_exists($path)) {
@@ -238,7 +240,9 @@ class AbsentFormController extends Controller
     {
         $id = decrypt_id($id) ?? abort(404);
         $fileName = basename($fileName);
-        $formNumber = Absence::where('id', $id)->value('form_number');
+        $absence = Absence::find($id) ?? abort(404);
+        abort_unless($absence->canView(auth()->user()), 403);
+        $formNumber = $absence->form_number;
         $path = storage_path("app/private/absent-forms/absent-form-{$formNumber}/previous_evidences/$fileName");
 
         if (! file_exists($path)) {
@@ -534,9 +538,12 @@ class AbsentFormController extends Controller
     {
         $id = decrypt_id($id) ?? abort(404);
 
-        return new AbsenceResource(Absence::with(['user.profile', 'user.program', 'user.enrollments', 'revisions', 'prefect.profile'])
+        $absence = Absence::with(['user.profile', 'user.program', 'user.enrollments', 'revisions', 'prefect.profile'])
             ->where('id', $id)
-            ->first());
+            ->first() ?? abort(404);
+        abort_unless($absence->canView(auth()->user()), 403);
+
+        return new AbsenceResource($absence);
     }
 
     public function cancelAbsentForm(CancelAbsentFormRequest $request, $id)

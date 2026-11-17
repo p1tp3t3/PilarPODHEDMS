@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Auth\AuthenticationException;
 use Inertia\Inertia;
+use App\Http\Middleware\SecurityHeaders;
 
 
 $app = Application::configure(basePath: dirname(__DIR__))
@@ -28,6 +29,9 @@ $app = Application::configure(basePath: dirname(__DIR__))
         if(env('APP_ENV') === 'local' && env('NGROK_URL'))
             $middleware->trustProxies(at: [parse_url(env('NGROK_URL'), PHP_URL_HOST)]);
 
+        // Every response, including errors, files and the API.
+        $middleware->append(SecurityHeaders::class);
+
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
@@ -45,7 +49,6 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'profile-edit-authorized' => \App\Http\Middleware\ProfileUpdateAuthorization::class,
             'children-monitoring-authorized' => \App\Http\Middleware\ChildrenMonitoringAuthorization::class,
             'role' => \App\Http\Middleware\RoleAuthenticable::class,
-            // routes/api.php: a list page's table data (see list_page()).
             'list-data' => \App\Http\Middleware\ListDataMode::class,
         ]);
     })

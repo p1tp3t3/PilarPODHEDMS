@@ -23,7 +23,7 @@ class StoreProgramRequest extends FormRequest
             'code' => 'required|string',
             'name' => 'required|string',
             'color' => 'required',
-            'logo' => 'nullable|image|max:2048',
+            'logo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ];
     }
 }

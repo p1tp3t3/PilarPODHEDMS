@@ -14,6 +14,7 @@ import { useReload } from "@/context-provider/reload-provider"
 import { PositionService } from "@/others/services/position-service"
 import { readableDate, showOutputModal, showWarningModal } from "@/others/function"
 import useListData, { reloadListData } from "@/others/hooks/use-list-data"
+import { Validator } from "@/others/classes/validator"
 
 const errorMessage = (x, fallback) =>
     (x.response?.data?.errors && Object.values(x.response.data.errors)[0]?.[0]) ?? x.response?.data?.message ?? fallback
@@ -32,14 +33,7 @@ const PositionFormModal = ({ close, closeModal, positions, reload }) => {
         }
     }
 
-    // Required, up to 50 characters, not already used.
-    const validate = (value) => {
-        const n = value.trim()
-        if (!n) return "Position name is required."
-        if (n.length > 50) return "Position name must be at most 50 characters."
-        if ((positions ?? []).some((p) => String(p.name).trim().toLowerCase() === n.toLowerCase())) return "That position already exists."
-        return ""
-    }
+    const validate = (value) => Validator.positionName(value, positions)
 
     const handleSubmit = (e) => {
         e.preventDefault()

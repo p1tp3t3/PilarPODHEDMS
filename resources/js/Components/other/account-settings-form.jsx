@@ -56,28 +56,9 @@ const AccountInfoForm = ({ authUser, targetAccount, isAdmin, reload }) => {
     const [error, setError] = useState({});
 
     const validate = () => {
-        const err = {};
-
-        if (!data.username?.trim()) {
-            err.username = "Username is required";
-            err.usernameAsterisk = true;
-        } else if (data.username.length < 8) {
-            err.username = "Username must be at least 8 characters long";
-        } else if (!/(?=.*[A-Za-z])(?=.*\d)/.test(data.username)) {
-            err.username = "Username must contain both letters and numbers";
-        }
-
-        if (isAdmin) {
-            if (!data.email?.trim()) {
-                err.email = "Email is required";
-                err.emailAsterisk = true;
-            } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-                err.email = "Please enter a valid email address";
-            }
-        }
-
+        const err = Validator.accountInfo(data, isAdmin);
         setError(err);
-        return !err.username && !err.email;
+        return !Validator.hasErrors(err);
     };
 
     const handleSubmit = (e) => {
@@ -283,51 +264,9 @@ const OwnPasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount
     const showCurrentPassword = isEditingOwnAccount;
 
     const validate = () => {
-        const err = {};
-
-        if (showCurrentPassword && !data.current_password) {
-            err.current_password = "Current Password is required";
-            err.current_passwordAsterisk = true;
-        }
-
-        if (!data.password) {
-            err.password = "Password is required";
-            err.passwordAsterisk = true;
-        } else {
-            const validator = new Validator({}, targetAccount.role);
-            validator.validatePassword(
-                {
-                    ...data,
-                    first_name: targetAccount.profile?.first_name,
-                    middle_name: targetAccount.profile?.middle_name,
-                    last_name: targetAccount.profile?.last_name,
-                    username: targetAccount.username,
-                    email: targetAccount.email,
-                    // data.user_id (spread above) is targetAccount's numeric
-                    // DB id, not a string — validatePassword expects the
-                    // human-readable ID Number here (same meaning it has
-                    // everywhere else in this Validator class), so it's
-                    // overridden with the real id_number field.
-                    user_id: targetAccount.id_number,
-                },
-                err,
-                commonPasswordList
-            );
-            if (err.password) err.passwordAsterisk = true;
-        }
-
-        if (!data.password_confirmation) {
-            err.password_confirmation = "Password Confirmation is required";
-            err.password_confirmationAsterisk = true;
-        }
-
-        if (data.password && data.password_confirmation && data.password !== data.password_confirmation) {
-            err.password = "Password doesn't match";
-            err.passwordAsterisk = true;
-        }
-
+        const err = Validator.accountPassword(data, { needsCurrent: showCurrentPassword, account: targetAccount, commonPasswordList });
         setError(err);
-        return !err.current_password && !err.password && !err.password_confirmation;
+        return !Validator.hasErrors(err);
     };
 
     const handleSubmit = async (e) => {

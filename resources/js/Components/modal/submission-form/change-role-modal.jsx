@@ -5,6 +5,7 @@ import FormTextfield from "@/Components/input/form-input"
 import FormButton from "@/Components/button/button"
 import { AccountService } from "@/others/services/account-service"
 import { formatSchoolYearSemester, readableDate, readableTime, showOutputModal, showWarningModal, toTitleCase } from "@/others/function"
+import { Validator } from "@/others/classes/validator"
 
 const emptyDetails = { program_id: "", year_level: "", position: "", parent_role: "", work_occupation: "" }
 
@@ -81,17 +82,16 @@ const ChangeRoleModal = ({ close, closeModal, user, roles = [], programs = [], o
 
     const handleSubmit = (e) => {
         e.preventDefault()
-        const errs = {}
-        if (!role) errs.role = "Please select the new role."
         const idChanged = idNumber.trim() !== "" && idNumber.trim().toLowerCase() !== (user.id_number ?? "").toLowerCase()
-        if (role && needsNewId(user.role, role) && !idChanged) {
-            errs.id_number = "Enter the new ID number for this role. The current one is kept in the ID history."
-        }
-        for (const f of requiredFields[role] ?? []) {
-            if (!details[f]) errs[f] = `${fieldLabels[f]} is required.`
-        }
+        const errs = Validator.changeRole({
+            role,
+            needsNewId: !!role && needsNewId(user.role, role),
+            idChanged,
+            fields: Object.fromEntries((requiredFields[role] ?? []).map((f) => [f, fieldLabels[f]])),
+            details,
+        })
         setErrors(errs)
-        if (Object.keys(errs).length) return
+        if (Validator.hasErrors(errs)) return
 
         const payload = { role, ...Object.fromEntries((requiredFields[role] ?? []).map((f) => [f, details[f]])) }
         if (role === "parent") payload.work_occupation = details.work_occupation

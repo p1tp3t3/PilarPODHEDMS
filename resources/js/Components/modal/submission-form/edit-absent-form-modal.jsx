@@ -7,7 +7,7 @@ import PicVidUpload from "@/Components/input/pic-vid-upload";
 import BetweenTextfield from "@/Components/input/between-input";
 import { useEffect, useState } from "react";
 import { AbsentFormService } from "@/others/services/absent-form-service";
-import { isBlank } from "@/others/validation";
+import { Validator } from "@/others/classes/validator";
 
 const REASONS = [
     { value: "Excused Absence", label: "Excused Absence" },
@@ -57,17 +57,9 @@ const EditAbsentFormModal = (props) => {
     };
 
     const validateForm = () => {
-        const errors = {};
-        if (!data.date_from) errors.date_from = "Date From is required.";
-        if (!data.date_to) errors.date_to = "Date To is required.";
-        if (data.date_from && data.date_to && new Date(data.date_to) < new Date(data.date_from)) {
-            errors.date_to = "Date To must be later than or equal to Date From.";
-        }
-        if (checkedReasons.length === 0 && isBlank(otherReason)) {
-            errors.reason = "Please select or type a reason.";
-        }
+        const errors = Validator.absentForm({ ...data, reasons: checkedReasons, other_reason: otherReason }, "reason");
         setValidationError(errors);
-        return Object.keys(errors).length === 0;
+        return !Validator.hasErrors(errors);
     };
 
     const handleSubmit = (e) => {
@@ -76,7 +68,7 @@ const EditAbsentFormModal = (props) => {
 
         const f = new FormData();
         const reasons = [...checkedReasons];
-        if (!isBlank(otherReason)) reasons.push(otherReason.trim());
+        if (!Validator.isBlank(otherReason)) reasons.push(otherReason.trim());
         reasons.forEach((r, i) => f.append(`reason[${i}]`, r));
         f.append("date_from", data.date_from);
         f.append("date_to", data.date_to);

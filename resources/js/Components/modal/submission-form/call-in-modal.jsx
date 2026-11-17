@@ -10,7 +10,7 @@ import SelectedUser from "../../other/selected-user"
 import { AppointmentService } from "@/others/services/appointment-service"
 import { Phone, TriangleAlert } from "lucide-react"
 import { Link } from "@inertiajs/react"
-import { validateForm, hasErrors, required, minLength } from "@/others/validation"
+import { Validator } from "@/others/classes/validator"
 
 const CallInModal = (props) => {
     const { showToast } = useContext(AuthContext)
@@ -38,10 +38,9 @@ const CallInModal = (props) => {
 
     const handleSubmit = (e) => {
         e.preventDefault()
-        const found = validateForm(data, { call_in_reason: [required("Message"), minLength(5, "Message")] })
-        if (!searchedStudent) found.student = "Select the student to call in."
+        const found = Validator.callIn(data, { needsStudent: !searchedStudent })
         setErrs(found)
-        if (hasErrors(found)) return
+        if (Validator.hasErrors(found)) return
         if(!submit) {
             setSubmit(true)
             AppointmentService.callIn(data, success, error)

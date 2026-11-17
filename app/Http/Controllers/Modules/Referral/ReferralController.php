@@ -582,7 +582,7 @@ class ReferralController extends Controller
         self::denyStudents();
         $id = decrypt_id($id) ?? abort(404);
 
-        return new ReferralResource(Referral::with([
+        $referral = Referral::with([
             'user.profile',
             'user.faculty.program', 'user.headships.program',
             'referredStudent.profile',
@@ -592,7 +592,10 @@ class ReferralController extends Controller
             'revisions',
         ])
             ->where('id', $id)
-            ->first());
+            ->first() ?? abort(404);
+        abort_unless($referral->canView(auth()->user()), 403);
+
+        return new ReferralResource($referral);
     }
 
     public function getSendReferral()

@@ -1,4 +1,5 @@
-import useListData from "@/others/hooks/use-list-data"
+import useListData, { setListQuery, useListQuery } from "@/others/hooks/use-list-data"
+import DropdownField from "@/Components/input/dropdown"
 import SchoolYearSemesterFilter from "@/Components/input/school-year-semester-filter"
 import Btn from "@/Components/button/normal-btn"
 import StudentList from "@/Components/list/student-list"
@@ -15,6 +16,7 @@ import { showOutputModal } from "@/others/function"
 import { Head } from "@inertiajs/react"
 import { useState, useRef } from "react"
 import { Download } from "lucide-react"
+import { Validator } from "@/others/classes/validator"
 
 const enrollmentCsvColumns = [
     { field: "student_id", headerName: "ID", width: 110 },
@@ -25,6 +27,15 @@ const enrollmentCsvColumns = [
 const Students = (props) => {
     // The table loads from its API endpoint once the page opens.
     const { data: lists } = useListData()
+    // ?program= in the address bar; the list is fetched again when it changes.
+    const query = useListQuery()
+    const programFilter = props.program_filter ?? []
+    const changeProgram = (value) => {
+        const url = new URLSearchParams(window.location.search)
+        url.set("program", value)
+        url.delete("id")
+        setListQuery(url)
+    }
     const fileName = props.file_name
     const isSuperAdmin = props.auth?.user?.role === "super_admin"
     const { loadRegister } = useReload()
@@ -45,8 +56,7 @@ const Students = (props) => {
         e.target.value = "" // allow re-selecting the same file after a cancel/error
         if (!file) return
 
-        const isCSV = file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv")
-        if (!isCSV) {
+        if (!Validator.isCsv(file)) {
             showOutputModal("Invalid file type. Please upload a CSV file.", "e", () => {})
             return
         }
@@ -158,7 +168,20 @@ const Students = (props) => {
                     <SchoolYearSemesterFilter
                         schoolYears={props.school_years}
                         allLabels={["Select School Year", "Select Semester"]}
-                    />
+                    >
+                        {/* The System Admin, or a program head of 2+ programs. */}
+                        {(isSuperAdmin ? programFilter.length > 0 : programFilter.length > 1) && (
+                            <div className="w-full sm:w-56">
+                                <DropdownField
+                                    default={{ val: "all", label: "All Programs" }}
+                                    list={programFilter.map((p) => ({ val: String(p.id), label: p.code }))}
+                                    val={query.get("program") ?? "all"}
+                                    onChange={(e) => changeProgram(e.target.value)}
+                                    name="program"
+                                />
+                            </div>
+                        )}
+                    </SchoolYearSemesterFilter>
                 )}
 
                 {activeTab === "list" && (

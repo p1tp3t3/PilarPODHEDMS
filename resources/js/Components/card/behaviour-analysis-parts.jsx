@@ -77,11 +77,28 @@ export const ContributingFactors = ({ insights = [], tone }) => (
 
 /* ---------------- Recommendations ---------------- */
 
+// Title case for a recommendation's title: every word capitalised except
+// short joining words in the middle; words with capitals inside (PE, HR)
+// are kept. Same rule as the report PDF (ViolationController::titleCase).
+const SMALL_WORDS = new Set(["a", "an", "the", "and", "but", "or", "nor", "for", "so", "yet", "as", "at", "by", "in", "of", "on", "per", "to", "via"])
+const titleCase = (text) => {
+    const words = text.split(" ")
+    return words.map((word, i) => word.split("-").map((part, j) => {
+        const at = part.search(/[A-Za-z]/)
+        if (at === -1) return part
+        const core = part.slice(at)
+        if (/[A-Z]/.test(core.slice(1))) return part
+        const inner = !(i === 0 && j === 0) && i !== words.length - 1
+        if (inner && SMALL_WORDS.has(core.replace(/[^A-Za-z]/g, "").toLowerCase())) return part.toLowerCase()
+        return part.slice(0, at) + core.charAt(0).toUpperCase() + core.slice(1)
+    }).join("-")).join(" ")
+}
+
 // "What to do. How. Who. Why." -> the first sentence as the title, the rest as details.
 const splitReco = (text) => {
     const s = String(text).trim()
     const m = s.match(/^(.+?[.!?])\s+(.+)$/s)
-    return m ? { title: m[1], body: m[2] } : { title: s, body: "" }
+    return m ? { title: titleCase(m[1]), body: m[2] } : { title: titleCase(s), body: "" }
 }
 
 export const Recommendations = ({ list, failed, tone }) => {
@@ -148,11 +165,11 @@ export const Recommendations = ({ list, failed, tone }) => {
                                 <Typography component="span" sx={{ width: 22, flexShrink: 0, fontSize: "0.875rem", lineHeight: 1.5, fontWeight: 500, color: "text.secondary", fontVariantNumeric: "tabular-nums" }}>
                                     {i + 1}.
                                 </Typography>
-                                <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, lineHeight: 1.5 }}>{r.title}</Typography>
+                                <Typography sx={{ flex: 1, minWidth: 0, fontSize: "0.875rem", fontWeight: 600, lineHeight: 1.5, textAlign: "justify" }}>{r.title}</Typography>
                             </AccordionSummary>
                             {r.body && (
                                 <AccordionDetails sx={{ pt: 0, pb: 1.75, pl: 5.25, pr: 2 }}>
-                                    <Typography sx={{ fontSize: "0.85rem", lineHeight: 1.65, color: "text.secondary" }}>{r.body}</Typography>
+                                    <Typography sx={{ fontSize: "0.85rem", lineHeight: 1.65, color: "text.secondary", textAlign: "justify" }}>{r.body}</Typography>
                                 </AccordionDetails>
                             )}
                         </Accordion>

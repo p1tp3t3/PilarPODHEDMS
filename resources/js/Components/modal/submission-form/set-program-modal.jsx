@@ -5,6 +5,7 @@ import { change, fileChange, getProgramLogo, showOutputModal, showWarningModal }
 import { useState, useEffect } from "react"
 import FormButton from "@/Components/button/button"
 import { ProgramService } from "@/others/services/program-service"
+import { Validator } from "@/others/classes/validator"
 
 const SetProgramModal = (props) => {
     const action = props.action || 'add'
@@ -51,32 +52,9 @@ const SetProgramModal = (props) => {
     }
 
     const validate = () => {
-        let err = {
-            code: "",
-            codeAsterisk: false,
-            name: "",
-            nameAsterisk: false,
-            color: "",
-            colorAsterisk: false,
-        }
-
-        if (!data.code.trim()) {
-            err.code = "Program code is required."
-            err.codeAsterisk = true
-        }
-
-        if (!data.name.trim()) {
-            err.name = "Program name is required."
-            err.nameAsterisk = true
-        }
-
-        if (!data.color || !/^#([0-9A-F]{3}){1,2}$/i.test(data.color)) {
-            err.color = "Invalid color code."
-            err.colorAsterisk = true
-        }
-
+        const err = Validator.program(data)
         setValidationErr(err)
-        return !(err.code || err.name || err.color)
+        return !Validator.hasErrors(err)
     }
 
     const handleSubmit = (e) => {

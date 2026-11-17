@@ -15,45 +15,6 @@ use ZipArchive;
 
 class FileController extends Controller
 {
-    public function getDocument($type, $username, $fileName)
-    {
-        $path = self::getUserAssets($username, $type);
-        $file = "$path/$fileName";
-
-        if (! file_exists($file)) {
-            abort(404);
-        }
-
-        $mime = mime_content_type($file);
-
-        return response()->file($file, ['Content-Type' => $mime]);
-    }
-
-    public function getProfilePicture()
-    {
-        $decrypt = self::cryptoJsAesDecrypt($_GET['ref']);
-        $path = storage_path("app/private/user-assets/$decrypt/profile-$decrypt.jpg");
-
-        if (! file_exists($path)) {
-            abort(404);
-        }
-
-        return response()->file($path);
-    }
-
-    public function getUserAssets($username, $type)
-    {
-        $userFolder = storage_path("app/private/user-assets/$username");
-        switch ($type) {
-            case 'complaint':
-                return "$userFolder/complaint";
-            case 'gatepass':
-                return "$userFolder/gatepass";
-            case 'profile':
-                return "$userFolder/profile";
-        }
-    }
-
     public function downloadAccountFile($fileName)
     {
         self::authorizeAccountFile($fileName);
@@ -374,48 +335,5 @@ class FileController extends Controller
         } else {
             return response()->json(['message' => 'File not found.'], 404);
         }
-    }
-
-    public function cryptoJsAesDecrypt($jsonString)
-    {
-        $data = base64_decode($jsonString);
-
-        // Check for OpenSSL-style salt prefix ("Salted__")
-        $salted = substr($data, 0, 8) === 'Salted__';
-        $salt = $salted ? substr($data, 8, 8) : null;
-        $ciphertext = $salted ? substr($data, 16) : $data;
-
-        if ($salted && $salt) {
-            $keyIv = self::evpBytesToKey($salt);
-            $key = $keyIv['key'];
-            $iv = $keyIv['iv'];
-
-            $decrypted = openssl_decrypt(
-                $ciphertext,
-                'AES-256-CBC',
-                $key,
-                OPENSSL_RAW_DATA,
-                $iv
-            );
-
-            return $decrypted;
-        }
-
-        return false;
-    }
-
-    public function evpBytesToKey($salt, $keyLen = 32, $ivLen = 16)
-    {
-        $dtot = '';
-        $d = '';
-        while (strlen($dtot) < ($keyLen + $ivLen)) {
-            $d = md5($d.'gh4mdvcf'.$salt, true);
-            $dtot .= $d;
-        }
-
-        return [
-            'key' => substr($dtot, 0, $keyLen),
-            'iv' => substr($dtot, $keyLen, $ivLen),
-        ];
     }
 }

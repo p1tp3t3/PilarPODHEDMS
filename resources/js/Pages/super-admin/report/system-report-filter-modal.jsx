@@ -11,6 +11,7 @@ import SearchUserBar from "@/Components/input/search-user-bar"
 import SelectedUser from "@/Components/other/selected-user"
 import { getProfilePic, showOutputModal } from "@/others/function"
 import { reloadListData } from "@/others/hooks/use-list-data"
+import { Validator } from "@/others/classes/validator"
 
 // The super admin's New / Edit Report Filter form (Report Generator, shared
 // component: @/Components/report-generator). A filter is one report type and
@@ -136,9 +137,15 @@ const FilterModal = ({ close, closeModal, editing, reportTypes, schoolYears, act
 
     const submit = (e) => {
         e.preventDefault()
-        if (isIndividual && !form.student_id) return setErr(`Select a ${type === "enrollment" ? "student" : "user"}, or untick ${individual.label}.`)
-        if (form.date_from && form.date_to && form.date_to < form.date_from) return setErr("The end date is before the start date.")
-        setErr("")
+        const filterError = Validator.reportFilter({
+            needsPerson: isIndividual && !form.student_id,
+            personLabel: type === "enrollment" ? "student" : "user",
+            individualLabel: individual.label,
+            date_from: form.date_from,
+            date_to: form.date_to,
+        })
+        setErr(filterError)
+        if (filterError) return
         reload(true, "text-wait", editing ? "Saving Filter" : "Creating Filter")
         const url = editing ? `/super-admin/report-filter/${editing.id}/update` : "/super-admin/report-filter/create"
         // No name: the report's name ("Account Activity Filter").

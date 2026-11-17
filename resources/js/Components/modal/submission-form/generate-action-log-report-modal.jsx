@@ -10,7 +10,7 @@ import FieldError from "@/Components/input/field-error"
 import RadioButton from "@/Components/input/radio"
 import FormButton from "@/Components/button/button"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
-import { validateForm, hasErrors, required, requiredIf } from "@/others/validation"
+import { Validator } from "@/others/classes/validator"
 
 const semesterList = [
     { val: 1, label: '1st Semester' },
@@ -47,19 +47,9 @@ const GenerateActionLogReportMoodal = (props) => {
 
     const handleSubmit = (e) => {
         e.preventDefault()
-        const found = validateForm(data, {
-            report_type: [required("Action type")],
-            school_year_id: [requiredIf((d) => d.filter_by === 'school_year', "School year")],
-        })
-        if (data.individual && !searchedComplainant) found.user = "Select a user, or untick Individual."
-
-        // Dates may both be left empty (all time), but not just one, and the
-        // range can't run backwards.
-        if (data.date_from && !data.date_to) { found.date_range = "Choose an end date too."; }
-        else if (!data.date_from && data.date_to) { found.date_range = "Choose a start date too."; }
-        else if (data.date_from && data.date_to && new Date(data.date_to) < new Date(data.date_from)) { found.date_range = "The end date can't be before the start date."; }
+        const found = Validator.actionLogReport(data, { needsUser: data.individual && !searchedComplainant })
         setErrs(found)
-        if (hasErrors(found)) return
+        if (Validator.hasErrors(found)) return
         const payload = data.filter_by === 'date'
             ? { ...data, school_year_id: '', semester: '' }
             : { ...data, date_from: '', date_to: '' }

@@ -21,7 +21,8 @@ export const useSchoolYearSemester = (defaults = null) => {
 // `allowAll` false: no "All School Years" / "All Semesters" options, so a
 // specific period is always selected (used with `defaults`).
 // `allLabels`: the text of the "all" option, e.g. ["Select School Year", "Select Semester"].
-const SchoolYearSemesterFilter = ({ schoolYears = [], defaults = null, allowAll = true, allLabels = ["All School Years", "All Semesters"] }) => {
+// `children`: more filters shown first in the same row (e.g. a Program dropdown).
+const SchoolYearSemesterFilter = ({ schoolYears = [], defaults = null, allowAll = true, allLabels = ["All School Years", "All Semesters"], children }) => {
     const { schoolYear, semester } = useSchoolYearSemester(defaults)
 
     const change = (field, value) => {
@@ -35,6 +36,7 @@ const SchoolYearSemesterFilter = ({ schoolYears = [], defaults = null, allowAll 
 
     return (
         <div className="flex flex-wrap gap-3 md:max-lg:flex-row md:max-lg:flex-nowrap md:max-lg:items-center md:max-lg:[&>div:not(:last-child)]:flex-1 md:max-lg:[&>div:not(:last-child)]:min-w-0 md:max-lg:[&>div:not(:last-child)]:w-auto">
+            {children}
             <div className="w-full sm:w-56">
                 <DropdownField
                     default={allowAll ? { val: "all", label: allLabels[0] } : null}

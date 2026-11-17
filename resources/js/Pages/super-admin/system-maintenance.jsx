@@ -12,7 +12,7 @@ import { readableDate, readableTime, showOutputModal, showWarningModal , showLoa
 import TabSwitcher from "@/Components/other/tab-switcher";
 import { DataGrid } from "@/Components/other/data-grid";
 import Box from "@mui/material/Box";
-import { Database, Folder, Archive, CalendarClock, RefreshCw, Download, Trash2, Check, History, Info, RotateCcw } from "lucide-react";
+import { Database, Folder, Archive, CalendarClock, RefreshCw, Download, Trash2, Check, History, Info, RotateCcw, ExternalLink } from "lucide-react";
 import { Head } from "@inertiajs/react";
 
 const formatBytes = (bytes) => {
@@ -102,75 +102,102 @@ const SystemMaintenance = (props) => {
 
                 <div className="pt-4 pb-6 sm:pb-10 min-w-0">
                     {activeTab === "maintenance_mode" && (
-                        <div className="grid gap-5">
-                            <div className="max-w-[35rem] flex items-center justify-between gap-4 bg-white border border-gray-200 rounded-md px-5 py-4">
-                                <div>
-                                    <div className="font-semibold text-gray-800">
-                                        Maintenance Mode
+                        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] gap-5 items-start">
+                            {/* Controls */}
+                            <section className="bg-white border border-gray-200 rounded-md min-w-0">
+                                <header className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-gray-200">
+                                    <div className="font-semibold text-gray-800">Status</div>
+                                    <span className={`inline-flex items-center gap-1.5 text-[0.8em] font-medium ${maintenanceMode ? "text-red-700" : "text-green-700"}`}>
+                                        <span className={`w-2 h-2 rounded-full ${maintenanceMode ? "bg-red-600" : "bg-green-600"}`} />
+                                        {maintenanceMode ? "Under Maintenance" : "Online"}
+                                    </span>
+                                </header>
+
+                                {/* Maintenance mode switch */}
+                                <div className="flex items-start justify-between gap-4 px-5 py-4">
+                                    <div className="min-w-0">
+                                        <div className="text-[0.95em] font-medium text-gray-800">Maintenance Mode</div>
+                                        <p className="text-[0.8em] text-gray-500 mt-0.5">
+                                            {maintenanceMode
+                                                ? "The system is locked. Only super admins can sign in."
+                                                : "The system is open to everyone as normal."}
+                                        </p>
                                     </div>
-                                    <p className="text-[0.85em] text-gray-500">
-                                        {maintenanceMode
-                                            ? 'The system is currently locked down. Only super admins can sign in.'
-                                            : 'The system is accessible to everyone as normal.'}
-                                    </p>
+                                    <div className={`flex-shrink-0 pt-0.5 ${togglingMode ? "opacity-50 pointer-events-none" : ""}`}>
+                                        <Switch
+                                            checked={maintenanceMode}
+                                            onChange={handleToggleMaintenanceMode}
+                                            effect={['bg-gray-300', 'bg-red-600']}
+                                        />
+                                    </div>
                                 </div>
-                                <Switch
-                                    checked={maintenanceMode}
-                                    onChange={handleToggleMaintenanceMode}
-                                    effect={['bg-gray-300', 'bg-red-600']}
-                                />
-                            </div>
 
-                            {!maintenanceMode && (
-                                <div className="max-w-[35rem] bg-white border border-gray-200 rounded-md px-5 py-4 grid gap-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 grid place-items-center flex-shrink-0">
-                                            <CalendarClock size={18} />
-                                        </div>
-                                        <div>
-                                            <div className="font-semibold text-gray-800">Schedule Maintenance</div>
-                                            <p className="text-[0.85em] text-gray-500">
-                                                Pick a start date/time and notify everyone about it in one step.
-                                            </p>
-                                        </div>
+                                {/* Schedule */}
+                                <div className="px-5 py-4 border-t border-gray-200 grid gap-3">
+                                    <div className="flex items-center gap-2 text-[0.95em] font-medium text-gray-800">
+                                        <CalendarClock size={16} className="text-gray-500" />
+                                        Scheduled Maintenance
                                     </div>
 
-                                    {scheduledAt ? (
-                                        <div className="flex items-center justify-between gap-4 bg-blue-50 border border-blue-200 rounded-md px-4 py-3">
-                                            <p className="text-[0.85em] text-blue-900">
-                                                Scheduled to start on{" "}
-                                                <b>{readableDate(scheduledAt)} ({readableTime(scheduledAt)})</b>
-                                            </p>
-                                            <ActionBtn
-                                                className="bg-gray-600 hover:bg-gray-700 flex-shrink-0"
-                                                onClick={handleCancelSchedule}
-                                            >
-                                                Cancel
-                                            </ActionBtn>
+                                    {maintenanceMode ? (
+                                        <p className="text-[0.8em] text-gray-500">
+                                            Not available while maintenance mode is on.
+                                        </p>
+                                    ) : scheduledAt ? (
+                                        <div className="grid gap-3">
+                                            <div className="border-l-2 border-blue-600 pl-3">
+                                                <div className="text-[0.75em] uppercase tracking-wide text-gray-500">Starts on</div>
+                                                <div className="text-[0.9em] font-medium text-gray-800">
+                                                    {readableDate(scheduledAt)} · {readableTime(scheduledAt)}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <ActionBtn
+                                                    className="bg-gray-600 hover:bg-gray-700"
+                                                    onClick={handleCancelSchedule}
+                                                >
+                                                    Cancel Schedule
+                                                </ActionBtn>
+                                            </div>
                                         </div>
                                     ) : (
-                                        <div>
-                                            <Btn onclick={() => openScheduleModal(true)}>
-                                                Schedule Maintenance
-                                            </Btn>
+                                        <div className="grid gap-3">
+                                            <p className="text-[0.8em] text-gray-500">
+                                                No maintenance is scheduled. Set a start date and time, and everyone is notified in one step.
+                                            </p>
+                                            <div>
+                                                <Btn onclick={() => openScheduleModal(true)}>
+                                                    Schedule Maintenance
+                                                </Btn>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
-                            )}
+                            </section>
 
-                            <div className="w-full grid gap-2">
-                                <div className="text-[0.85em] font-semibold text-gray-700">
-                                    Live Preview — what a regular visitor sees right now
-                                </div>
-                                <div className="bg-white border border-gray-200 rounded-md overflow-hidden">
-                                    <iframe
-                                        key={maintenanceMode}
-                                        src="/maintenance/preview"
-                                        title="Maintenance preview"
-                                        className="w-full h-[24rem] border-0"
-                                    />
-                                </div>
-                            </div>
+                            {/* Live preview */}
+                            <section className="bg-white border border-gray-200 rounded-md overflow-hidden min-w-0">
+                                <header className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-gray-200">
+                                    <div className="min-w-0">
+                                        <div className="font-semibold text-gray-800">Live Preview</div>
+                                        <p className="text-[0.8em] text-gray-500">What a regular visitor sees right now</p>
+                                    </div>
+                                    <a
+                                        href="/maintenance/preview"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-1.5 text-[0.8em] font-medium text-blue-700 hover:underline flex-shrink-0"
+                                    >
+                                        Open <ExternalLink size={14} />
+                                    </a>
+                                </header>
+                                <iframe
+                                    key={maintenanceMode}
+                                    src="/maintenance/preview"
+                                    title="Maintenance preview"
+                                    className="block w-full h-[30rem] border-0 bg-gray-50"
+                                />
+                            </section>
                         </div>
                     )}
 

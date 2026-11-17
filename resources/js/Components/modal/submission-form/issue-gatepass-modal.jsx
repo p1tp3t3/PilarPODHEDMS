@@ -8,6 +8,7 @@ import SearchUserBar from "@/Components/input/search-user-bar"
 import SelectedUser from "@/Components/other/selected-user"
 import { GatePassService } from "@/others/services/gatepass-service"
 import { change, disablePrevDate, getProfilePic, showOutputModal, showWarningModal } from "@/others/function"
+import { Validator } from "@/others/classes/validator"
 
 const emptyForm = { user_id: "", reason: "", expiration_date: "", allow_to: [] }
 
@@ -32,14 +33,9 @@ const IssueGatePassModal = (props) => {
     }
 
     const validate = () => {
-        const e = {}
-        if (!data.user_id) e.user_id = "Please select a student."
-        if (!data.reason || data.reason.replace(/<[^>]*>/g, "").trim() === "") e.reason = "Reason is required."
-        if (!data.expiration_date) e.expiration_date = "Please select an expiration date."
-        else if (new Date(data.expiration_date) <= new Date()) e.expiration_date = "Expiration date cannot be in the past."
-        if (data.allow_to.length === 0) e.allow_to = "Please select at least one option."
+        const e = Validator.gatePassIssue(data)
         setErr(e)
-        return Object.keys(e).length === 0
+        return !Validator.hasErrors(e)
     }
 
     const reset = () => {

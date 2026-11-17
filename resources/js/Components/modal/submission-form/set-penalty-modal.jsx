@@ -4,6 +4,7 @@ import { showOutputModal, showWarningModal } from "@/others/function"
 import { useState, useEffect } from "react"
 import FormButton from "@/Components/button/button"
 import { ViolationService } from "@/others/services/violation-service"
+import { Validator } from "@/others/classes/validator"
 
 // Next free whole reference number after the existing penalties (1.0, 2.0 … → 6.0).
 const nextRef = (list = []) => {
@@ -11,7 +12,6 @@ const nextRef = (list = []) => {
     return `${max + 1}.0`
 }
 
-const REF_PATTERN = /^\d{1,3}(\.\d)?$/
 
 const SetPenaltyModal = (props) => {
     const [data, setData] = useState({ ref_number: "", description: "" })
@@ -25,15 +25,9 @@ const SetPenaltyModal = (props) => {
     }, [props.close])
 
     const validate = () => {
-        const err = {}
-        const ref = data.ref_number.trim()
-        if (!ref) err.ref_number = "Reference number is required."
-        else if (!REF_PATTERN.test(ref)) err.ref_number = "Use a number like 6 or 1.4."
-        else if ((props.list ?? []).some((p) => Number(p.ref_number) === Number(ref))) err.ref_number = "That reference number is already used."
-        if (!data.description.trim()) err.description = "Penalty name is required."
-        else if (data.description.trim().length > 191) err.description = "Penalty name must be at most 191 characters."
+        const err = Validator.penalty(data, props.list)
         setErrors(err)
-        return Object.keys(err).length === 0
+        return !Validator.hasErrors(err)
     }
 
     const handleSubmit = (e) => {

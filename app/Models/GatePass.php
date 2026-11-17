@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasDerivedSchoolYearSemester;
+use App\Models\Concerns\HasRecordAccess;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class GatePass extends Model
 {
-    use HasFactory, HasDerivedSchoolYearSemester;
+    use HasFactory, HasDerivedSchoolYearSemester, HasRecordAccess;
 
     protected $table = 'gate_pass';
 
@@ -40,5 +41,22 @@ class GatePass extends Model
     public function prefect(): BelongsTo
     {
         return $this->belongsTo(User::class, 'prefect_id', 'id');
+    }
+
+    // HasRecordAccess: the student and the prefect who issued it; guards and
+    // admins (they verify gate passes); the student's parents and program head.
+    protected function involvedUserIds(): array
+    {
+        return [$this->user_id, $this->prefect_id];
+    }
+
+    protected function involvedStudentIds(): array
+    {
+        return [$this->user_id];
+    }
+
+    protected function canViewExtra(User $user): bool
+    {
+        return \App\Broadcasting\ChannelAuth::canVerifyGatePasses($user);
     }
 }

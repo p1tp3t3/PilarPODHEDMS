@@ -16,6 +16,7 @@ import { useReload } from "@/context-provider/reload-provider"
 import { RoleService } from "@/others/services/role-service"
 import { showOutputModal, showWarningModal } from "@/others/function"
 import { Plus } from "lucide-react"
+import { Validator } from "@/others/classes/validator"
 
 const errorMessage = (x, fallback) =>
     (x.response?.data?.errors && Object.values(x.response.data.errors)[0]?.[0]) ?? x.response?.data?.message ?? fallback
@@ -36,8 +37,9 @@ const RoleFormModal = ({ close, closeModal, onSaved, reload }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault()
-        if (!label.trim()) {
-            setErr("Role name is required.")
+        const labelError = Validator.roleName(label)
+        if (labelError) {
+            setErr(labelError)
             return
         }
         reload(true, "text-wait", "Adding Role")

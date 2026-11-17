@@ -14,6 +14,7 @@ import QuantityCard from "@/Components/card/qntty-statistic-card"
 import GaugeChart from "@/Components/card/gauge-chart-statistic-card"
 import { TriangleAlert } from "lucide-react"
 import { ViewModalSkeleton } from "./view-modal-parts"
+import { Validator } from "@/others/classes/validator"
 
 const ViewStudentIncidentListModal = (props) => {
   const [data, setData] = useState(null)
@@ -100,8 +101,9 @@ const Body = ({ data, usr, type }) => {
       ? "Faculty"
       : "Program Head"
 
-    if (notifyFaculty || notifyProgramHead) {
-      setErr("")
+    const notifyError = Validator.riskNotify(notifyFaculty, notifyProgramHead)
+    setErr(notifyError)
+    if (!notifyError) {
       showWarningModal(
         `Are you sure you want to notify the ${label} of the ${user.program?.code ?? "student's"} program?`,
         `Notify ${label}`,
@@ -111,8 +113,6 @@ const Body = ({ data, usr, type }) => {
           RiskPredictionService.notifyRisk(d, success, error)
         }
       )
-    } else {
-      setErr("You must choose at least one option to notify.")
     }
   }
 

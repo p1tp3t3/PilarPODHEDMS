@@ -6,6 +6,7 @@ import FormButton from "@/Components/button/button"
 import { ViolationService } from "@/others/services/violation-service"
 import RadioButton from "@/Components/input/radio"
 import { Select, MenuItem, Autocomplete, TextField, Chip } from "@mui/material"
+import { Validator } from "@/others/classes/validator"
 
 const SetViolationModal = (props) => {
     const action = props.action || "add"
@@ -71,50 +72,9 @@ const SetViolationModal = (props) => {
 
     // ------------------ VALIDATION ------------------
     const validate = () => {
-        let err = {
-            violation_name: "",
-            violation_nameAsterisk: false,
-            offense_status: "",
-            offense_statusAsterisk: false,
-            keywords: "",
-            keywordsAsterisk: false,
-            penalties: "",
-        };
-
-        if (!data.violation_name.trim()) {
-            err.violation_name = "Violation name is required.";
-            err.violation_nameAsterisk = true;
-        }
-
-        if (data.offense_status !== "0" && data.offense_status !== "1") {
-            err.offense_status = "Please select Major or Minor.";
-            err.offense_statusAsterisk = true;
-        }
-
-        if (!data.keywords || data.keywords.length === 0) {
-            err.keywords = "Please add at least one keyword.";
-            err.keywordsAsterisk = true;
-        }
-
-        // 🔥 CORRECT PENALTY VALIDATION RULE
-        let penaltyConflict = false;
-
-        penalties.forEach(occ => {
-            const totalRows = occ.list.length;
-            const emptyRows = occ.list.filter(p => p.penalty_id.trim() === "").length;
-
-            // ❌ If more than 1 slot AND all slots empty → invalid
-            if (totalRows > 1 && emptyRows === totalRows) {
-                penaltyConflict = true;
-            }
-        });
-
-        if (penaltyConflict) {
-            err.penalties = "Please select at least ONE penalty for occurrences with multiple slots.";
-        }
-
+        const err = Validator.violation(data, penalties);
         setValidationErr(err);
-        return !(err.violation_name || err.offense_status || err.keywords || err.penalties);
+        return !Validator.hasErrors(err);
     };
 
     // ------------------ INPUT HANDLERS ------------------
@@ -125,11 +85,7 @@ const SetViolationModal = (props) => {
 
     // ------------------ KEYWORDS (list input) ------------------
     const validateKeywords = (list) => {
-        setValidationErr(prev => ({
-            ...prev,
-            keywords: list.length === 0 ? "Please add at least one keyword." : "",
-            keywordsAsterisk: list.length === 0,
-        }))
+        setValidationErr(prev => ({ ...prev, ...Validator.keywords(list) }))
     }
 
     const addKeyword = () => {

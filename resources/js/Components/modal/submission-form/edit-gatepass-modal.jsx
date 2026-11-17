@@ -5,7 +5,7 @@ import { useState, useEffect } from "react"
 import { router } from "@inertiajs/react"
 import { showWarningModal, showOutputModal } from "@/others/function"
 import { GatePassService } from "@/others/services/gatepass-service"
-import { validateForm, hasErrors, required, minLength } from "@/others/validation"
+import { Validator } from "@/others/classes/validator"
 
 const EditGatePassModal = (props) => {
     const [reason, setReason] = useState("")
@@ -21,9 +21,9 @@ const EditGatePassModal = (props) => {
     const handleSubmit = (e) => {
         e.preventDefault()
 
-        const found = validateForm({ reason }, { reason: [required("Reason"), minLength(5, "Reason")] })
-        if (hasErrors(found)) {
-            setError(found.reason)
+        const reasonError = Validator.reason(reason)
+        if (reasonError) {
+            setError(reasonError)
             return
         }
         setError("")

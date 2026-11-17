@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasDerivedSchoolYearSemester;
+use App\Models\Concerns\HasRecordAccess;
 use App\Models\Concerns\HasDocumentPdf;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Absence extends Model
 {
-    use HasFactory, HasDerivedSchoolYearSemester, HasDocumentPdf;
+    use HasFactory, HasDerivedSchoolYearSemester, HasDocumentPdf, HasRecordAccess;
 
     protected function documentFolder(): string
     {
@@ -94,5 +95,17 @@ class Absence extends Model
     public function prefect(): BelongsTo
     {
         return $this->belongsTo(User::class, 'prefect_id', 'id');
+    }
+
+    // HasRecordAccess: the student and the prefect who issued it; the
+    // student's parents and program head.
+    protected function involvedUserIds(): array
+    {
+        return [$this->student_id, $this->prefect_id];
+    }
+
+    protected function involvedStudentIds(): array
+    {
+        return [$this->student_id];
     }
 }

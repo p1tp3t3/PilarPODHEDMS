@@ -7,7 +7,7 @@ import FormButton from "../../button/button";
 import ProfilePic from "@/Components/other/profile-pic";
 import { useEffect, useState } from "react";
 import { ViolationService } from "@/others/services/violation-service";
-import { isBlank } from "@/others/validation"
+import { Validator } from "@/others/classes/validator"
 import {
   showWarningModal,
   getProfilePic,
@@ -118,59 +118,9 @@ const IssueViolationModal2 = (props) => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    let errors = {};
-    let hasError = false;
-
-    // (1) Summary required — one shared narrative for the whole complaint
-    if (isBlank(summary)) {
-      hasError = true;
-      errors.summary = "Summary of the incident is required.";
-    }
-
-    subjects.forEach((student, studentIndex) => {
-      const offenses = student.offenses;
-
-      // (2) Check if "none" is selected with other violations
-      const noneSelected = offenses.some((o) => o.violation === "none");
-
-      if (noneSelected && offenses.length > 1) {
-        hasError = true;
-        errors[`none_${studentIndex}`] =
-          "'No Violation Committed' cannot be selected together with other violations.";
-      }
-
-      // (3) Check duplicate offenses (exact same)
-      const selectedList = offenses.map((o) => o.violation);
-      const duplicates = selectedList.filter(
-        (v, idx) => v !== "none" && selectedList.indexOf(v) !== idx
-      );
-
-      if (duplicates.length > 0) {
-        hasError = true;
-        errors[`duplicate_${studentIndex}`] =
-          "Duplicate violations detected. Each violation must be unique.";
-      }
-
-      // (4) Validate each offense
-      offenses.forEach((off, offenseIndex) => {
-        if (!off.violation) {
-          hasError = true;
-          errors[`offense_${studentIndex}_${offenseIndex}`] =
-            "Please select a violation.";
-        }
-
-        // (5) Validate others → must have description
-        if (off.violation === "others" && !off.other_offense_description.trim()) {
-          hasError = true;
-          errors[`other_${studentIndex}_${offenseIndex}`] =
-            "Other violation description is required.";
-        }
-      });
-    });
-
-    // Apply validation errors
+    const errors = Validator.violationResolution(summary, subjects);
     setValidationError(errors);
-    if (hasError) return;
+    if (Validator.hasErrors(errors)) return;
 
     // -------------------------------------------------------
     // Confirm + Submit

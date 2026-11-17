@@ -208,7 +208,9 @@ class ComplaintController extends Controller
     {
         $id = decrypt_id($id) ?? abort(404);
         $fileName = basename($fileName);
-        $complaintNumber = Complaint::where('id', $id)->value('complaint_number');
+        $complaint = Complaint::find($id) ?? abort(404);
+        abort_unless($complaint->canView(auth()->user()), 403);
+        $complaintNumber = $complaint->complaint_number;
         $path = storage_path("app/private/complaints/complaint-{$complaintNumber}/evidences/$fileName");
 
         if (! file_exists($path)) {
@@ -226,7 +228,9 @@ class ComplaintController extends Controller
     {
         $id = decrypt_id($id) ?? abort(404);
         $fileName = basename($fileName);
-        $complaintNumber = Complaint::where('id', $id)->value('complaint_number');
+        $complaint = Complaint::find($id) ?? abort(404);
+        abort_unless($complaint->canView(auth()->user()), 403);
+        $complaintNumber = $complaint->complaint_number;
         $path = storage_path("app/private/complaints/complaint-{$complaintNumber}/previous_evidences/$fileName");
 
         if (! file_exists($path)) {
@@ -671,6 +675,7 @@ class ComplaintController extends Controller
         if (! $complaint) {
             abort(404, 'Complaint not found.');
         }
+        abort_unless($complaint->canView(auth()->user()), 403);
 
         // Student data privacy: the subjects' violations from a resolved
         // complaint are only ever sent to the prefect.

@@ -8,6 +8,7 @@ import SearchUserBar from "@/Components/input/search-user-bar"
 import SelectedUser from "@/Components/other/selected-user"
 import { getProfilePic, showOutputModal } from "@/others/function"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
+import { Validator } from "@/others/classes/validator"
 
 export const ARCHIVE_TYPES = [
     { val: 'all', label: 'All Documents' },
@@ -76,17 +77,9 @@ const DownloadArchiveModal = (props) => {
 
     const handleSubmit = (e) => {
         e.preventDefault()
-        if (individual && !person) {
-            setErr('Select a person, or untick Individual.')
-            return
-        }
-        const student = person?.role === 'student'
-        if (student && data.type === 'complaint' && data.sides.length === 0) {
-            setErr('Tick As Complainant, As Subject, or both.')
-            return
-        }
-        if (!data.school_year && !data.semester && !person) {
-            setErr('Choose a school year, a semester, or both.')
+        const archiveError = Validator.archiveDownload({ ...data, individual, person })
+        if (archiveError) {
+            setErr(archiveError)
             return
         }
         const payload = { type: data.type, school_year: data.school_year, semester: data.semester }

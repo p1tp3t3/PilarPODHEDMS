@@ -9,7 +9,7 @@ import PicVidUpload from "@/Components/input/pic-vid-upload";
 import BetweenTextfield from "@/Components/input/between-input";
 import { useState } from "react";
 import { AbsentFormService } from "@/others/services/absent-form-service";
-import { isBlank } from "@/others/validation";
+import { Validator } from "@/others/classes/validator";
 
 const RequestAbsentFormModal = (props) => {
   return (
@@ -81,7 +81,7 @@ const Body = ({ id, reload, issue = false, onIssued }) => {
           const f = new FormData();
           const reasons = [...data.absent_form_reason];
 
-          if (!isBlank(data.other_reason)) {
+          if (!Validator.isBlank(data.other_reason)) {
             reasons.push(data.other_reason);
           }
 
@@ -141,58 +141,14 @@ const Body = ({ id, reload, issue = false, onIssued }) => {
   // VALIDATION LOGIC
   // ================================
   const validateForm = () => {
-    let errors = {};
-
-    if (issue && !student) {
-      errors.student = "Please select a student.";
-    }
-
-    // --- DATE VALIDATION ---
-    if (!data.date_from) {
-      errors.date_from = "Date From is required.";
-    }
-
-    if (!data.date_to) {
-      errors.date_to = "Date To is required.";
-    }
-
-    // Check date order
-    if (data.date_from && data.date_to) {
-      const from = new Date(data.date_from);
-      const to = new Date(data.date_to);
-
-      if (to < from) {
-        errors.date_to = "Date To must be later than or equal to Date From.";
-      }
-    }
-
-    // --- REASON VALIDATION ---
-    if (
-      data.absent_form_reason.length === 0 &&
-      isBlank(data.other_reason)
-    ) {
-      errors.absent_form_reason = "Please select or type a reason.";
-    }
-
-    // --- EVIDENCE VALIDATION (required + type + size) ---
-    if (req_picture_list.length === 0) {
-      errors.pic_evidence = "Please upload at least one picture.";
-    } else {
-      const maxSizeMB = 2;
-      const invalidFile = req_picture_list.find((file) => {
-        const isImage = file.type.startsWith("image/");
-        const sizeInMB = file.size / (1024 * 1024);
-        return !isImage || sizeInMB > maxSizeMB;
-      });
-
-      if (invalidFile) {
-        errors.pic_evidence = `Each file must be an image and not exceed ${maxSizeMB}MB.`;
-      }
-    }
-
+    const errors = Validator.absentForm({
+      ...data,
+      reasons: data.absent_form_reason,
+      pictures: req_picture_list,
+      needsStudent: issue && !student,
+    });
     setValidationError(errors);
-
-    return Object.keys(errors).length === 0;
+    return !Validator.hasErrors(errors);
   };
 
   const reasons = [

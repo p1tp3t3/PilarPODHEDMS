@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasDerivedSchoolYearSemester;
+use App\Models\Concerns\HasRecordAccess;
 use App\Models\Concerns\HasDocumentPdf;
 use Database\Factories\ComplaintFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 class Complaint extends Model
 {
     /** @use HasFactory<ComplaintFactory> */
-    use HasFactory, HasDerivedSchoolYearSemester, HasDocumentPdf;
+    use HasFactory, HasDerivedSchoolYearSemester, HasDocumentPdf, HasRecordAccess;
 
     // Cleaned on read too, for complaints saved before it was cleaned on save.
     protected function complaintDescription(): \Illuminate\Database\Eloquent\Casts\Attribute
@@ -146,5 +147,22 @@ class Complaint extends Model
     public function revisions(): HasMany
     {
         return $this->hasMany(ComplaintRevision::class, 'complaint_id', 'id')->latest('created_at');
+    }
+
+    // HasRecordAccess: the complainant, the prefect who filed it, and the
+    // reported people; parents/program heads of the students involved.
+    protected function involvedUserIds(): array
+    {
+        return [$this->complainant_id, $this->prefect_id, ...$this->subjectIds()];
+    }
+
+    protected function involvedStudentIds(): array
+    {
+        return [...$this->subjectIds(), $this->complainant_id];
+    }
+
+    private function subjectIds(): array
+    {
+        return $this->complaintSubject()->pluck('student_id')->all();
     }
 }

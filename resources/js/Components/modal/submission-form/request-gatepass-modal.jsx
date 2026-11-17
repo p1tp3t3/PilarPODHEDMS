@@ -7,7 +7,7 @@ import { showOutputModal, showWarningModal } from "../../../others/function"
 import { GatePassService } from "@/others/services/gatepass-service"
 import { useState } from "react"
 import RadioButton from "@/Components/input/radio"
-import { validateForm, required, minLength } from "@/others/validation"
+import { Validator } from "@/others/classes/validator"
 
 const RequestGatePassModal = (props) => {
 
@@ -29,7 +29,7 @@ const RequestGatePassModal = (props) => {
     }
     const handleSubmit = e => {
         e.preventDefault()
-        const reasonError = validateForm({ reason: data.other_reason }, { reason: [required("Reason"), minLength(5, "Reason")] }).reason
+        const reasonError = Validator.reason(data.other_reason)
         if (!reasonError) {
             setErr('')
             showWarningModal(

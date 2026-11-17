@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasDerivedSchoolYearSemester;
+use App\Models\Concerns\HasRecordAccess;
 use App\Models\Concerns\HasDocumentPdf;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -15,7 +16,7 @@ use Illuminate\Support\Facades\File;
 
 class Referral extends Model
 {
-    use HasFactory, HasDerivedSchoolYearSemester, HasDocumentPdf;
+    use HasFactory, HasDerivedSchoolYearSemester, HasDocumentPdf, HasRecordAccess;
 
     protected function documentFolder(): string
     {
@@ -159,5 +160,22 @@ class Referral extends Model
             // Watermark on a form that isn't final (pdf.partials.status-watermark).
             'status' => $this->revoked_at ? 'revoked' : $this->referral_status,
         ])->setPaper('a4');
+    }
+
+    // HasRecordAccess: the referrer and the prefect who filed it, Guidance,
+    // and the referred students' parents and program heads.
+    protected function involvedUserIds(): array
+    {
+        return [$this->referrer_id, $this->prefect_id];
+    }
+
+    protected function involvedStudentIds(): array
+    {
+        return $this->referralReferredStudent()->pluck('student_id')->all();
+    }
+
+    protected function canViewExtra(User $user): bool
+    {
+        return $this->canViewPdf($user);
     }
 }

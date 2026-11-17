@@ -8,7 +8,7 @@ const LabelList = (props) => {
     const items = (props.list ?? []).map((item) => ({ id: item.id, label: item[props.label] }))
 
     return (
-        <Paper elevation={6} sx={{ position: "absolute", width: "100%", zIndex: 10, mt: 0.5, borderRadius: 2, p: 0.5, maxHeight: "20rem", overflowY: "auto" }}>
+        <Paper elevation={6} sx={{ width: "100%", borderRadius: 2, p: 0.5, maxHeight: "min(20rem, 45vh)", overflowY: "auto" }}>
             {props.list == null ? (
                 <ListSkeleton rows={3} avatar={false} />
             ) : items.length === 0 ? (

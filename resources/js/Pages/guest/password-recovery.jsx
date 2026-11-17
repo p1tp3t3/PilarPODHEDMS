@@ -8,6 +8,7 @@ import { Head, Link } from "@inertiajs/react"
 import { motion } from "framer-motion"
 import { User, Lock } from "lucide-react"
 import shield from "@/images/shield.png"
+import { Validator } from "@/others/classes/validator"
 
 const OTP_LENGTH = 6
 const RESEND_SECONDS = 60
@@ -28,8 +29,9 @@ const PasswordRecovery = () => {
         e?.preventDefault()
         const trimmed = username.trim()
 
-        if (!trimmed) {
-            setUsernameError("Username / User I.D is required")
+        const usernameError = Validator.recoveryUsername(trimmed)
+        if (usernameError) {
+            setUsernameError(usernameError)
             return
         }
         if (submitting) return
@@ -271,36 +273,10 @@ const ResetStep = ({ username }) => {
     const handleSubmit = (e) => {
         e.preventDefault()
 
-        if (data.new_password === "" && data.password_confirmation === "") {
-            setErrorNewPassword("New Password is required")
-            setErrorPassword("Password Confirmation is required")
-            return
-        }
-        if (data.new_password === "") {
-            setErrorNewPassword("New Password is required")
-            setErrorPassword("")
-            return
-        }
-        if (data.password_confirmation === "") {
-            setErrorPassword("Password Confirmation is required")
-            setErrorNewPassword("")
-            return
-        }
-        if (data.new_password.length < 8) {
-            setErrorNewPassword("Password must be at least 8 characters.")
-            setErrorPassword("")
-            return
-        }
-        if (data.new_password !== data.password_confirmation) {
-            setErrorPassword("Passwords do not match. Please try again.")
-            setErrorNewPassword("")
-            return
-        }
-        if (commonPasswordList && commonPasswordList.has(data.new_password.toLowerCase())) {
-            setErrorNewPassword("This password is too common. Please choose a stronger one.")
-            setErrorPassword("")
-            return
-        }
+        const errors = Validator.passwordReset(data, commonPasswordList)
+        setErrorNewPassword(errors.new_password)
+        setErrorPassword(errors.password_confirmation)
+        if (Validator.hasErrors(errors)) return
 
         showWarningModal(
             "Are you sure you want to reset your password?",

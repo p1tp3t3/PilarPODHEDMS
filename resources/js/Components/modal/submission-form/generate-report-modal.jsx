@@ -11,7 +11,7 @@ import CheckBoxButton from "@/Components/input/checkbox"
 import SearchUserBar from "@/Components/input/search-user-bar"
 import SelectedUser from "@/Components/other/selected-user"
 import RadioButton from "@/Components/input/radio"
-import { validateForm, hasErrors, requiredIf, maxLength } from "@/others/validation"
+import { Validator } from "@/others/classes/validator"
 
 const DEFAULT_DATA = {
     type: 'incident',
@@ -77,22 +77,9 @@ const GenerateReportModal = (props) => {
     const handleSubmit = (e) => {
         e.preventDefault()
 
-        const found = validateForm(data, {
-            // The Analytical Report has no program choice (all, or one student).
-            program: [requiredIf((d) => !d.individual && d.type !== 'analytics', "Program")],
-            school_year: [requiredIf(() => filterBy === 'school_year', "School year")],
-            report_name: [maxLength(100, "Filter name")],
-        })
-        if (data.individual && !searchedComplainant) found.student = "Select a student, or untick Individual Student Report."
-        if (filterBy === 'date') {
-            // Dates may both be left empty (all time), but not just one, and the
-            // range can't run backwards.
-            if (data.date_from && !data.date_to) { found.date_range = "Choose an end date too."; }
-            else if (!data.date_from && data.date_to) { found.date_range = "Choose a start date too."; }
-            else if (data.date_from && data.date_to && new Date(data.date_to) < new Date(data.date_from)) { found.date_range = "The end date can't be before the start date."; }
-        }
+        const found = Validator.reportGenerator(data, { filterBy, needsStudent: data.individual && !searchedComplainant })
         setErrs(found)
-        if (hasErrors(found)) return
+        if (Validator.hasErrors(found)) return
 
         setReload(true)
 

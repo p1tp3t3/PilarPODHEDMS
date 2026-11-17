@@ -434,12 +434,17 @@ class GatePassController extends Controller
         }, 'prefect.profile'])
             ->where('id', $id)
             ->get();
+        abort_if($data->isEmpty(), 404);
+        abort_unless($data->first()->canView(auth()->user()), 403);
 
         return GatePassResource::collection($data);
     }
 
     public function getAllApprovedGatePass()
     {
+        // Guards, the prefect and the System Admin (the verification page).
+        abort_unless(\App\Broadcasting\ChannelAuth::canVerifyGatePasses(auth()->user()), 403);
+
         return UserResource::collection(self::getAllGatePass()->get());
     }
 

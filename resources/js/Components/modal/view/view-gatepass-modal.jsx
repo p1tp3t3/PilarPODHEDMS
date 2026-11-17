@@ -6,6 +6,7 @@ import FormTextfield from "@/Components/input/form-input"
 import FormButton from "@/Components/button/button"
 import CheckBoxButton from "@/Components/input/checkbox"
 import { ModalHeader, Section, Stat, StatGrid, PersonList, ByPrefect, useOwnerTitle, useIsOwner, ViewModalSkeleton } from "./view-modal-parts"
+import { Validator } from "@/others/classes/validator"
 import {
     CalendarClock,
     CheckCircle2,
@@ -63,30 +64,9 @@ const ViewGatePassModal = (props) => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        let errors = {};
-
-        if (!data2.expiration_date || data2.expiration_date.trim() === "") {
-            errors.expiration_date = "Please select an expiration date.";
-            errors.expiration_dateAsterisk = true;
-        } else {
-            const selected = new Date(data2.expiration_date);
-
-            if (selected < disablePrevDate()) {
-                errors.expiration_date = "Expiration date cannot be in the past.";
-                errors.expiration_dateAsterisk = true;
-            }
-        }
-
-        if (!Array.isArray(data2.allow_to) || data2.allow_to.length === 0) {
-            errors.allow_to = "Please select at least one option.";
-            errors.allow_toAsterisk = true;
-        }
-
+        const errors = Validator.gatePassApproval(data2, disablePrevDate());
         setValidationErr(errors);
-
-        if (Object.keys(errors).length > 0) {
-            return;
-        }
+        if (Validator.hasErrors(errors)) return;
 
         props.events(props.id, "confirm-allow-to", data2);
     };

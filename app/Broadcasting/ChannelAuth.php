@@ -36,7 +36,16 @@ class ChannelAuth
     /** Gate pass guards (non-teaching staff in the Guard position) and admins. */
     public static function gatePassVerifiers(): Closure
     {
-        return fn (User $user) => self::active($user) && (
+        return fn (User $user) => self::active($user) && self::canVerifyGatePasses($user);
+    }
+
+    /**
+     * Whoever checks gate passes at the gate: the prefect, the System Admin
+     * and guards. Also used for the approved list and gate pass details.
+     */
+    public static function canVerifyGatePasses(?User $user): bool
+    {
+        return $user !== null && (
             in_array($user->role, ['sub_admin', 'super_admin'], true)
             || ($user->role === 'non_teaching_staff' && $user->nonTeachingStaff?->position === 'Guard')
         );

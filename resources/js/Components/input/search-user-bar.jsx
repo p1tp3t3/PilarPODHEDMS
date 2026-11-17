@@ -1,7 +1,8 @@
 import SearchBar from "../input/search-bar"
 import UserProfileList from "../list/search-user-list"
 import LabelList from "../list/label-list"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { Popper } from "@mui/material"
 import { UserService } from "@/others/services/user-service"
 
 const SearchUserBar = ({ 
@@ -28,6 +29,10 @@ const SearchUserBar = ({
     
     const [typingTimeout, setTypingTimeout] = useState(null)
     const [searchList, setSearchList] = useState((apiLink != '') ? null : list)
+    // The results float in their own layer on top of the page (a portal),
+    // anchored under the search bar, so a modal or a scrolling box can't clip
+    // them; they open above the bar when there's no room below.
+    const anchorRef = useRef(null)
 
     useEffect(() => {
         if (search === '') return;
@@ -52,18 +57,33 @@ const SearchUserBar = ({
 
     return (
         <>
-        <SearchBar
-            setSearch={setSearch}
-            name={name}
-            search={search}
-            isFocus={isSearchFocus}
-            plc={plc}
-            focus={focusSearch}
-            handleSearch={handleSearch}
-            w="w-full"
-        />
-        {search.length != 0 && (
-            <div className="mt-2 absolute w-full">
+        <div ref={anchorRef} className="w-full">
+            <SearchBar
+                setSearch={setSearch}
+                name={name}
+                search={search}
+                isFocus={isSearchFocus}
+                plc={plc}
+                focus={focusSearch}
+                handleSearch={handleSearch}
+                w="w-full"
+            />
+        </div>
+        <Popper
+            open={search.length != 0 && !!anchorRef.current}
+            anchorEl={anchorRef.current}
+            // Inside a modal: in the modal's outer layer (above its panel, not
+            // clipped by it, and hidden with it when it closes).
+            container={() => anchorRef.current?.closest(".MuiDialog-root") ?? document.body}
+            placement="bottom-start"
+            // Over modals (z 200), under the full-page loader.
+            sx={{ zIndex: 210, width: anchorRef.current?.offsetWidth }}
+            modifiers={[
+                { name: "offset", options: { offset: [0, 6] } },
+                { name: "flip", options: { fallbackPlacements: ["top-start"] } },
+                { name: "preventOverflow", options: { padding: 8 } },
+            ]}
+        >
                 {profile
                 ?
                 <UserProfileList
@@ -90,8 +110,7 @@ const SearchUserBar = ({
                     isProfile={false}
                     label={label}
                 />}
-            </div>
-        )}
+        </Popper>
         </>
     )
 }

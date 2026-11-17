@@ -47,8 +47,9 @@ const RegisterFamilyModal = (props) => {
     const handleJoinFamily = (e) => {
         e.preventDefault()
 
-        if (!selectedFamily?.id && !selectedFamily?.family_id) {
-            showOutputModal("Please select a family group to join.", "e")
+        const familyError = Validator.familyToJoin(selectedFamily)
+        if (familyError) {
+            showOutputModal(familyError, "e")
             return
         }
 

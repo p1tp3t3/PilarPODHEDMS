@@ -8,6 +8,7 @@ import FormButton from "@/Components/button/button"
 import UpModal from "@/Components/modal/up-modal"
 import { showOutputModal } from "@/others/function"
 import { useReload } from "@/context-provider/reload-provider"
+import { Validator } from "@/others/classes/validator"
 
 // The prefect's weekly availability (Mon–Sat), shown to every user on their
 // dashboard; the prefect edits it from the same dashboard modal.
@@ -232,18 +233,6 @@ const WeekTable = ({ slots, today }) => (
 // ---------------------------------------------------------------------------
 const MAX_PER_DAY = 6
 
-// Same rules as the server: end after start, no overlaps on a day.
-const validateDay = (ranges) => {
-    for (const r of ranges) {
-        if (!r.start_time || !r.end_time) return "Set both a start and an end time."
-        if (r.end_time <= r.start_time) return "The end time must be later than the start time."
-    }
-    const sorted = [...ranges].sort((a, b) => a.start_time.localeCompare(b.start_time))
-    for (let i = 1; i < sorted.length; i++) {
-        if (sorted[i].start_time < sorted[i - 1].end_time) return "Time ranges must not overlap."
-    }
-    return null
-}
 
 export const AvailabilityScheduleEditor = ({ userId, reload, embedded = false, onSaved, onCancel }) => {
     const [week, setWeek] = useState(null) // { 1: [{start_time, end_time}], ... }
@@ -280,7 +269,7 @@ export const AvailabilityScheduleEditor = ({ userId, reload, embedded = false, o
 
     const save = () => {
         const found = {}
-        DAYS.forEach((d) => { const msg = validateDay(week[d.n]); if (msg) found[d.n] = msg })
+        DAYS.forEach((d) => { const msg = Validator.availabilityDay(week[d.n]); if (msg) found[d.n] = msg })
         setErrors(found)
         if (Object.keys(found).length) return
 

@@ -24,7 +24,7 @@ class UpdateProgramRequest extends FormRequest
             // The code and full name (name) are fixed once
             // created; only the color and logo can be edited.
             'color' => 'required',
-            'logo' => 'nullable|image|max:2048',
+            'logo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ];
     }
 }

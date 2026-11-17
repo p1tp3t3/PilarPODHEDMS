@@ -4,6 +4,7 @@ import FormTextfield from "@/Components/input/form-input"
 import FormButton from "@/Components/button/button"
 import { SchoolYearService } from "@/others/services/school-year-service"
 import { readableDate } from "@/others/function"
+import { Validator } from "@/others/classes/validator"
 
 const dayShift = (date, days) => {
     const d = new Date(`${date}T00:00:00`)
@@ -28,12 +29,9 @@ const SetSemesterDatesModal = ({ close, closeModal, semester, siblingSemester, r
     const handleSubmit = (e) => {
         e.preventDefault()
 
-        if (!dateStart || !dateEnd) {
-            setError("Both dates are required.")
-            return
-        }
-        if (dateEnd < dateStart) {
-            setError("End date must be after the start date.")
+        const datesError = Validator.semesterDates(dateStart, dateEnd)
+        if (datesError) {
+            setError(datesError)
             return
         }
         // Neighbouring semesters move with these dates (checked server-side).

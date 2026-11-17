@@ -1,11 +1,9 @@
 import axios from "axios";
-import CryptoJS from "crypto-js";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import { startBusy, endBusy } from "./form-busy";
 
 const MySwal = withReactContent(Swal)
-const cryptoKey = 'gh4mdvcf'
 
 // Notification `content` is normally real JSON (json_encode on the backend),
 // but some legacy rows were written with single-quoted pseudo-JSON that a
@@ -629,15 +627,6 @@ export const includeObjAtt = (arr, att) => {
 }
 export const replaceUnderScoreToSpace = (str) => {
     return str.replace(/_/g, ' ')
-}
-
-
-export const encryptData = (str) => {
-    return CryptoJS.AES.encrypt(str, cryptoKey).toString()
-}
-export const decryptData = (en) => {
-    const bytes = Crypto.AES.decrypt(en, cryptoKey)
-    return bytes.toString(CryptoJS.enc.Utf8)
 }
 
 // A student's program name and year level label ("3rd Year"). Uses whatever

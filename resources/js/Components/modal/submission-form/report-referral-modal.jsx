@@ -8,7 +8,7 @@ import { useState, useEffect } from "react"
 import { getProfilePic, showWarningModal, showOutputModal, toTitleCase, isSamePerson, showUserType } from "@/others/function"
 import { ReferralService } from "@/others/services/referral-service"
 import { X } from "lucide-react"
-import { validateForm, hasErrors, required, minLength } from "@/others/validation"
+import { Validator } from "@/others/classes/validator"
 
 const ReportReferralModal = (props) => {
     const [search, setSearch] = useState("")
@@ -44,10 +44,11 @@ const ReportReferralModal = (props) => {
     const handleSubmit = (e) => {
         e.preventDefault()
 
-        const found = validateForm({ reason }, { reason: [required("Reason"), minLength(5, "Reason")] })
-        setError(selectedStudents.length === 0 ? "Please select at least one student to refer." : "")
-        setReasonError(found.reason ?? "")
-        if (selectedStudents.length === 0 || hasErrors(found)) return
+        const studentsError = Validator.referralStudents(selectedStudents)
+        const reasonError = Validator.reason(reason)
+        setError(studentsError)
+        setReasonError(reasonError)
+        if (studentsError || reasonError) return
 
         const f = new FormData()
         f.append("referrer_id", props.user.id)

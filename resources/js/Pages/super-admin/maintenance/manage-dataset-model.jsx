@@ -7,6 +7,7 @@ import ModelEvaluationCharts from "@/Components/card/model-evaluation-charts"
 import { useReload } from "@/context-provider/reload-provider"
 import { readableDate, readableTime, showOutputModal, showWarningModal } from "@/others/function"
 import { BrainCircuit, FileSearch, RefreshCw, Download, Upload, Play, AlertTriangle } from "lucide-react"
+import { Validator } from "@/others/classes/validator"
 
 // Model Training page body: the two models on the Python ML service.
 // Early Intervention Violation Predictor — logistic regression, retrained
@@ -111,7 +112,7 @@ const ManageDatasetModel = () => {
         const file = e.target.files?.[0]
         e.target.value = ""
         if (!file) return
-        if (!file.name.toLowerCase().endsWith(".csv")) {
+        if (!Validator.isCsv(file)) {
             showOutputModal("Please choose a CSV file.", "e")
             return
         }

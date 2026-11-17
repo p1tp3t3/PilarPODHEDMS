@@ -11,7 +11,7 @@ import { AppointmentService } from "@/others/services/appointment-service"
 import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
 import { X } from "lucide-react"
-import { validateForm, hasErrors, required, minLength, dateNotBefore } from "@/others/validation"
+import { Validator } from "@/others/classes/validator"
 
 
 const AppointmentModal = (props) => {
@@ -95,20 +95,14 @@ const AppointmentModal = (props) => {
         e.preventDefault()
         // Everything is checked at once and shown under its own field.
         const needsTime = !isCancel && props.user_type == 'sub_admin'
-        const found = validateForm(appoint, {
-            date_appoint: isCancel ? [] : [
-                required("Date"),
-                dateNotBefore(todayStr, "You can't schedule an appointment for a past date."),
-            ],
-            time_start: needsTime ? [
-                required("Time"),
-                (v) => (v && (v < "07:00" || v > "16:30") ? "Appointments can only be between 7:00 AM and 4:30 PM." : null),
-            ] : [],
-            reason: [required("Reason"), minLength(5, "Reason")],
+        const found = Validator.appointment(appoint, {
+            isCancel,
+            needsTime,
+            needsPerson: !isCancel && !isResched && !locked && !searchedStudentParent,
+            today: todayStr,
         })
-        if (!isCancel && !isResched && !locked && !searchedStudentParent) found.person = "Select a student or parent."
         setErrs(found)
-        if (hasErrors(found)) return
+        if (Validator.hasErrors(found)) return
         let label = (isResched) ? 'Are You Sure You Want To Re-Schedule ' + searchedStudentParent[0].profile?.first_name + "'s Appointment?"
                                 : 'Are You Sure You Want To Schedule An Appointment For ' + searchedStudentParent[0].profile?.first_name + "?",
             btn = (isResched) ? 'Re-Sched Appointment' : 'Schedule Appointment',

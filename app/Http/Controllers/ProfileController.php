@@ -303,6 +303,12 @@ class ProfileController extends Controller
      */
     public function applyProfileFields(User $targetUser, Request $request): void
     {
+        // Pictures are served from the public disk: images only, so no
+        // script can be uploaded and run from /storage.
+        $request->validate([
+            'profile_picture' => 'nullable|file|image|mimes:jpg,jpeg,png,webp,gif|max:5120',
+        ]);
+
         // getUserFields() returns profiles-table columns — write them to the
         // Profile model, not User (User has no religion/address/etc. columns,
         // so this used to silently drop every one of these fields).
@@ -312,7 +318,9 @@ class ProfileController extends Controller
 
         // If new picture uploaded → new filename
         if ($request->hasFile('profile_picture')) {
-            $newFileName = time().'_'.$request->file('profile_picture')->getClientOriginalName();
+            // A random name and an extension taken from the file's content,
+            // never the uploaded name.
+            $newFileName = time().'_'.Str::random(32).'.'.$request->file('profile_picture')->extension();
             $account['profile_picture'] = $newFileName;
         } else {
             // No new upload → keep old filename
@@ -338,7 +346,7 @@ class ProfileController extends Controller
 
         // Student specific update
         if ($targetUser->role == 'student') {
-            self::updateEducationBackground($request);
+            self::updateEducationBackground($request, $targetUser);
         }
     }
 
@@ -522,9 +530,12 @@ class ProfileController extends Controller
         imagedestroy($resizedImage);
     }
 
-    public function updateEducationBackground(Request $request)
+    public function updateEducationBackground(Request $request, User $targetUser)
     {
-        $educationBackground = $request->data;
+        // Always the student whose profile is being edited, never a
+        // student_id sent by the browser.
+        $educationBackground = (array) $request->data;
+        $educationBackground['student_id'] = $targetUser->id;
         $programId = self::isKeyUndefined($educationBackground, 'college_program');
         $program = Program::where('id', $programId)->value('name');
 

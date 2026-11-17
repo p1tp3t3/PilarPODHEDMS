@@ -5,6 +5,7 @@ import FormButton from "@/Components/button/button"
 import { SystemService } from "@/others/services/system-service"
 import { disablePrevDate, showWarningModal , showLoadingModal, closeLoadingModal } from "@/others/function"
 import { useState } from "react"
+import { Validator } from "@/others/classes/validator"
 
 // Combines what used to be two separate cards (pick a start date, write a
 // notice) into one form — scheduling a maintenance window and telling
@@ -18,13 +19,9 @@ const ScheduleMaintenanceModal = ({ close, closeModal, onScheduled }) => {
     const handleSubmit = (e) => {
         e.preventDefault()
 
-        const errs = {}
-        if (!startsAt) errs.starts_at = "Please pick a date and time."
-        else if (new Date(startsAt) <= new Date()) errs.starts_at = "Pick a time in the future."
-        const plainMessage = message.replace(/<[^>]*>/g, "").trim()
-        if (!plainMessage) errs.message = "A message is required."
+        const errs = Validator.scheduleMaintenance(startsAt, message)
         setErrors(errs)
-        if (Object.keys(errs).length > 0) return
+        if (Validator.hasErrors(errs)) return
 
         showWarningModal(
             "Are You Sure You Want To Schedule Maintenance And Notify All Users?",

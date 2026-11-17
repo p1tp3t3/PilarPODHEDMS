@@ -330,6 +330,16 @@ class AccountController extends Controller
         // The table: loaded by the page from its API endpoint (list_page()).
         $students = list_prop(fn () => ['data' => self::getStudent()]);
 
+        // The Program filter: every program for the System Admin, the programs
+        // a program head leads; none for faculty (they only see their own).
+        $teaching = auth()->user()->isTeacher() ? auth()->user()->teaching : null;
+        $filterPrograms = match (true) {
+            auth()->user()->role === 'super_admin' => Program::orderBy('code')->get(['id', 'code']),
+            (bool) $teaching?->isProgramHead() => $teaching->programs_handled->sortBy('code'),
+            default => collect(),
+        };
+        $programFilter = $filterPrograms->map(fn ($p) => ['id' => $p->id, 'code' => $p->code])->values();
+
         $props = $programHead
                  ? array_merge([
                      'students' => $students,
@@ -339,12 +349,14 @@ class AccountController extends Controller
                      'file_name_faculty' => "faculty-account-{$programHead->program_id}-{$programHead->program->code}.csv",
                      'school_years' => $schoolYears,
                      'school_years_full' => $schoolYearsFull,
+                     'program_filter' => $programFilter,
                  ])
                  : [
                      'students' => $students,
                      'program' => ProgramResource::collection(Program::all(['id', 'code', 'name', 'color_code'])),
                      'school_years' => $schoolYears,
                      'school_years_full' => $schoolYearsFull,
+                     'program_filter' => $programFilter,
                  ];
 
         return list_page("$isPrefect/students", $props);

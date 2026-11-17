@@ -13,7 +13,7 @@ import { clearField, showOutputModal, getProfilePic, showWarningModal, toTitleCa
 import PicVidUpload from "@/Components/input/pic-vid-upload"
 import ProfilePic from "@/Components/other/profile-pic"
 import { X } from "lucide-react"
-import { isBlank } from "@/others/validation"
+import { Validator } from "@/others/classes/validator"
 
 const IssueComplaintModal = (props) => {
     const [search, setSearch] = useState(""),
@@ -179,59 +179,16 @@ const IssueComplaintModal = (props) => {
         setSearchedStudent2(newList)
     }
     const validateForm = () => {
-        let errorMessage = null
         const field = props.val
-        
-        if((searchedComplainant == null && !direct && props.user.role == 'sub_admin') && (props.val.complainant_name == '' && !direct && props.user.role == 'sub_admin')) {
-            errorMessage = {
-                ...errorMessage,
-                complainant: "This is Required. Please Specify the Complainant"
-            }
-        }else {
-            errorMessage = {
-                ...errorMessage,
-                complainant: ""
-            }
-        }
-        if(searchedStudent2.length == 0) {
-            errorMessage = {
-                ...errorMessage,
-                subject: "This Is Required. Please Specify The Subject Of Complaint"
-            }
-        }else if(field.subject == field.complainant) {
-            errorMessage = {
-                ...errorMessage,
-                subject: "Complainant Cannot Be The Subject"
-            }
-        }else {
-            errorMessage = {
-                ...errorMessage,
-                subject: ""
-            }
-        }
-        // The incident is optional — a complaint goes through as long as it has a reason.
-        errorMessage = { ...errorMessage, incident: "" }
-        if(isBlank(field.complaint_description)) {
-            errorMessage = {
-                ...errorMessage,
-                reason: "This Is Required. Please State Your Reason To Complaint"
-            }
-        }else {
-            errorMessage = {
-                ...errorMessage,
-                reason: ""
-            }
-        }
-        const allEmptyStrings = Object.values(errorMessage).every(value => value == '')
-
-        if(!allEmptyStrings) {
-            setValidationError((prev) => ({
-                ...prev,
-                ...errorMessage
-            }))
-            return false
-        }
-        return true
+        const errors = Validator.complaint({
+            needsComplainant: searchedComplainant == null && field.complainant_name == '' && !direct && props.user.role == 'sub_admin',
+            subjectCount: searchedStudent2.length,
+            sameAsComplainant: field.subject == field.complainant,
+            description: field.complaint_description,
+        })
+        if (!Validator.hasErrors(errors)) return true
+        setValidationError((prev) => ({ ...prev, ...errors }))
+        return false
     }
 
     return (
