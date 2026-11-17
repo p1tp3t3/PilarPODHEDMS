@@ -1754,6 +1754,21 @@ class AccountController extends Controller
 
     public function searchAllUsers(Request $request, string $type)
     {
+        // Each search is only for the roles whose pages use it, so nobody can
+        // list people they have no reason to look up.
+        $allowed = [
+            'student' => null, // any role: filing a complaint or referral
+            'program_student' => ['program_head', 'faculty'],
+            'all-2' => ['super_admin', 'sub_admin', 'student', 'program_head', 'faculty', 'non_teaching_staff'], // chat
+            'faculty' => ['super_admin', 'sub_admin', 'program_head', 'faculty'],
+            'non-teaching-staff' => ['super_admin', 'sub_admin'],
+            'family' => ['super_admin'],
+            'family-student' => ['super_admin'],
+            'archive-student' => ['sub_admin'],
+        ];
+        abort_unless(array_key_exists($type, $allowed), 404);
+        abort_unless($allowed[$type] === null || in_array(auth()->user()->role, $allowed[$type], true), 403);
+
         $search = trim($request->query('search', ''));
 
         // Join Family (parent approval): families by family code. The System
@@ -1810,24 +1825,6 @@ class AccountController extends Controller
                     $programIds = \App\Models\User::teachingProgramIdsFor(auth()->id());
                     $query->whereHas('latestEnrollment', fn ($q) => $q->whereIn('program_id', $programIds));
                 }
-                break;
-            case 'student_parent':
-                // Used to pick an appointment recipient — parents aren't
-                // subject to enrollment, but a student result must still be
-                // a currently enrolled, activated account.
-                $query->where(function ($q) {
-                    $q->where(function ($q2) {
-                        $q2->whereRole('student')
-                            ->where('activate', true)
-                            ->whereHas('enrollment');
-                    })->orWhereRole('parent');
-                });
-                break;
-            case 'resolved_student_complaint':
-                $studentIds = ComplaintSubject::whereHas('complaint', function ($q) {
-                    $q->where('complaint_status', 'resolved');
-                })->pluck('student_id');
-                $query->whereRole('student')->whereIn('id', $studentIds);
                 break;
             case 'all-2':
                 break;
