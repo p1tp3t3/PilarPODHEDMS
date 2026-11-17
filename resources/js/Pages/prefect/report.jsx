@@ -264,7 +264,7 @@ const PrefectReport = (props) => {
                                     onClick={clearFilter}
                                     title="Clear filter"
                                     aria-label="Clear filter"
-                                    sx={{ p: 0.25, color: "inherit", "&:hover": { bgcolor: "#dbeafe" } }}
+                                    sx={{ p: 0.25, color: "inherit", "&:hover": { bgcolor: "var(--tone-blue-bg)" } }}
                                 >
                                     <X size={13} />
                                 </IconButton>
@@ -277,8 +277,8 @@ const PrefectReport = (props) => {
                                 sx={{
                                     textTransform: "none", fontSize: "0.9em", borderRadius: "0.375rem", px: 2,
                                     ...(hasFilter
-                                        ? { bgcolor: "#2563eb", "&:hover": { bgcolor: "#1d4ed8" } }
-                                        : { bgcolor: "#fff", color: "#374151", borderColor: "#d1d5db", "&:hover": { bgcolor: "#f9fafb", borderColor: "#9ca3af" } }),
+                                        ? { bgcolor: "#2563eb", "&:hover": { bgcolor: "var(--tone-blue-fg)" } }
+                                        : { bgcolor: "background.paper", color: "var(--tone-gray-fg)", borderColor: "#d1d5db", "&:hover": { bgcolor: "var(--tone-gray-bg)", borderColor: "#9ca3af" } }),
                                 }}
                             >
                                 Filter

@@ -19,8 +19,9 @@ import { statusLabel } from "@/Components/other/mobile-card-list";
 
 const statusFor = (e) => {
   if (e.revoked_at) return "revoked";
-  if (e.rejected_at) return "rejected";
+  // Approved after a rejection counts as approved.
   if (e.confirmed_at) return "approved";
+  if (e.rejected_at) return "rejected";
   return "pending";
 };
 
@@ -68,7 +69,8 @@ const compactColumns = (events) => [
   },
 ];
 
-const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
+// `viewOnly`: only the View button (e.g. the tables on a profile).
+const AbsentFormRequestList = ({ list = null, events, noted = false, viewOnly = false }) => {
   const { usr } = useContext(AuthContext);
   const urlStatus = new URLSearchParams(window.location.search).get("status");
 
@@ -130,9 +132,6 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
               <div className="flex flex-col text-[0.8em] justify-center leading-tight">
                 <b>{`${user.profile?.first_name ?? ""} ${user.profile?.middle_name ?? ""} ${user.profile?.last_name ?? ""}`}</b>
                 <span>{showUserType(user)}</span>
-                {params.row.rejected_reason && (
-                  <span className="text-gray-500">Reason: {params.row.rejected_reason}</span>
-                )}
               </div>
             </div>
           );
@@ -229,6 +228,7 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
               View
             </ActionBtn>
 
+            {!viewOnly && <>
             {row.status === "pending" && usr.role === "sub_admin" && (
               <>
                 <ActionBtn
@@ -246,13 +246,24 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
               </>
             )}
 
+            {/* A rejected one can still be approved (e.g. new evidence). */}
+            {row.status === "rejected" && usr.role === "sub_admin" && (
+              <ActionBtn
+                className="bg-green-600 text-white hover:bg-green-700"
+                onClick={() => events(row.id, "confirm")}
+              >
+                Approve
+              </ActionBtn>
+            )}
+            </>}
+
           </div>
         );
       },
     });
 
     return cols;
-  }, [events, noted, usr, urlStatus, compact]);
+  }, [events, noted, usr, urlStatus, compact, viewOnly]);
 
   // Phones show cards that grow with the page instead of scrolling inside
   // a fixed-height box.

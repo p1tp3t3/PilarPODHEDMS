@@ -1,33 +1,24 @@
 import UpModal from "../up-modal"
 import { useState, useEffect } from "react"
-import { readableDate, readableTime, formatSchoolYearSemester } from "../../../others/function"
+import { Box, Stack } from "@mui/material"
+import { readableDate, readableTime } from "../../../others/function"
 import { AbsentFormService } from "@/others/services/absent-form-service"
-import { ModalHeader, Section, Stat, StatGrid, PersonList, safeParseArray, ByPrefect, useOwnerTitle, useIsOwner, ViewModalSkeleton } from "./view-modal-parts"
 import {
-    CalendarClock,
-    CheckCircle2,
-    XCircle,
-    Ban,
+    ModalHeader, Section, Timeline, stepAt, stepAhead, safeParseArray, People, prefectName, useOwnerTitle, useIsOwner, ViewModalSkeleton,
+    Pill, TextBox, Field, Labeled, Text, EditedOn, RecordBody, EvidenceGrid,
+} from "./view-modal-parts"
+import {
     Undo2,
-    UserCircle2,
-    CalendarRange,
     MessageSquareText,
     ImageIcon,
-    FileWarning,
     History,
 } from "lucide-react"
 
-const STATUS_STYLES = {
-    pending: 'bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-200',
-    approved: 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-200',
-    rejected: 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-200',
-    revoked: 'bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-300',
-}
-
 const statusFor = (data) => {
     if (data.revoked_at) return 'revoked'
-    if (data.rejected_at) return 'rejected'
+    // Approved after a rejection counts as approved.
     if (data.confirmed_at) return 'approved'
+    if (data.rejected_at) return 'rejected'
     return 'pending'
 }
 
@@ -57,16 +48,32 @@ const ViewAbsentFormModal = (props) => {
             pd={['p-0', '']}
             bgColor='bg-white'
             w='w-[42rem] max-w-[90vw]'>
-            <div className="w-full">
+            <Box sx={{ width: "100%" }}>
                 {(data != null)
                 ?
                 <Body data={data} />
                 :
                 reload &&
                 <ViewModalSkeleton variant="record" />}
-            </div>
+            </Box>
         </UpModal>
     )
+}
+
+const when = (at) => `${readableDate(at)} (${readableTime(at)})`
+// Absent-form evidence is images only.
+const asImages = (list) => list.map((e) => ({ ...e, type: 'img' }))
+
+// Every step an absent form goes through: Submitted -> Approved.
+// A rejected one still shows "Approved" after it: the prefect can approve it
+// later (e.g. once more evidence comes in). A revoke stops it.
+const stepsFor = (d) => {
+    const steps = [stepAt("Submitted", d.created_at, d.school_year_semester)]
+    if (d.rejected_at) steps.push(stepAt("Rejected", d.rejected_at, d.rejected_school_year_semester, "failed", d.rejected_reason))
+    if (d.confirmed_at) steps.push(stepAt("Approved", d.confirmed_at, d.confirmed_school_year_semester))
+    else if (!d.revoked_at) steps.push(stepAhead("Approved", d.rejected_at ? "If the prefect reconsiders" : "Waiting for the prefect's review"))
+    if (d.revoked_at) steps.push(stepAt("Revoked", d.revoked_at, d.revoked_school_year_semester, "stopped"))
+    return steps
 }
 
 const Body = ({ data }) => {
@@ -76,89 +83,52 @@ const Body = ({ data }) => {
     const ownerId = data.user?.id ?? data.student_id
     const title = useOwnerTitle(ownerId, data.user?.profile?.first_name, "Absent Form")
     const isOwner = useIsOwner(ownerId)
-    const showOwner = !isOwner || !!data.prefect
 
     return (
-        <div>
+        <Box>
             <ModalHeader
                 title={title}
                 reference={data.form_number}
+                person={!isOwner ? data.user : null}
+                personLabel="Submitted by"
                 pdfUrl={data.pdf_url}
                 status={status}
-                styles={STATUS_STYLES}
             />
 
-            <div className="p-6 space-y-4">
-                {/* Timeline stats */}
-                <StatGrid>
-                    <Stat icon={CalendarClock} label="Reported Since" value={`${readableDate(data.created_at)} (${readableTime(data.created_at)})`} sub={formatSchoolYearSemester(data.school_year_semester)} />
-                    {data.confirmed_at && !data.rejected_at &&
-                    <Stat icon={CheckCircle2} label="Approved Since" value={`${readableDate(data.confirmed_at)} (${readableTime(data.confirmed_at)})`} sub={formatSchoolYearSemester(data.confirmed_school_year_semester)} />}
-                    {data.rejected_at &&
-                    <Stat icon={XCircle} label="Rejected Since" value={`${readableDate(data.rejected_at)} (${readableTime(data.rejected_at)})`} sub={formatSchoolYearSemester(data.rejected_school_year_semester)} />}
-                    {data.revoked_at &&
-                    <Stat icon={Undo2} label="Revoked Since" value={`${readableDate(data.revoked_at)} (${readableTime(data.revoked_at)})`} sub={formatSchoolYearSemester(data.revoked_school_year_semester)} />}
-                </StatGrid>
+            <RecordBody>
+                {/* Progress: done steps and the ones still ahead */}
+                <Timeline steps={stepsFor(data)} />
 
-                {data.rejected_reason != null &&
-                <Section icon={FileWarning} title="Reason for Rejection" tone="border-red-200">
-                    <div className="text-sm h-28 overflow-y-auto rounded-md bg-red-50/60 p-3 text-red-800">
-                        {data.rejected_reason}
-                    </div>
-                </Section>}
 
                 {status === 'revoked' &&
-                <Section icon={Undo2} title={isOwner ? "Revoked by You" : "Revoked by Student"} tone="border-gray-200">
-                    <p className="text-sm text-gray-600">
+                <Section icon={Undo2} title={isOwner ? "Revoked by You" : "Revoked by Student"}>
+                    <Text>
                         The student withdrew this absent form. It is kept on record and remains visible here, but is no longer active.
-                    </p>
+                    </Text>
                 </Section>}
 
-                <div className={`grid gap-4 ${showOwner ? 'sm:grid-cols-2' : ''}`}>
-                    {showOwner && <Section icon={UserCircle2} title={isOwner ? "Issued For You" : "Student"}>
-                        {!isOwner && <PersonList data={data.user} emptyLabel="No student on record." />}
-                        <ByPrefect prefect={data.prefect} label="Issued by the Prefect" />
-                    </Section>}
-                    <Section icon={CalendarRange} title="Date of Absence">
-                        <p className="text-sm text-gray-700">
-                            {readableDate(data.date_from)} to {readableDate(data.date_to)}
-                        </p>
-                    </Section>
-                </div>
+                <People rows={[
+                    { label: "Date of Absence", content: <Text>{readableDate(data.date_from)} to {readableDate(data.date_to)}</Text> },
+                    data.prefect && { label: "Issued by the Prefect", content: <Text>{prefectName(data.prefect)}</Text> },
+                ]} />
 
                 <Section icon={MessageSquareText} title="Reason for Absence">
                     {reasons.length !== 0
-                    ? <div className="flex flex-wrap gap-2">
-                        {reasons.map((r, i) => (
-                            <span key={i} className="inline-flex items-center text-xs font-medium px-3 py-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
-                                {r}
-                            </span>
-                        ))}
-                      </div>
-                    : <p className="text-sm text-gray-500">No reason provided.</p>}
+                    ? <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
+                        {reasons.map((r, i) => <Pill key={i} label={r} sx={{ height: 26, fontWeight: 500 }} />)}
+                      </Stack>
+                    : <Text sx={{ color: "text.secondary" }}>No reason provided.</Text>}
                 </Section>
 
                 <Section icon={ImageIcon} title={`Evidence${evidences.length ? ` (${evidences.length})` : ''}`}>
                     {evidences.length !== 0
-                    ? <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {evidences.map((e, i) => {
-                            const src = `/absent-form/${data.encrypted_id}/evidence/${e.file}`
-                            return (
-                                <a key={i} href={src} target="_blank" rel="noreferrer"
-                                   className="group block rounded-lg overflow-hidden border border-gray-200 hover:border-gray-300 hover:shadow-sm transition">
-                                    <img src={src} className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-200" alt={`Evidence ${i + 1}`} />
-                                </a>
-                            )
-                        })}
-                      </div>
-                    : <p className="text-sm text-gray-500">No evidence included.</p>}
+                    ? <EvidenceGrid files={asImages(evidences)} srcOf={(file) => `/absent-form/${data.encrypted_id}/evidence/${file}`} />
+                    : <Text sx={{ color: "text.secondary" }}>No evidence included.</Text>}
                 </Section>
 
                 {data.note &&
                 <Section icon={MessageSquareText} title="Note From the Prefect">
-                    <div className="text-sm h-32 overflow-y-auto rounded-md bg-gray-50 p-3 text-gray-700 leading-relaxed">
-                        {data.note}
-                    </div>
+                    <TextBox>{data.note}</TextBox>
                 </Section>}
 
                 {data.edited_at && data.revisions?.length > 0 && (() => {
@@ -166,43 +136,26 @@ const Body = ({ data }) => {
                     const previousReasons = safeParseArray(previous.reason)
                     const previousEvidences = safeParseArray(previous.evidences)
                     return (
-                        <Section icon={History} title="Previous Version (Before Edit)" tone="border-amber-200">
-                            <div className="grid gap-3 text-sm">
-                                <div>
-                                    <span className="text-gray-500">Date of Absent: </span>
-                                    <span className="text-gray-800 font-medium">
-                                        {readableDate(previous.date_from)} to {readableDate(previous.date_to)}
-                                    </span>
-                                </div>
-                                <div>
-                                    <div className="text-gray-500 mb-1">Reason:</div>
-                                    <div className="rounded-md bg-amber-50/60 p-3 text-gray-700">
+                        <Section icon={History} title="Previous Version (Before Edit)" tone="amber">
+                            <Stack sx={{ gap: 1.5 }}>
+                                <Field label="Date of Absent">{readableDate(previous.date_from)} to {readableDate(previous.date_to)}</Field>
+                                <Labeled label="Reason">
+                                    <TextBox tone="amber" height="auto" sx={{ color: "text.primary" }}>
                                         {previousReasons.map((r, i) => <div key={i}>- {r}</div>)}
-                                    </div>
-                                </div>
+                                    </TextBox>
+                                </Labeled>
                                 {previousEvidences.length !== 0 &&
-                                <div>
-                                    <div className="text-gray-500 mb-1">Evidence:</div>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {previousEvidences.map((e, i) => {
-                                            const src = `/absent-form/${data.encrypted_id}/previous-evidence/${e.file}`
-                                            return (
-                                                <a key={i} href={src} target="_blank" rel="noreferrer" className="block rounded-lg overflow-hidden border border-gray-200">
-                                                    <img src={src} className="w-full h-20 object-cover" alt={`Previous evidence ${i + 1}`} />
-                                                </a>
-                                            )
-                                        })}
-                                    </div>
-                                </div>}
-                                <div className="text-[0.75em] text-gray-400">
-                                    Edited on {readableDate(data.edited_at)} ({readableTime(data.edited_at)})
-                                </div>
-                            </div>
+                                <Labeled label="Evidence">
+                                    <EvidenceGrid small files={asImages(previousEvidences)} label="Previous evidence"
+                                        srcOf={(file) => `/absent-form/${data.encrypted_id}/previous-evidence/${file}`} />
+                                </Labeled>}
+                                <EditedOn>{when(data.edited_at)}</EditedOn>
+                            </Stack>
                         </Section>
                     )
                 })()}
-            </div>
-        </div>
+            </RecordBody>
+        </Box>
     )
 }
 

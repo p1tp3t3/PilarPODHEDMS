@@ -19,10 +19,45 @@
     height: 0;
 }
 
+.rte-content h1 {
+    font-size: 1.4em;
+    font-weight: 700;
+    margin: 0.7em 0 0.35em;
+}
+
 .rte-content h2 {
     font-size: 1.15em;
     font-weight: 700;
     margin: 0.6em 0 0.3em;
+}
+
+.rte-content h3 {
+    font-size: 1.02em;
+    font-weight: 700;
+    margin: 0.5em 0 0.25em;
+}
+
+.rte-content h1:first-child, .rte-content h2:first-child, .rte-content h3:first-child {
+    margin-top: 0;
+}
+
+.rte-content u {
+    text-decoration: underline;
+}
+
+.rte-content hr {
+    border: none;
+    border-top: 1px solid #d1d5db;
+    margin: 0.8em 0;
+}
+
+html.dark .rte-content hr {
+    border-top-color: #475569;
+}
+
+/* A selected horizontal line (click on it, then Delete to remove it). */
+.rte-content hr.ProseMirror-selectednode {
+    border-top-color: #2563eb;
 }
 
 .rte-content p {
@@ -48,4 +83,9 @@
     margin: 0 0 0.5em;
     padding-left: 0.8em;
     color: #4b5563;
+}
+
+html.dark .rte-content blockquote {
+    border-left-color: #475569;
+    color: #cbd5e1;
 }

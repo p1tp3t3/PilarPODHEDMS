@@ -15,7 +15,7 @@ export const MuiRow = ({
     avatar,
     src,
     icon: Icon,
-    iconBg = "#dbeafe",
+    iconBg = "var(--tone-blue-bg)",
     iconFg = "#2563eb",
     primary,
     secondary,

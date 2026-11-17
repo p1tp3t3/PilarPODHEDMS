@@ -45,8 +45,8 @@ const MobileFilters = ({ children, active = 0, title = "Filters" }) => {
                 sx={{
                     textTransform: "none", fontSize: "0.9em", borderRadius: "0.375rem", py: 1.1, gap: 0.5,
                     ...(active > 0
-                        ? { bgcolor: "#2563eb", "&:hover": { bgcolor: "#1d4ed8" } }
-                        : { bgcolor: "#fff", color: "#374151", borderColor: "#d1d5db", "&:hover": { bgcolor: "#f9fafb", borderColor: "#9ca3af" } }),
+                        ? { bgcolor: "#2563eb", "&:hover": { bgcolor: "var(--tone-blue-fg)" } }
+                        : { bgcolor: "background.paper", color: "var(--tone-gray-fg)", borderColor: "#d1d5db", "&:hover": { bgcolor: "var(--tone-gray-bg)", borderColor: "#9ca3af" } }),
                 }}
             >
                 {title}
@@ -80,7 +80,7 @@ const MobileFilters = ({ children, active = 0, title = "Filters" }) => {
                         variant="contained"
                         disableElevation
                         onClick={() => setOpen(false)}
-                        sx={{ textTransform: "none", fontSize: "0.9em", borderRadius: "0.375rem", py: 1.1, bgcolor: "#2563eb", "&:hover": { bgcolor: "#1d4ed8" } }}
+                        sx={{ textTransform: "none", fontSize: "0.9em", borderRadius: "0.375rem", py: 1.1, bgcolor: "#2563eb", "&:hover": { bgcolor: "var(--tone-blue-fg)" } }}
                     >
                         Done
                     </Button>

@@ -264,7 +264,7 @@ class ReferralController extends Controller
         if ($status === 'approve' && ! $prefectView) {
             $referrals->whereNotNull('confirmed_at')->latest('confirmed_at');
         } elseif ($status === 'rejected') {
-            $referrals->whereNotNull('rejected_at')->latest('rejected_at');
+            $referrals->whereNotNull('rejected_at')->whereNull('confirmed_at')->latest('rejected_at');
         } elseif ($status === 'all') {
             $referrals->latest('created_at');
         } else {
@@ -305,8 +305,16 @@ class ReferralController extends Controller
 
     public function confirmReferral($id)
     {
+        // Pending or rejected ones can be approved: a rejected referral can
+        // still be approved later (e.g. once more evidence comes in). Its
+        // rejection date and reason stay as history.
+        $current = Referral::findOrFail($id);
+        if ($current->confirmed_at || $current->revoked_at) {
+            return response()->json(['message' => 'This referral can no longer be approved.'], 409);
+        }
 
         Referral::where('id', $id)->update([
+            'referral_status' => 'approved',
             'confirmed_at' => now(),
             'archived_at' => archive_retention_date(),
         ]);
@@ -531,7 +539,7 @@ class ReferralController extends Controller
 
         // A referral's PDF is only kept once it's approved, so only an
         // approved referral can be sent on (and get its form saved).
-        if (! $referral->confirmed_at || $referral->rejected_at || $referral->revoked_at) {
+        if (! $referral->confirmed_at || $referral->revoked_at) {
             return response()->json(['message' => 'Only an approved referral can be sent.'], 422);
         }
 

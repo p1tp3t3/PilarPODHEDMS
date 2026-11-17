@@ -65,8 +65,8 @@ const PreviousRow = ({ data }) => {
     return (
         <MuiRow
             icon={History}
-            iconBg="#f3f4f6"
-            iconFg="#6b7280"
+            iconBg="var(--tone-gray-bg)"
+            iconFg="var(--tone-gray-fg)"
             primary={readableDate(data.date_time_appoint)}
             secondary={`${readableTime(data.date_time_appoint)}${data.appointment_number ? ` · No. ${data.appointment_number}` : ""}`}
             right={

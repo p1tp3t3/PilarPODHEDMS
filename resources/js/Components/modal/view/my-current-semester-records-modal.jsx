@@ -32,6 +32,8 @@ const STATUS_STYLES = {
 // same terminal states those two models use elsewhere.
 const deriveStatus = (row) => {
     if (row.revoked_at) return "revoked"
+    // Approved after a rejection counts as approved (absent forms, referrals).
+    if (row.confirmed_at && !row.appointment_status) return "approved"
     if (row.rejected_at) return "rejected"
     if (row.appointment_status) return row.appointment_status === "accepted" ? "approved" : row.appointment_status
     if (row.confirmed_at) return "approved"

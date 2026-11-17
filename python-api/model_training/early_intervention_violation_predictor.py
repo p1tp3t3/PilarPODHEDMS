@@ -208,9 +208,11 @@ class EarlyInterventionViolationPredictor:
             return None
 
     def get_insights(self, data, pred):
-        """Plain-language reasons behind the verdict, for the prefect. Built
-        from the same inputs the model sees; the model's probability is
-        deliberately left out (the page shows only Likely / Unlikely)."""
+        """Plain-language reasons behind the verdict, for the Prefect of
+        Discipline: each a "Label: two or three sentences" line, written in
+        school terms (no mention of models, data or scores). Built from the
+        same record the verdict uses; the probability is deliberately left
+        out (the page shows only Likely / Unlikely)."""
         insights = []
         violation_type = data.get("violation_type") or "this violation"
         likely = int(pred) == 1
@@ -225,6 +227,7 @@ class EarlyInterventionViolationPredictor:
         months = data.get("months_since_last_same_violation")
         months = FIRST_OFFENSE_MONTHS if months is None else int(months)
         first = total <= 1 or months >= FIRST_OFFENSE_MONTHS
+        earlier = max(total - recent, 0)  # offenses before the last 90 days
 
         def times(n):
             return "once" if n == 1 else ("twice" if n == 2 else f"{n} times")
@@ -232,36 +235,45 @@ class EarlyInterventionViolationPredictor:
         # 1. Offense history.
         if first:
             insights.append(
-                f"Offense history: this is the student's first resolved record of \"{violation_type}\". "
-                "There is no earlier pattern of this violation, which on its own keeps the risk of repeating it lower."
+                f"Offense history: This is the student's first resolved record of \"{violation_type}\". "
+                "There is no earlier record of the same violation to suggest a habit, and a single incident "
+                "is often a one-time lapse in judgment rather than a pattern of behaviour. "
+                "A first offense is usually best handled through guidance and a clear reminder of the rules."
             )
         else:
-            level = "an established, repeated pattern" if total >= 4 else "a repeat offense, not a one-time mistake"
+            level = (
+                "an established, repeated pattern rather than an isolated incident"
+                if total >= 4 else
+                "a repeat offense, which shows the behaviour has not yet been corrected"
+            )
             insights.append(
-                f"Offense history: the student has been recorded for \"{violation_type}\" {times(total)} "
-                f"(the latest counts as their {self._ordinal(total)} offense). This is {level}, "
-                "and each repeat makes another one more likely."
+                f"Offense history: The student has been recorded for \"{violation_type}\" {times(total)}, "
+                f"and the latest incident counts as their {self._ordinal(total)} offense. This is {level}. "
+                "Each repeated offense makes another one more likely, because the behaviour is becoming familiar to the student."
             )
 
         # 2. Recent activity (last 90 days).
         if first:
             insights.append(
-                "Recent activity: with only one record, there is no repeat activity in the last 90 days to measure yet."
+                "Recent activity: With only one record so far, there is no repeat activity in the last 90 days to look at yet. "
+                "How the student behaves in the coming weeks will show whether this stays a single incident."
             )
         elif recent == 0:
             insights.append(
-                "Recent activity: none of these offenses happened in the last 90 days, "
-                "which suggests the behaviour has slowed down or stopped for now."
+                "Recent activity: None of these offenses happened in the last 90 days. "
+                "This suggests the behaviour has slowed down or stopped for now, possibly because earlier "
+                "interventions or sanctions are having an effect."
             )
         else:
-            share = "all of them" if recent >= total else f"{recent} of the {total}"
+            share = "All of them" if recent >= total else f"{recent} of the {total}"
             weight = (
-                "a cluster of offenses in a short time, a strong sign the behaviour is ongoing"
+                "This is a cluster of offenses in a short time, a strong sign that the behaviour is ongoing "
+                "and has not responded to earlier action."
                 if recent >= 3 else
-                "a sign the behaviour is still active"
+                "This shows the behaviour is still active and has not yet stopped."
             )
             insights.append(
-                f"Recent activity: {share} happened within the last 90 days. This is {weight}."
+                f"Recent activity: {share} happened within the last 90 days. {weight}"
             )
 
         # 3. Time since the last offense.
@@ -269,45 +281,86 @@ class EarlyInterventionViolationPredictor:
             if months <= 0:
                 when = "less than a month ago"
             elif months == 1:
-                when = "about 1 month ago"
+                when = "about a month ago"
             else:
                 when = f"about {months} months ago"
             if months <= 1:
-                meaning = "This is very recent, the period when a repeat is most likely."
+                meaning = ("This is very recent, and the weeks right after an offense are when a repeat is most likely. "
+                           "Prompt follow-up during this period has the best chance of preventing another incident.")
             elif months <= 3:
-                meaning = "This is fairly recent, so the risk has not yet had time to fade."
+                meaning = ("This is fairly recent, so the chance of a repeat has not yet had time to fade. "
+                           "Regular check-ins over the next few weeks are still worthwhile.")
             else:
-                meaning = "Several months without a repeat lowers the risk, though the earlier history still counts."
-            insights.append(f"Last offense: {when}. {meaning}")
+                meaning = ("Several months without a repeat lowers the chance of another offense, "
+                           "although the student's earlier record still matters and should not be ignored.")
+            insights.append(f"Last offense: The most recent offense was {when}. {meaning}")
 
-        # 4. Overall pattern.
+        # 4. Earlier versus recent offenses (is it growing or fading?).
+        if not first:
+            if earlier == 0:
+                trend = ("Every recorded offense happened within the last 90 days, with none before that. "
+                         "The behaviour started recently and has quickly repeated, so it is increasing rather than fading.")
+            elif recent == 0:
+                trend = (f"All {times(total)} of the offenses happened more than 90 days ago, with nothing since. "
+                         "The behaviour appears to be fading, which is a good sign if it continues.")
+            elif recent > earlier:
+                trend = (f"More offenses happened in the last 90 days ({recent}) than before that ({earlier}). "
+                         "The behaviour is becoming more frequent, not less.")
+            elif recent == earlier:
+                trend = (f"The offenses are evenly split between the last 90 days ({recent}) and the time before that ({earlier}). "
+                         "The behaviour is continuing at a steady rate.")
+            else:
+                trend = (f"Fewer offenses happened in the last 90 days ({recent}) than before that ({earlier}). "
+                         "The behaviour is slowing down, although it has not stopped completely.")
+            insights.append(f"Earlier and recent offenses: {trend}")
+
+        # 5. Overall pattern.
         if first:
-            pattern = "a single incident with no pattern yet"
+            pattern = ("A single incident with no pattern yet. There is nothing to compare it with, "
+                       "so the focus is on making sure it does not become a habit.")
         elif recent >= total and total >= 2:
-            pattern = "every offense is recent, so the behaviour appears to be escalating"
+            pattern = ("Every offense is recent, so the behaviour appears to be escalating. "
+                       "Without intervention, further incidents are likely in the near future.")
         elif recent > 0:
-            pattern = "the offenses are spread out over time and still continuing"
+            pattern = ("The offenses are spread out over time and are still continuing. "
+                       "This suggests a lasting habit rather than a passing phase.")
         else:
-            pattern = "earlier offenses with a quiet period since"
-        insights.append(f"Pattern: {pattern}.")
+            pattern = ("There were earlier offenses followed by a quiet period since. "
+                       "The student may have improved, but a return to the old behaviour is still possible.")
+        insights.append(f"Pattern: {pattern}")
 
-        # 5. What weighed most.
+        # 6. What mattered most for this result.
         factor = self._strongest_factor(data, pred)
         if factor:
             insights.append(
-                f"Main reason for this result: {factor} weighed most on the prediction."
+                f"Main reason for this result: Of everything in the student's record, {factor} mattered most "
+                "in reaching this result."
             )
 
-        # 6. What it means.
+        # 7. What to watch next.
+        if likely:
+            watch = ("Pay close attention to the student's conduct and attendance over the coming weeks, "
+                     "especially in the places and situations where the earlier offenses happened. "
+                     "Any new incident should be documented and acted on promptly.")
+        elif first:
+            watch = ("Keep an eye on the student's conduct for the rest of the semester. "
+                     "If the same violation happens again, it should be treated as the start of a pattern.")
+        else:
+            watch = ("Continue routine monitoring of the student's conduct. "
+                     "If a new offense is recorded, the student's earlier history should be taken into account.")
+        insights.append(f"What to watch: {watch}")
+
+        # 8. What it means.
         if likely:
             insights.append(
-                "Result: the student is flagged for early intervention. They are likely to commit "
-                f"\"{violation_type}\" again unless something changes, so follow-up is advised."
+                "Result: The student is recommended for early intervention. They are likely to commit "
+                f"\"{violation_type}\" again unless something changes, so timely follow-up by the "
+                "Prefect of Discipline is advised."
             )
         else:
             insights.append(
-                "Result: the student is not flagged. They are unlikely to commit "
-                f"\"{violation_type}\" again soon; routine monitoring is enough for now."
+                "Result: The student does not need early intervention at this time. They are unlikely to commit "
+                f"\"{violation_type}\" again soon, so routine monitoring is enough for now."
             )
 
         return insights

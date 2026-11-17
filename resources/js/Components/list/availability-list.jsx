@@ -66,8 +66,8 @@ const Row = ({ type, route, limit, requested }) => {
         <MuiRow
             href={`/${route}`}
             icon={FileText}
-            iconBg={full ? "#f3f4f6" : "#dcfce7"}
-            iconFg={full ? "#6b7280" : "#16a34a"}
+            iconBg={full ? "var(--tone-gray-bg)" : "var(--tone-green-bg)"}
+            iconFg={full ? "var(--tone-gray-fg)" : "#16a34a"}
             primary={label}
             secondary={full ? `${label} is Already Full` : `Accepting ${limit} Users · Requested: ${requested}`}
         />

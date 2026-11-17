@@ -6,38 +6,49 @@
     Violation: <strong>{{ $violation }}</strong>
 @endsection
 
+{{-- Body: a plain, formal document — serif text in black, numbered sections
+     under thin rules, plain bordered tables, no coloured boxes. The header and
+     footer come from pdf.layouts.report and are unchanged. --}}
 @section('styles')
 <style>
-    body { font-family: "DejaVu Sans", Arial, sans-serif; color: #222; font-size: 10.5px; }
-    .section-title { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #1f3a5f; border-bottom: 1px solid #c9d2de; padding-bottom: 3px; margin: 16px 0 8px; }
+    body { font-family: "DejaVu Serif", "Times New Roman", serif; color: #111; font-size: 10.5px; line-height: 1.5; }
+    .section-title { font-size: 10.5px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #111; border-bottom: 0.75px solid #111; padding-bottom: 2px; margin: 18px 0 8px; }
+    .section-title:first-child { margin-top: 6px; }
+
     table.info { width: 100%; border-collapse: collapse; }
-    table.info td { padding: 4px 6px; vertical-align: top; border: 1px solid #c9d2de; }
-    table.info td.label { width: 18%; background: #eef1f5; font-weight: bold; color: #333; }
-    table.info td.photo { width: 62px; padding: 4px; text-align: center; vertical-align: middle; }
+    table.info td { padding: 4px 6px; vertical-align: top; border: 0.75px solid #777; }
+    table.info td.label { width: 17%; font-weight: bold; }
+    table.info td.photo { width: 62px; padding: 3px; text-align: center; vertical-align: middle; }
     table.info td.photo img { width: 58px; height: 58px; object-fit: cover; }
-    .verdict { border: 1px solid {{ $likely ? '#f5b5b5' : '#a7dcb9' }}; background: {{ $likely ? '#fdecec' : '#ecf8f0' }}; padding: 9px 12px; margin-top: 4px; }
-    .verdict .title { font-size: 14px; font-weight: bold; color: {{ $likely ? '#b91c1c' : '#15803d' }}; }
-    .verdict .sub { color: #555; margin-top: 2px; }
-    .factor { margin: 0 0 7px; page-break-inside: avoid; }
-    .factor .label { font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; color: #555; }
-    .factor .body { line-height: 1.45; }
+
+    .result { margin: 2px 0 0; }
+    .result .value { font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+    .result .sub { margin-top: 3px; text-align: justify; }
+
+    .factor { margin: 0 0 6px; text-align: justify; page-break-inside: avoid; }
+    .factor .label { font-weight: bold; }
+
     table.reco { width: 100%; border-collapse: collapse; }
-    table.reco td { padding: 5px 4px; vertical-align: top; border-bottom: 1px solid #e3e8ef; line-height: 1.45; }
     table.reco tr { page-break-inside: avoid; }
-    table.reco td.num { width: 22px; color: #555; }
-    table.reco .lead { font-weight: bold; color: #111; text-align: justify; }
-    table.reco .rest { margin-top: 2px; color: #444; text-align: justify; }
+    table.reco td { padding: 0 0 9px; vertical-align: top; }
+    table.reco td.num { width: 20px; }
+    table.reco .lead { font-weight: bold; text-align: justify; }
+    table.reco .rest { margin-top: 2px; text-align: justify; }
+
     table.timeline { width: 100%; border-collapse: collapse; }
-    table.timeline th, table.timeline td { border: 1px solid #333; padding: 4px 5px; vertical-align: top; line-height: 1.35; }
-    table.timeline th { background: #eef1f5; text-align: left; }
+    table.timeline th, table.timeline td { border: 0.75px solid #777; padding: 4px 6px; vertical-align: top; line-height: 1.4; }
+    table.timeline th { font-weight: bold; text-align: left; }
     table.timeline tr { page-break-inside: avoid; }
-    .muted { color: #666; }
-    .note { margin-top: 18px; font-size: 9px; color: #666; font-style: italic; }
+
+    .muted { color: #444; font-style: italic; }
+
+
+    .note { margin-top: 18px; font-size: 9px; color: #444; font-style: italic; text-align: justify; }
 </style>
 @endsection
 
 @section('content')
-    <div class="section-title">Student</div>
+    <div class="section-title">I. Student Information</div>
     <table class="info">
         <tr>
             @if ($student['photo'])
@@ -52,24 +63,23 @@
         </tr>
     </table>
 
-    <div class="section-title">Result</div>
-    <div class="verdict">
-        <div class="title">{{ $prediction }}</div>
+    <div class="section-title">II. Assessment Result</div>
+    <div class="result">
+        <div><span class="value">{{ $prediction }}</span></div>
         <div class="sub">Assessment of whether the student will commit "{{ $violation }}" again, based on the student's discipline record.</div>
     </div>
 
-    <div class="section-title">Contributing Factors</div>
+    <div class="section-title">III. Contributing Factors</div>
     @forelse ($insights as $f)
         <div class="factor">
-            @if ($f['label'])<div class="label">{{ $f['label'] }}</div>@endif
-            <div class="body">{{ $f['body'] }}</div>
+            @if ($f['label'])<span class="label">{{ $f['label'] }}.</span> @endif{{ $f['body'] }}
         </div>
     @empty
         <div class="muted">No contributing factors.</div>
     @endforelse
 
     {{-- Recommendations always start on page 2. --}}
-    <div class="section-title" style="page-break-before: always; margin-top: 0;">Recommendations</div>
+    <div class="section-title" style="page-break-before: always; margin-top: 0;">IV. Recommendations</div>
     @if (count($recommendations))
         <table class="reco">
             @foreach ($recommendations as $i => $r)
@@ -87,13 +97,13 @@
     @endif
 
     {{-- The timeline starts on its own page. --}}
-    <div class="section-title" style="page-break-before: always; margin-top: 0;">Violation Timeline</div>
+    <div class="section-title" style="page-break-before: always; margin-top: 0;">V. Violation Timeline</div>
     <table class="timeline">
         <thead>
             <tr>
-                <th style="width: 4%">#</th>
-                <th style="width: 20%">Date</th>
-                <th style="width: 14%">Case No.</th>
+                <th style="width: 5%">No.</th>
+                <th style="width: 27%">Date</th>
+                <th style="width: 12%">Case No.</th>
                 <th>Incident Summary</th>
             </tr>
         </thead>
@@ -101,9 +111,9 @@
             @forelse ($timeline as $i => $t)
                 <tr>
                     <td>{{ $i + 1 }}</td>
-                    <td>{{ $t['date'] ? \Carbon\Carbon::parse($t['date'])->format('M j, Y g:i A') : 'N/A' }}</td>
+                    <td>{{ $t['date'] ? \Carbon\Carbon::parse($t['date'])->format('F j, Y, g:i A') : 'N/A' }}</td>
                     <td>{{ $t['case_number'] ?? 'N/A' }}</td>
-                    <td>{{ $t['summary'] ?: '—' }}</td>
+                    <td style="text-align: justify;">{{ $t['summary'] ?: '—' }}</td>
                 </tr>
             @empty
                 <tr><td colspan="4" class="muted" style="text-align:center">No violation history found.</td></tr>

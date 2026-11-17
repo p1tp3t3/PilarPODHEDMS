@@ -1,17 +1,48 @@
-import { getProfilePic, toTitleCase, profileUrl, openPdfTab, showOutputModal } from "../../../others/function"
-import { Button, Skeleton } from "@mui/material"
+import { getProfilePic, toTitleCase, profileUrl, openPdfTab, showOutputModal, showUserType, readableDate, readableTime, formatSchoolYearSemester } from "../../../others/function"
+import { Avatar, Box, Button, ButtonBase, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Paper, Skeleton, Stack, Tooltip, Typography } from "@mui/material"
+import { useState } from "react"
 import PictureAsPdfOutlined from "@mui/icons-material/PictureAsPdfOutlined"
 import SelectedUser from "../../other/selected-user"
 import { Link, usePage } from "@inertiajs/react"
 
 // Shared building blocks for the "view [record]" modals (complaint, referral,
 // absent form, gate pass, ...) — one consistent card/timeline/status-badge
-// language instead of every modal hand-rolling its own layout.
+// language (MUI) instead of every modal hand-rolling its own layout.
 
-export const StatusBadge = ({ status, styles }) => (
-    <span className={`inline-flex items-center px-2.5 py-0.5 text-xs font-semibold rounded-full shrink-0 ${styles[status] ?? 'bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-200'}`}>
-        {toTitleCase(status) || 'Pending'}
-    </span>
+// Colour sets: background, text, border. CSS variables (resources/css/app.css)
+// with a light and a dark value, so they follow dark mode.
+const tone = (name) => ({ bg: `var(--tone-${name}-bg)`, fg: `var(--tone-${name}-fg)`, bd: `var(--tone-${name}-bd)` })
+export const TONES = Object.fromEntries(["gray", "yellow", "amber", "orange", "green", "red", "blue"].map((n) => [n, tone(n)]))
+
+// A record's status -> its colour set.
+const STATUS_TONE = {
+    pending: "yellow", ongoing: "orange", approved: "green", resolved: "green",
+    rejected: "red", revoked: "gray", expired: "gray",
+}
+
+// "red", or the older Tailwind form "border-red-200" -> the colour set.
+const toneOf = (tone) => TONES[String(tone ?? "").match(/(gray|yellow|amber|orange|green|red|blue)/)?.[1]] ?? null
+
+// A small rounded label in a colour set.
+export const Pill = ({ tone = "gray", label, bordered = true, sx }) => {
+    const t = TONES[tone] ?? TONES.gray
+    return (
+        <Chip
+            size="small"
+            label={label}
+            sx={{
+                height: 22, flexShrink: 0, fontSize: "0.72rem", fontWeight: 600,
+                bgcolor: t.bg, color: t.fg, border: bordered ? `1px solid ${t.bd}` : "none",
+                "& .MuiChip-label": { px: 1.25 },
+                ...sx,
+            }}
+        />
+    )
+}
+
+// `styles` is no longer needed (colours come from the status); still accepted.
+export const StatusBadge = ({ status }) => (
+    <Pill tone={STATUS_TONE[status] ?? "gray"} label={toTitleCase(status) || "Pending"} />
 )
 
 // Whether the signed-in user is the one who filed/owns the record.
@@ -26,59 +57,238 @@ export const useOwnerTitle = (ownerId, name, noun, fallback = "Student") =>
 
 // Title with the reference number and status under it; "View PDF" (the
 // record's pdf_url, opened in a new tab) on the right, hidden when there is
-// none or the viewer can't open it. pr-12 keeps clear of the modal's ✕.
-export const ModalHeader = ({ title, reference, status, styles, pdfUrl }) => (
-    <div className="rounded-t-md bg-gray-50 border-b pl-6 pr-12 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <div className="min-w-0">
-                <h1 className="text-lg font-bold text-gray-900 truncate">{title}</h1>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                    {reference && <span className="font-mono text-xs text-gray-500">#{reference}</span>}
-                    {status !== undefined && <StatusBadge status={status} styles={styles} />}
-                </div>
-            </div>
-            {pdfUrl && (
-                <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<PictureAsPdfOutlined fontSize="small" />}
-                    onClick={() => openPdfTab(pdfUrl, "PDF") || showOutputModal("Allow pop-ups for this site so the PDF can open in a new tab.", "e")}
-                    sx={{ textTransform: "none", fontWeight: 600, borderRadius: "0.5rem" }}
-                >
-                    View PDF
-                </Button>
+// none or the viewer can't open it. The right padding keeps clear of the modal's ✕.
+// `person`: who filed it (a user, with photo and profile link) or
+// `personName` for someone with no account; shown as "<personLabel> <name>".
+export const ModalHeader = ({ title, reference, status, pdfUrl, person, personName, personLabel = "Filed by" }) => (
+    <Box sx={{ bgcolor: "action.hover", borderBottom: 1, borderColor: "divider", pl: 3, pr: 6, py: 2, borderTopLeftRadius: 6, borderTopRightRadius: 6 }}>
+        <Stack direction="row" sx={{ flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", columnGap: 2, rowGap: 1 }}>
+            <Stack direction="row" sx={{ minWidth: 0, alignItems: "center", gap: 1.75 }}>
+            {(person || personName) && (
+                <Avatar src={person ? getProfilePic(person.profile?.profile_picture, person.profile?.sex) : undefined} alt="" sx={{ width: 48, height: 48, flexShrink: 0 }} />
             )}
-        </div>
-    </div>
+            <Box sx={{ minWidth: 0 }}>
+                <Typography component="h1" noWrap sx={{ fontSize: "1.125rem", fontWeight: 700, color: "text.primary" }}>{title}</Typography>
+                {(person || personName) && (
+                    <Typography noWrap sx={{ fontSize: "0.8rem", color: "text.secondary" }}>
+                        {personLabel}{" "}
+                        {person
+                            ? <Box component={Link} href={profileUrl(person)} sx={{ color: "text.primary", fontWeight: 600, textDecoration: "none", "&:hover": { textDecoration: "underline" } }}>
+                                {[person.profile?.first_name, person.profile?.last_name].filter(Boolean).join(" ")}
+                              </Box>
+                            : <Box component="span" sx={{ color: "text.primary", fontWeight: 600 }}>{personName}</Box>}
+                        {person && <> · {showUserType(person, true)}</>}
+                    </Typography>
+                )}
+                <Stack direction="row" sx={{ mt: 0.5, flexWrap: "wrap", alignItems: "center", gap: 1 }}>
+                    {reference && <Typography component="span" sx={{ fontFamily: "monospace", fontSize: "0.75rem", color: "text.secondary" }}>#{reference}</Typography>}
+                    {status !== undefined && <StatusBadge status={status} />}
+                </Stack>
+            </Box>
+            </Stack>
+            {pdfUrl && (
+                <Tooltip title="View PDF">
+                    <IconButton
+                        aria-label="View PDF"
+                        color="primary"
+                        onClick={() => openPdfTab(pdfUrl, "PDF") || showOutputModal("Allow pop-ups for this site so the PDF can open in a new tab.", "e")}
+                        sx={{ border: 1, borderColor: "divider", borderRadius: 2, bgcolor: "background.paper" }}
+                    >
+                        <PictureAsPdfOutlined fontSize="small" />
+                    </IconButton>
+                </Tooltip>
+            )}
+        </Stack>
+    </Box>
 )
 
-export const Section = ({ icon: Icon, title, children, tone = 'border-gray-200' }) => (
-    <div className={`rounded-xl border ${tone} bg-white p-4 sm:p-5`}>
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-3">
-            <Icon size={16} className="text-gray-400 shrink-0" />
+// A card with an icon + title. `tone` ("red", "amber", ...) colours the border.
+export const Section = ({ icon: Icon, title, children, tone }) => (
+    <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, sm: 2.5 }, minWidth: 0, borderColor: toneOf(tone)?.bd ?? "divider" }}>
+        <Stack direction="row" component="h2" sx={{ alignItems: "center", gap: 1, m: 0, mb: 1.5, fontSize: "0.875rem", fontWeight: 600, color: "text.primary" }}>
+            <Box component="span" sx={{ display: "flex", color: "text.disabled", flexShrink: 0 }}><Icon size={16} /></Box>
             {title}
-        </h2>
+        </Stack>
         {children}
-    </div>
+    </Paper>
 )
 
-export const Stat = ({ icon: Icon, label, value, sub }) => (
-    <div className="flex items-start gap-2.5">
-        <div className="mt-0.5 rounded-md bg-gray-100 p-1.5">
-            <Icon size={14} className="text-gray-500" />
-        </div>
-        <div className="min-w-0">
-            <div className="text-[0.7rem] uppercase tracking-wide text-gray-400 font-medium">{label}</div>
-            <div className="text-sm font-medium text-gray-800 break-words">{value}</div>
-            {sub && <div className="text-[0.7rem] text-gray-400 break-words">{sub}</div>}
-        </div>
-    </div>
+// The record's progress: every step it goes through — the ones done (with
+// their date) and the ones still ahead — so the user can see where it is
+// and what comes next.
+//
+// steps: [{ label, time, sub, value, state, reason }]
+//   "done" green · "failed" red · "stopped" grey (revoked / expired)
+//   "upcoming" hollow; the first one is the current step
+// A step with a `reason` (a rejection) opens it in a popup when clicked.
+export const stepAt = (label, time, schoolYear, state = "done", reason = null) => ({
+    label, time, state, reason, sub: schoolYear ? formatSchoolYearSemester(schoolYear) : null,
+})
+export const stepAhead = (label, value) => ({ label, value, state: "upcoming" })
+
+const DOT_COLOR = { done: "#16a34a", failed: "#dc2626", stopped: "#9ca3af" }
+
+export const Timeline = ({ steps }) => {
+    // The current step: the first one ahead — unless the record was just
+    // rejected, then nothing is being waited on (the next steps are only possible).
+    const next = steps.findIndex((s) => s.state === "upcoming")
+    const firstAhead = next > 0 && steps[next - 1].state === "failed" ? -1 : next
+    const [shown, setShown] = useState(null) // the step whose reason is open
+    return (
+        <>
+        <Paper variant="outlined" sx={{ borderRadius: 3, px: 1, py: 2, overflowX: "auto" }}>
+            {/* Equal columns, each centred on its dot; the line runs dot to dot. */}
+            <Box sx={{ display: "flex", minWidth: "fit-content" }}>
+                {steps.map((s, i) => {
+                    const ahead = s.state === "upcoming"
+                    const current = i === firstAhead
+                    // Right after a rejection: grey, with its note (e.g. "If the prefect reconsiders").
+                    const possible = ahead && steps[i - 1]?.state === "failed"
+                    const last = i === steps.length - 1
+                    const nextAhead = !last && steps[i + 1].state === "upcoming"
+                    return (
+                        <Box key={i} title={s.sub ?? undefined} sx={{ flex: 1, minWidth: 120, px: 0.5, position: "relative", textAlign: "center" }}>
+                            {!last && (
+                                <Box sx={{
+                                    position: "absolute", top: 4, left: "calc(50% + 14px)", right: "calc(-50% + 14px)",
+                                    borderTop: "1.5px solid", borderTopStyle: nextAhead ? "dashed" : "solid", borderColor: "divider",
+                                }} />
+                            )}
+                            <Box sx={{ display: "flex", justifyContent: "center", mb: 1 }}>
+                                <Box
+                                    {...(s.reason ? { component: ButtonBase, onClick: () => setShown(s), "aria-label": `${s.label}: view reason` } : {})}
+                                    sx={{
+                                        width: 10, height: 10, borderRadius: "50%", flexShrink: 0, boxSizing: "border-box",
+                                        ...(ahead
+                                            ? { border: "2px solid", borderColor: current ? "#f59e0b" : "text.disabled" }
+                                            : { bgcolor: DOT_COLOR[s.state] }),
+                                        ...(s.reason && { cursor: "pointer", boxShadow: `0 0 0 3px ${TONES.red.bg}`, "&:hover": { boxShadow: `0 0 0 4px ${TONES.red.bd}` } }),
+                                    }}
+                                />
+                            </Box>
+                            <Typography sx={{ fontSize: "0.8rem", fontWeight: ahead ? 400 : 600, color: ahead ? (current ? TONES.amber.fg : "text.secondary") : s.state === "failed" ? TONES.red.fg : "text.primary" }}>
+                                {s.label}
+                            </Typography>
+                            <Typography sx={{ fontSize: "0.72rem", color: "text.secondary" }}>
+                                {s.time ? `${readableDate(s.time)}, ${readableTime(s.time)}` : current || possible ? s.value : ""}
+                            </Typography>
+                            {s.reason && (
+                                <ButtonBase onClick={() => setShown(s)} sx={{ fontSize: "0.72rem", color: TONES.red.fg, textDecoration: "underline", textUnderlineOffset: 2 }}>
+                                    View reason
+                                </ButtonBase>
+                            )}
+                        </Box>
+                    )
+                })}
+            </Box>
+        </Paper>
+
+        <Dialog open={!!shown} onClose={() => setShown(null)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 3 } }}>
+            <DialogTitle sx={{ fontSize: "1rem", fontWeight: 600, pb: 0.5 }}>Reason for {shown?.label === "Rejected" ? "Rejection" : shown?.label}</DialogTitle>
+            <DialogContent>
+                {shown?.time && <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", mb: 1.5 }}>{readableDate(shown.time)}, {readableTime(shown.time)}</Typography>}
+                <Typography sx={{ fontSize: "0.875rem", color: "text.primary", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{shown?.reason}</Typography>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+                <Button onClick={() => setShown(null)} sx={{ textTransform: "none" }}>Close</Button>
+            </DialogActions>
+        </Dialog>
+        </>
+    )
+}
+
+// Grey "nothing here" placeholder inside a section: an icon and a line.
+export const EmptyNote = ({ icon: Icon, text }) => (
+    <Stack sx={{ alignItems: "center", justifyContent: "center", py: 5, color: "text.disabled" }}>
+        {Icon && <Box sx={{ display: "flex", mb: 1 }}><Icon size={28} /></Box>}
+        <Typography sx={{ fontSize: "0.875rem", fontWeight: 500 }}>{text}</Typography>
+    </Stack>
 )
 
-export const StatGrid = ({ children }) => (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
+// A shaded, scrolling box for long text. `html` renders server-cleaned rich
+// text (complaint/referral reasons); otherwise `children`. `tone` tints it.
+export const TextBox = ({ html, children, tone, height = 128, sx }) => {
+    const t = toneOf(tone)
+    return (
+        <Box
+            sx={{
+                height, overflowY: "auto", borderRadius: 1.5, p: 1.5,
+                bgcolor: t?.bg ?? "action.hover", color: t?.fg ?? "text.primary",
+                fontSize: "0.875rem", lineHeight: 1.65, wordBreak: "break-word",
+                // Saved rich text (the editor's formatting; Tailwind's reset
+                // would otherwise drop bullets and heading sizes).
+                "& p": { m: 0, mb: 1 }, "& p:last-child": { mb: 0 },
+                "& h1": { fontSize: "1.3em", fontWeight: 700, m: 0, mb: 0.75 },
+                "& h2": { fontSize: "1.15em", fontWeight: 700, m: 0, mb: 0.75 },
+                "& h3": { fontSize: "1.02em", fontWeight: 700, m: 0, mb: 0.5 },
+                "& ul, & ol": { pl: 2.5, m: 0, mb: 1 },
+                "& ul": { listStyle: "disc" }, "& ol": { listStyle: "decimal" },
+                "& ul ul": { listStyle: "circle" },
+                "& li > p": { mb: 0.25 },
+                "& blockquote": { m: 0, mb: 1, pl: 1.5, borderLeft: 3, borderColor: "divider", color: "text.secondary" },
+                "& hr": { border: 0, borderTop: 1, borderColor: "divider", my: 1.5 },
+                "& u": { textDecoration: "underline" },
+                ...sx,
+            }}
+            {...(html != null ? { dangerouslySetInnerHTML: { __html: html } } : { children })}
+        />
+    )
+}
+
+// "Label: value" on one line.
+export const Field = ({ label, children }) => (
+    <Typography sx={{ fontSize: "0.875rem" }}>
+        <Box component="span" sx={{ color: "text.secondary" }}>{label}: </Box>
+        <Box component="span" sx={{ color: "text.primary", fontWeight: 500 }}>{children}</Box>
+    </Typography>
+)
+
+// A small grey label with its content under it.
+export const Labeled = ({ label, children }) => (
+    <Box>
+        <Typography sx={{ fontSize: "0.875rem", color: "text.secondary", mb: 0.5 }}>{label}:</Typography>
         {children}
-    </div>
+    </Box>
+)
+
+// Body text inside a section.
+export const Text = ({ children, sx }) => (
+    <Typography sx={{ fontSize: "0.875rem", color: "text.primary", ...sx }}>{children}</Typography>
+)
+
+// "Edited on <date> (<time>)" at the bottom of a "Previous Version" section.
+export const EditedOn = ({ children }) => (
+    <Typography sx={{ fontSize: "0.75em", color: "text.secondary" }}>Edited on {children}</Typography>
+)
+
+// A body column of stacked sections (under the header).
+export const RecordBody = ({ children }) => <Stack sx={{ p: 3, gap: 2 }}>{children}</Stack>
+
+// Two sections side by side (one column on phones, or when there is only one).
+export const SectionPair = ({ children, single = false }) => (
+    <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: single ? "1fr" : "1fr 1fr" } }}>{children}</Box>
+)
+
+// Image / video thumbnails that open the file in a new tab.
+// `files`: [{ file, type }], `srcOf(file)`: its URL. `small` for the
+// "previous version" strip.
+export const EvidenceGrid = ({ files, srcOf, small = false, label = "Evidence" }) => (
+    <Box sx={{ display: "grid", gap: small ? 1 : 1.5, gridTemplateColumns: small ? { xs: "repeat(3, 1fr)", sm: "repeat(4, 1fr)" } : { xs: "repeat(2, 1fr)", sm: "repeat(3, 1fr)" } }}>
+        {files.map((e, i) => {
+            const src = srcOf(e.file)
+            const media = { width: "100%", height: small ? 80 : 128, objectFit: "cover", display: "block", transition: "transform .2s" }
+            return (
+                <Box
+                    key={i} component="a" href={src} target="_blank" rel="noreferrer"
+                    sx={{ display: "block", borderRadius: 2, overflow: "hidden", border: 1, borderColor: "divider", transition: "box-shadow .2s, border-color .2s", "&:hover": { borderColor: "divider", boxShadow: 1 }, "&:hover img": { transform: small ? "none" : "scale(1.05)" } }}
+                >
+                    {e.type === 'vid'
+                        ? <Box component="video" src={src} controls={!small} sx={media} />
+                        : <Box component="img" src={src} alt={`${label} ${i + 1}`} sx={media} />}
+                </Box>
+            )
+        })}
+    </Box>
 )
 
 // One or more "person" rows — a single user, a list of users (e.g. multiple
@@ -87,12 +297,12 @@ export const StatGrid = ({ children }) => (
 // `linkable` = false shows the person without a link to their profile.
 export const PersonList = ({ data, data_list = null, emptyLabel = 'No one on record.', linkable = true }) => {
     const Wrap = ({ user, children }) => linkable
-        ? <Link href={profileUrl(user)} className="block">{children}</Link>
-        : <div className="block">{children}</div>
+        ? <Box component={Link} href={profileUrl(user)} sx={{ display: "block", color: "inherit", textDecoration: "none" }}>{children}</Box>
+        : <Box>{children}</Box>
 
     if (data_list != null && data_list.length !== 0) {
         return (
-            <div className="grid gap-1">
+            <Box sx={{ display: "flex", flexWrap: "wrap", columnGap: 4, rowGap: 1.5 }}>
                 {data_list.map((e, i) => (
                     <Wrap key={e.user?.id ?? i} user={e.user}>
                         <SelectedUser
@@ -102,12 +312,12 @@ export const PersonList = ({ data, data_list = null, emptyLabel = 'No one on rec
                         />
                     </Wrap>
                 ))}
-            </div>
+            </Box>
         )
     }
 
     if (data == null) {
-        return <div className="text-sm text-gray-500">{emptyLabel}</div>
+        return <Typography sx={{ fontSize: "0.875rem", color: "text.secondary" }}>{emptyLabel}</Typography>
     }
 
     return (
@@ -137,13 +347,33 @@ export const safeParseArray = (value) => {
 
 // "Filed/Issued by the Prefect: <name>" under the person a record is for,
 // when a prefect entered it on their behalf (the record's `prefect`).
+// The people on a record in one card: a row per role, the role on the left
+// (above, on phones) and the people beside it; several people sit side by side.
+// rows: [{ label, content }] — falsy rows are skipped.
+export const People = ({ rows }) => (
+    <Paper variant="outlined" sx={{ borderRadius: 3, px: { xs: 2, sm: 2.5 } }}>
+        {rows.filter(Boolean).map((r, i) => (
+            <Box key={i} sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { sm: "center" }, gap: { xs: 1, sm: 2 }, py: 1.75, borderTop: i ? 1 : 0, borderColor: "divider" }}>
+                <Typography sx={{ width: { sm: 130 }, flexShrink: 0, fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "text.secondary" }}>
+                    {r.label}
+                </Typography>
+                <Box sx={{ minWidth: 0, flex: 1 }}>{r.content}</Box>
+            </Box>
+        ))}
+    </Paper>
+)
+
+// The prefect's name, for a "Filed by" / "Issued by" row.
+export const prefectName = (prefect) =>
+    [prefect?.profile?.first_name, prefect?.profile?.last_name].filter(Boolean).join(" ") || prefect?.username
+
 export const ByPrefect = ({ prefect, label = "Filed by the Prefect" }) => {
     if (!prefect) return null
     const name = [prefect.profile?.first_name, prefect.profile?.last_name].filter(Boolean).join(" ") || prefect.username
     return (
-        <p className="mt-3 pt-3 border-t border-gray-100 text-[0.8em] text-gray-500">
-            {label}: <span className="font-semibold text-gray-800">{name}</span>
-        </p>
+        <Typography sx={{ mt: 1.5, pt: 1.5, borderTop: 1, borderColor: "divider", fontSize: "0.8em", color: "text.secondary" }}>
+            {label}: <Box component="span" sx={{ fontWeight: 600, color: "text.primary" }}>{name}</Box>
+        </Typography>
     )
 }
 
@@ -153,68 +383,67 @@ export const ByPrefect = ({ prefect, label = "Filed by the Prefect" }) => {
 //   "list"   — a few stacked rows (incident / violation / appointment lists)
 //   "table"  — a header row plus table rows (file previews)
 //   "compact"— a short card (appointment details)
-// A skeleton bar (MUI); size and shape from the Tailwind classes given.
-const Bar = ({ className = "" }) => <Skeleton variant="rounded" animation="wave" className={className} sx={{ transform: "none" }} />
+const Bar = ({ w = "100%", h, sx }) => <Skeleton variant="rounded" animation="wave" width={w} height={h} sx={{ transform: "none", ...sx }} />
 
 export const ViewModalSkeleton = ({ variant = "record" }) => {
     if (variant === "list") {
         return (
-            <div className="grid gap-3 py-2" aria-busy="true" aria-label="Loading">
+            <Stack sx={{ gap: 1.5, py: 1 }} aria-busy="true" aria-label="Loading">
                 {[0, 1, 2, 3].map((i) => (
-                    <div key={i} className="flex items-center gap-3 border border-gray-100 rounded-lg px-4 py-3">
+                    <Stack key={i} direction="row" sx={{ alignItems: "center", gap: 1.5, border: 1, borderColor: "divider", borderRadius: 2, px: 2, py: 1.5 }}>
                         <Skeleton variant="circular" width={36} height={36} sx={{ flexShrink: 0 }} />
-                        <div className="flex-1 grid gap-2">
-                            <Bar className="h-3 w-1/2" />
-                            <Bar className="h-3 w-1/3" />
-                        </div>
-                    </div>
+                        <Stack sx={{ flex: 1, gap: 1 }}>
+                            <Bar w="50%" h={12} />
+                            <Bar w="33%" h={12} />
+                        </Stack>
+                    </Stack>
                 ))}
-            </div>
+            </Stack>
         )
     }
 
     if (variant === "table") {
         return (
-            <div className="grid gap-2 py-2" aria-busy="true" aria-label="Loading">
-                <Bar className="h-8 w-full" />
-                {[0, 1, 2, 3, 4].map((i) => <Bar key={i} className="h-6 w-full opacity-70" />)}
-            </div>
+            <Stack sx={{ gap: 1, py: 1 }} aria-busy="true" aria-label="Loading">
+                <Bar h={32} />
+                {[0, 1, 2, 3, 4].map((i) => <Bar key={i} h={24} sx={{ opacity: 0.7 }} />)}
+            </Stack>
         )
     }
 
     if (variant === "compact") {
         return (
-            <div className="grid gap-3" aria-busy="true" aria-label="Loading">
-                <Bar className="h-5 w-2/3" />
-                <Bar className="h-3 w-1/3" />
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                    <Bar className="h-12" />
-                    <Bar className="h-12" />
-                </div>
-            </div>
+            <Stack sx={{ gap: 1.5 }} aria-busy="true" aria-label="Loading">
+                <Bar w="66%" h={20} />
+                <Bar w="33%" h={12} />
+                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5, pt: 1 }}>
+                    <Bar h={48} />
+                    <Bar h={48} />
+                </Box>
+            </Stack>
         )
     }
 
     return (
-        <div aria-busy="true" aria-label="Loading">
-            <div className="px-6 py-5 border-b border-gray-100 flex items-center gap-4">
+        <Box aria-busy="true" aria-label="Loading">
+            <Stack direction="row" sx={{ px: 3, py: 2.5, borderBottom: 1, borderColor: "divider", alignItems: "center", gap: 2 }}>
                 <Skeleton variant="circular" width={44} height={44} sx={{ flexShrink: 0 }} />
-                <div className="flex-1 grid gap-2">
-                    <Bar className="h-4 w-1/2" />
-                    <Bar className="h-3 w-1/4" />
-                </div>
-                <Bar className="h-6 w-20 rounded-full" />
-            </div>
-            <div className="px-6 py-5 grid gap-5">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {[0, 1, 2].map((i) => <Bar key={i} className="h-14" />)}
-                </div>
-                <div className="grid sm:grid-cols-2 gap-4">
-                    <Bar className="h-24" />
-                    <Bar className="h-24" />
-                </div>
-                <Bar className="h-20" />
-            </div>
-        </div>
+                <Stack sx={{ flex: 1, gap: 1 }}>
+                    <Bar w="50%" h={16} />
+                    <Bar w="25%" h={12} />
+                </Stack>
+                <Bar w={80} h={24} sx={{ borderRadius: 999 }} />
+            </Stack>
+            <Stack sx={{ px: 3, py: 2.5, gap: 2.5 }}>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, 1fr)" }, gap: 1.5 }}>
+                    {[0, 1, 2].map((i) => <Bar key={i} h={56} />)}
+                </Box>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+                    <Bar h={96} />
+                    <Bar h={96} />
+                </Box>
+                <Bar h={80} />
+            </Stack>
+        </Box>
     )
 }

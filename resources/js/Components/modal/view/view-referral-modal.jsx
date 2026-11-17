@@ -1,26 +1,17 @@
 import { ReferralService } from "@/others/services/referral-service"
 import UpModal from "../up-modal"
 import { useEffect, useState } from "react"
-import { readableDate, readableTime, toTitleCase, formatSchoolYearSemester } from "@/others/function"
-import { ModalHeader, Section, Stat, StatGrid, PersonList, safeParseArray, ByPrefect, useOwnerTitle, useIsOwner, ViewModalSkeleton } from "./view-modal-parts"
+import { Box, Stack } from "@mui/material"
+import { readableDate, readableTime, toTitleCase } from "@/others/function"
 import {
-    CalendarClock,
-    CheckCircle2,
-    XCircle,
-    Undo2,
-    UserCircle2,
-    Users,
+    ModalHeader, Section, Timeline, stepAt, stepAhead, PersonList, safeParseArray, People, prefectName, useOwnerTitle, useIsOwner, ViewModalSkeleton,
+    TextBox, Field, Labeled, Text, EditedOn, RecordBody, SectionPair,
+} from "./view-modal-parts"
+import {
     MessageSquareText,
-    FileWarning,
     History,
+    Undo2,
 } from "lucide-react"
-
-const STATUS_STYLES = {
-    pending: 'bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-200',
-    approved: 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-200',
-    rejected: 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-200',
-    revoked: 'bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-300',
-}
 
 const ViewReferralModal = (props) => {
     const [data, setData] = useState(null),
@@ -48,16 +39,33 @@ const ViewReferralModal = (props) => {
             pd={['p-0', '']}
             bgColor='bg-white'
             w='w-[42rem] max-w-[90vw]'>
-            <div className="w-full">
+            <Box sx={{ width: "100%" }}>
                 {(data != null)
                 ?
                 <Body data={data} />
                 :
                 reload &&
                 <ViewModalSkeleton variant="record" />}
-            </div>
+            </Box>
         </UpModal>
     )
+}
+
+const when = (at) => `${readableDate(at)} (${readableTime(at)})`
+
+// Every step a referral goes through: Reported -> Approved.
+// A rejected one still shows the steps after it: the prefect can approve it
+// later (e.g. once more evidence comes in). A revoke stops it.
+const stepsFor = (d) => {
+    const steps = [stepAt("Reported", d.created_at, d.school_year_semester)]
+    if (d.rejected_at) steps.push(stepAt("Rejected", d.rejected_at, d.rejected_school_year_semester, "failed", d.rejected_reason))
+    // Rejecting doesn't clear an earlier approval date, so while it's rejected
+    // that date isn't an approval: show "Approved" as still possible.
+    const rejectedNow = d.referral_status === "rejected"
+    if (d.confirmed_at && !rejectedNow) steps.push(stepAt("Approved", d.confirmed_at, d.confirmed_school_year_semester))
+    else if (!d.revoked_at) steps.push(stepAhead("Approved", d.rejected_at ? "If the prefect reconsiders" : "Waiting for the prefect's review"))
+    if (d.revoked_at) steps.push(stepAt("Revoked", d.revoked_at, d.revoked_school_year_semester, "stopped"))
+    return steps
 }
 
 const Body = ({ data }) => {
@@ -65,90 +73,65 @@ const Body = ({ data }) => {
     const ownerId = data.user?.id ?? data.referrer_id
     const title = useOwnerTitle(ownerId, referrerName, "Referral", "Referrer")
     const isOwner = useIsOwner(ownerId)
-    const showOwner = !isOwner || !!data.prefect
 
     return (
-        <div>
+        <Box>
             <ModalHeader
                 title={title}
                 reference={data.referral_number}
+                person={!isOwner ? data.user : null}
                 pdfUrl={data.pdf_url}
                 status={data.referral_status}
-                styles={STATUS_STYLES}
             />
 
-            <div className="p-6 space-y-4">
-                {/* Timeline stats */}
-                <StatGrid>
-                    <Stat icon={CalendarClock} label="Reported Since" value={`${readableDate(data.created_at)} (${readableTime(data.created_at)})`} sub={formatSchoolYearSemester(data.school_year_semester)} />
-                    {data.rejected_at &&
-                    <Stat icon={XCircle} label="Rejected Since" value={`${readableDate(data.rejected_at)} (${readableTime(data.rejected_at)})`} sub={formatSchoolYearSemester(data.rejected_school_year_semester)} />}
-                    {data.confirmed_at && data.referral_status !== 'rejected' &&
-                    <Stat icon={CheckCircle2} label="Approved Since" value={`${readableDate(data.confirmed_at)} (${readableTime(data.confirmed_at)})`} sub={formatSchoolYearSemester(data.confirmed_school_year_semester)} />}
-                    {data.revoked_at &&
-                    <Stat icon={Undo2} label="Revoked Since" value={`${readableDate(data.revoked_at)} (${readableTime(data.revoked_at)})`} sub={formatSchoolYearSemester(data.revoked_school_year_semester)} />}
-                </StatGrid>
+            <RecordBody>
+                {/* Progress: done steps and the ones still ahead */}
+                <Timeline steps={stepsFor(data)} />
 
-                {data.rejected_reason != null &&
-                <Section icon={FileWarning} title="Reason for Rejection" tone="border-red-200">
-                    <div className="text-sm h-28 overflow-y-auto rounded-md bg-red-50/60 p-3 text-red-800">
-                        {data.rejected_reason}
-                    </div>
-                </Section>}
 
                 {data.referral_status === 'revoked' &&
-                <Section icon={Undo2} title={isOwner ? "Revoked by You" : "Revoked by Referrer"} tone="border-gray-200">
-                    <p className="text-sm text-gray-600">
+                <Section icon={Undo2} title={isOwner ? "Revoked by You" : "Revoked by Referrer"}>
+                    <Text>
                         The referrer withdrew this referral. It is kept on record and remains visible here, but is no longer active.
-                    </p>
+                    </Text>
                 </Section>}
 
-                <div className={`grid gap-4 ${showOwner ? 'sm:grid-cols-2' : ''}`}>
-                    {showOwner && <Section icon={UserCircle2} title={isOwner ? "Filed For You" : "Referrer"}>
-                        {!isOwner && <PersonList data={data.user} emptyLabel="No referrer on record." />}
-                        <ByPrefect prefect={data.prefect} />
-                    </Section>}
-                    <Section icon={Users} title="Referred Student">
-                        <PersonList
+                <People rows={[
+                    {
+                        label: `Referred Student${data.referralReferredStudent?.length > 1 ? `s (${data.referralReferredStudent.length})` : ""}`,
+                        content: <PersonList
                             data={data.referredStudent}
                             data_list={data.referralReferredStudent != null ? data.referralReferredStudent : null}
-                            emptyLabel="No referred student on record." />
-                    </Section>
-                </div>
+                            emptyLabel="No referred student on record." />,
+                    },
+                    data.prefect && { label: "Filed by the Prefect", content: <Text>{prefectName(data.prefect)}</Text> },
+                ]} />
 
                 <Section icon={MessageSquareText} title="Reason for the Referral">
-                    <div className="text-sm h-32 overflow-y-auto rounded-md bg-gray-50 p-3 text-gray-700 leading-relaxed">
-                        {data.reason_description}
-                    </div>
+                    <TextBox>{data.reason_description}</TextBox>
                 </Section>
 
                 {data.edited_at && data.revisions?.length > 0 && (() => {
                     const previous = data.revisions[0]
                     const previousStudents = safeParseArray(previous.students)
                     return (
-                        <Section icon={History} title="Previous Version (Before Edit)" tone="border-amber-200">
-                            <div className="grid gap-3 text-sm">
-                                <div>
-                                    <span className="text-gray-500">Referred Student(s): </span>
-                                    <span className="text-gray-800 font-medium">
-                                        {previousStudents.length !== 0
-                                            ? previousStudents.map((s) => `${s.first_name ?? ''} ${s.last_name ?? ''}`.trim()).filter(Boolean).join(', ')
-                                            : '—'}
-                                    </span>
-                                </div>
-                                <div>
-                                    <div className="text-gray-500 mb-1">Reason:</div>
-                                    <div className="rounded-md bg-amber-50/60 p-3 text-gray-700 h-24 overflow-y-auto">{previous.reason_description}</div>
-                                </div>
-                                <div className="text-[0.75em] text-gray-400">
-                                    Edited on {readableDate(data.edited_at)} ({readableTime(data.edited_at)})
-                                </div>
-                            </div>
+                        <Section icon={History} title="Previous Version (Before Edit)" tone="amber">
+                            <Stack sx={{ gap: 1.5 }}>
+                                <Field label="Referred Student(s)">
+                                    {previousStudents.length !== 0
+                                        ? previousStudents.map((s) => `${s.first_name ?? ''} ${s.last_name ?? ''}`.trim()).filter(Boolean).join(', ')
+                                        : '—'}
+                                </Field>
+                                <Labeled label="Reason">
+                                    <TextBox tone="amber" height={96} sx={{ color: "text.primary" }}>{previous.reason_description}</TextBox>
+                                </Labeled>
+                                <EditedOn>{when(data.edited_at)}</EditedOn>
+                            </Stack>
                         </Section>
                     )
                 })()}
-            </div>
-        </div>
+            </RecordBody>
+        </Box>
     )
 }
 

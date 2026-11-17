@@ -8,8 +8,8 @@ import AuthContext from "@/context-provider/auth-provider"
 import CheckBoxButton from "@/Components/input/checkbox"
 import { requestType } from "@/others/list/type-list"
 import DropdownField from "@/Components/input/dropdown"
-import { User, Home, Users, GraduationCap } from "lucide-react"
-import { Avatar, Box, Card, CardContent, List, Stack, Typography } from "@mui/material"
+import { User, Home, Users, GraduationCap, MapPin } from "lucide-react"
+import { Avatar, Box, Card, CardContent, Chip, List, Stack, Typography } from "@mui/material"
 import ProfilePic from "@/Components/other/profile-pic"
 import { MuiRow } from "@/Components/list/mui-list-parts"
 
@@ -358,57 +358,11 @@ const EducationBackgroundSection = ({ type, list, student_data, program, usr, va
         year_level: list[2]?.year_level || ''
     })
 
-    const isTransferee = (educationType, transferee) => {
-        return (educationType !== 'senior_high_school') ? (transferee ? "(Transferee)" : "") : ''
-    }
-
     switch(type) {
         case 'label':
-            return (
-                <Stack spacing={2}>
-                    {list.length !== 0 ? (
-                        list.map((e, i) => (
-                            <Card key={i} variant="outlined" sx={{ borderRadius: 2, bgcolor: "action.hover" }}>
-                                <CardContent sx={{ "&:last-child": { pb: 2 } }}>
-                                <Typography component="h2" sx={{ fontSize: "1.1rem", fontWeight: 700, mb: 1 }}>{replaceUnderScoreToSpace(toTitleCase(e.education_type))} {isTransferee(e.education_type, e.transferee)}</Typography>
-                                <div>
-                                    <Label title="School Name" desc={e.school_name}/>
-                                    <Label title="School Address" desc={e.school_address}/>
-                                    {e.education_type !== 'senior_high_school' && (
-                                        <Label title='Program' desc={(e.education_type === 'college' && !e.transferee) ? (student_data?.unique_att?.program?.name ?? student_data?.unique_att?.program?.code) : e.program} />
-                                    )}
-                                    {e.education_type === 'college' && e.transferee ? (
-                                        <>
-                                            <Label title="Date Last Attended" desc={(e.date_attended != null) ? readableDate(e.date_attended) : 'N/A'} />
-                                            <Label title="Year Level" desc={e.year_level || 'N/A'} />
-                                        </>
-                                    ) : e.education_type === 'college' ? (
-                                        // Current college: where they are now (latest enrollment),
-                                        // plus Year Graduated for graduates retaking a program.
-                                        (() => {
-                                            const enr = student_data?.unique_att?.enrollments
-                                            const latest = enr?.[enr.length - 1]
-                                            return (
-                                                <>
-                                                    <Label title="School Year" desc={latest?.school_year?.year || 'N/A'} />
-                                                    <Label title="Semester" desc={latest?.semester ? `${ordinal(latest.semester)} Semester` : 'N/A'} />
-                                                    <Label title="Year Level" desc={latest?.year_level ? getYearLevel(latest.year_level) : 'N/A'} />
-                                                    <Label title="Year Graduated" desc={e.year_graduated || 'N/A'} />
-                                                </>
-                                            )
-                                        })()
-                                    ) : (
-                                        <Label title="Year Graduated" desc={e.year_graduated || 'N/A'} />
-                                    )}
-                                </div>
-                                </CardContent>
-                            </Card>
-                        ))
-                    ) : (
-                        <Typography sx={EMPTY}>No Education Background Yet</Typography>
-                    )}
-                </Stack>
-            )
+            return list.length !== 0
+                ? <EducationTimeline list={list} student_data={student_data} />
+                : <Typography sx={EMPTY}>No Education Background Yet</Typography>
         case 'form':
             return (
                 <div className="space-y-6">
@@ -440,6 +394,101 @@ const EducationBackgroundSection = ({ type, list, student_data, program, usr, va
                 </div>
             )
     }
+}
+
+// The student's schooling as a short timeline, newest first: current
+// college, previous college (transferee), senior high. Each stop: the level,
+// the school and its address, then its details in a compact grid.
+const EducationTimeline = ({ list, student_data }) => {
+    const rank = (e) => e.education_type === 'college' ? (e.transferee ? 1 : 0) : 2
+    // A previous-college entry with nothing filled in (not a transferee) is left out.
+    const entries = [...list]
+        .filter((e) => !(e.education_type === 'college' && e.transferee && !e.school_name && !e.program))
+        .sort((a, b) => rank(a) - rank(b))
+
+    return (
+        <Box component="ol" sx={{ listStyle: "none", m: 0, p: 0 }}>
+            {entries.map((e, i) => {
+                const current = e.education_type === 'college' && !e.transferee
+                const last = i === entries.length - 1
+                return (
+                    <Box component="li" key={i} sx={{ display: "flex", gap: 2 }}>
+                        {/* dot + line down to the next stop */}
+                        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", pt: 0.5 }}>
+                            <Box sx={{ width: 12, height: 12, borderRadius: "50%", flexShrink: 0, bgcolor: current ? "primary.main" : "grey.400", boxShadow: (t) => `0 0 0 4px ${current ? t.palette.primary.light + "33" : t.palette.action.selected}` }} />
+                            {!last && <Box sx={{ flex: 1, width: 2, bgcolor: "action.selected", mt: 1 }} />}
+                        </Box>
+
+                        <Box sx={{ flex: 1, minWidth: 0, pb: last ? 0 : 3 }}>
+                            <Stack direction="row" sx={{ alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                                <Typography sx={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: current ? "var(--tone-blue-fg)" : "text.secondary" }}>
+                                    {e.education_type === 'senior_high_school' ? 'Senior High School' : e.transferee ? 'Previous College' : 'College'}
+                                </Typography>
+                                {current && <Chip size="small" color="primary" label="Current" sx={{ height: 20, fontSize: "0.68rem", fontWeight: 600 }} />}
+                                {e.education_type === 'college' && !!e.transferee && <Chip size="small" variant="outlined" label="Transferee" sx={{ height: 20, fontSize: "0.68rem" }} />}
+                            </Stack>
+                            <Typography sx={{ mt: 0.5, fontWeight: 700, fontSize: "1rem", lineHeight: 1.35 }}>{e.school_name || 'N/A'}</Typography>
+                            {e.school_address && (
+                                <Stack direction="row" sx={{ alignItems: "center", gap: 0.5, mt: 0.25, color: "text.secondary" }}>
+                                    <MapPin size={13} style={{ flexShrink: 0 }} />
+                                    <Typography sx={{ fontSize: "0.82rem" }}>{e.school_address}</Typography>
+                                </Stack>
+                            )}
+                            <Box sx={{ mt: 1.75 }}>
+                                {current && <ProgramHeader program={student_data?.unique_att?.program} />}
+                                <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, minmax(0, 1fr))" } }}>
+                                    {educationDetails(e, student_data).map(([label, value]) => (
+                                        <Box key={label} sx={{ minWidth: 0, ...(label === 'Program' && { gridColumn: "1 / -1" }) }}>
+                                            <Typography sx={{ fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "text.secondary" }}>{label}</Typography>
+                                            <Typography component="div" sx={{ fontSize: "0.88rem", wordBreak: "break-word", color: value ? "text.primary" : "text.secondary" }}>{value || 'N/A'}</Typography>
+                                        </Box>
+                                    ))}
+                                </Box>
+                            </Box>
+                        </Box>
+                    </Box>
+                )
+            })}
+        </Box>
+    )
+}
+
+// The current program: its logo (from the program table) beside its name
+// and code, above the rest of the details.
+const ProgramHeader = ({ program }) => {
+    const name = program?.name ?? program?.code
+    if (!name) return null
+    return (
+        <Stack direction="row" sx={{ alignItems: "center", gap: 1.75, pb: 1.75, mb: 1.75, borderBottom: 1, borderColor: "divider" }}>
+            <Avatar src={getProgramLogo(program.logo)} alt="" sx={{ width: 56, height: 56, bgcolor: "background.paper", border: 1, borderColor: "divider", flexShrink: 0 }} />
+            <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ fontSize: "1rem", fontWeight: 600, lineHeight: 1.35 }}>{name}</Typography>
+                {program?.code && program.code !== name && <Typography sx={{ fontSize: "0.8rem", color: "text.secondary" }}>{program.code}</Typography>}
+            </Box>
+        </Stack>
+    )
+}
+
+// [label, value] pairs shown for one education entry.
+const educationDetails = (e, student_data) => {
+    if (e.education_type === 'senior_high_school') return [['Year Graduated', e.year_graduated]]
+    if (e.transferee) {
+        return [
+            ['Program', e.program],
+            ['Date Last Attended', e.date_attended ? readableDate(e.date_attended) : null],
+            ['Year Level', e.year_level],
+        ]
+    }
+    // Current college: where they are now (latest enrollment), plus Year
+    // Graduated for graduates retaking a program.
+    const enr = student_data?.unique_att?.enrollments
+    const latest = enr?.[enr.length - 1]
+    return [
+        ['School Year', latest?.school_year?.year],
+        ['Semester', latest?.semester ? `${ordinal(latest.semester)} Semester` : null],
+        ['Year Level', latest?.year_level ? getYearLevel(latest.year_level) : null],
+        ...(e.year_graduated ? [['Year Graduated', e.year_graduated]] : []),
+    ]
 }
 
 const EducationBackgroundFieldSection = ({ title, user, data, program, setData, transferee, validationErr }) => {

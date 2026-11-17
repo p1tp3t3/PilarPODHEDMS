@@ -14,7 +14,7 @@ const SelectedUser = (props) => {
                     size="small"
                     aria-label="Remove"
                     onClick={() => props.unselect(null)}
-                    sx={{ position: "absolute", top: -6, left: -6, zIndex: 5, width: 20, height: 20, bgcolor: "grey.300", "&:hover": { bgcolor: "grey.400" } }}
+                    sx={{ position: "absolute", top: -6, left: -6, zIndex: 5, width: 20, height: 20, bgcolor: "action.selected", color: "text.primary", "&:hover": { bgcolor: "action.focus" } }}
                 >
                     <X size={12} />
                 </IconButton>

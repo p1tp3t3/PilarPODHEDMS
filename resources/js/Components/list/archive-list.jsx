@@ -35,8 +35,9 @@ const statusValueFor = (data) => {
   if (data.type === "complaint") return data.complaint_status;
   if (data.type === "referral") return data.referral_status;
   if (data.revoked_at) return "revoked";
-  if (data.rejected_at) return "rejected";
+  // Approved after a rejection counts as approved.
   if (data.confirmed_at) return "approved";
+  if (data.rejected_at) return "rejected";
   return "pending";
 };
 

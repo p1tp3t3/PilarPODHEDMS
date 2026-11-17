@@ -239,7 +239,7 @@ const appointmentColumns = (onAccept, onDecline) => [
                     variant="contained"
                     disableElevation
                     onClick={() => onAccept(row)}
-                    sx={{ textTransform: "none", backgroundColor: "#16a34a", "&:hover": { backgroundColor: "#15803d" } }}
+                    sx={{ textTransform: "none", backgroundColor: "#16a34a", "&:hover": { backgroundColor: "var(--tone-green-fg)" } }}
                 >
                     Accept
                 </Button>
@@ -247,7 +247,7 @@ const appointmentColumns = (onAccept, onDecline) => [
                     size="small"
                     variant="outlined"
                     onClick={() => onDecline(row)}
-                    sx={{ textTransform: "none", color: "#dc2626", borderColor: "#fca5a5", "&:hover": { borderColor: "#dc2626", backgroundColor: "#fef2f2" } }}
+                    sx={{ textTransform: "none", color: "#dc2626", borderColor: "#fca5a5", "&:hover": { borderColor: "#dc2626", backgroundColor: "var(--tone-red-bg)" } }}
                 >
                     Decline
                 </Button>
@@ -256,7 +256,7 @@ const appointmentColumns = (onAccept, onDecline) => [
             <Chip
                 label={row.accept ? "Accepted" : "Declined"}
                 size="small"
-                sx={{ fontWeight: 600, backgroundColor: row.accept ? "#dcfce7" : "#fee2e2", color: row.accept ? "#15803d" : "#b91c1c" }}
+                sx={{ fontWeight: 600, backgroundColor: row.accept ? "var(--tone-green-bg)" : "var(--tone-red-bg)", color: row.accept ? "var(--tone-green-fg)" : "var(--tone-red-fg)" }}
             />
         )),
     },

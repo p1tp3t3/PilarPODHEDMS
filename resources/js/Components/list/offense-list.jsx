@@ -186,7 +186,7 @@ const OffenseMobileItem = ({ i, data, open, toggle }) => {
     return (
         <Paper component="li" variant="outlined" sx={{ listStyle: "none", mb: 1.5, "&:last-of-type": { mb: 0 }, borderRadius: 3, overflow: "hidden" }}>
             <ListItemButton onClick={toggle} aria-expanded={open} sx={{ gap: 1.5, py: 1.25 }}>
-                <Avatar sx={{ width: 36, height: 36, bgcolor: isMajor ? "#fee2e2" : "#fef9c3", color: isMajor ? "#dc2626" : "#a16207" }}>
+                <Avatar sx={{ width: 36, height: 36, bgcolor: isMajor ? "var(--tone-red-bg)" : "var(--tone-yellow-bg)", color: isMajor ? "#dc2626" : "var(--tone-yellow-fg)" }}>
                     <ShieldAlert size={18} />
                 </Avatar>
                 <ListItemText

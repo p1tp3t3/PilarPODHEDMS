@@ -23,7 +23,7 @@ const Figure = ({ label, value, loading }) => (
 const ModelSection = ({ icon: Icon, title, subtitle, figures, loading, note }) => (
     <Box sx={{ px: { xs: 2, sm: 2.5 }, py: 1.75, display: "grid", gap: 1.5 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
-            <Box sx={{ width: 34, height: 34, flexShrink: 0, borderRadius: "50%", display: "grid", placeItems: "center", bgcolor: "#f3f4f6", color: "#4b5563" }}>
+            <Box sx={{ width: 34, height: 34, flexShrink: 0, borderRadius: "50%", display: "grid", placeItems: "center", bgcolor: "var(--tone-gray-bg)", color: "var(--tone-gray-fg)" }}>
                 <Icon size={17} />
             </Box>
             <Box sx={{ minWidth: 0 }}>
@@ -97,7 +97,7 @@ const ModelOverviewPanel = () => {
                             ["Last Rebuilt", c ? when(c.embedded_at) : "—"],
                         ]}
                         note={c?.not_embedded?.length > 0 && (
-                            <Typography sx={{ fontSize: "0.72rem", color: "#b45309", pl: { sm: 5.5 } }}>
+                            <Typography sx={{ fontSize: "0.72rem", color: "var(--tone-amber-fg)", pl: { sm: 5.5 } }}>
                                 {c.not_embedded.length} violation{c.not_embedded.length !== 1 ? "s" : ""} not embedded (no known words).
                             </Typography>
                         )}

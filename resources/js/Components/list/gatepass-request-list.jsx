@@ -208,7 +208,8 @@ const GatePassRequestList = (props) => {
                             View
                         </ActionBtn>
 
-                        {usr?.role === "sub_admin" && params.row.status === "pending" && (
+                        {/* `viewOnly`: only View (e.g. the tables on a profile). */}
+                        {!props.viewOnly && usr?.role === "sub_admin" && params.row.status === "pending" && (
                             <>
                                 <ActionBtn
                                     className="bg-green-500 hover:bg-green-600"

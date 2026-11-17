@@ -34,7 +34,9 @@ function CustomNoRowsOverlay() {
   );
 }
 
+// `viewOnly`: only the View button (e.g. the tables on a profile).
 const ComplaintList = ({
+  viewOnly = false,
   list = null,
   style,
   type,
@@ -188,6 +190,7 @@ const ComplaintList = ({
                 View
                 </ActionBtn>
 
+                {!viewOnly && <>
                 {obj.complaint_status === "pending" && type === "prefect" && (
                 <>
                     <ActionBtn
@@ -239,6 +242,7 @@ const ComplaintList = ({
                     Revoke
                 </ActionBtn>
                 )}
+                </>}
 
                 {select && (
                 <SelectCheckbox name="selected-case" value={obj.case_number} label={`Select case ${obj.case_number}`} />
@@ -250,7 +254,7 @@ const ComplaintList = ({
     });
 
     return cols;
-  }, [list, type, select, user]);
+  }, [list, type, select, user, viewOnly]);
 
   return (
     <>

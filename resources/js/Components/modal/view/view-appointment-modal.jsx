@@ -7,8 +7,8 @@ import { CalendarDays } from "lucide-react"
 import { ViewModalSkeleton } from "./view-modal-parts"
 
 const ATTENDANCE_META = {
-    present: { label: "Present", backgroundColor: "#dcfce7", color: "#15803d" },
-    absent: { label: "Absent", backgroundColor: "#fee2e2", color: "#b91c1c" },
+    present: { label: "Present", backgroundColor: "var(--tone-green-bg)", color: "var(--tone-green-fg)" },
+    absent: { label: "Absent", backgroundColor: "var(--tone-red-bg)", color: "var(--tone-red-fg)" },
     not_marked: { label: "Attendance Not Marked", backgroundColor: "var(--dm-raised, #f3f4f6)", color: "var(--dm-text-soft, #6b7280)" },
 }
 
@@ -65,8 +65,9 @@ const ViewAppointmentModal = ({ close, closeModal, id }) => {
                             sx={{
                                 fontWeight: 600,
                                 textTransform: "capitalize",
-                                backgroundColor: isAccepted ? "#dcfce7" : "#fef3c7",
-                                color: isAccepted ? "#15803d" : "#b45309",
+                                // Light/dark tints: resources/css/app.css (--tone-*).
+                                backgroundColor: isAccepted ? "var(--tone-green-bg)" : "var(--tone-amber-bg)",
+                                color: isAccepted ? "var(--tone-green-fg)" : "var(--tone-amber-fg)",
                             }}
                         />
                     </div>

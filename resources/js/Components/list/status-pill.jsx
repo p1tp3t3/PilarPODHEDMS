@@ -1,29 +1,44 @@
 import { toTitleCase } from "@/others/function";
 
-// Solid status badge for the record tables (complaints, referrals, absent
-// forms, gate passes): white text on the status's color, fully rounded.
-const STATUS_COLORS = {
-    pending: "bg-yellow-500",
-    ongoing: "bg-orange-500",
-    resolved: "bg-green-500",
-    approved: "bg-green-500",
-    rejected: "bg-red-500",
-    revoked: "bg-gray-500",
-    expired: "bg-slate-400",
+// Status badge for the record tables (complaints, referrals, absent forms,
+// gate passes): a soft tint with the status's colour as text and border, the
+// same look as the badges in the view modals. The tints are CSS variables
+// (--tone-*, resources/css/app.css) with light and dark values.
+const STATUS_TONE = {
+    pending: "yellow",
+    ongoing: "orange",
+    resolved: "green",
+    approved: "green",
+    rejected: "red",
+    revoked: "gray",
+    expired: "gray",
     // Not request statuses, but shown in other tables' Status columns the
     // same way: violations (major / minor), roles and school years.
-    major: "bg-red-500",
-    minor: "bg-amber-500",
-    active: "bg-green-500",
-    inactive: "bg-gray-500",
-    ended: "bg-gray-500",
-    archived: "bg-gray-500",
+    major: "red",
+    minor: "amber",
+    active: "green",
+    inactive: "gray",
+    ended: "gray",
+    archived: "gray",
+    // Security monitor severities.
+    high: "red",
+    medium: "orange",
+    low: "gray",
 };
 
-const StatusPill = ({ status }) => {
-    const s = String(status || "pending").toLowerCase();
+export const toneStyle = (tone) => ({
+    backgroundColor: `var(--tone-${tone}-bg)`,
+    color: `var(--tone-${tone}-fg)`,
+    border: `1px solid var(--tone-${tone}-bd)`,
+});
+
+const StatusPill = ({ status, fallback = "pending" }) => {
+    const s = String(status || fallback).toLowerCase();
     return (
-        <span className={`inline-block px-2 py-1 text-white rounded-xl leading-none whitespace-nowrap ${STATUS_COLORS[s] ?? "bg-gray-500"}`}>
+        <span
+            className="inline-block px-2 py-1 rounded-xl leading-none whitespace-nowrap font-medium"
+            style={toneStyle(STATUS_TONE[s] ?? "gray")}
+        >
             {toTitleCase(s)}
         </span>
     );

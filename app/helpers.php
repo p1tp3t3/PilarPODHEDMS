@@ -192,7 +192,7 @@ if (!function_exists('clean_rich_text')) {
         if ($html === null) {
             return null;
         }
-        $clean = strip_tags($html, '<p><br><strong><b><em><i><u><s><ul><ol><li><h1><h2><h3><blockquote>');
+        $clean = strip_tags($html, '<p><br><hr><strong><b><em><i><u><s><ul><ol><li><h1><h2><h3><blockquote>');
         $clean = preg_replace('/\s(on\w+|style)\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $clean);
 
         return preg_replace('/javascript\s*:/i', '', $clean);

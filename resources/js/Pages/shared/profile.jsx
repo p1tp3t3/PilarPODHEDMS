@@ -3,7 +3,7 @@ import ProfilePic from "@/Components/other/profile-pic";
 import React, { useEffect, useState, useContext } from "react";
 import { Link, useForm } from "@inertiajs/react";
 import DropdownField from "@/Components/input/dropdown";
-import { splitStr, showOutputModal, change, getProfilePic, checkActiveStatus, readableActiveDuration, showWarningModal, canViewEnrollmentHistory, showUserType, profileUrl } from "@/others/function";
+import { splitStr, showOutputModal, change, getProfilePic, checkActiveStatus, readableActiveDuration, showWarningModal, canViewEnrollmentHistory, profileUrl } from "@/others/function";
 import AuthContext from "@/context-provider/auth-provider";
 import EditProfileModal from "@/Components/modal/submission-form/edit-profile-modal";
 import { useReload } from "@/context-provider/reload-provider";
@@ -285,6 +285,7 @@ const Profile = (props) => {
                         </div>
                         <div className="w-full">
                             <ComplaintList
+                                viewOnly
                                 type="viewer"
                                 user={props.user}
                                 list={filteredComplaintsFiled}
@@ -307,6 +308,7 @@ const Profile = (props) => {
                             />
                         </div>
                         <ReferralList
+                            viewOnly
                             type="viewer"
                             list={filteredReferralsFiled}
                             viewReferral={(id) => { setViewReferralId(id); openViewReferral(true); }}
@@ -327,6 +329,7 @@ const Profile = (props) => {
                             />
                         </div>
                         <AbsentFormRequestList
+                            viewOnly
                             list={filteredAbsentFormsFiled}
                             events={(id, action) => {
                                 if (!action || action === "view") { setViewAbsentFormId(id); openViewAbsentForm(true); }
@@ -347,6 +350,7 @@ const Profile = (props) => {
                             />
                         </div>
                         <GatePassRequestList
+                            viewOnly
                             list={filteredGatepassRequested}
                             view={(id) => { setViewGatepassId(id); openViewGatepass(true); }}
                             events={() => {}}
@@ -529,12 +533,6 @@ const Profile = (props) => {
                                             #{user.id_number}
                                         </Typography>
                                         )}
-                                        {/* Students: program and year level, e.g. "BSIT • 3rd Year". */}
-                                        {user.role === "student" && (
-                                            <Typography sx={{ fontSize: { xs: "0.95em", sm: "1.05em" }, color: "text.secondary" }}>
-                                                {showUserType(user)}
-                                            </Typography>
-                                        )}
                                         {/* Earlier ID numbers, e.g. the student ID of someone who is now staff. */}
                                         {props.previous_id_numbers?.length > 0 && (
                                             <Typography component="div" sx={{ fontSize: "0.8em", color: "text.disabled" }}>
@@ -643,8 +641,9 @@ const EditProfileAccountBtn = ({
                             py: 1,
                             textTransform: "none",
                             fontWeight: 500,
-                            bgcolor: "#16a34a",
-                            "&:hover": { bgcolor: "#15803d" },
+                            // A deeper green in dark mode so the white text stays readable.
+                            bgcolor: (t) => t.palette.mode === "dark" ? "#15803d" : "#16a34a",
+                            "&:hover": { bgcolor: (t) => t.palette.mode === "dark" ? "#166534" : "#15803d" },
                         }}
                     >
                         Edit Profile

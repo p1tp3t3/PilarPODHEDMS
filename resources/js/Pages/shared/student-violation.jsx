@@ -2,22 +2,21 @@ import TabSwitcher from "@/Components/other/tab-switcher";
 import PageLayout from "@/Layouts/page-layout";
 import BehaviourAnalysisSkeleton from "@/Components/reload/behaviour-analysis-skeleton";
 import AuthLayout from "@/Layouts/auth-layout";
-import { readableDate, readableTime, toTitleCase, ordinal, openPdfTabPost } from "@/others/function";
-import { Box, Select, MenuItem, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { readableDate, readableTime, toTitleCase, ordinal, openPdfTabPost, showOutputModal } from "@/others/function";
+import { Box, Paper, Select, Stack, Typography, MenuItem, ToggleButton, ToggleButtonGroup, IconButton, Tooltip } from "@mui/material";
 import { DataGrid } from "@/Components/other/data-grid";
 import { useEffect, useMemo, useState } from "react";
 import useListData from "@/others/hooks/use-list-data";
-import { ShieldHalf, Clock, FolderOpen, AlertTriangle, CalendarPlus, FileText } from "lucide-react";
-import { Button as MuiButton } from "@mui/material";
+import { AlertTriangle, CalendarPlus, FileText } from "lucide-react";
 import axios from "axios";
-import { Head } from "@inertiajs/react";
+import { Head, usePage } from "@inertiajs/react";
 import ActionBtn from "@/Components/button/action-btn";
 import ViewComplaintModal from "@/Components/modal/view/view-complaint-modal";
 import AppointmentModal from "@/Components/modal/submission-form/set-appointment-modal";
 import Btn from "@/Components/button/normal-btn";
 import { useReload } from "@/context-provider/reload-provider";
 import BreadcrumbNav from "@/Components/other/breadcrumb-nav";
-import { ContributingFactors, Recommendations, toneOf } from "@/Components/card/behaviour-analysis-parts";
+import { ContributingFactors, Recommendations, ViolationTimeline, toneOf } from "@/Components/card/behaviour-analysis-parts";
 import StudentHeaderCard from "@/Components/card/student-header-card";
 
 // offense_issued_at is only set once a prefect actually issues the offense —
@@ -394,6 +393,9 @@ const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_
   const [selected, setSelected] = useState("");
   const [violation, setViolation] = useState('')
   const [data, setData] = useState(null)
+  const [refreshing, setRefreshing] = useState(false)
+  // Only the prefect asks for a new set (it replaces the one everyone sees).
+  const canRefresh = usePage().props.auth?.user?.role === "sub_admin"
 
 
   useEffect(() => {
@@ -474,26 +476,28 @@ const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_
     return () => { cancelled = true };
   }, [selected]);
 
-  const riskUI = data?.binary
-    ? {
-        title: "Likely to Commit",
-        border: "border-red-200",
-        bg: "bg-red-50",
-        titleColor: "text-red-600",
-        dot: "bg-red-500",
-        iconColor: "text-red-600",
-        ring: "ring-red-200",
-      }
-    : {
-        title: "Unlikely to Commit",
-        border: "border-green-200",
-        bg: "bg-green-50",
-        titleColor: "text-green-600",
-        dot: "bg-green-500",
-        iconColor: "text-green-600",
-        ring: "ring-green-200",
-      };
-
+  // "New set": Gemini writes different recommendations (the server keeps
+  // them, so the report matches). If it fails, the current set stays.
+  const refreshRecommendations = () => {
+    const modelInput = model_inputs?.[selected]
+    if (!modelInput || !data || refreshing) return
+    const previous = data.recommendations
+    setRefreshing(true)
+    setData((d) => d && { ...d, recommendations: null, recoFailed: false })
+    axios.post(RECOMMEND_URL, { model_input: modelInput, prediction: data.binary == 1 ? 1 : 0, insights: data.insights ?? [], refresh: true })
+      .then(({ data: r }) => {
+        if (Array.isArray(r?.reco) && r.reco.length) {
+          setData((d) => d && { ...d, recommendations: r.reco, recoFailed: false })
+        } else {
+          throw new Error("empty")
+        }
+      })
+      .catch((e) => {
+        setData((d) => d && { ...d, recommendations: previous })
+        showOutputModal(e?.response?.data?.message ?? "Couldn't write a new set right now. Please try again later.", "e")
+      })
+      .finally(() => setRefreshing(false))
+  }
 
   // The analysis on screen as a PDF, in a new tab (once the
   // recommendations are written).
@@ -510,18 +514,21 @@ const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_
   }
 
   return (
-    <div className="grid gap-6">
-      {/* Recidivism Prediction */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+    <div className="grid gap-4">
+      {/* Toolbar: which violation, and the report. */}
+      <Stack direction="row" sx={{ alignItems: "center", gap: 1.5 }}>
+        <Typography component="label" htmlFor="analysis-violation" sx={{ display: { xs: "none", sm: "block" }, fontSize: "0.8rem", fontWeight: 600, color: "text.secondary", flexShrink: 0 }}>
+            Violation
+        </Typography>
         <Select
+            id="analysis-violation"
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
             size="small"
             displayEmpty
             sx={{
-                minWidth: "190px", flex: 1,
-                bgcolor: "var(--dm-surface, white)",
-                '& .MuiOutlinedInput-root, &.MuiOutlinedInput-root': { borderRadius: '8px', fontSize: '0.85em' },
+                flex: 1, minWidth: 0, maxWidth: { md: 560 }, height: 40,
+                bgcolor: "background.paper", borderRadius: "8px", fontSize: "0.875rem",
             }}
         >
             {!violation_list.some((t) => t.id === selected) && (
@@ -533,112 +540,77 @@ const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_
                 </MenuItem>
             ))}
         </Select>
-        <MuiButton
-            variant="contained"
-            disableElevation
-            onClick={generateReport}
-            disabled={!reportReady}
-            startIcon={<FileText size={16} />}
-            title={reportReady ? "Open this analysis as a PDF in a new tab" : "Available once the recommendations are written"}
-            sx={{ textTransform: "none", fontWeight: 600, borderRadius: "8px", whiteSpace: "nowrap", flexShrink: 0, height: 40 }}
-        >
-            Generate Report
-        </MuiButton>
-      </div>
-        {data == null
-        ?
-        <BehaviourAnalysisSkeleton />
-        :
-        <>
-        <div className="grid gap-4">
-          {/* Verdict header */}
-          <div className={`border rounded-xl p-6 ${riskUI.bg} ${riskUI.border} flex flex-col sm:flex-row sm:items-center gap-4`}>
-            <div className="flex items-center gap-4 min-w-0 flex-1">
-              <div className={`h-16 w-16 rounded-full bg-white flex items-center justify-center ring-4 ${riskUI.ring} flex-shrink-0`}>
-                <ShieldHalf size={24} className={riskUI.iconColor} />
-              </div>
-              <div className="min-w-0">
-                <div className={`text-xl font-extrabold ${riskUI.titleColor}`}>{data.prediction}</div>
-                <div className="text-sm text-slate-600 mt-0.5">
-                  Prediction for repeating{" "}
-                  <span className="font-semibold">"{violation}"</span> based on behavioral analysis.
-                </div>
-              </div>
-            </div>
-            {onAppoint && data.binary == 1 && (
-              <div className="shrink-0 self-end sm:self-auto">
-                <Btn onclick={onAppoint} icon={<CalendarPlus size={19} />}>Set Appointment</Btn>
-              </div>
-            )}
-          </div>
+        {/* Right beside the dropdown, the same height; icon only, the tooltip names it
+            (a span so the tooltip also shows while it's disabled). */}
+        <Tooltip title={reportReady ? "Generate Report" : "Available once the recommendations are written"}>
+            <span style={{ flexShrink: 0, display: "flex" }}>
+                <IconButton
+                    aria-label="Generate Report"
+                    color="primary"
+                    onClick={generateReport}
+                    disabled={!reportReady}
+                    sx={{ width: 40, height: 40, border: 1, borderColor: "divider", borderRadius: "8px", bgcolor: "background.paper", "&:hover": { bgcolor: "action.hover" } }}
+                >
+                    <FileText size={18} />
+                </IconButton>
+            </span>
+        </Tooltip>
+      </Stack>
 
-          {/* Factors + Recommendations */}
-          <div className="grid lg:grid-cols-2 gap-4 items-start">
+      {data == null
+        ? <BehaviourAnalysisSkeleton />
+        : (
+        // Wide screens: the verdict and its factors on the left (kept in view
+        // while scrolling), recommendations and the timeline on the right.
+        // Phones: one column in that order.
+        <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", lg: "minmax(300px, 380px) minmax(0, 1fr)" }, alignItems: "start" }}>
+          <Stack sx={{ gap: 2, position: { lg: "sticky" }, top: { lg: 16 } }}>
+            <VerdictCard
+              prediction={data.prediction}
+              likely={data.binary == 1}
+              violation={violation}
+              onAppoint={onAppoint && data.binary == 1 ? onAppoint : null}
+            />
             <ContributingFactors insights={data.insights} tone={toneOf(data.binary == 1)} />
-            <Recommendations list={data.recommendations} failed={data.recoFailed} tone={toneOf(data.binary == 1)} />
-          </div>
-        </div>
-        {/* Violation Timeline */}
-      <div className="rounded-md p-6 bg-white shadow-black/20 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
-              <Clock className="text-gray-700" />
-            </div>
-            <div className="font-semibold text-gray-800">Violation Timeline</div>
-          </div>
-
-          <div className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
-            {data.violation_timeline.length} records
-          </div>
-        </div>
-
-        <div className="mt-6">
-          {data.violation_timeline.length === 0 ? (
-            <div className="grid place-items-center text-gray-500 py-10">
-              <FolderOpen size="2.5em" className="mb-2 opacity-60" />
-              <p>No violation history found.</p>
-            </div>
-          ) : (
-          <div className="relative pl-6">
-            <div className="absolute left-[11px] top-0 bottom-0 w-px bg-gray-200"></div>
-
-            <div className="space-y-6">
-              {data.violation_timeline.map((v) => {
-
-                return (
-                  <div key={v.id} className="relative">
-                    <div className={`absolute -left-[1.2rem] top-1 h-3 w-3 rounded-full bg-gray-800`}></div>
-
-                    <div className="space-y-1">
-                      <div className="grid gap-3">
-                        <div className="text-sm text-gray-500">
-                          {readableDate(bestComplaintDate(v.complaint))} ({readableTime(bestComplaintDate(v.complaint))})
-                        </div>
-                        <div className="text-sm text-gray-500 font-bold">
-                          From Case No. {v.complaint?.case_number}
-                        </div>
-                      </div>
-
-                      {(v.complaint?.incident_summary || v.complaint?.complaintSubject?.[0]?.incident_summary) && (
-                        <div className="text-sm text-gray-500">
-                          {v.complaint?.incident_summary || v.complaint?.complaintSubject?.[0]?.incident_summary}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-          </div>
-          )}
-        </div>
-      </div>
-        </>}
+          </Stack>
+          <Stack sx={{ gap: 2, minWidth: 0 }}>
+            <Recommendations
+              list={data.recommendations}
+              failed={data.recoFailed}
+              tone={toneOf(data.binary == 1)}
+              onRefresh={canRefresh && model_inputs?.[selected] ? refreshRecommendations : null}
+              refreshing={refreshing}
+            />
+            <ViolationTimeline records={data.violation_timeline} dateOf={(v) => bestComplaintDate(v.complaint)} />
+          </Stack>
+        </Box>
+      )}
     </div>
   );
 };
+
+// The verdict, kept minimal: a small dot and the result in its tone, what it
+// is about, and (for the prefect, when "Likely") Set Appointment.
+const VerdictCard = ({ prediction, likely, violation, onAppoint }) => {
+  const tone = likely ? "red" : "green"
+  return (
+    <Paper variant="outlined" sx={{ borderRadius: 3, p: 2.5 }}>
+      <Stack direction="row" sx={{ alignItems: "center", gap: 1 }}>
+        <Box sx={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, bgcolor: `var(--tone-${tone}-fg)` }} />
+        <Typography sx={{ fontSize: "1rem", fontWeight: 700, lineHeight: 1.3, color: `var(--tone-${tone}-fg)` }}>{prediction}</Typography>
+      </Stack>
+      <Typography sx={{ mt: 0.75, fontSize: "0.82rem", lineHeight: 1.55, color: "text.secondary" }}>
+        Prediction for repeating "{violation}", based on the student's discipline record.
+      </Typography>
+      {onAppoint && (
+        <Box sx={{ mt: 1.75 }}>
+          <Btn onclick={onAppoint} icon={<CalendarPlus size={19} />}>Set Appointment</Btn>
+        </Box>
+      )}
+    </Paper>
+  )
+}
+
 
 
 

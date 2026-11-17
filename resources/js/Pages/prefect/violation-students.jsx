@@ -41,8 +41,8 @@ const ViolationStudents = ({ violation, violation_key }) => {
                                 size="small"
                                 sx={{
                                     fontWeight: 600,
-                                    backgroundColor: violation.offense_status ? "#fee2e2" : "#fef3c7",
-                                    color: violation.offense_status ? "#b91c1c" : "#b45309",
+                                    backgroundColor: violation.offense_status ? "var(--tone-red-bg)" : "var(--tone-amber-bg)",
+                                    color: violation.offense_status ? "var(--tone-red-fg)" : "var(--tone-amber-fg)",
                                 }}
                             />
                             <span className="text-[0.9em] text-gray-600">

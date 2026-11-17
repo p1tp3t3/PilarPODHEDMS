@@ -57,7 +57,7 @@ const Row = ({ label, status = 'none' }) => {
     return (
         <MuiRow
             icon={FileText}
-            iconBg="#dcfce7"
+            iconBg="var(--tone-green-bg)"
             iconFg="#16a34a"
             primary={label}
             right={<Chip size="small" color={chip.color} label={chip.label} sx={{ height: 22, fontSize: "0.7rem", fontWeight: 600 }} />}

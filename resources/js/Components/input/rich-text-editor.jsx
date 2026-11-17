@@ -3,14 +3,31 @@ import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
+import { Box, Divider, FormHelperText, IconButton, MenuItem, Paper, Select, Tooltip, Typography } from "@mui/material"
 import "./rich-text-editor.css"
-import { Bold, Italic, Strikethrough, Heading, List, ListOrdered, Quote, RotateCcw, RotateCw, Maximize2, Minimize2 } from "lucide-react"
+import {
+    Bold, Italic, Underline, Strikethrough, List, ListOrdered, ListIndentIncrease, ListIndentDecrease,
+    Quote, Minus, RemoveFormatting, Undo2, Redo2, Maximize2, Minimize2,
+} from "lucide-react"
 
+// A rich text box for writing reasons, notes and other documents (Tiptap,
+// MUI toolbar). Only document formatting: text style (normal / headings),
+// bold, italic, underline, strikethrough, lists (with indent), quote and a
+// horizontal line — no code, code blocks or links (StarterKit's are turned
+// off). Everything it can produce is kept by the server's clean_rich_text().
 const RichTextEditor = ({ label, val = "", change, error, req = false, placeholder = "", minHeight = "20rem" }) => {
     const [expanded, setExpanded] = useState(false)
 
     const editor = useEditor({
-        extensions: [StarterKit, Placeholder.configure({ placeholder })],
+        extensions: [
+            StarterKit.configure({
+                code: false,
+                codeBlock: false,
+                link: false,
+                heading: { levels: [1, 2, 3] },
+            }),
+            Placeholder.configure({ placeholder }),
+        ],
         content: val,
         // TipTap's "empty" state is the HTML "<p></p>", not "" — reporting
         // that verbatim would make every consumer's `=== ''` / `.trim()`
@@ -35,30 +52,29 @@ const RichTextEditor = ({ label, val = "", change, error, req = false, placehold
         }
     }, [val, editor])
 
-    // Tiptap v3's useEditor no longer re-renders this component on every
-    // transaction (only content changes bubble out via onUpdate/`change`) —
-    // so toggling a mark with nothing selected (no doc change, just pending
-    // "stored marks") never re-ran this render, and the toolbar button's
-    // active state looked permanently stuck. useEditorState subscribes to
-    // exactly the derived bits the toolbar needs and re-renders on those.
-    const toolbarState = useEditorState({
+    // Tiptap v3's useEditor doesn't re-render on every transaction, so the
+    // toolbar subscribes to exactly the bits it shows (active marks, the
+    // current text style, undo/redo).
+    const state = useEditorState({
         editor,
         selector: ({ editor: e }) => ({
-            isBold: e?.isActive("bold") ?? false,
-            isItalic: e?.isActive("italic") ?? false,
-            isStrike: e?.isActive("strike") ?? false,
-            isHeading: e?.isActive("heading", { level: 2 }) ?? false,
-            isBulletList: e?.isActive("bulletList") ?? false,
-            isOrderedList: e?.isActive("orderedList") ?? false,
-            isBlockquote: e?.isActive("blockquote") ?? false,
+            bold: e?.isActive("bold") ?? false,
+            italic: e?.isActive("italic") ?? false,
+            underline: e?.isActive("underline") ?? false,
+            strike: e?.isActive("strike") ?? false,
+            bulletList: e?.isActive("bulletList") ?? false,
+            orderedList: e?.isActive("orderedList") ?? false,
+            blockquote: e?.isActive("blockquote") ?? false,
+            block: [1, 2, 3].find((l) => e?.isActive("heading", { level: l })) ?? 0,
+            canIndent: e?.can().sinkListItem("listItem") ?? false,
+            canOutdent: e?.can().liftListItem("listItem") ?? false,
             canUndo: e?.can().undo() ?? false,
             canRedo: e?.can().redo() ?? false,
         }),
     })
 
-    // Expanded mode covers the full viewport (above UpModal's z-[200], since
-    // this is most often used inside one) rather than just growing taller,
-    // and blocks background scroll while active like a modal would.
+    // Expanded mode covers the whole window (above modals) and blocks the
+    // page's scroll while open.
     useEffect(() => {
         if (!expanded) return
         document.body.style.overflow = "hidden"
@@ -70,104 +86,135 @@ const RichTextEditor = ({ label, val = "", change, error, req = false, placehold
     if (!editor) return null
 
     const box = (
-        <div className={`w-full border rounded-md overflow-hidden flex flex-col ${expanded ? "h-full" : ""} ${error ? "border-[#d12323]" : "border-gray-300 focus-within:border-blue-700"}`}>
-            <Toolbar editor={editor} state={toolbarState} expanded={expanded} onToggleExpand={() => setExpanded((e) => !e)} />
-            <div
-                className="p-3 cursor-text overflow-y-auto flex-1"
-                style={!expanded ? { minHeight } : undefined}
+        <Paper
+            variant="outlined"
+            sx={{
+                width: "100%", display: "flex", flexDirection: "column", overflow: "hidden", borderRadius: 1.5,
+                ...(expanded && { flex: 1, minHeight: 0 }),
+                borderColor: error ? "error.main" : "divider",
+                "&:focus-within": { borderColor: error ? "error.main" : "primary.main", boxShadow: (t) => `0 0 0 1px ${error ? t.palette.error.main : t.palette.primary.main}` },
+            }}
+        >
+            <Toolbar editor={editor} state={state} expanded={expanded} onToggleExpand={() => setExpanded((e) => !e)} />
+            <Box
+                sx={{ p: 1.5, cursor: "text", overflowY: "auto", flex: 1, color: "text.primary", ...(!expanded && { minHeight }) }}
                 onClick={() => editor.chain().focus().run()}
             >
                 <EditorContent editor={editor} />
-            </div>
-        </div>
+            </Box>
+        </Paper>
+    )
+
+    const field = (
+        <>
+            {label && (
+                <Typography component="label" sx={{ fontSize: "0.85em", fontWeight: 500, color: "text.secondary" }}>
+                    {label} {req && <Box component="span" sx={{ color: "error.main" }}>*</Box>}
+                </Typography>
+            )}
+            {box}
+            {error && <FormHelperText error sx={{ m: 0, fontSize: 13, fontWeight: 600 }}>{error}</FormHelperText>}
+        </>
     )
 
     // Rendered straight into <body>: inside the page (or a modal) an animated
     // ancestor's transform makes `fixed` relative to that box instead of the
-    // window, so the sidebar and header stayed on top of the "full screen"
-    // editor and clipped its toolbar. Above the sidebar, header and modals.
+    // window. Above the sidebar, header and modals.
     if (expanded) {
         return createPortal(
-            <div className="fixed inset-0 z-[1000] bg-white p-4 flex flex-col gap-1">
-                {label && (
-                    <label className="text-[0.85em] font-medium text-gray-700">
-                        {label} {req && <span className="text-[#d12323]">*</span>}
-                    </label>
-                )}
-                {box}
-                {error && <div className="text-[#d12323] text-[13px] font-[600]">{error}</div>}
-            </div>,
+            <Box sx={{ position: "fixed", inset: 0, zIndex: 1000, bgcolor: "background.paper", p: 2, display: "flex", flexDirection: "column", gap: 0.5 }}>
+                {field}
+            </Box>,
             document.body
         )
     }
 
-    return (
-        <div className="w-full flex flex-col gap-1">
-            {label && (
-                <label className="text-[0.85em] font-medium text-gray-700">
-                    {label} {req && <span className="text-[#d12323]">*</span>}
-                </label>
-            )}
-            {box}
-            {error && <div className="text-[#d12323] text-[13px] font-[600]">{error}</div>}
-        </div>
-    )
+    return <Box sx={{ width: "100%", display: "flex", flexDirection: "column", gap: 0.5 }}>{field}</Box>
 }
 
-const ToolbarBtn = ({ onClick, active, disabled, children, title, className = "" }) => (
-    <button
-        type="button"
-        title={title}
-        disabled={disabled}
-        // A plain onClick fires after the browser's mousedown already blurred
-        // the contentEditable and collapsed its selection — so "Bold" on
-        // selected text had nothing left to apply to. Preventing default on
-        // mousedown keeps the editor's selection intact through the click.
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={onClick}
-        className={`w-8 h-8 grid place-items-center rounded transition-colors ${
-            active ? "bg-blue-700 text-white" : "text-gray-700 hover:bg-gray-200"
-        } ${disabled ? "opacity-40 cursor-not-allowed" : ""} ${className}`}
-    >
-        {children}
-    </button>
+// One toolbar button: an icon with a tooltip; highlighted while active.
+const ToolbarBtn = ({ title, onClick, active = false, disabled = false, children }) => (
+    <Tooltip title={title} disableInteractive>
+        <span>
+            <IconButton
+                size="small"
+                aria-label={title}
+                aria-pressed={active}
+                disabled={disabled}
+                // A plain click fires after mousedown already blurred the editor
+                // and dropped its selection; keep the selection through the click.
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={onClick}
+                sx={{
+                    width: 30, height: 30, borderRadius: 1, color: active ? "primary.main" : "text.secondary",
+                    bgcolor: active ? "action.selected" : "transparent",
+                    "&:hover": { bgcolor: active ? "action.selected" : "action.hover" },
+                }}
+            >
+                {children}
+            </IconButton>
+        </span>
+    </Tooltip>
 )
 
-const Toolbar = ({ editor, state, expanded, onToggleExpand }) => (
-    <div className="flex flex-wrap items-center gap-1 p-2 border-b border-gray-200 bg-gray-50">
-        <ToolbarBtn title="Bold" onClick={() => editor.chain().focus().toggleBold().run()} active={state.isBold}>
-            <Bold size="0.85em" />
-        </ToolbarBtn>
-        <ToolbarBtn title="Italic" onClick={() => editor.chain().focus().toggleItalic().run()} active={state.isItalic}>
-            <Italic size="0.85em" />
-        </ToolbarBtn>
-        <ToolbarBtn title="Strikethrough" onClick={() => editor.chain().focus().toggleStrike().run()} active={state.isStrike}>
-            <Strikethrough size="0.85em" />
-        </ToolbarBtn>
-        <div className="w-[1px] h-5 bg-gray-300 mx-1"></div>
-        <ToolbarBtn title="Heading" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={state.isHeading}>
-            <Heading size="0.85em" />
-        </ToolbarBtn>
-        <ToolbarBtn title="Bullet List" onClick={() => editor.chain().focus().toggleBulletList().run()} active={state.isBulletList}>
-            <List size="0.85em" />
-        </ToolbarBtn>
-        <ToolbarBtn title="Numbered List" onClick={() => editor.chain().focus().toggleOrderedList().run()} active={state.isOrderedList}>
-            <ListOrdered size="0.85em" />
-        </ToolbarBtn>
-        <ToolbarBtn title="Quote" onClick={() => editor.chain().focus().toggleBlockquote().run()} active={state.isBlockquote}>
-            <Quote size="0.85em" />
-        </ToolbarBtn>
-        <div className="w-[1px] h-5 bg-gray-300 mx-1"></div>
-        <ToolbarBtn title="Undo" onClick={() => editor.chain().focus().undo().run()} disabled={!state.canUndo}>
-            <RotateCcw size="0.85em" />
-        </ToolbarBtn>
-        <ToolbarBtn title="Redo" onClick={() => editor.chain().focus().redo().run()} disabled={!state.canRedo}>
-            <RotateCw size="0.85em" />
-        </ToolbarBtn>
-        <ToolbarBtn title={expanded ? "Collapse" : "Expand"} onClick={onToggleExpand} active={expanded} className="ml-auto">
-            {expanded ? <Minimize2 size="0.85em" /> : <Maximize2 size="0.85em" />}
-        </ToolbarBtn>
-    </div>
-)
+const Sep = () => <Divider orientation="vertical" flexItem sx={{ mx: 0.25, my: 0.75 }} />
+
+const BLOCKS = [
+    { value: 0, label: "Normal text" },
+    { value: 1, label: "Heading 1" },
+    { value: 2, label: "Heading 2" },
+    { value: 3, label: "Heading 3" },
+]
+
+const Toolbar = ({ editor, state, expanded, onToggleExpand }) => {
+    const run = (fn) => () => fn(editor.chain().focus()).run()
+    const setBlock = (level) => {
+        const c = editor.chain().focus()
+        ;(level ? c.setHeading({ level }) : c.setParagraph()).run()
+    }
+    const icon = { size: 16 }
+
+    return (
+        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.125, px: 0.75, py: 0.5, borderBottom: 1, borderColor: "divider", bgcolor: "action.hover" }}>
+            <Select
+                size="small"
+                value={state.block}
+                onChange={(e) => setBlock(e.target.value)}
+                onMouseDown={(e) => e.stopPropagation()}
+                inputProps={{ "aria-label": "Text style" }}
+                MenuProps={{ disablePortal: expanded, sx: { zIndex: 1300 } }}
+                sx={{ height: 30, width: 118, fontSize: "0.8rem", bgcolor: "background.paper", mr: 0.25, "& .MuiSelect-select": { py: 0.5, pl: 1.25 } }}
+            >
+                {BLOCKS.map((b) => (
+                    <MenuItem key={b.value} value={b.value} sx={{ fontSize: b.value ? `${1.15 - b.value * 0.08}rem` : "0.85rem", fontWeight: b.value ? 700 : 400 }}>
+                        {b.label}
+                    </MenuItem>
+                ))}
+            </Select>
+            <Sep />
+            <ToolbarBtn title="Bold (Ctrl+B)" active={state.bold} onClick={run((c) => c.toggleBold())}><Bold {...icon} /></ToolbarBtn>
+            <ToolbarBtn title="Italic (Ctrl+I)" active={state.italic} onClick={run((c) => c.toggleItalic())}><Italic {...icon} /></ToolbarBtn>
+            <ToolbarBtn title="Underline (Ctrl+U)" active={state.underline} onClick={run((c) => c.toggleUnderline())}><Underline {...icon} /></ToolbarBtn>
+            <ToolbarBtn title="Strikethrough" active={state.strike} onClick={run((c) => c.toggleStrike())}><Strikethrough {...icon} /></ToolbarBtn>
+            <Sep />
+            <ToolbarBtn title="Bullet list" active={state.bulletList} onClick={run((c) => c.toggleBulletList())}><List {...icon} /></ToolbarBtn>
+            <ToolbarBtn title="Numbered list" active={state.orderedList} onClick={run((c) => c.toggleOrderedList())}><ListOrdered {...icon} /></ToolbarBtn>
+            <ToolbarBtn title="Decrease indent" disabled={!state.canOutdent} onClick={run((c) => c.liftListItem("listItem"))}><ListIndentDecrease {...icon} /></ToolbarBtn>
+            <ToolbarBtn title="Increase indent" disabled={!state.canIndent} onClick={run((c) => c.sinkListItem("listItem"))}><ListIndentIncrease {...icon} /></ToolbarBtn>
+            <Sep />
+            <ToolbarBtn title="Quote" active={state.blockquote} onClick={run((c) => c.toggleBlockquote())}><Quote {...icon} /></ToolbarBtn>
+            <ToolbarBtn title="Horizontal line" onClick={run((c) => c.setHorizontalRule())}><Minus {...icon} /></ToolbarBtn>
+            <ToolbarBtn title="Clear formatting" onClick={run((c) => c.unsetAllMarks().clearNodes())}><RemoveFormatting {...icon} /></ToolbarBtn>
+            <Sep />
+            <ToolbarBtn title="Undo (Ctrl+Z)" disabled={!state.canUndo} onClick={run((c) => c.undo())}><Undo2 {...icon} /></ToolbarBtn>
+            <ToolbarBtn title="Redo (Ctrl+Y)" disabled={!state.canRedo} onClick={run((c) => c.redo())}><Redo2 {...icon} /></ToolbarBtn>
+            <Box sx={{ ml: "auto" }}>
+                <ToolbarBtn title={expanded ? "Exit full screen" : "Full screen"} active={expanded} onClick={onToggleExpand}>
+                    {expanded ? <Minimize2 {...icon} /> : <Maximize2 {...icon} />}
+                </ToolbarBtn>
+            </Box>
+        </Box>
+    )
+}
 
 export default RichTextEditor

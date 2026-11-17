@@ -22,16 +22,16 @@ import { getProfilePic } from "@/others/function"
 // Collapsed-row avatar for records (complaints, referrals, forms...) rather
 // than people: the record's icon, tinted by its status (an MUI Avatar).
 const STATUS_TONE = {
-    pending: ["#fef3c7", "#b45309"],
-    ongoing: ["#dbeafe", "#1d4ed8"],
-    approved: ["#dcfce7", "#15803d"],
-    confirmed: ["#dcfce7", "#15803d"],
-    resolved: ["#dcfce7", "#15803d"],
-    rejected: ["#fee2e2", "#b91c1c"],
-    revoked: ["#fee2e2", "#b91c1c"],
+    pending: ["var(--tone-amber-bg)", "var(--tone-amber-fg)"],
+    ongoing: ["var(--tone-blue-bg)", "var(--tone-blue-fg)"],
+    approved: ["var(--tone-green-bg)", "var(--tone-green-fg)"],
+    confirmed: ["var(--tone-green-bg)", "var(--tone-green-fg)"],
+    resolved: ["var(--tone-green-bg)", "var(--tone-green-fg)"],
+    rejected: ["var(--tone-red-bg)", "var(--tone-red-fg)"],
+    revoked: ["var(--tone-red-bg)", "var(--tone-red-fg)"],
 }
 export const StatusAvatar = ({ icon: Icon, status }) => {
-    const [bg, fg] = STATUS_TONE[String(status ?? "").toLowerCase()] ?? ["#f3f4f6", "#4b5563"]
+    const [bg, fg] = STATUS_TONE[String(status ?? "").toLowerCase()] ?? ["var(--tone-gray-bg)", "var(--tone-gray-fg)"]
     return (
         <Avatar sx={{ width: 36, height: 36, bgcolor: bg, color: fg }}>
             <Icon size={18} />

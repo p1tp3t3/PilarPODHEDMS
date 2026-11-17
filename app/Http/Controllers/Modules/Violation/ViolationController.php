@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Inertia\Inertia;
 use App\Http\Resources\Violation\PenaltyResource;
 use App\Http\Resources\Violation\ViolationResource;
@@ -600,7 +601,22 @@ class ViolationController extends Controller
             'prediction' => 'required|integer|in:0,1',
             'insights' => 'nullable|array|max:20',
             'insights.*' => 'string|max:2000',
+            // "New set": write different recommendations and keep those instead.
+            'refresh' => 'nullable|boolean',
         ]);
+        $refresh = (bool) ($data['refresh'] ?? false);
+
+        // A new set replaces the one everyone sees (and the report), so only
+        // the prefect asks for one, a few times a minute at most (each is a
+        // Gemini call).
+        if ($refresh) {
+            abort_unless(auth()->user()?->role === 'sub_admin', 403);
+            $limitKey = 'gemini-reco-refresh:'.auth()->id();
+            if (RateLimiter::tooManyAttempts($limitKey, 5)) {
+                return response()->json(['message' => 'Too many new sets in a row. Please wait a minute.'], 429);
+            }
+            RateLimiter::hit($limitKey, 60);
+        }
 
         $key = config('services.gemini.key');
         if (! $key) {
@@ -628,8 +644,16 @@ class ViolationController extends Controller
         // generated from it matches. A new record changes the prompt, so a
         // new set is written then.
         $cacheKey = 'gemini-reco:'.sha1(config('services.gemini.model').'|'.$prompt);
-        if (is_array($saved = Cache::get($cacheKey))) {
+        $saved = Cache::get($cacheKey);
+        if (! $refresh && is_array($saved)) {
             return response()->json(['prediction' => (int) $data['prediction'], 'reco' => $saved]);
+        }
+        // New set: ask for different advice than the set shown now (its titles),
+        // with more variety. It is saved under the same key, replacing that set.
+        $sentPrompt = $prompt;
+        if ($refresh && is_array($saved) && $saved) {
+            $titles = collect($saved)->map(fn ($r) => preg_split('/(?<=[.!?])\s+/', trim((string) $r), 2)[0])->implode(' | ');
+            $sentPrompt .= ' Write a fresh set: different recommendations from these earlier ones, which the office has already seen: '.$titles;
         }
 
         try {
@@ -641,7 +665,8 @@ class ViolationController extends Controller
                 ->retry(3, 2000, fn ($e) => $e instanceof \Illuminate\Http\Client\RequestException
                     && in_array($e->response->status(), [429, 503]), throw: false)
                 ->post('https://generativelanguage.googleapis.com/v1beta/models/'.config('services.gemini.model').':generateContent', [
-                    'contents' => [['parts' => [['text' => $prompt]]]],
+                    'contents' => [['parts' => [['text' => $sentPrompt]]]],
+                    ...($refresh ? ['generationConfig' => ['temperature' => 1.0]] : []),
                 ]);
         } catch (\Exception $e) {
             Log::error('Failed to reach Gemini for recommendations', ['error' => $e->getMessage()]);

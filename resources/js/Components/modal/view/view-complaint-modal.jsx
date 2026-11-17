@@ -1,25 +1,23 @@
 import UpModal from "../up-modal"
 import { useState, useEffect } from "react"
 import { usePage } from "@inertiajs/react"
-import { readableDate, readableTime, toTitleCase, formatSchoolYearSemester, getProfilePic } from "../../../others/function"
+import { Avatar, Box, Paper, Stack, Typography } from "@mui/material"
+import { readableDate, readableTime, toTitleCase, getProfilePic } from "../../../others/function"
 import { ComplaintService } from "@/others/services/complaint-service"
-import { ModalHeader, Section, Stat, StatGrid, PersonList, safeParseArray, ByPrefect, useOwnerTitle, useIsOwner, ViewModalSkeleton } from "./view-modal-parts"
+import {
+    ModalHeader, Section, Timeline, stepAt, stepAhead, PersonList, safeParseArray, People, prefectName, useOwnerTitle, useIsOwner, ViewModalSkeleton,
+    Pill, TextBox, Text, Field, EvidenceGrid, EmptyNote,
+} from "./view-modal-parts"
 import {
     AlertCircle,
-    CalendarClock,
     CheckCircle2,
-    ShieldCheck,
     MessageSquareText,
-    FileWarning,
-    Users,
     ImageIcon,
     Sparkles,
-    UserCircle2,
     ClipboardList,
     Undo2,
     FileText,
     History,
-    XCircle,
     ShieldAlert,
     Gavel,
     Repeat,
@@ -51,24 +49,16 @@ const ViewComplaintModal = (props) => {
             pd={['p-0', '']}
             bgColor='bg-white'
             w='w-[55rem] max-w-[90vw]'>
-            <div className="w-full">
+            <Box sx={{ width: "100%" }}>
                 {(data != null)
                 ?
                 <Body data={data} usr={props.usr} />
                 :
                 reload &&
                 <ViewModalSkeleton variant="record" />}
-            </div>
+            </Box>
         </UpModal>
     )
-}
-
-const STATUS_STYLES = {
-    rejected: 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-200',
-    pending: 'bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-200',
-    ongoing: 'bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200',
-    resolved: 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-200',
-    revoked: 'bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-300',
 }
 
 // Mirrors complaint_context_analyzer.py's _status() thresholds exactly —
@@ -77,14 +67,33 @@ const STATUS_STYLES = {
 // 0-0.6-ish range that method actually produces, not literal-text-match
 // scores.
 const MATCH_LEVELS = [
-    { label: 'Very Strong Match', min: 0.50, chip: 'bg-green-100 border-green-400 text-green-700', legend: 'bg-green-100 text-green-700 border-green-400' },
-    { label: 'Strong Match', min: 0.40, chip: 'bg-yellow-100 border-yellow-400 text-yellow-700', legend: 'bg-yellow-100 text-yellow-700 border-yellow-400' },
-    { label: 'Likely Related', min: 0.30, chip: 'bg-orange-100 border-orange-400 text-orange-700', legend: 'bg-orange-100 text-orange-700 border-orange-400' },
-    { label: 'Possibly Related', min: 0.20, chip: 'bg-red-100 border-red-400 text-red-700', legend: 'bg-red-100 text-red-700 border-red-400' },
-    { label: 'Unclear / Needs Review', min: -Infinity, chip: 'bg-gray-200 border-gray-400 text-gray-700', legend: 'bg-gray-200 text-gray-700 border-gray-400' },
+    { label: 'Very Strong Match', min: 0.50, tone: 'green' },
+    { label: 'Strong Match', min: 0.40, tone: 'yellow' },
+    { label: 'Likely Related', min: 0.30, tone: 'orange' },
+    { label: 'Possibly Related', min: 0.20, tone: 'red' },
+    { label: 'Unclear / Needs Review', min: -Infinity, tone: 'gray' },
 ]
 
 const matchLevelFor = (similarity) => MATCH_LEVELS.find(l => similarity >= l.min)
+
+const when = (at) => `${readableDate(at)} (${readableTime(at)})`
+
+// Every step a complaint goes through: Reported -> Approved -> Resolved.
+// A rejected one still shows the steps after it: the prefect can approve it
+// later (e.g. once more evidence comes in). A revoke stops it.
+const stepsFor = (d) => {
+    const steps = [stepAt("Reported", d.created_at, d.school_year_semester)]
+    if (d.rejected_at) steps.push(stepAt("Rejected", d.rejected_at, d.rejected_school_year_semester, "failed", d.rejected_reason))
+    // Rejecting doesn't clear an earlier approval date, so while it's rejected
+    // that date isn't an approval: show "Approved" as still possible.
+    const rejectedNow = d.complaint_status === "rejected"
+    if (d.confirmed_at && !rejectedNow) steps.push(stepAt("Approved", d.confirmed_at, d.confirmed_school_year_semester))
+    else if (!d.revoked_at) steps.push(stepAhead("Approved", d.rejected_at ? "If the prefect reconsiders" : "Waiting for the prefect's review"))
+    if (d.offense_issued_at) steps.push(stepAt("Resolved", d.offense_issued_at, d.resolved_school_year_semester))
+    else if (!d.revoked_at) steps.push(stepAhead("Resolved", "Once the case is settled"))
+    if (d.revoked_at) steps.push(stepAt("Revoked", d.revoked_at, d.revoked_school_year_semester, "stopped"))
+    return steps
+}
 
 const Body = ({ data, usr }) => {
     const isPrefect = usePage().props.auth?.user?.role === 'sub_admin'
@@ -93,279 +102,198 @@ const Body = ({ data, usr }) => {
     const complainantName = toTitleCase(data.user != null ? data.user.profile?.first_name : data.complainant_name)
     const ownerId = data.complainant_id ?? data.user?.id
     const title = useOwnerTitle(ownerId, complainantName, "Complaint", "Complainant")
-    // The complainant viewing their own complaint doesn't need themselves
-    // repeated — only a "filed by the prefect" note, if there is one.
     const isOwner = useIsOwner(ownerId)
-    const showOwner = !isOwner || !!data.prefect
 
     return (
-        <div>
+        <Box>
             <ModalHeader
                 title={title}
                 reference={data.complaint_number}
+                // Who filed it (not repeated when it's the viewer's own).
+                person={!isOwner ? data.user : null}
+                personName={!isOwner && data.user == null ? toTitleCase(data.complainant_name) : null}
                 pdfUrl={data.pdf_url}
                 status={data.complaint_status}
-                styles={STATUS_STYLES}
             />
 
-            <div className="p-6 space-y-4">
-                {/* Timeline stats */}
-                <StatGrid>
-                    <Stat icon={CalendarClock} label="Reported Since" value={`${readableDate(data.created_at)} (${readableTime(data.created_at)})`} sub={formatSchoolYearSemester(data.school_year_semester)} />
-                    {/* Rejected comes before Approved: a rejected complaint
-                        can be approved later (then both show, in order);
-                        while it's rejected, there's no Approved date. */}
-                    {data.rejected_at &&
-                    <Stat icon={XCircle} label="Rejected Since" value={`${readableDate(data.rejected_at)} (${readableTime(data.rejected_at)})`} sub={formatSchoolYearSemester(data.rejected_school_year_semester)} />}
-                    {data.confirmed_at && data.complaint_status !== 'rejected' &&
-                    <Stat icon={CheckCircle2} label="Approved Since" value={`${readableDate(data.confirmed_at)} (${readableTime(data.confirmed_at)})`} sub={formatSchoolYearSemester(data.confirmed_school_year_semester)} />}
-                    {data.offense_issued_at &&
-                    <Stat icon={ShieldCheck} label="Resolved Since" value={`${readableDate(data.offense_issued_at)} (${readableTime(data.offense_issued_at)})`} sub={formatSchoolYearSemester(data.resolved_school_year_semester)} />}
-                    {data.revoked_at &&
-                    <Stat icon={Undo2} label="Revoked Since" value={`${readableDate(data.revoked_at)} (${readableTime(data.revoked_at)})`} sub={formatSchoolYearSemester(data.revoked_school_year_semester)} />}
-                </StatGrid>
+            <Stack sx={{ p: 3, gap: 2 }}>
+                {/* Progress: done steps and the ones still ahead */}
+                <Timeline steps={stepsFor(data)} />
 
                 {data.edited_at && data.revisions?.length > 0 && (() => {
                     const previous = data.revisions[0]
                     const previousSubjects = safeParseArray(previous.subjects)
                     const previousEvidences = safeParseArray(previous.complaint_evidences)
                     return (
-                        <Section icon={History} title="Previous Version (Before Edit)" tone="border-amber-200">
-                            <div className="grid gap-3 text-sm">
-                                <div>
-                                    <span className="text-gray-500">Incident: </span>
-                                    <span className="text-gray-800 font-medium">{previous.incident ? toTitleCase(previous.incident) : '—'}</span>
-                                </div>
-                                <div>
-                                    <span className="text-gray-500">Subject(s): </span>
-                                    <span className="text-gray-800 font-medium">
-                                        {previousSubjects.length !== 0
-                                            ? previousSubjects.map((s) => `${s.first_name ?? ''} ${s.last_name ?? ''}`.trim()).filter(Boolean).join(', ')
-                                            : '—'}
-                                    </span>
-                                </div>
-                                <div>
-                                    <div className="text-gray-500 mb-1">Reason:</div>
-                                    <div
-                                        className="rounded-md bg-amber-50/60 p-3 text-gray-700 h-24 overflow-y-auto [&_p]:mb-2 [&_p:last-child]:mb-0"
-                                        dangerouslySetInnerHTML={{ __html: previous.complaint_description }}
-                                    />
-                                </div>
+                        <Section icon={History} title="Previous Version (Before Edit)" tone="amber">
+                            <Stack sx={{ gap: 1.5 }}>
+                                <Field label="Incident">{previous.incident ? toTitleCase(previous.incident) : '—'}</Field>
+                                <Field label="Subject(s)">
+                                    {previousSubjects.length !== 0
+                                        ? previousSubjects.map((s) => `${s.first_name ?? ''} ${s.last_name ?? ''}`.trim()).filter(Boolean).join(', ')
+                                        : '—'}
+                                </Field>
+                                <Box>
+                                    <Typography sx={{ fontSize: "0.875rem", color: "text.secondary", mb: 0.5 }}>Reason:</Typography>
+                                    <TextBox html={previous.complaint_description} tone="amber" height={96} sx={{ color: "text.primary" }} />
+                                </Box>
                                 {previousEvidences.length !== 0 &&
-                                <div>
-                                    <div className="text-gray-500 mb-1">Evidence:</div>
-                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                                        {previousEvidences.map((e, i) => {
-                                            const src = `/complaint/${data.encrypted_id}/previous-evidence/${e.file}`
-                                            return (
-                                                <a key={i} href={src} target="_blank" rel="noreferrer" className="block rounded-lg overflow-hidden border border-gray-200 hover:border-gray-300">
-                                                    {e.type === 'vid'
-                                                    ? <video src={src} className="w-full h-20 object-cover" />
-                                                    : <img src={src} className="w-full h-20 object-cover" alt={`Previous evidence ${i + 1}`} />}
-                                                </a>
-                                            )
-                                        })}
-                                    </div>
-                                </div>}
-                                <div className="text-[0.75em] text-gray-400">
-                                    Edited on {readableDate(data.edited_at)} ({readableTime(data.edited_at)})
-                                </div>
-                            </div>
+                                <Box>
+                                    <Typography sx={{ fontSize: "0.875rem", color: "text.secondary", mb: 0.5 }}>Evidence:</Typography>
+                                    <EvidenceGrid small files={previousEvidences} label="Previous evidence"
+                                        srcOf={(file) => `/complaint/${data.encrypted_id}/previous-evidence/${file}`} />
+                                </Box>}
+                                <Typography sx={{ fontSize: "0.75em", color: "text.disabled" }}>
+                                    Edited on {when(data.edited_at)}
+                                </Typography>
+                            </Stack>
                         </Section>
                     )
                 })()}
 
-                {data.rejected_reason != null &&
-                <Section icon={FileWarning} title="Reason for Rejection" tone="border-red-200">
-                    <div className="text-sm h-32 overflow-y-auto rounded-md bg-red-50/60 p-3 text-red-800">
-                        {data.rejected_reason}
-                    </div>
-                </Section>}
 
                 {data.complaint_status === 'revoked' &&
-                <Section icon={Undo2} title={isOwner ? "Revoked by You" : "Revoked by Complainant"} tone="border-gray-200">
-                    <p className="text-sm text-gray-600">
+                <Section icon={Undo2} title={isOwner ? "Revoked by You" : "Revoked by Complainant"}>
+                    <Typography sx={{ fontSize: "0.875rem", color: "text.primary" }}>
                         The complainant withdrew this complaint. It is kept on record and remains visible here, but is no longer active.
-                    </p>
+                    </Typography>
                 </Section>}
 
-                <div className={`grid gap-4 ${showOwner ? 'sm:grid-cols-2' : ''}`}>
-                    {showOwner && <Section icon={UserCircle2} title={isOwner ? "Filed For You" : "Complainant"}>
-                        {!isOwner && (data.user != null
-                        ? <PersonList data={data.user} />
-                        : <div className="text-sm text-gray-700">{toTitleCase(data.complainant_name)}</div>)}
-                        <ByPrefect prefect={data.prefect} />
-                    </Section>}
-                    <Section icon={Users} title="Subject">
-                        <PersonList
+                <People rows={[
+                    {
+                        label: `Subject${data.complaintSubject?.length > 1 ? `s (${data.complaintSubject.length})` : ""}`,
+                        content: <PersonList
                             data={data.subject}
                             data_list={data.complaintSubject != null ? data.complaintSubject : null}
                             emptyLabel="No subject on record."
                             // Student data privacy: only the prefect can open a subject's profile.
-                            linkable={isPrefect} />
-                    </Section>
-                </div>
+                            linkable={isPrefect} />,
+                    },
+                    data.prefect && { label: "Filed by the Prefect", content: <Text>{prefectName(data.prefect)}</Text> },
+                ]} />
 
                 <Section icon={ClipboardList} title="Incident Reported">
-                    <p className="text-sm text-gray-700">{toTitleCase(data.violation?.violation_name)}</p>
+                    <Typography sx={{ fontSize: "0.875rem", color: "text.primary" }}>{toTitleCase(data.violation?.violation_name)}</Typography>
                     {data.violation?.keywords?.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                            {data.violation.keywords.map((kw, i) => (
-                                <span
-                                    key={i}
-                                    className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs rounded-full"
-                                >
-                                    {kw}
-                                </span>
-                            ))}
-                        </div>
+                        <Stack direction="row" sx={{ flexWrap: "wrap", gap: 0.75, mt: 1 }}>
+                            {data.violation.keywords.map((kw, i) => <Pill key={i} label={kw} bordered={false} sx={{ bgcolor: "action.selected", fontWeight: 400 }} />)}
+                        </Stack>
                     )}
                 </Section>
 
                 <Section icon={MessageSquareText} title={isOwner ? "Your Reason" : "Reason by the Complainant"}>
-                    <div
-                        className="text-sm h-32 overflow-y-auto rounded-md bg-gray-50 p-3 text-gray-700 leading-relaxed [&_p]:mb-2 [&_p:last-child]:mb-0"
-                        dangerouslySetInnerHTML={{ __html: data.complaint_description }}
-                    />
+                    <TextBox html={data.complaint_description} />
                 </Section>
 
                 {usr.role === "sub_admin" &&
                 <Section icon={Sparkles} title="Context of the Complainant's Reason">
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                        {MATCH_LEVELS.map((l, i) => (
-                            <span key={i} className={`text-[0.7rem] font-semibold px-2.5 py-0.5 rounded-full border ${l.legend}`}>
-                                {l.label}
-                            </span>
-                        ))}
-                    </div>
+                    <Stack direction="row" sx={{ flexWrap: "wrap", gap: 0.75, mb: 1.5 }}>
+                        {MATCH_LEVELS.map((l, i) => <Pill key={i} tone={l.tone} label={l.label} sx={{ fontSize: "0.7rem" }} />)}
+                    </Stack>
                     {contextAnalysis.length !== 0
-                    ? <div className="flex flex-wrap gap-2 p-3 rounded-md bg-gray-50">
-                        {contextAnalysis.map((e, i) => {
-                            const level = matchLevelFor(e.similarity)
-                            return (
-                                <span key={i} className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full border ${level.chip}`}>
-                                    {e.violation}
-                                </span>
-                            )
-                        })}
-                      </div>
-                    : <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-                        <AlertCircle size={28} className="mb-2" />
-                        <p className="text-sm font-medium">No Context Analyzed</p>
-                      </div>}
+                    ? <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1, p: 1.5, borderRadius: 1.5, bgcolor: "action.hover" }}>
+                        {contextAnalysis.map((e, i) => (
+                            <Pill key={i} tone={matchLevelFor(e.similarity).tone} label={e.violation} sx={{ height: 26, fontWeight: 500 }} />
+                        ))}
+                      </Stack>
+                    : <EmptyNote icon={AlertCircle} text="No Context Analyzed" />}
                 </Section>}
 
                 <Section icon={ImageIcon} title={`Additional Evidences${evidences.length ? ` (${evidences.length})` : ''}`}>
                     {evidences.length !== 0
-                    ? <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {evidences.map((e, i) => {
-                            const src = `/complaint/${data.encrypted_id}/evidence/${e.file}`
-                            return (
-                                <a key={i} href={src} target="_blank" rel="noreferrer"
-                                   className="group block rounded-lg overflow-hidden border border-gray-200 hover:border-gray-300 hover:shadow-sm transition">
-                                    {e.type === 'vid'
-                                    ? <video src={src} className="w-full h-32 object-cover" controls />
-                                    : <img src={src} className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-200" alt={`Evidence ${i + 1}`} />}
-                                </a>
-                            )
-                        })}
-                      </div>
-                    : <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-                        <AlertCircle size={28} className="mb-2" />
-                        <div className="text-sm font-medium">No Evidences Included</div>
-                      </div>}
+                    ? <EvidenceGrid files={evidences} srcOf={(file) => `/complaint/${data.encrypted_id}/evidence/${file}`} />
+                    : <EmptyNote icon={AlertCircle} text="No Evidences Included" />}
                 </Section>
 
                 {data.complaint_status === "resolved" && (() => {
                     const summary = data.incident_summary || data.complaintSubject?.find(s => s.incident_summary)?.incident_summary
                     return summary &&
                         <Section icon={FileText} title="Summary About the Incident">
-                            <div className="rounded-md bg-gray-50 h-32 overflow-y-auto p-3 text-sm text-gray-800 leading-relaxed">
-                                {summary}
-                            </div>
+                            <TextBox sx={{ color: "text.primary" }}>{summary}</TextBox>
                         </Section>
                 })()}
 
                 {/* Subjects' violations: prefect only (student data privacy). */}
                 {isPrefect && data.complaint_status === "resolved" && data.complaintSubject?.length > 0 &&
                 <Section icon={ShieldAlert} title="Violations Committed">
-                    <div className="space-y-4">
-                    {data.complaintSubject.map((sub, i) => {
-                        const p = sub.user?.profile
-                        const found = (data.complaintSubjectViolation || []).filter(v => v.student_id === sub.student_id)
-                        const violations = found.filter(v => v.violation)
-                        const cleared = found.length > 0 && violations.length === 0
-
-                        return (
-                            <div key={i} className="rounded-lg border border-gray-200 overflow-hidden">
-                                <div className="flex items-center gap-3 px-3 sm:px-4 py-2.5 bg-gray-50 border-b border-gray-200">
-                                    <img src={getProfilePic(p?.profile_picture, p?.sex)} alt=""
-                                         className="w-8 h-8 rounded-full object-cover border border-gray-200 shrink-0" />
-                                    <div className="min-w-0 flex-1">
-                                        <div className="text-sm font-semibold text-gray-800 truncate">
-                                            {[p?.first_name, p?.middle_name, p?.last_name].filter(Boolean).join(" ")}
-                                        </div>
-                                        {sub.user?.id_number &&
-                                        <div className="text-[0.7rem] text-gray-400 truncate">{sub.user.id_number}</div>}
-                                    </div>
-                                    <span className={`shrink-0 text-[0.7rem] font-semibold px-2 py-0.5 rounded-full ${
-                                        violations.length ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
-                                        {violations.length
-                                            ? `${violations.length} Violation${violations.length > 1 ? "s" : ""}`
-                                            : "No Violation"}
-                                    </span>
-                                </div>
-
-                                <div className="p-3 sm:p-4">
-                                    {violations.length > 0
-                                    ? <div className="space-y-2">
-                                        {violations.map((v, idx) => {
-                                            const major = !!v.violation.offense_status
-                                            return (
-                                                <div key={idx}
-                                                     className={`rounded-lg border border-gray-200 border-l-4 ${major ? "border-l-red-500" : "border-l-orange-400"} px-3 py-2.5`}>
-                                                    <div className="flex items-start justify-between gap-2">
-                                                        <div className="text-sm font-semibold text-gray-800">
-                                                            {v.violation.violation_name}
-                                                        </div>
-                                                        <span className={`shrink-0 text-[0.65rem] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${
-                                                            major ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"}`}>
-                                                            {major ? "Major" : "Minor"}
-                                                        </span>
-                                                    </div>
-                                                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                        <div className="flex items-center gap-2 text-xs text-gray-600">
-                                                            <Repeat size={13} className="text-gray-400 shrink-0" />
-                                                            <span className="text-gray-400">Offense:</span>
-                                                            <span className="font-medium text-gray-800">{v.occurrence ?? "—"}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-2 text-xs text-gray-600 min-w-0">
-                                                            <Gavel size={13} className="text-gray-400 shrink-0" />
-                                                            <span className="text-gray-400">Penalty:</span>
-                                                            <span className="font-medium text-gray-800 truncate" title={v.penalty ?? ""}>
-                                                                {v.penalty ?? "No penalty set"}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )
-                                        })}
-                                      </div>
-                                    : <div className="flex items-center gap-2 text-sm text-gray-500">
-                                        {cleared
-                                            ? <><CheckCircle2 size={16} className="text-green-600" /> No violation committed.</>
-                                            : <><AlertCircle size={16} className="text-gray-400" /> No violation records found.</>}
-                                      </div>}
-                                </div>
-                            </div>
-                        )
-                    })}
-                    </div>
+                    <Stack sx={{ gap: 2 }}>
+                        {data.complaintSubject.map((sub, i) => (
+                            <SubjectViolations key={i} sub={sub} found={(data.complaintSubjectViolation || []).filter(v => v.student_id === sub.student_id)} />
+                        ))}
+                    </Stack>
                 </Section>}
-            </div>
-        </div>
+            </Stack>
+        </Box>
     )
 }
+
+// One subject of a resolved complaint and the violations issued to them.
+const SubjectViolations = ({ sub, found }) => {
+    const p = sub.user?.profile
+    const violations = found.filter(v => v.violation)
+    const cleared = found.length > 0 && violations.length === 0
+
+    return (
+        <Paper variant="outlined" sx={{ borderRadius: 2, overflow: "hidden" }}>
+            <Stack direction="row" sx={{ alignItems: "center", gap: 1.5, px: { xs: 1.5, sm: 2 }, py: 1.25, bgcolor: "action.hover", borderBottom: 1, borderColor: "divider" }}>
+                <Avatar src={getProfilePic(p?.profile_picture, p?.sex)} alt="" sx={{ width: 32, height: 32, border: 1, borderColor: "divider" }} />
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography noWrap sx={{ fontSize: "0.875rem", fontWeight: 600, color: "text.primary" }}>
+                        {[p?.first_name, p?.middle_name, p?.last_name].filter(Boolean).join(" ")}
+                    </Typography>
+                    {sub.user?.id_number &&
+                    <Typography noWrap sx={{ fontSize: "0.7rem", color: "text.disabled" }}>{sub.user.id_number}</Typography>}
+                </Box>
+                <Pill
+                    bordered={false}
+                    tone={violations.length ? "red" : "green"}
+                    label={violations.length ? `${violations.length} Violation${violations.length > 1 ? "s" : ""}` : "No Violation"}
+                    sx={{ fontSize: "0.7rem" }}
+                />
+            </Stack>
+
+            <Box sx={{ p: { xs: 1.5, sm: 2 } }}>
+                {violations.length > 0
+                ? <Stack sx={{ gap: 1 }}>
+                    {violations.map((v, idx) => {
+                        const major = !!v.violation.offense_status
+                        return (
+                            <Paper key={idx} variant="outlined" sx={{ borderRadius: 2, borderLeft: 4, borderLeftColor: major ? "#ef4444" : "#fb923c", px: 1.5, py: 1.25 }}>
+                                <Stack direction="row" sx={{ alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
+                                    <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "text.primary" }}>{v.violation.violation_name}</Typography>
+                                    <Pill
+                                        bordered={false}
+                                        tone={major ? "red" : "orange"}
+                                        label={major ? "Major" : "Minor"}
+                                        sx={{ height: 20, fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}
+                                    />
+                                </Stack>
+                                <Box sx={{ mt: 1, display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" } }}>
+                                    <Detail icon={Repeat} label="Offense">{v.occurrence ?? "—"}</Detail>
+                                    <Detail icon={Gavel} label="Penalty" title={v.penalty ?? ""}>{v.penalty ?? "No penalty set"}</Detail>
+                                </Box>
+                            </Paper>
+                        )
+                    })}
+                  </Stack>
+                : <Stack direction="row" sx={{ alignItems: "center", gap: 1, fontSize: "0.875rem", color: "text.secondary" }}>
+                    {cleared
+                        ? <><CheckCircle2 size={16} color="#16a34a" /> No violation committed.</>
+                        : <><AlertCircle size={16} color="#9ca3af" /> No violation records found.</>}
+                  </Stack>}
+            </Box>
+        </Paper>
+    )
+}
+
+// Small "icon Label: value" line inside a violation card.
+const Detail = ({ icon: Icon, label, title, children }) => (
+    <Stack direction="row" sx={{ alignItems: "center", gap: 1, fontSize: "0.75rem", color: "text.secondary", minWidth: 0 }}>
+        <Box component="span" sx={{ display: "flex", color: "text.disabled", flexShrink: 0 }}><Icon size={13} /></Box>
+        <Box component="span" sx={{ color: "text.disabled" }}>{label}:</Box>
+        <Box component="span" title={title} sx={{ fontWeight: 500, color: "text.primary", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{children}</Box>
+    </Stack>
+)
 
 ViewComplaintModal.Body = Body
 

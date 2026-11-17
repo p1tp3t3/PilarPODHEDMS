@@ -1,31 +1,21 @@
 import UpModal from "../up-modal"
 import { GatePassService } from "@/others/services/gatepass-service"
 import { useState, useEffect } from "react"
-import { change, disablePrevDate, readableDate, readableTime, toTitleCase, formatSchoolYearSemester } from "@/others/function"
+import { change, disablePrevDate, readableDate, readableTime, toTitleCase } from "@/others/function"
 import FormTextfield from "@/Components/input/form-input"
 import FormButton from "@/Components/button/button"
 import CheckBoxButton from "@/Components/input/checkbox"
-import { ModalHeader, Section, Stat, StatGrid, PersonList, ByPrefect, useOwnerTitle, useIsOwner, ViewModalSkeleton } from "./view-modal-parts"
-import { Validator } from "@/others/classes/validator"
 import {
-    CalendarClock,
-    CheckCircle2,
-    XCircle,
-    Ban,
+    ModalHeader, Section, Timeline, stepAt, stepAhead, People, prefectName, useOwnerTitle, useIsOwner, ViewModalSkeleton,
+    Pill, TextBox, Text, RecordBody,
+} from "./view-modal-parts"
+import { Validator } from "@/others/classes/validator"
+import { Box, Paper, Stack, Typography } from "@mui/material"
+import {
     Undo2,
-    UserCircle2,
     MessageSquareText,
     DoorOpen,
-    FileWarning,
 } from "lucide-react"
-
-const STATUS_STYLES = {
-    pending: 'bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-200',
-    approved: 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-200',
-    expired: 'bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-300',
-    rejected: 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-200',
-    revoked: 'bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-300',
-}
 
 const statusFor = (info) => {
     if (info.revoked_at) return 'revoked'
@@ -81,7 +71,7 @@ const ViewGatePassModal = (props) => {
             bgColor='bg-white'
             cntr={!props.approved}
             w='w-[36rem] max-w-[90vw]'>
-            <div className="w-full">
+            <Box sx={{ width: "100%" }}>
                 {(data != null)
                 ?
                 <Body
@@ -95,9 +85,23 @@ const ViewGatePassModal = (props) => {
                 :
                 reload &&
                 <ViewModalSkeleton variant="record" />}
-            </div>
+            </Box>
         </UpModal>
     )
+}
+
+// Every step a gate pass goes through: Requested -> Approved -> Expires.
+// A rejection ends it; a revoke stops it.
+const stepsFor = (d) => {
+    const steps = [stepAt("Requested", d.created_at, d.school_year_semester)]
+    if (d.rejected_at) return [...steps, stepAt("Rejected", d.rejected_at, d.rejected_school_year_semester, "failed", d.rejected_reason)]
+    if (d.confirmed_at) steps.push(stepAt("Approved", d.confirmed_at, d.confirmed_school_year_semester))
+    else if (!d.revoked_at) steps.push(stepAhead("Approved", "Waiting for the prefect's approval"))
+    if (d.revoked_at) return [...steps, stepAt("Revoked", d.revoked_at, d.revoked_school_year_semester, "stopped")]
+    if (!d.date_expiration) steps.push(stepAhead("Expires", "Set when approved"))
+    else if (new Date(d.date_expiration) < new Date()) steps.push(stepAt("Expired", d.date_expiration, null, "stopped"))
+    else steps.push(stepAhead("Expires", `Valid until ${readableDate(d.date_expiration)} (${readableTime(d.date_expiration)})`))
+    return steps
 }
 
 const Body = ({ data, handleSubmit, approved, setData2, data2, validationErr }) => {
@@ -135,72 +139,49 @@ const Body = ({ data, handleSubmit, approved, setData2, data2, validationErr }) 
         }));
     };
 
+    const when = (at) => `${readableDate(at)} (${readableTime(at)})`
+
     return (
-        <div>
+        <Box>
             <ModalHeader
                 title={title}
                 reference={info.gatepass_number}
+                person={!isOwner ? info.user : null}
+                personLabel="Requested by"
                 status={status}
-                styles={STATUS_STYLES}
             />
 
-            <div className="p-6 space-y-4">
-                {/* Timeline stats */}
-                <StatGrid>
-                    <Stat icon={CalendarClock} label="Requested Since" value={`${readableDate(info.created_at)} (${readableTime(info.created_at)})`} sub={formatSchoolYearSemester(info.school_year_semester)} />
-                    {info.confirmed_at && !info.rejected_at &&
-                    <Stat icon={CheckCircle2} label="Confirmed Since" value={`${readableDate(info.confirmed_at)} (${readableTime(info.confirmed_at)})`} sub={formatSchoolYearSemester(info.confirmed_school_year_semester)} />}
-                    {info.rejected_at &&
-                    <Stat icon={XCircle} label="Rejected Since" value={`${readableDate(info.rejected_at)} (${readableTime(info.rejected_at)})`} sub={formatSchoolYearSemester(info.rejected_school_year_semester)} />}
-                    {info.revoked_at &&
-                    <Stat icon={Undo2} label="Revoked Since" value={`${readableDate(info.revoked_at)} (${readableTime(info.revoked_at)})`} sub={formatSchoolYearSemester(info.revoked_school_year_semester)} />}
-                    {info.date_expiration &&
-                    <Stat icon={Ban} label="Expiration Date" value={readableDate(info.date_expiration)} />}
-                </StatGrid>
+            <RecordBody>
+                {/* Progress: done steps and the ones still ahead */}
+                <Timeline steps={stepsFor(info)} />
 
-                {info.rejected_reason != null &&
-                <Section icon={FileWarning} title="Reason for Rejection" tone="border-red-200">
-                    <div className="text-sm h-28 overflow-y-auto rounded-md bg-red-50/60 p-3 text-red-800">
-                        {info.rejected_reason}
-                    </div>
-                </Section>}
 
                 {status === 'revoked' &&
-                <Section icon={Undo2} title={isOwner ? "Revoked by You" : "Revoked by Requester"} tone="border-gray-200">
-                    <p className="text-sm text-gray-600">
+                <Section icon={Undo2} title={isOwner ? "Revoked by You" : "Revoked by Requester"}>
+                    <Text>
                         The requester withdrew this gate pass. It is kept on record and remains visible here, but is no longer active.
-                    </p>
+                    </Text>
                 </Section>}
 
-                {(!isOwner || info.prefect) && <Section icon={UserCircle2} title={isOwner ? "Issued For You" : "User"}>
-                    {!isOwner && <PersonList data={info.user} emptyLabel="No user on record." />}
-                    <ByPrefect prefect={info.prefect} label="Issued by the Prefect" />
-                </Section>}
+                {info.prefect && <People rows={[
+                    { label: "Issued by the Prefect", content: <Text>{prefectName(info.prefect)}</Text> },
+                ]} />}
 
                 <Section icon={MessageSquareText} title="Reason for Requesting Gate Pass">
-                    <div className="text-sm h-24 overflow-y-auto rounded-md bg-gray-50 p-3 text-gray-700 leading-relaxed">
-                        {info.reason}
-                    </div>
+                    <TextBox height={96}>{info.reason}</TextBox>
                 </Section>
 
                 {allowToLabel.length !== 0 &&
                 <Section icon={DoorOpen} title="Allowed To">
-                    <div className="flex flex-wrap gap-2">
-                        {allowToLabel.map((e, i) => (
-                            <span
-                                key={i}
-                                className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-[0.8em] font-medium border border-blue-100"
-                            >
-                                {e}
-                            </span>
-                        ))}
-                    </div>
+                    <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
+                        {allowToLabel.map((e, i) => <Pill key={i} tone="blue" label={e} sx={{ height: 26, fontWeight: 500 }} />)}
+                    </Stack>
                 </Section>}
 
                 {/* Approve Mode (Inputs) */}
                 {approved && (
-                    <form className="grid gap-5" onSubmit={handleSubmit}>
-                        <div className="grid gap-3 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <Box component="form" onSubmit={handleSubmit} sx={{ display: "grid", gap: 2.5 }}>
+                        <Paper variant="outlined" sx={{ display: "grid", gap: 1.5, p: 2, borderRadius: 2, bgcolor: "action.hover" }}>
 
                             <FormTextfield
                                 label="Expiration Date"
@@ -226,17 +207,17 @@ const Body = ({ data, handleSubmit, approved, setData2, data2, validationErr }) 
                                 change={handleAllowToChange}
                             />
                             {validationErr?.allow_to && (
-                                <div className="text-[#d12323] text-[0.8em]">
-                                    <b>{validationErr.allow_to}*</b>
-                                </div>
+                                <Typography sx={{ color: "#d12323", fontSize: "0.8em", fontWeight: 700 }}>
+                                    {validationErr.allow_to}*
+                                </Typography>
                             )}
-                        </div>
+                        </Paper>
 
                         <FormButton type="submit" label="Save Changes" />
-                    </form>
+                    </Box>
                 )}
-            </div>
-        </div>
+            </RecordBody>
+        </Box>
     );
 };
 

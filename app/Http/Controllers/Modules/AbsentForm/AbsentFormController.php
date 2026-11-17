@@ -63,7 +63,7 @@ class AbsentFormController extends Controller
                     match (request('status')) {
                         'pending' => $mine->whereNull('confirmed_at')->whereNull('rejected_at'),
                         'noted' => $mine->whereNotNull('confirmed_at'),
-                        'rejected' => $mine->whereNotNull('rejected_at'),
+                        'rejected' => $mine->whereNotNull('rejected_at')->whereNull('confirmed_at'),
                         default => null,
                     };
 
@@ -372,6 +372,15 @@ class AbsentFormController extends Controller
 
         try {
             $student = Absence::with(['user.profile', 'user.program', 'user.enrollments'])->findOrFail($id);
+            // Pending or rejected ones can be approved: a rejected absent form
+            // can still be approved later (e.g. once more evidence comes in).
+            // Its rejection date and reason stay as history.
+            if ($student->confirmed_at || $student->revoked_at) {
+                DB::rollBack();
+
+                return response()->json(['message' => 'This absent form can no longer be approved.'], 409);
+            }
+            $fromStatus = $student->rejected_at ? 'rejected' : 'pending';
 
             Absence::where('id', $id)->update([
                 'confirmed_at' => now(),
@@ -386,7 +395,7 @@ class AbsentFormController extends Controller
                 auth()->user()->id,
                 'absent form',
                 'Noted and approved the absent form of '.$student->user->profile?->first_name,
-                ['status' => ['from' => 'pending', 'to' => 'confirmed']]
+                ['status' => ['from' => $fromStatus, 'to' => 'confirmed']]
             );
 
             // File path setup

@@ -11,15 +11,13 @@ import QuantityCard from "@/Components/card/qntty-statistic-card"
 import ReportFilterModal from "@/Components/modal/submission-form/report-filter-modal"
 import { Box } from "@mui/material"
 import { ShieldAlert, ShieldX, Globe, Clock, Printer, SlidersHorizontal, X } from "lucide-react"
+import { toneStyle } from "@/Components/list/status-pill"
 
-const SEVERITY_STYLE = {
-    high: "bg-red-600",
-    medium: "bg-orange-500",
-    low: "bg-gray-500",
-}
+// Same tinted pill as the record tables (StatusPill), readable in dark mode.
+const SEVERITY_TONE = { high: "red", medium: "orange", low: "gray" }
 
 const SeverityPill = ({ value }) => (
-    <span className={`inline-block px-2 py-1 text-white rounded-xl leading-none whitespace-nowrap ${SEVERITY_STYLE[value] ?? "bg-gray-500"}`}>
+    <span className="inline-block px-2 py-1 rounded-xl leading-none whitespace-nowrap font-medium" style={toneStyle(SEVERITY_TONE[value] ?? "gray")}>
         {toTitleCase(value ?? "low")}
     </span>
 )

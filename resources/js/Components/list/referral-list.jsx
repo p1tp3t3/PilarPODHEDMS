@@ -57,7 +57,8 @@ const SendToMenu = ({ encryptedId }) => {
     )
 }
 
-const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
+// `viewOnly`: only the View button (e.g. the tables on a profile).
+const ReferralList = ({ style, list = null, type, events, viewReferral, viewOnly = false }) => {
     const { usr } = useContext(AuthContext)
 
     const urlStatus = useMemo(() => {
@@ -219,6 +220,8 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
             renderCell: (params) => {
                 const row = params.row
                 const canModerate = usr?.role === "sub_admin" && !row.confirmed_at && !row.rejected_at && !row.revoked_at
+                // A rejected one can still be approved (e.g. new evidence).
+                const canReapprove = usr?.role === "sub_admin" && row.rejected_at && !row.confirmed_at && !row.revoked_at
                 const isOwner = row.raw?.referrer_id === usr?.id
                 const isPending = row.raw?.referral_status === "pending" && !row.confirmed_at
                 const canRevoke = isOwner && usr?.role !== "sub_admin" && isPending
@@ -232,6 +235,7 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
                             View
                         </ActionBtn>
 
+                        {!viewOnly && <>
                         {canModerate && (
                             <>
                                 <ActionBtn
@@ -252,6 +256,15 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
                             </>
                         )}
 
+                        {canReapprove && (
+                            <ActionBtn
+                                className="bg-green-500 hover:bg-green-600"
+                                onClick={() => events("confirm", row.id)}
+                            >
+                                Approve
+                            </ActionBtn>
+                        )}
+
                         {isOwner && isPending && !row.raw?.edited_at && (
                             <ActionBtn
                                 className="bg-green-600 hover:bg-green-700"
@@ -269,6 +282,7 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
                                 Revoke
                             </ActionBtn>
                         )}
+                        </>}
 
                     </div>
                 )
@@ -276,7 +290,7 @@ const ReferralList = ({ style, list = null, type, events, viewReferral }) => {
         })
 
         return cols
-    }, [type, isApprovedView, urlStatus, usr?.role, events, viewReferral])
+    }, [type, isApprovedView, urlStatus, usr?.role, events, viewReferral, viewOnly])
 
     return (
         <div className="w-full">

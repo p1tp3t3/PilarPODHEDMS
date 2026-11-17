@@ -45,8 +45,9 @@ class Absence extends Model
         $name = fn ($p) => trim("{$p?->first_name} {$p?->middle_name} {$p?->last_name}");
         [$status, $label, $date] = match (true) {
             (bool) $this->revoked_at => ['Revoked', 'Date Revoked', $this->revoked_at],
-            (bool) $this->rejected_at => ['Rejected', 'Date Rejected', $this->rejected_at],
+            // Approved after a rejection: approved.
             (bool) $this->confirmed_at => ['Approved', 'Date Approved', $this->confirmed_at],
+            (bool) $this->rejected_at => ['Rejected', 'Date Rejected', $this->rejected_at],
             default => ['Pending', 'Date Submitted', $this->created_at],
         };
         $prefect = $this->prefect?->profile

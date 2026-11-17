@@ -12,7 +12,7 @@ const MONITOR = "/super-admin/security-monitor"
 const SEVERITY = {
     high: { label: "High", color: "#dc2626" },
     medium: { label: "Medium", color: "#f97316" },
-    low: { label: "Low", color: "#6b7280" },
+    low: { label: "Low", color: "var(--tone-gray-fg)" },
 }
 
 const when = (s) => {
@@ -72,8 +72,8 @@ const SecurityOverviewPanel = () => {
                                 key={`${e.id}-${e.datetime}`}
                                 href={MONITOR}
                                 icon={ShieldAlert}
-                                iconBg="#f3f4f6"
-                                iconFg="#4b5563"
+                                iconBg="var(--tone-gray-bg)"
+                                iconFg="var(--tone-gray-fg)"
                                 primary={e.type_label}
                                 secondary={`${e.message}${e.username ? ` · ${e.username}` : ""}`}
                                 footer={

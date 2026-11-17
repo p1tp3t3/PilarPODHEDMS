@@ -47,12 +47,15 @@ export const ThemeModeProvider = ({ children }) => {
                 mode: "dark",
                 background: { default: "#0b1220", paper: "#1e293b" },
                 divider: "#334155",
-                text: { primary: "#e2e8f0", secondary: "#94a3b8" },
+                text: { primary: "#e2e8f0", secondary: "#a3b1c4" },
                 // MUI's dark defaults are pale colours with black text, which
                 // left black labels on the app's own blue/green/red buttons.
-                primary: { main: "#3b82f6", contrastText: "#fff" },
+                // Filled buttons need a deep enough colour for white text;
+                // text in this colour (tabs, text buttons) uses `light` —
+                // see the component overrides below.
+                primary: { main: "#2563eb", light: "#93c5fd", contrastText: "#fff" },
                 secondary: { main: "#a855f7", contrastText: "#fff" },
-                success: { main: "#16a34a", contrastText: "#fff" },
+                success: { main: "#15803d", light: "#86efac", contrastText: "#fff" },
                 error: { main: "#dc2626", contrastText: "#fff" },
                 warning: { main: "#f59e0b", contrastText: "#fff" },
                 info: { main: "#0ea5e9", contrastText: "#fff" },
@@ -61,6 +64,20 @@ export const ThemeModeProvider = ({ children }) => {
         components: {
             // Keep MUI's dark Paper flat (no white elevation overlay).
             MuiPaper: { styleOverrides: { root: { backgroundImage: "none" } } },
+            ...(mode === "dark" && {
+                // Blue/green as text on a dark surface: the lighter shade, so it
+                // stays readable (filled buttons keep the deep one).
+                MuiTab: { styleOverrides: { root: { "&.Mui-selected": { color: "#93c5fd" } } } },
+                MuiButton: {
+                    styleOverrides: {
+                        textPrimary: { color: "#93c5fd" },
+                        outlinedPrimary: { color: "#93c5fd", borderColor: "rgba(147,197,253,0.5)" },
+                        textSuccess: { color: "#86efac" },
+                        outlinedSuccess: { color: "#86efac", borderColor: "rgba(134,239,172,0.5)" },
+                    },
+                },
+                MuiLink: { styleOverrides: { root: { color: "#93c5fd" } } },
+            }),
         },
     }), [mode])
 

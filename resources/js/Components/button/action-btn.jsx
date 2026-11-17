@@ -22,6 +22,17 @@ const TAILWIND_COLORS = {
     orange: { 500: '#f97316', 600: '#ea580c', 700: '#c2410c' },
 }
 
+// Dark mode: shades too bright for white text -> a deeper one (same as the
+// html.dark remaps in resources/css/app.css).
+const DARK_DEEPER = {
+    '#22c55e': '#15803d', '#16a34a': '#15803d', '#15803d': '#166534',
+    '#3b82f6': '#2563eb',
+    '#f97316': '#c2410c', '#ea580c': '#c2410c',
+    '#d97706': '#b45309',
+    '#ef4444': '#dc2626',
+}
+const forMode = (t, color) => (t.palette.mode === 'dark' && DARK_DEEPER[color]) || color
+
 const matchColor = (className, prefix) => {
     if (!className) return null
     const match = className.match(new RegExp(`(?:^|\\s)${prefix}-([a-z]+)-(\\d+)(?:\\s|$)`))
@@ -62,10 +73,10 @@ const ActionBtn = ({
                 py: 1,
                 borderRadius: '0.375rem',
                 minWidth: 'auto',
-                bgcolor: bg,
+                bgcolor: (t) => forMode(t, bg),
                 color: text,
-                '&:hover': { bgcolor: bgHover },
-                '&.Mui-disabled': { bgcolor: bg, color: text, opacity: 0.6 },
+                '&:hover': { bgcolor: (t) => forMode(t, bgHover) },
+                '&.Mui-disabled': { bgcolor: (t) => forMode(t, bg), color: text, opacity: 0.6 },
                 ...compact?.sx,
             }}
         >

@@ -22,12 +22,13 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineEleme
 // k-fold cross-validation per fold, mean ± std, held-out confusion matrix
 // and ROC curve.
 
+// `color`: the chart bars (canvas); `tone`: the label text (light/dark CSS variable).
 const METRICS = [
-    { key: "accuracy", label: "Accuracy", color: "#2563eb" },
-    { key: "roc_auc", label: "ROC AUC", color: "#16a34a" },
-    { key: "precision", label: "Precision", color: "#d97706" },
-    { key: "recall", label: "Recall", color: "#dc2626" },
-    { key: "f1", label: "F1", color: "#7c3aed" },
+    { key: "accuracy", tone: "blue", label: "Accuracy", color: "#2563eb" },
+    { key: "roc_auc", tone: "green", label: "ROC AUC", color: "#16a34a" },
+    { key: "precision", tone: "amber", label: "Precision", color: "#d97706" },
+    { key: "recall", tone: "red", label: "Recall", color: "#dc2626" },
+    { key: "f1", tone: "purple", label: "F1", color: "#7c3aed" },
 ]
 
 const pct = (v) => `${(v * 100).toFixed(1)}%`
@@ -89,7 +90,7 @@ const SummaryTable = ({ cv }) => (
             <tbody>
                 {METRICS.map((m) => (
                     <tr key={m.key} className="border-b border-gray-100">
-                        <td className="py-1.5 pr-3 font-semibold" style={{ color: m.color }}>{m.label}</td>
+                        <td className="py-1.5 pr-3 font-semibold" style={{ color: `var(--tone-${m.tone}-fg)` }}>{m.label}</td>
                         {cv.folds.map((f) => <td key={f.fold} className="py-1.5 px-2">{pct(f[m.key])}</td>)}
                         <td className="py-1.5 pl-2 font-semibold whitespace-nowrap">{pct(cv.mean[m.key])} ± {pct(cv.std[m.key])}</td>
                     </tr>

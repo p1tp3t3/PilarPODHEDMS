@@ -24,10 +24,38 @@ html.dark {
     --dm-text-strong: #f8fafc;
     --dm-text-muted: #cbd5e1;
     --dm-text-soft: #94a3b8;
-    --dm-text-faint: #64748b;
+    --dm-text-faint: #8a96a8; /* was #64748b: too faint on cards (3:1) */
 }
 
 html.dark body { background-color: var(--dm-page); color: var(--dm-text); }
+
+/*
+ * Status tints for MUI components (pills, tinted boxes, status text):
+ * var(--tone-<name>-bg / -fg / -bd). Light values here, dark ones under
+ * html.dark — see TONES in resources/js/Components/modal/view/view-modal-parts.jsx.
+ */
+:root {
+    --tone-gray-bg: #f3f4f6; --tone-gray-fg: #374151; --tone-gray-bd: #d1d5db;
+    --tone-yellow-bg: #fefce8; --tone-yellow-fg: #a16207; --tone-yellow-bd: #fde68a;
+    --tone-amber-bg: #fffbeb; --tone-amber-fg: #b45309; --tone-amber-bd: #fde68a;
+    --tone-orange-bg: #fff7ed; --tone-orange-fg: #c2410c; --tone-orange-bd: #fed7aa;
+    --tone-green-bg: #f0fdf4; --tone-green-fg: #15803d; --tone-green-bd: #bbf7d0;
+    --tone-red-bg: #fef2f2; --tone-red-fg: #b91c1c; --tone-red-bd: #fecaca;
+    --tone-blue-bg: #eff6ff; --tone-blue-fg: #1d4ed8; --tone-blue-bd: #bfdbfe;
+    --tone-purple-bg: #ede9fe; --tone-purple-fg: #6d28d9; --tone-purple-bd: #ddd6fe;
+    --tone-teal-bg: #ccfbf1; --tone-teal-fg: #0f766e; --tone-teal-bd: #99f6e4;
+}
+html.dark {
+    --tone-gray-bg: rgb(148 163 184 / 0.16); --tone-gray-fg: #cbd5e1; --tone-gray-bd: rgb(148 163 184 / 0.45);
+    --tone-yellow-bg: rgb(234 179 8 / 0.16); --tone-yellow-fg: #fde047; --tone-yellow-bd: rgb(234 179 8 / 0.45);
+    --tone-amber-bg: rgb(245 158 11 / 0.16); --tone-amber-fg: #fcd34d; --tone-amber-bd: rgb(245 158 11 / 0.45);
+    --tone-orange-bg: rgb(249 115 22 / 0.16); --tone-orange-fg: #fdba74; --tone-orange-bd: rgb(249 115 22 / 0.45);
+    --tone-green-bg: rgb(34 197 94 / 0.16); --tone-green-fg: #86efac; --tone-green-bd: rgb(34 197 94 / 0.45);
+    --tone-red-bg: rgb(239 68 68 / 0.16); --tone-red-fg: #fca5a5; --tone-red-bd: rgb(239 68 68 / 0.45);
+    --tone-blue-bg: rgb(59 130 246 / 0.16); --tone-blue-fg: #93c5fd; --tone-blue-bd: rgb(59 130 246 / 0.45);
+    --tone-purple-bg: rgb(168 85 247 / 0.16); --tone-purple-fg: #d8b4fe; --tone-purple-bd: rgb(168 85 247 / 0.45);
+    --tone-teal-bg: rgb(20 184 166 / 0.16); --tone-teal-fg: #5eead4; --tone-teal-bd: rgb(20 184 166 / 0.45);
+}
 
 /* Top bar: keep the brand blue, but deeper so it isn't glaring in the dark. */
 html.dark header.bg-blue-500 { background-color: #1e3a8a; }
@@ -41,6 +69,8 @@ html.dark .bg-gray-300 { background-color: var(--dm-border-strong); }
 html.dark .hover\:bg-gray-50:hover, html.dark .hover\:bg-gray-100:hover,
 html.dark .hover\:bg-slate-50:hover, html.dark .hover\:bg-black\/5:hover { background-color: var(--dm-raised); }
 html.dark .hover\:bg-gray-200:hover { background-color: var(--dm-border); }
+html.dark .hover\:bg-gray-300:hover { background-color: var(--dm-border-strong); }
+html.dark .hover\:bg-blue-50:hover { background-color: rgb(59 130 246 / 0.15); }
 
 /* Pale status tints (chips, banners, highlighted rows) */
 html.dark .bg-blue-50, html.dark .bg-blue-100, html.dark .bg-indigo-50, html.dark .bg-sky-50 { background-color: rgb(59 130 246 / 0.15); }
@@ -189,3 +219,19 @@ html.dark .hover\:bg-red-50:hover { background-color: rgb(239 68 68 / 0.15); }
    theme's lighter blue, so it stays visible on dark backgrounds. */
 html.dark #nprogress .bar { background: #60a5fa; }
 html.dark #nprogress .peg { box-shadow: 0 0 10px #60a5fa, 0 0 5px #60a5fa; }
+
+/* Pale hover/tint backgrounds that weren't remapped (dark mode). */
+html.dark .hover\:bg-red-50:hover, html.dark .hover\:bg-red-100:hover { background-color: rgb(239 68 68 / 0.18); }
+html.dark .hover\:bg-blue-100:hover { background-color: rgb(59 130 246 / 0.2); }
+html.dark .hover\:bg-amber-100:hover { background-color: rgb(245 158 11 / 0.2); }
+html.dark .bg-blue-50\/60 { background-color: rgb(59 130 246 / 0.1); }
+
+/* Filled buttons/badges with white text: a deeper shade in dark mode so the
+   text stays readable (the 500 shades are too bright for white text). */
+html.dark .bg-green-500, html.dark .bg-green-600 { background-color: #15803d; }
+html.dark .hover\:bg-green-600:hover, html.dark .hover\:bg-green-700:hover { background-color: #166534; }
+html.dark .bg-blue-500 { background-color: #2563eb; }
+html.dark .hover\:bg-blue-600:hover { background-color: #1d4ed8; }
+html.dark .bg-orange-500 { background-color: #c2410c; }
+html.dark .bg-amber-600 { background-color: #b45309; }
+html.dark .bg-red-500 { background-color: #dc2626; }

@@ -199,8 +199,8 @@ const CsvStudentPreviewPage = ({
                                 display: "flex",
                                 alignItems: "center",
                             },
-                            "& .csv-invalid-row": { backgroundColor: "#fef2f2" },
-                            "& .csv-invalid-row:hover": { backgroundColor: "#fee2e2" },
+                            "& .csv-invalid-row": { backgroundColor: "var(--tone-red-bg)" },
+                            "& .csv-invalid-row:hover": { backgroundColor: "var(--tone-red-bg)" },
                         }}
                     />
                 </Box>

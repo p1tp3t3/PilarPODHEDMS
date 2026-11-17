@@ -33,16 +33,16 @@ import { SelectCheckbox } from "@/Components/input/select-checkbox"
 // Each kind of notification: its icon, colours (soft background, icon) and
 // the page it opens.
 const KINDS = {
-    complaint: { icon: TriangleAlert, bg: "#fee2e2", fg: "#dc2626", link: (o) => `/notifications?id=${o.encrypted_id}&complaint_id=${o.record_key}` },
-    referral: { icon: Share2, bg: "#ede9fe", fg: "#7c3aed", link: (o) => `/notifications?id=${o.encrypted_id}&referral_id=${o.record_key}` },
-    absent: { icon: CalendarX, bg: "#fef3c7", fg: "#d97706", link: (o) => `/notifications?absent_id=${o.record_key}&id=${o.encrypted_id}` },
-    appointment: { icon: CalendarDays, bg: "#dcfce7", fg: "#16a34a" },
-    gatepass: { icon: DoorOpen, bg: "#ccfbf1", fg: "#0d9488", link: (o) => `/notifications?gatepass_id=${o.record_key}&id=${o.encrypted_id}` },
-    call_in: { icon: Phone, bg: "#dbeafe", fg: "#2563eb" },
-    maintenance_notice: { icon: Wrench, bg: "#ffedd5", fg: "#ea580c" },
-    semester_summary: { icon: BarChart3, bg: "#e0e7ff", fg: "#4f46e5" },
+    complaint: { icon: TriangleAlert, bg: "var(--tone-red-bg)", fg: "var(--tone-red-fg)", link: (o) => `/notifications?id=${o.encrypted_id}&complaint_id=${o.record_key}` },
+    referral: { icon: Share2, bg: "var(--tone-purple-bg)", fg: "var(--tone-purple-fg)", link: (o) => `/notifications?id=${o.encrypted_id}&referral_id=${o.record_key}` },
+    absent: { icon: CalendarX, bg: "var(--tone-amber-bg)", fg: "var(--tone-amber-fg)", link: (o) => `/notifications?absent_id=${o.record_key}&id=${o.encrypted_id}` },
+    appointment: { icon: CalendarDays, bg: "var(--tone-green-bg)", fg: "var(--tone-green-fg)" },
+    gatepass: { icon: DoorOpen, bg: "var(--tone-teal-bg)", fg: "var(--tone-teal-fg)", link: (o) => `/notifications?gatepass_id=${o.record_key}&id=${o.encrypted_id}` },
+    call_in: { icon: Phone, bg: "var(--tone-blue-bg)", fg: "var(--tone-blue-fg)" },
+    maintenance_notice: { icon: Wrench, bg: "var(--tone-orange-bg)", fg: "var(--tone-orange-fg)" },
+    semester_summary: { icon: BarChart3, bg: "var(--tone-blue-bg)", fg: "var(--tone-blue-fg)" },
 }
-const DEFAULT_KIND = { icon: Bell, bg: "#dbeafe", fg: "#2563eb" }
+const DEFAULT_KIND = { icon: Bell, bg: "var(--tone-blue-bg)", fg: "var(--tone-blue-fg)" }
 
 // The one-line preview: plain text (a message may hold HTML).
 const plain = (html) => {

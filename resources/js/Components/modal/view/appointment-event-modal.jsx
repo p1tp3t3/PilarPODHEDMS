@@ -65,7 +65,7 @@ const AppointmentEventModal = ({ close, closeModal, event, onCancel, onReschedul
                                         flex: 1,
                                         borderColor: "#16a34a",
                                         color: "#16a34a",
-                                        "&:hover": { borderColor: "#15803d", backgroundColor: "#f0fdf4" },
+                                        "&:hover": { borderColor: "#15803d", backgroundColor: "var(--tone-green-bg)" },
                                     }}
                                 >
                                     Student Present
@@ -79,7 +79,7 @@ const AppointmentEventModal = ({ close, closeModal, event, onCancel, onReschedul
                                         flex: 1,
                                         borderColor: "#dc2626",
                                         color: "#dc2626",
-                                        "&:hover": { borderColor: "#b91c1c", backgroundColor: "#fef2f2" },
+                                        "&:hover": { borderColor: "#b91c1c", backgroundColor: "var(--tone-red-bg)" },
                                     }}
                                 >
                                     Student Absent
