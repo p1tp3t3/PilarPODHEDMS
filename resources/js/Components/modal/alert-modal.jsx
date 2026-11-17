@@ -1,6 +1,10 @@
-import { useEffect } from "react"
-import { motion } from "framer-motion"
+import { Dialog } from "@mui/material"
 
+/**
+ * A small centred dialog (MUI) for alerts and confirmations. Same props as
+ * before: `close` (open), `closeModal`, `isEnableOuterClose` (the backdrop
+ * closes it), `w` / `pd` (Tailwind width and padding of the panel).
+ */
 const AlertModal = ({
     children,
     close = false,
@@ -11,43 +15,27 @@ const AlertModal = ({
     isEnableOuterClose = false,
     closeModal = () => {},
 }) => {
+    const colours = [bgColor !== "bg-white" && bgColor, textColor !== "text-black" && textColor].filter(Boolean).join(" ")
 
-    useEffect(() => {
-        if (close) {
-            document.body.style.overflow = "hidden";
-        } else {
-            document.body.style.overflow = "auto";
-        }
-    }
-    , [close]);
-    
-    const enableOuterClose = () => {
-        console.log(isEnableOuterClose)
-        if(isEnableOuterClose) {
-            closeModal(!close)
-        }else {
-            return
-        }
-    }
     return (
-        <motion.div
-            className="fixed z-[200] inset-0 grid place-items-center"
-            style={{ pointerEvents: close ? 'auto' : 'none' }}
-            initial={false}
-            animate={{ opacity: close ? 1 : 0, backgroundColor: close ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0)' }}
-            transition={{ duration: 0.2 }}
-            onClick={() => enableOuterClose()}
+        <Dialog
+            open={!!close}
+            onClose={() => isEnableOuterClose && closeModal(false)}
+            keepMounted
+            maxWidth={false}
+            // Slow and smooth, like the other modals.
+            transitionDuration={{ enter: 450, exit: 300 }}
+            // Same layer as before (z 200): under the full-page loader.
+            sx={{ zIndex: 200 }}
+            slotProps={{
+                paper: {
+                    className: `${w} ${pd[0]} ${pd[1]} ${colours}`,
+                    sx: { m: 2, maxWidth: "calc(100vw - 32px)", borderRadius: 2, overflow: "hidden", "&:focus, &:focus-visible": { outline: "none" } },
+                },
+            }}
         >
-            <motion.div
-                initial={false}
-                animate={{ scale: close ? 1 : 1.05, opacity: close ? 1 : 0 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-                className={`${w} overflow-hidden shadow ${pd[0]} ${pd[1]} ${bgColor} ${textColor} rounded-[5px]`}
-                onClick={(e) => e.stopPropagation()}
-            >
-                {children}
-            </motion.div>
-        </motion.div>
+            {children}
+        </Dialog>
     )
 }
 export default AlertModal

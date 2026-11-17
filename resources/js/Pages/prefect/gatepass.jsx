@@ -17,7 +17,7 @@ import ViewGatePassModal from "@/Components/modal/view/view-gatepass-modal"
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
 import { router } from "@inertiajs/react"
 import { showOutputModal, showWarningModal } from "@/others/function"
-import { List, Clock, CheckCircle2, XCircle, Ban, Undo2, DoorOpen } from "lucide-react"
+import { List, Clock, CheckCircle2, Ban, DoorOpen } from "lucide-react"
 import { Head } from "@inertiajs/react"
 import { PageActions } from "@/context-provider/page-title-provider"
 
@@ -25,7 +25,10 @@ const PrefectGatePass = (props) => {
     const url = new URLSearchParams(window.location.search)
     const [requestGatePass, openRequestGatePass] = useState(false)
     const [viewGatePass, openViewGatePass] = useState(false)
-    const [lstOption, setLstOption] = useState(url.has("status") ? url.get("status") : "req-current")
+    // The tab: an old link to a removed tab (Expired / Revoked) opens Pending.
+    const [lstOption, setLstOption] = useState(() => (
+        ["all", "req-current", "confirmed-users", "rejected-requests"].includes(url.get("status")) ? url.get("status") : "req-current"
+    ))
     // The table loads from /api/prefect/gatepass once the page opens.
     const { data: lists } = useListData()
     const [gatepassRequestList, setGatePassRequestList] = useState(null)
@@ -53,9 +56,7 @@ const PrefectGatePass = (props) => {
       { key: "all", label: "All Gate Passes", icon: List },
       { key: "req-current", label: "Pending", icon: Clock },
       { key: "confirmed-users", label: "Approved", icon: CheckCircle2 },
-      { key: "expired-users", label: "Expired", icon: XCircle },
       { key: "rejected-requests", label: "Rejected", icon: Ban },
-      { key: "revoked-requests", label: "Revoked", icon: Undo2 },
     ]
     // Tabs and filters: the address bar follows and the table is fetched
     // again from its API (no page request). A tab's table has its own shape
@@ -286,73 +287,21 @@ const PrefectGatePass = (props) => {
 
                         {/* Table / List Section */}
                         <div className="w-full bg-white rounded-md shadow-sm shadow-black/20 min-w-0">
-                                {url.has("status") ? (
-                                    <>
-                                    {
-                                    url.get("status") === "all" && (
-                                        <GatePassRequestList
-                                            list={gatepassRequestList}
-                                            events={setEvents}
-                                            view={setId}
-                                        />
-                                    )}
-                                    {
-                                    url.get("status") === "req-current" && (
-                                        <GatePassRequestList
-                                            list={gatepassRequestList}
-                                            events={setEvents}
-                                            view={setId}
-                                        />
-                                    )}
-                                    {
-                                    url.get('status') == 'confirmed-users' && (
-                                        <GatePassList
-                                            list={gatepassRequestList}
-                                            type={props.user.user_type}
-                                            style={true}
-                                            view={setId}
-                                            events={setEvents}
-                                        />
-                                    )
-                                    }
-                                    {
-                                    url.get('status') == 'expired-users' && (
-                                        // No `events` prop — expired gate passes now archive
-                                        // themselves automatically (ArchiveExpiredGatePassCommand),
-                                        // so the manual Archive action no longer applies here.
-                                        <GatePassList
-                                            list={gatepassRequestList}
-                                            type={props.user.user_type}
-                                            style={true}
-                                            view={setId}
-                                        />
-                                    )
-                                    }
-                                    {
-                                    url.get('status') == 'rejected-requests' && (
-                                        <GatePassRequestList
-                                            list={gatepassRequestList}
-                                            events={setEvents}
-                                            view={setId}
-                                        />
-                                    )
-                                    }
-                                    {
-                                    url.get('status') == 'revoked-requests' && (
-                                        <GatePassRequestList
-                                            list={gatepassRequestList}
-                                            events={setEvents}
-                                            view={setId}
-                                        />
-                                    )
-                                    }</>
-                                ) : (
-                                    <GatePassRequestList
-                                        list={gatepassRequestList}
-                                        events={setEvents}
-                                        view={setId}
-                                    />
-                                )}
+                                {lstOption === 'confirmed-users'
+                                ? <GatePassList
+                                    list={gatepassRequestList}
+                                    type={props.user.user_type}
+                                    style={true}
+                                    view={setId}
+                                    events={setEvents}
+                                  />
+                                // All / Pending / Rejected: the requests table (All shows each
+                                // pass's status, Expired and Revoked included).
+                                : <GatePassRequestList
+                                    list={gatepassRequestList}
+                                    events={setEvents}
+                                    view={setId}
+                                  />}
                         </div>
                 </PageLayout>
         </>

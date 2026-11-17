@@ -1,7 +1,7 @@
 import UpModal from "../up-modal"
 import { useState, useEffect } from "react"
 import { usePage } from "@inertiajs/react"
-import { readableDate, readableTime, toTitleCase, formatSchoolYearSemester } from "../../../others/function"
+import { readableDate, readableTime, toTitleCase, formatSchoolYearSemester, getProfilePic } from "../../../others/function"
 import { ComplaintService } from "@/others/services/complaint-service"
 import { ModalHeader, Section, Stat, StatGrid, PersonList, safeParseArray, ByPrefect, useOwnerTitle, useIsOwner, ViewModalSkeleton } from "./view-modal-parts"
 import {
@@ -20,6 +20,9 @@ import {
     FileText,
     History,
     XCircle,
+    ShieldAlert,
+    Gavel,
+    Repeat,
 } from "lucide-react"
 
 const ViewComplaintModal = (props) => {
@@ -284,48 +287,81 @@ const Body = ({ data, usr }) => {
                 })()}
 
                 {/* Subjects' violations: prefect only (student data privacy). */}
-                {isPrefect && data.complaint_status === "resolved" &&
-                data.complaintSubject?.map((sub, i) => {
-                    const offenses = (data.complaintSubjectViolation || []).filter(
-                        off => off.student_id === sub.student_id
-                    )
+                {isPrefect && data.complaint_status === "resolved" && data.complaintSubject?.length > 0 &&
+                <Section icon={ShieldAlert} title="Violations Committed">
+                    <div className="space-y-4">
+                    {data.complaintSubject.map((sub, i) => {
+                        const p = sub.user?.profile
+                        const found = (data.complaintSubjectViolation || []).filter(v => v.student_id === sub.student_id)
+                        const violations = found.filter(v => v.violation)
+                        const cleared = found.length > 0 && violations.length === 0
 
-                    return (
-                        <div key={i} className="rounded-xl border border-gray-200 overflow-hidden">
-                            <div className="px-4 sm:px-5 py-3 bg-gray-50 border-b border-gray-200">
-                                <h2 className="text-sm font-bold text-gray-800">
-                                    {sub.user?.profile?.first_name} {sub.user?.profile?.middle_name} {sub.user?.profile?.last_name}
-                                </h2>
-                            </div>
+                        return (
+                            <div key={i} className="rounded-lg border border-gray-200 overflow-hidden">
+                                <div className="flex items-center gap-3 px-3 sm:px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+                                    <img src={getProfilePic(p?.profile_picture, p?.sex)} alt=""
+                                         className="w-8 h-8 rounded-full object-cover border border-gray-200 shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                        <div className="text-sm font-semibold text-gray-800 truncate">
+                                            {[p?.first_name, p?.middle_name, p?.last_name].filter(Boolean).join(" ")}
+                                        </div>
+                                        {sub.user?.id_number &&
+                                        <div className="text-[0.7rem] text-gray-400 truncate">{sub.user.id_number}</div>}
+                                    </div>
+                                    <span className={`shrink-0 text-[0.7rem] font-semibold px-2 py-0.5 rounded-full ${
+                                        violations.length ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
+                                        {violations.length
+                                            ? `${violations.length} Violation${violations.length > 1 ? "s" : ""}`
+                                            : "No Violation"}
+                                    </span>
+                                </div>
 
-                            <div className="p-4 sm:p-5 space-y-4">
-                                <div>
-                                    <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">
-                                        Offenses
-                                    </h3>
-
-                                    {offenses.length > 0
-                                    ? <div className="flex flex-wrap gap-2">
-                                        {offenses.map((off, idx) => {
-                                            const hasViolation = !!off.violation
-                                            const label = hasViolation ? off.violation.violation_name : "No Violation Committed"
-                                            const type = hasViolation ? (off.violation.offense_status ? "major" : "minor") : "none"
-                                            const badgeColor = type === "major" ? "bg-red-600" : type === "minor" ? "bg-orange-500" : "bg-gray-500"
-
+                                <div className="p-3 sm:p-4">
+                                    {violations.length > 0
+                                    ? <div className="space-y-2">
+                                        {violations.map((v, idx) => {
+                                            const major = !!v.violation.offense_status
                                             return (
-                                                <span key={idx} className={`inline-block text-white text-xs font-medium px-3 py-1 rounded-full ${badgeColor}`}>
-                                                    {label}
-                                                    {type !== "none" && <span className="ml-1 opacity-80">({type})</span>}
-                                                </span>
+                                                <div key={idx}
+                                                     className={`rounded-lg border border-gray-200 border-l-4 ${major ? "border-l-red-500" : "border-l-orange-400"} px-3 py-2.5`}>
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="text-sm font-semibold text-gray-800">
+                                                            {v.violation.violation_name}
+                                                        </div>
+                                                        <span className={`shrink-0 text-[0.65rem] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                                                            major ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"}`}>
+                                                            {major ? "Major" : "Minor"}
+                                                        </span>
+                                                    </div>
+                                                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                        <div className="flex items-center gap-2 text-xs text-gray-600">
+                                                            <Repeat size={13} className="text-gray-400 shrink-0" />
+                                                            <span className="text-gray-400">Offense:</span>
+                                                            <span className="font-medium text-gray-800">{v.occurrence ?? "—"}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 text-xs text-gray-600 min-w-0">
+                                                            <Gavel size={13} className="text-gray-400 shrink-0" />
+                                                            <span className="text-gray-400">Penalty:</span>
+                                                            <span className="font-medium text-gray-800 truncate" title={v.penalty ?? ""}>
+                                                                {v.penalty ?? "No penalty set"}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             )
                                         })}
                                       </div>
-                                    : <span className="text-xs text-gray-500">No Offense Records Found</span>}
+                                    : <div className="flex items-center gap-2 text-sm text-gray-500">
+                                        {cleared
+                                            ? <><CheckCircle2 size={16} className="text-green-600" /> No violation committed.</>
+                                            : <><AlertCircle size={16} className="text-gray-400" /> No violation records found.</>}
+                                      </div>}
                                 </div>
                             </div>
-                        </div>
-                    )
-                })}
+                        )
+                    })}
+                    </div>
+                </Section>}
             </div>
         </div>
     )

@@ -12,6 +12,7 @@ import PossibleIncidentList from "@/Components/list/possible-incident-commit-lis
 import { data } from "autoprefixer"
 import RecentViolationOccurenceList from "@/Components/list/recent-violation-occurence-list"
 import IncidentGroupList from "@/Components/list/incident-group-list"
+import { Paper, Stack } from "@mui/material"
 
 const Incident = (props) => {
     const [option, setOption] = useState('recent_incidents')
@@ -34,14 +35,12 @@ const Incident = (props) => {
     }
     return (
         <>
-        <div className="px-10 py-6 bg-white shadow shadow-black/20">
-            <div className="grid gap-5">
-                <div className="">
-                    <TabSwitcher tabs={optionList} value={option} onChange={handleSelect} />
-                </div>
+        <Paper elevation={2} sx={{ px: { xs: 2, sm: 5 }, py: 3, borderRadius: 1 }}>
+            <Stack spacing={2.5}>
+                <TabSwitcher tabs={optionList} value={option} onChange={handleSelect} />
                 {renderContent()}
-            </div>
-        </div>
+            </Stack>
+        </Paper>
         </>
     )
 }

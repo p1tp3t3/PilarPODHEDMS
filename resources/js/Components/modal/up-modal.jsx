@@ -1,7 +1,17 @@
-import { useEffect } from "react";
-import { motion } from "framer-motion";
+import { Dialog, IconButton, useMediaQuery } from "@mui/material";
 import { X } from "lucide-react";
 
+const EASE_IN = "cubic-bezier(0.22, 1, 0.36, 1)";
+const EASE_OUT = "cubic-bezier(0.4, 0, 1, 1)";
+
+/**
+ * The app's modal: an MUI Dialog. Same props as before, so every modal
+ * keeps working: `close` (open), `closeModal`, `isEnableOuterClose` (the
+ * backdrop and an ✕ close it), `w` / `pd` (Tailwind width and padding of
+ * the panel). A tall modal scrolls with the page; on phones it's a bottom
+ * sheet that scrolls inside itself. Its content stays mounted while closed
+ * (forms keep their state, as before).
+ */
 const UpModal = ({
   children,
   close = false,
@@ -13,66 +23,84 @@ const UpModal = ({
   isEnableOuterClose = false,
   closeModal = () => {},
 }) => {
-  // Disable background scroll when modal is open
-  useEffect(() => {
-    document.body.style.overflow = close ? "hidden" : "auto";
-    return () => {
-      document.body.style.overflow = "auto";
-    };
-  }, [close]);
+  // `cntr` is kept for callers; a short modal is always centred now.
+  const isPhone = useMediaQuery("(max-width: 767.98px)");
 
-  // `cntr` centres the modal vertically — on the wrapper below (flex +
-  // min-h-full), not with grid place-items-center on the scroll container:
-  // that centred even a modal taller than the screen, pushing its top out
-  // of reach above the viewport. This way a short modal is centred and a
-  // tall one starts at the top and scrolls.
-  const align = cntr ? "items-center" : "items-start";
-
-  const enableOuterClose = () => {
-    if (isEnableOuterClose) closeModal(!close);
-  };
+  // Only the defaults are left to the theme (light / dark paper).
+  const colours = [bgColor !== "bg-white" && bgColor, textColor !== "text-black" && textColor].filter(Boolean).join(" ");
 
   return (
-    <motion.div
-      className="fixed inset-0 z-[200] overflow-y-auto overflow-x-hidden"
-      style={{ pointerEvents: close ? 'auto' : 'none' }}
-      initial={false}
-      animate={{ opacity: close ? 1 : 0, backgroundColor: close ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0)' }}
-      transition={{ duration: 0.2 }}
-      onClick={enableOuterClose}
+    <Dialog
+      open={!!close}
+      onClose={() => isEnableOuterClose && closeModal(false)}
+      keepMounted
+      maxWidth={false}
+      scroll={isPhone ? "paper" : "body"}
+      // Slow and smooth: the modal and its backdrop fade in (MUI Fade) while
+      // the panel rises (below); a quicker fade and drop going out.
+      transitionDuration={{ enter: 550, exit: 350 }}
+      // No jump when it opens: focus isn't moved into it (which scrolled a
+      // tall modal down to the focused part) and it opens at its top.
+      disableAutoFocus
+      // Same layer as before (z 200): under the full-page loader, over the app.
+      sx={{
+        zIndex: 200,
+        ...(isPhone && { "& .MuiDialog-container": { alignItems: "flex-end" } }),
+      }}
+      slotProps={{
+        transition: {
+          easing: { enter: EASE_IN, exit: EASE_OUT },
+          onEnter: (node) => {
+            node.scrollTop = 0;
+            const paper = node.querySelector(".MuiDialog-paper");
+            if (paper) paper.scrollTop = 0;
+          },
+        },
+        paper: {
+          "data-modal-panel": true,
+          className: `${w} ${pd[0]} ${pd[1]} ${colours}`,
+          sx: {
+            position: "relative",
+            borderRadius: 2,
+            // Rises into place as it fades in; drops back as it fades out.
+            // `none` when open: a transform would break fixed-position content
+            // inside (the rich-text editor's full-screen mode).
+            transform: close ? "none" : "translateY(48px)",
+            transition: close ? `transform 550ms ${EASE_IN}` : `transform 350ms ${EASE_OUT}`,
+            // The dialog takes focus when it opens: no outline around it.
+            "&:focus, &:focus-visible": { outline: "none" },
+            maxWidth: "95vw",
+            ...(isPhone && {
+              m: 0,
+              width: "100% !important",
+              maxWidth: "100% !important",
+              maxHeight: "92dvh",
+              borderRadius: "16px 16px 0 0",
+              overflowY: "auto",
+              px: "16px !important",
+              pt: "28px !important",
+              pb: "calc(1.25rem + env(safe-area-inset-bottom)) !important",
+            }),
+          },
+        },
+      }}
     >
-      {/* Wrapper for spacing and scroll */}
-      {/* On phones the modal becomes a bottom sheet: full width, pinned to
-          the bottom edge, scrolling inside itself. */}
-      <div
-        className={`w-full min-h-full px-4 py-5 sm:px-6 flex justify-center ${align} max-md:p-0 max-md:items-end`}
-      >
-        {/* Modal container */}
-        <motion.div
-          initial={false}
-          animate={{ y: close ? 0 : 40, opacity: close ? 1 : 0 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
-          className={`relative ${w} max-w-[95vw] shadow-md rounded-md ${pd[0]} ${pd[1]} ${bgColor} ${textColor}
-            max-md:!w-full max-md:!max-w-full max-md:rounded-b-none max-md:rounded-t-2xl
-            max-md:max-h-[92dvh] max-md:overflow-y-auto max-md:!px-4 max-md:!pt-7
-            max-md:!pb-[calc(1.25rem+env(safe-area-inset-bottom))]`}
-          onClick={(e) => e.stopPropagation()}
-          data-modal-panel
+      {/* Phones: the bottom sheet's grab handle. */}
+      {isPhone && (
+        <span aria-hidden="true" style={{ position: "absolute", top: 8, left: "50%", transform: "translateX(-50%)", height: 6, width: 40, borderRadius: 999, background: "#d1d5db" }} />
+      )}
+      {isEnableOuterClose && (
+        <IconButton
+          onClick={() => closeModal(false)}
+          aria-label="Close modal"
+          size="small"
+          sx={{ position: "absolute", top: 6, right: 8, zIndex: 1, color: "text.secondary" }}
         >
-          <div className="md:hidden absolute top-2 left-1/2 -translate-x-1/2 h-1.5 w-10 rounded-full bg-gray-300" />
-            {/* ❌ Close button */}
-          {isEnableOuterClose &&
-          <button
-            onClick={() => closeModal(false)}
-            className="absolute top-2 right-3 text-gray-500 hover:text-black text-xl font-bold focus:outline-none transition"
-            aria-label="Close modal"
-          >
-            <X size={18} />
-          </button>}
-          {children}
-        </motion.div>
-      </div>
-    </motion.div>
+          <X size={18} />
+        </IconButton>
+      )}
+      {children}
+    </Dialog>
   );
 };
 

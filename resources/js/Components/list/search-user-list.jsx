@@ -1,81 +1,35 @@
 import ProfilePic from "../other/profile-pic"
-import { Link } from "@inertiajs/react"
 import ListSkeleton from "../reload/list-skeleton"
 import { getProfilePic, showUserType } from "@/others/function"
 import { Search } from "lucide-react"
+import { List, Paper } from "@mui/material"
+import { MuiListEmpty, MuiRow } from "./mui-list-parts"
 
+// The dropdown under a user search: matching people (or "not found").
 const UserProfileList = (props) => {
     return (
-        <div className="absolute w-full bg-white shadow-md shadow-black/20 px-3 py-3 z-10">
-            <div className="w-full">
-                {(props.list != null)
-                ?
-                ((props.list.length != 0)
-                 ?
-                  props.list.map((e, i) =>
-                        <div className="w-full" key={i}>
-                            <Row
-                                src={getProfilePic(e.profile?.profile_picture, e.profile?.sex)}
-                                name={`${e.profile?.first_name || ""} ${e.profile?.last_name || ""}`}
-                                subtitle={showUserType(e)}
-                                id={e.id}
-                                authType={props.authType}
-                                withLink={props.withLink}
-                                link={(props.param) ? `${props.link}?search=${e.id_number}` : null}
-                                event={() => props.event(e[props.type], e)}
-                            />
-                        </div>
-                    )
-                  :<div className="w-full flex items-center justify-center gap-2 py-3 text-[0.9em] font-semibold text-gray-600">
-                       <Search size={15} className="shrink-0" />
-                       <span>{(props.default) ? props.default : "User Not Found"}</span>
-                   </div>)
-                :
-                <div className="flex justify-center items-center w-full">
-                    <ListSkeleton rows={3} />
-                </div>}
-            </div>
-        </div>
-    )
-}
-const Row = (props) => {
-    return (
-        <>
-        {(props.withLink)
-        ?
-        <Link href={(props.link != null) ? props.link : `/profile/id/${props.id}`}>
-            <div className="flex px-2 py-1 items-center gap-2 hover:bg-gray-200 rounded-lg">
-                <div>
-                    <ProfilePic
-                        activeBorderColor='border-white border-[3px]'
-                        src={props.src}
-                        size={1.9}
-                    />
-                </div>
-                <div className="text-[0.7em]">
-                    <h1 className="text-[1.2em]"><b>{props.name}</b></h1>
-                    <p className="text-gray-500">{props.subtitle}</p>
-                </div>
-            </div>
-        </Link>
-        :
-        <div
-            className="flex px-2 py-1 items-center gap-2 hover:bg-gray-200 rounded-lg cursor-pointer"
-            onClick={props.event}
-        >
-            <div>
-                <ProfilePic
-                    activeBorderColor='border-white border-[3px]'
-                    src={props.src}
-                    size={1.9}
-                />
-            </div>
-            <div className="text-[0.8em]">
-                <h1 className="text-[1.2em]"><b>{props.name}</b></h1>
-                <p className="text-[0.85em] text-gray-500">{props.subtitle}</p>
-            </div>
-        </div>}
-        </>
+        <Paper elevation={6} sx={{ position: "absolute", width: "100%", zIndex: 10, mt: 0.5, borderRadius: 2, p: 0.5, maxHeight: "20rem", overflowY: "auto" }}>
+            {props.list == null ? (
+                <ListSkeleton rows={3} />
+            ) : props.list.length === 0 ? (
+                <MuiListEmpty icon={Search} title={props.default ? props.default : "User Not Found"} sx={{ py: 2 }} />
+            ) : (
+                <List disablePadding dense>
+                    {props.list.map((e, i) => (
+                        <MuiRow
+                            key={e.id ?? i}
+                            divider={false}
+                            avatar={<ProfilePic activeBorderColor='border-white border-[3px]' src={getProfilePic(e.profile?.profile_picture, e.profile?.sex)} size={2} />}
+                            primary={`${e.profile?.first_name || ""} ${e.profile?.last_name || ""}`}
+                            secondary={showUserType(e)}
+                            {...(props.withLink
+                                ? { href: props.param ? `${props.link}?search=${e.id_number}` : `/profile/id/${e.id}` }
+                                : { onClick: () => props.event(e[props.type], e) })}
+                        />
+                    ))}
+                </List>
+            )}
+        </Paper>
     )
 }
 export default UserProfileList

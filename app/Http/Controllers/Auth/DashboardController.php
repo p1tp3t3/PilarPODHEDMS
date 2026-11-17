@@ -118,16 +118,10 @@ class DashboardController extends Controller
 
     public function prefectDashboard()
     {
-        $appointment = new AppointmentController;
         $prefectProps = array_merge([
-            'students' => UserResource::collection(User::with(['program', 'profile', 'enrollments'])
-                ->whereRole('student')
-                ->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
-                ->latest('created_at')
-                ->get()),
+            // New Students / Appointments: fetched by the panels (panel()).
             'students_week_start' => now()->startOfWeek()->toDateString(),
             'students_week_end' => now()->endOfWeek()->toDateString(),
-            'appointment_today' => $appointment->getAppointmentToday(),
             'incident_risk_list' => [],
             'active' => UserResource::collection(User::with(self::ACTIVE_USER_RELATIONS)
                 ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
@@ -173,7 +167,7 @@ class DashboardController extends Controller
         $complaint = Complaint::where('complainant_id', auth()->id())->count('case_number');
 
         return [
-            'new_users' => UserResource::collection($account->newUsers()),
+            // New Users this week: fetched by the panel (panel()).
             'new_users_week_start' => now()->startOfWeek()->toDateString(),
             'new_users_week_end' => now()->endOfWeek()->toDateString(),
             'user_list' => UserResource::collection(User::latest('created_at')->get()),
@@ -181,7 +175,6 @@ class DashboardController extends Controller
             'program' => Program::count(),
             'report' => ActionLog::count(),
             'account_total' => $account->count('id'),
-            'total_violation' => Violation::count(),
             'total_roles' => \App\Models\Role::count(),
             'active_roles' => \App\Models\Role::active()->count(),
             'maintenance_mode' => Cache::get('maintenance_mode', false),
@@ -443,6 +436,62 @@ class DashboardController extends Controller
      * program", not restricted to the most recent term only — a simplification
      * for this pass.
      */
+    /**
+     * A dashboard panel's rows (GET /api/dashboard/panel/{panel}), so the
+     * panel loads them itself (with its skeleton) instead of with the page:
+     * new-users (System Admin: everyone; program head / faculty: their
+     * program's people), new-students and appointments (the prefect's),
+     * security (the System Admin's security log summary).
+     */
+    public function panel(string $panel)
+    {
+        $role = auth()->user()->role;
+        $week = [now()->startOfWeek(), now()->endOfWeek()];
+
+        return match (true) {
+            $panel === 'new-users' && $role === 'super_admin' => response()->json([
+                'list' => UserResource::collection((new User)->newUsers()),
+            ]),
+            $panel === 'new-users' && in_array($role, ['program_head', 'faculty']) => response()->json([
+                'list' => UserResource::collection(self::programPeopleQuery(User::teachingProgramIdsFor(auth()->id()))
+                    ->whereBetween('created_at', $week)
+                    ->latest('created_at')
+                    ->get()),
+            ]),
+            $panel === 'new-students' && $role === 'sub_admin' => response()->json([
+                'list' => UserResource::collection(User::with(['program', 'profile', 'enrollments'])
+                    ->whereRole('student')
+                    ->whereBetween('created_at', $week)
+                    ->latest('created_at')
+                    ->get()),
+            ]),
+            $panel === 'appointments' && $role === 'sub_admin' => response()->json([
+                'list' => (new AppointmentController)->getAppointmentToday(),
+            ]),
+            // The Security Monitor's figures and its latest events.
+            $panel === 'security' && $role === 'super_admin' => response()->json(self::securitySummary()),
+            default => abort(404),
+        };
+    }
+
+    /** The security log's events this week (newest first), for the dashboard. */
+    private static function securitySummary(): array
+    {
+        $entries = \App\Support\BreachLog::entries();
+        $weekStart = now()->startOfWeek();
+        $weekEnd = now()->endOfWeek();
+
+        return [
+            // This week's events, newest first.
+            'list' => array_values(array_map(
+                fn ($e) => array_intersect_key($e, array_flip(['id', 'datetime', 'type_label', 'message', 'severity', 'ip', 'username'])),
+                array_filter($entries, fn ($e) => \Carbon\Carbon::parse($e['datetime'])->between($weekStart, $weekEnd))
+            )),
+            'week_start' => $weekStart->toDateString(),
+            'week_end' => $weekEnd->toDateString(),
+        ];
+    }
+
     public function getTeacherStatistics()
     {
         $id = auth()->id();
@@ -466,10 +515,7 @@ class DashboardController extends Controller
             'active' => UserResource::collection(self::programPeopleQuery($myProgramIds)
                 ->where('last_seen', '>=', DB::raw('NOW() - INTERVAL 5 MINUTE'))
                 ->get()),
-            'new_users' => UserResource::collection(self::programPeopleQuery($myProgramIds)
-                ->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
-                ->latest('created_at')
-                ->get()),
+            // New Users this week: fetched by the panel (panel()).
             'new_users_week_start' => now()->startOfWeek()->toDateString(),
             'new_users_week_end' => now()->endOfWeek()->toDateString(),
         ];

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Modules\Complaint;
 use App\Events\SendComplaint;
 use App\Events\SendComplaintConfirmation;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Complaint\BulkComplaintActionRequest;
 use App\Http\Requests\Complaint\CancelComplaintRequest;
 use App\Http\Requests\Complaint\StoreComplaintRequest;
 use App\Http\Requests\Complaint\UpdateComplaintRequest;
@@ -498,105 +497,6 @@ class ComplaintController extends Controller
         ]);
     }
 
-    public function actionMultipleSelect(BulkComplaintActionRequest $request)
-    {
-        $ids = $request->ids; // array of complaint IDs
-
-        DB::beginTransaction();
-
-        try {
-            $action = $request->action;
-            $processedCount = 0; // number of successfully processed complaints
-            $userNames = [];     // list of complainant first names for log usage
-
-            switch ($action) {
-                case 'approve':
-                    foreach ($ids as $id) {
-                        $complaint = Complaint::with(['user.profile', 'subject.profile'])->find($id);
-                        if (! $complaint) {
-                            continue;
-                        }
-
-                        $count = Complaint::whereNotNull('case_number')
-                            ->latest('case_number')
-                            ->value('case_number') ?? 0;
-                        $count++;
-
-                        Complaint::where('id', $id)->update([
-                            'case_number' => $count,
-                            'confirmed_at' => DB::raw('NOW()'),
-                            'complaint_status' => 'ongoing',
-                            // Approving a rejected complaint reopens it: no longer archived.
-                            'archived_at' => null,
-                        ]);
-
-                        notify_single_user(
-                            self::getComplaintNotifMessageResponseFields($complaint)
-                        );
-
-                        $userNames[] = $complaint->user?->profile?->first_name;
-                        $processedCount++;
-                    }
-
-                    // Single ActionLog
-                    ActionLog::log(
-                        auth()->user()->id,
-                        'complaint',
-                        "Approved {$processedCount} complaint(s): ".implode(', ', $userNames),
-                        ['complaint_status' => ['from' => 'pending', 'to' => 'ongoing']]
-                    );
-                    break;
-
-                case 'reject':
-                    foreach ($ids as $id) {
-                        $complaint = Complaint::with(['user.profile', 'subject.profile'])->find($id);
-                        if (! $complaint) {
-                            continue;
-                        }
-
-                        Complaint::where('id', $id)->update([
-                            'complaint_status' => 'rejected',
-                            'rejected_at' => now(),
-                            'archived_at' => archive_retention_date(),
-                        ]);
-
-                        notify_single_user(
-                            self::getComplaintNotifMessageResponseFields($complaint, 'rejected')
-                        );
-
-                        $userNames[] = $complaint->user?->profile?->first_name;
-                        $processedCount++;
-                    }
-
-                    // Single ActionLog
-                    ActionLog::log(
-                        auth()->user()->id,
-                        'complaint',
-                        "Rejected {$processedCount} complaint(s): ".implode(', ', $userNames),
-                        ['complaint_status' => ['from' => 'pending', 'to' => 'rejected']]
-                    );
-                    break;
-
-                default:
-                    return response()->json(['message' => 'Invalid action'], 400);
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'complaint' => self::allComplaints(),
-            ]);
-
-        } catch (Exception $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'message' => 'Error processing bulk action',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
     // -------------------------------------------------------------------------------------------------------------------------------------
 
     private function checkComplaintLimit($userId)
@@ -776,6 +676,15 @@ class ComplaintController extends Controller
         // complaint are only ever sent to the prefect.
         if (auth()->user()->role === 'sub_admin') {
             $complaint->load('complaintSubjectViolation.violation');
+            // Each violation found: which offense it was, and its penalty.
+            $complaint->complaintSubjectViolation->each(function ($v) use ($complaint) {
+                if (! $v->violation) {
+                    return;
+                }
+                [$occurrence, $penalty] = self::offenseAndPenalty($v, $complaint);
+                $v->occurrence = self::ordinal($occurrence).' Offense';
+                $v->penalty = $penalty?->name;
+            });
         }
 
         // Reported students' photos follow the same rule as the search
@@ -856,6 +765,30 @@ class ComplaintController extends Controller
     }
 
     /**
+     * A violation found in a complaint: which offense it was for the student
+     * (earlier resolved offenses of the same violation, plus this one) and
+     * the penalty at that offense.
+     *
+     * @return array{0: int, 1: \App\Models\Penalty|null}
+     */
+    private static function offenseAndPenalty(ComplaintSubjectViolation $v, Complaint $complaint): array
+    {
+        $occurrence = ComplaintSubjectViolation::where('student_id', $v->student_id)
+            ->where('violation_id', $v->violation_id)
+            ->where('complaint_id', '!=', $complaint->id)
+            ->whereHas('complaint', fn ($q) => $q->whereNotNull('offense_issued_at')
+                ->where('offense_issued_at', '<', $complaint->offense_issued_at ?? now()))
+            ->count() + 1;
+        $penalty = ViolationPenalty::with('penalty')
+            ->where('violation_id', $v->violation_id)
+            ->where('occurrence', '<=', $occurrence)
+            ->orderByDesc('occurrence')
+            ->first()?->penalty;
+
+        return [$occurrence, $penalty];
+    }
+
+    /**
      * Data for the complaint document (pdf.complaint-subject): page 1 is the
      * Complaint Form listing every complainee together, page 2 the prefect's
      * Incident Summary with the violation each complainee was found to have
@@ -891,20 +824,8 @@ class ComplaintController extends Controller
         $subjects = $newComplaint->complaintSubject->map(function ($cs) use ($fullName, $violationsByStudent, $newComplaint) {
             $findings = ($violationsByStudent->get($cs->student_id) ?? collect())
                 ->filter(fn ($v) => $v->violation)
-                ->map(function ($v) use ($cs, $newComplaint) {
-                    // This complaint's offense number: earlier resolved offenses
-                    // of the same violation, plus this one.
-                    $occurrence = ComplaintSubjectViolation::where('student_id', $cs->student_id)
-                        ->where('violation_id', $v->violation_id)
-                        ->where('complaint_id', '!=', $newComplaint->id)
-                        ->whereHas('complaint', fn ($q) => $q->whereNotNull('offense_issued_at')
-                            ->where('offense_issued_at', '<', $newComplaint->offense_issued_at ?? now()))
-                        ->count() + 1;
-                    $penalty = ViolationPenalty::with('penalty')
-                        ->where('violation_id', $v->violation_id)
-                        ->where('occurrence', '<=', $occurrence)
-                        ->orderByDesc('occurrence')
-                        ->first()?->penalty;
+                ->map(function ($v) use ($newComplaint) {
+                    [$occurrence, $penalty] = self::offenseAndPenalty($v, $newComplaint);
 
                     return [
                         'violation' => $v->violation->violation_name,
@@ -926,6 +847,8 @@ class ComplaintController extends Controller
             'id' => $newComplaint->id,
             'show_summary' => $showSummary ?? ($newComplaint->complaint_status === 'resolved' && can_see_incident_summary()),
             'complaint_number' => $newComplaint->complaint_number,
+            // Watermark on a document that isn't final (pdf.partials.status-watermark).
+            'status' => $newComplaint->revoked_at ? 'revoked' : $newComplaint->complaint_status,
             'case_number' => $newComplaint->case_number,
             'date_filed' => $dateOf($newComplaint->created_at),
             'date_resolved' => $dateOf($newComplaint->offense_issued_at ?? now()),

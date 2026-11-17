@@ -1,17 +1,78 @@
-import NotificationWrapper from "@/wrapper/notif-wrapper"
-import ActionBtn from "../button/action-btn"
-import AbsentFormNotif from "../card/notif/absent-form-notif"
-import AppointmentNotif from "../card/notif/appointment-notif"
-import CallInNotif from "../card/notif/call-in-notif"
-import ComplaintNotif from "../card/notif/complaint-notif"
-import GatePassNotif from "../card/notif/gatepass-notif"
-import NormalNotif from "../card/notif/normal-notif"
-import ReferralNotif from "../card/notif/referral-notif"
-import { toTitleCase, parseNotifContent } from "@/others/function"
+import { Link } from "@inertiajs/react"
+import {
+    Avatar,
+    Box,
+    Button,
+    IconButton,
+    List,
+    ListItem,
+    ListItemAvatar,
+    ListItemButton,
+    ListItemText,
+    ListSubheader,
+    Skeleton,
+    Tooltip,
+} from "@mui/material"
+import {
+    BarChart3,
+    Bell,
+    BellOff,
+    CalendarDays,
+    CalendarX,
+    DoorOpen,
+    Phone,
+    Share2,
+    Trash2,
+    TriangleAlert,
+    Wrench,
+} from "lucide-react"
 import { motion } from "framer-motion"
-import { Skeleton } from "@mui/material"
-import { BellOff, Trash2 } from "lucide-react"
+import { parseNotifContent, readableDate, readableTime, toTitleCase } from "@/others/function"
 import { SelectCheckbox } from "@/Components/input/select-checkbox"
+
+// Each kind of notification: its icon, colours (soft background, icon) and
+// the page it opens.
+const KINDS = {
+    complaint: { icon: TriangleAlert, bg: "#fee2e2", fg: "#dc2626", link: (o) => `/notifications?id=${o.encrypted_id}&complaint_id=${o.record_key}` },
+    referral: { icon: Share2, bg: "#ede9fe", fg: "#7c3aed", link: (o) => `/notifications?id=${o.encrypted_id}&referral_id=${o.record_key}` },
+    absent: { icon: CalendarX, bg: "#fef3c7", fg: "#d97706", link: (o) => `/notifications?absent_id=${o.record_key}&id=${o.encrypted_id}` },
+    appointment: { icon: CalendarDays, bg: "#dcfce7", fg: "#16a34a" },
+    gatepass: { icon: DoorOpen, bg: "#ccfbf1", fg: "#0d9488", link: (o) => `/notifications?gatepass_id=${o.record_key}&id=${o.encrypted_id}` },
+    call_in: { icon: Phone, bg: "#dbeafe", fg: "#2563eb" },
+    maintenance_notice: { icon: Wrench, bg: "#ffedd5", fg: "#ea580c" },
+    semester_summary: { icon: BarChart3, bg: "#e0e7ff", fg: "#4f46e5" },
+}
+const DEFAULT_KIND = { icon: Bell, bg: "#dbeafe", fg: "#2563eb" }
+
+// The one-line preview: plain text (a message may hold HTML).
+const plain = (html) => {
+    const div = document.createElement("div")
+    div.innerHTML = html ?? ""
+    return (div.textContent || "").replace(/\s+/g, " ").trim()
+}
+const messageOf = (obj) => {
+    const content = parseNotifContent(obj.content)
+    if (obj.notif_type === "maintenance_notice") return "A new maintenance notice has been posted. Tap to view."
+    if (obj.notif_type === "call_in") {
+        return content.is_program_head
+            ? "Your Student Has Been Called In By The Office of the Prefect"
+            : "You Have Been Called in By the Prefect"
+    }
+    return toTitleCase(plain(content.receiver_notif_message))
+}
+
+// "Today" / "Yesterday" / "2 Days Ago" ... / the date.
+const groupOf = (timestamp) => {
+    const created = new Date(timestamp)
+    const today = new Date()
+    created.setHours(0, 0, 0, 0)
+    today.setHours(0, 0, 0, 0)
+    const days = Math.floor((today - created) / 86400000)
+    if (days === 0) return "Today"
+    if (days === 1) return "Yesterday"
+    if (days <= 3) return `${days} Days Ago`
+    return created.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+}
 
 const NotificationList = ({
     list = null,
@@ -19,215 +80,168 @@ const NotificationList = ({
     enableDel = false,
     handlePaginate,
     select = false,
-    deleteNotif = (i) => {},
-    size = 0
+    deleteNotif = () => {},
+    size = 0,
 }) => {
+    const box = overflow ? { maxHeight: "23rem", overflowY: "auto" } : {}
 
-    const getGroupLabel = (timestamp) => {
-        const created = new Date(timestamp);
-        const today = new Date();
+    if (list == null) {
+        return (
+            <Box sx={box}>
+                {[0, 1, 2].map((i) => (
+                    <Box key={i} sx={{ display: "flex", gap: 1.5, px: 2, py: 1.5 }}>
+                        <Skeleton variant="circular" width={40} height={40} />
+                        <Box sx={{ flex: 1 }}>
+                            <Skeleton width="85%" height={20} />
+                            <Skeleton width="30%" height={16} />
+                        </Box>
+                    </Box>
+                ))}
+            </Box>
+        )
+    }
 
-        created.setHours(0, 0, 0, 0);
-        today.setHours(0, 0, 0, 0);
+    if (list.length === 0) {
+        return (
+            <motion.div
+                className="w-full flex flex-col items-center justify-center py-10"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+            >
+                <div className="mb-3 w-14 h-14 rounded-full bg-gray-100 grid place-items-center text-gray-400">
+                    <BellOff size={26} />
+                </div>
+                <h1 className="text-[1em] text-gray-600 font-semibold">No Notifications Yet</h1>
+                <p className="text-sm text-gray-400 mt-1">You're all caught up!</p>
+            </motion.div>
+        )
+    }
 
-        const diffTime = today.getTime() - created.getTime();
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-        if (diffDays === 0) return "Today";
-        if (diffDays === 1) return "Yesterday";
-        if (diffDays === 2) return "2 Days Ago";
-        if (diffDays === 3) return "3 Days Ago";
-
-        return created.toLocaleDateString("en-US", {
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-        });
-    };
-
-    let lastGroup = ""
+    // Newest first, under a heading per day.
+    const groups = []
+    ;[...list]
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .forEach((n) => {
+            const label = groupOf(n.created_at)
+            if (groups.at(-1)?.label !== label) groups.push({ label, items: [] })
+            groups.at(-1).items.push(n)
+        })
 
     return (
-        <div>
-            <div className={`w-full flex flex-col ${overflow ? 'max-h-[23rem] overflow-hidden overflow-y-auto' : ''}`}>
-                    {(list != null)
-                    ?
-                    (list.length != 0)
-                    ?
-                    [...list].sort(
-                        (a, b) => new Date(b.created_at) - new Date(a.created_at)
-                    ).map((e, i) => {
-                        const groupLabel = getGroupLabel(e.created_at);
-                        const showHeader = groupLabel !== lastGroup;
-                        lastGroup = groupLabel;
-
-
-                        return (
-                            <div key={i} className="relative">
-                                {showHeader && (
-                                <div className="text-sm mt-3 mb-1">
-                                    <b>{toTitleCase(groupLabel)}</b>
-                                </div>
-                                )}
-
-                                <div className="relative">
-                                    <Notif
-                                        obj={e}
-                                        enableDel={enableDel}
-                                        select={select}
-                                        deleteNotif={deleteNotif}
-                                    />
-                                </div>
-                            </div>
-                        );
-                    })
-                    :
-                    <motion.div
-                        className="w-full h-full flex flex-col items-center justify-center py-8"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4, ease: "easeOut" }}
-                    >
-                        <div className="mb-3 w-14 h-14 rounded-full bg-gray-100 grid place-items-center text-gray-400">
-                            <BellOff size={26} />
-                        </div>
-
-                        <h1 className="text-[1em] text-gray-600 font-semibold">
-                            No Notifications Yet
-                        </h1>
-
-                        <p className="text-sm text-gray-400 mt-1">
-                            You're all caught up!
-                        </p>
-                    </motion.div>
-
-                    :
-                     <div className={`w-full flex flex-col ${overflow ? 'h-[23rem] overflow-hidden overflow-y-auto' : ''}`}>
-                        <div className="grid gap-4 p-3">
-                            {/* Loading: skeleton notifications (MUI, like the tables). */}
-                            {[...Array(3)].map((_, i) => (
-                                <div key={i} className="w-full flex gap-3 p-3">
-                                    <Skeleton variant="circular" width={40} height={40} />
-                                    <div className="flex-1">
-                                        <Skeleton width="35%" height={20} />
-                                        <Skeleton width="90%" />
-                                        <Skeleton width="60%" />
-                                    </div>
-                                </div>
+        <Box sx={box}>
+            <List disablePadding>
+                {groups.map((g) => (
+                    <li key={g.label}>
+                        <List disablePadding>
+                            <ListSubheader
+                                sx={{
+                                    lineHeight: "2.25rem",
+                                    fontSize: "0.72rem",
+                                    fontWeight: 700,
+                                    letterSpacing: "0.04em",
+                                    textTransform: "uppercase",
+                                    color: "text.secondary",
+                                    bgcolor: "var(--dm-surface, #fff)",
+                                }}
+                            >
+                                {g.label}
+                            </ListSubheader>
+                            {g.items.map((n) => (
+                                <NotifItem key={n.encrypted_id ?? n.id} obj={n} enableDel={enableDel} select={select} deleteNotif={deleteNotif} />
                             ))}
-                        </div>
-                    </div>}
-                    {((list != null && list.length > 3 && list.length < size)) &&
-                    <div className="py-4 w-full">
-                        <button
-                            type="button"
-                            className="w-full py-2 bg-gray-500 text-[0.8em] text-white rounded-md hover:bg-gray-600 transition-colors"
-                            onClick={handlePaginate}
-                        >
-                            See Previous Notifications
-                        </button>
-                    </div>}
-                </div>
-        </div>
+                        </List>
+                    </li>
+                ))}
+            </List>
+            {list.length > 3 && list.length < size && (
+                <Box sx={{ p: 1.5 }}>
+                    <Button fullWidth variant="outlined" color="inherit" onClick={handlePaginate}
+                        sx={{ textTransform: "none", fontWeight: 600, borderRadius: "0.6rem", color: "text.secondary", borderColor: "divider" }}>
+                        See previous notifications
+                    </Button>
+                </Box>
+            )}
+        </Box>
     )
 }
 
-const Notif = ({ obj = null, enableDel, select, deleteNotif }) => {
-    const content = parseNotifContent(obj.content)
+const NotifItem = ({ obj, enableDel, select, deleteNotif }) => {
+    const kind = KINDS[obj.notif_type] ?? DEFAULT_KIND
+    const Icon = kind.icon
+    const unread = obj.read_since == null
+    const link = kind.link?.(obj) ?? `/notifications?id=${obj.encrypted_id}`
 
-    const d = <ActionBtn
-                  className="hidden group-hover:block bg-red-600 hover:bg-red-700 absolute top-1/2 -translate-y-1/2 right-2 p-2"
-                  onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      deleteNotif(obj.encrypted_id)
-                  }}
-                >
-                 <Trash2 size={14} />
-              </ActionBtn>
-    const checkBox = (
-        <span className="absolute top-1/2 -translate-y-1/2 right-1">
-            <SelectCheckbox value={obj.encrypted_id} label="Select notification" onClick={(e) => e.stopPropagation()} />
-        </span>
+    const action = select ? (
+        <SelectCheckbox value={obj.encrypted_id} label="Select notification" onClick={(e) => e.stopPropagation()} />
+    ) : enableDel ? (
+        <Tooltip title="Delete">
+            <IconButton
+                className="notif-del"
+                size="small"
+                aria-label="Delete notification"
+                onClick={(e) => {
+                    e.stopPropagation()
+                    e.preventDefault()
+                    deleteNotif(obj.encrypted_id)
+                }}
+                sx={{ color: "text.secondary", "&:hover": { color: "error.main", bgcolor: "rgba(239,68,68,0.08)" } }}
+            >
+                <Trash2 size={16} />
+            </IconButton>
+        </Tooltip>
+    ) : null
+
+    return (
+        <ListItem
+            disablePadding
+            secondaryAction={action}
+            sx={{
+                // Delete shows on hover; always on phones and touch screens.
+                "& .notif-del": { opacity: 0, transition: "opacity .15s" },
+                "&:hover .notif-del, & .notif-del:focus-visible": { opacity: 1 },
+                "@media (hover: none), (max-width: 639.98px)": { "& .notif-del": { opacity: 1 } },
+            }}
+        >
+            <ListItemButton
+                component={Link}
+                href={link}
+                sx={{
+                    py: 1.25,
+                    pr: action ? 7 : 2,
+                    borderRadius: "0.6rem",
+                    mx: 0.5,
+                    bgcolor: unread ? "rgba(59,130,246,0.06)" : "transparent",
+                    "&:hover": { bgcolor: unread ? "rgba(59,130,246,0.1)" : "action.hover" },
+                }}
+            >
+                <ListItemAvatar sx={{ minWidth: 52 }}>
+                    <Avatar sx={{ width: 40, height: 40, bgcolor: kind.bg, color: kind.fg }}>
+                        <Icon size={19} />
+                    </Avatar>
+                </ListItemAvatar>
+                <ListItemText
+                    primary={messageOf(obj)}
+                    secondary={`${readableDate(obj.created_at)} • ${readableTime(obj.created_at)}`}
+                    slotProps={{
+                        primary: {
+                            sx: {
+                                fontSize: "0.85rem",
+                                fontWeight: unread ? 600 : 400,
+                                color: unread ? "text.primary" : "text.secondary",
+                                display: "-webkit-box",
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: "vertical",
+                                overflow: "hidden",
+                            },
+                        },
+                        secondary: { sx: { fontSize: "0.72rem", mt: 0.25, color: unread ? "primary.main" : "text.disabled" } },
+                    }}
+                />
+                {unread && <Box aria-label="Unread" sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "primary.main", flexShrink: 0, ml: 1 }} />}
+            </ListItemButton>
+        </ListItem>
     )
-    switch(obj.notif_type) {
-        case 'complaint':
-            return <NotificationWrapper link={`/notifications?id=${obj.encrypted_id}&complaint_id=${obj.record_key}`}>
-                       <ComplaintNotif obj={obj} />
-                       {(enableDel && !select)
-                       ?
-                       d
-                       :
-                       (select)
-                       ? checkBox
-                       : ''}
-                   </NotificationWrapper>
-        case 'referral':
-            return <NotificationWrapper link={`/notifications?id=${obj.encrypted_id}&referral_id=${obj.record_key}`}>
-                       <ReferralNotif obj={obj} />
-                       {(enableDel && !select)
-                       ?
-                       d
-                       :
-                       (select)
-                       ? checkBox
-                       : ''}
-                   </NotificationWrapper>
-        case 'absent':
-            return <NotificationWrapper link={`/notifications?absent_id=${obj.record_key}&id=${obj.encrypted_id}`}>
-                       <AbsentFormNotif obj={obj} />
-                       {(enableDel && !select)
-                       ?
-                       d
-                       :
-                       (select)
-                       ? checkBox
-                       : ''}
-                   </NotificationWrapper>
-        case 'appointment':
-            return <NotificationWrapper link={`/notifications?id=${obj.encrypted_id}`}>
-                       <AppointmentNotif obj={obj} />
-                       {(enableDel && !select)
-                       ?
-                       d
-                       :
-                       (select)
-                       ? checkBox
-                       : ''}
-                   </NotificationWrapper>
-        case 'gatepass':
-            return <NotificationWrapper link={`/notifications?gatepass_id=${obj.record_key}&id=${obj.encrypted_id}`}>
-                       <GatePassNotif obj={obj} />
-                       {(enableDel && !select)
-                       ?
-                       d
-                       :
-                       (select)
-                       ? checkBox
-                       : ''}
-                   </NotificationWrapper>
-        case 'call_in':
-            return <NotificationWrapper link={`/notifications?id=${obj.encrypted_id}`}>
-                       <CallInNotif obj={obj} />
-                       {(enableDel && !select)
-                       ?
-                       d
-                       :
-                       (select)
-                       ? checkBox
-                       : ''}
-                   </NotificationWrapper>
-        default:
-            return <NotificationWrapper link={`/notifications?id=${obj.encrypted_id}`}>
-                       <NormalNotif obj={obj} />
-                       {(enableDel && !select)
-                       ?
-                       d
-                       :
-                       (select)
-                       ? checkBox
-                       : ''}
-                   </NotificationWrapper>
-    }
 }
+
 export default NotificationList

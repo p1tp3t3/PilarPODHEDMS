@@ -202,6 +202,102 @@ class ViolationController extends Controller
         ]);
     }
 
+    /**
+     * The Behavioural Analysis tab as a PDF (POST /student-violation/{id}/analysis-report,
+     * opened in a new tab). The verdict, factors and recommendations are what
+     * the page is showing (the recommendations come from the AI, so they're
+     * sent rather than written again); the student and the violation's
+     * timeline are read here.
+     */
+    public function analysisReport(Request $request, $id)
+    {
+        $id = decrypt_id($id) ?? abort(404);
+        if (self::isSuperAdmin()) {
+            abort(403);
+        }
+        abort_unless(self::canViewStudent($id), 403);
+
+        $data = $request->validate([
+            'violation_id' => 'required|integer',
+            'prediction' => 'required|string|max:100',
+            'binary' => 'nullable|integer|in:0,1',
+            'insights' => 'nullable|array|max:20',
+            'insights.*' => 'string|max:2000',
+            'recommendations' => 'nullable|array|max:20',
+            'recommendations.*' => 'string|max:3000',
+        ]);
+
+        $violation = Violation::findOrFail($data['violation_id']);
+        $student = User::with(['profile', 'enrollments.program'])->findOrFail($id);
+        $enrollment = $student->enrollments->sortBy('id')->last();
+        $p = $student->profile;
+
+        // "Label: explanation" -> its label and its explanation.
+        $insights = collect($data['insights'] ?? [])->map(function ($f) {
+            if (preg_match('/^([^:]{2,40}):\s*(.+)$/s', $f, $m)) {
+                return ['label' => trim($m[1]), 'body' => ucfirst(trim($m[2]))];
+            }
+
+            return ['label' => null, 'body' => $f];
+        })->all();
+        // The first sentence (what to do) in bold, then the rest.
+        $recommendations = collect($data['recommendations'] ?? [])->map(function ($r) {
+            $r = trim($r);
+
+            return preg_match('/^(.+?[.!?])\s+(.+)$/s', $r, $m)
+                ? ['lead' => $m[1], 'rest' => $m[2]]
+                : ['lead' => $r, 'rest' => ''];
+        })->all();
+
+        $timeline = ComplaintSubjectViolation::with(['complaint.complaintSubject'])
+            ->where('student_id', $id)
+            ->where('violation_id', $violation->id)
+            ->get()
+            ->map(function ($r) {
+                $c = $r->complaint;
+
+                return [
+                    'date' => $c ? ($c->offense_issued_at ?? $c->resolved_at ?? $c->confirmed_at ?? $c->created_at) : null,
+                    'case_number' => $c?->case_number,
+                    'summary' => $c?->incident_summary ?: $c?->complaintSubject->first()?->incident_summary,
+                ];
+            })
+            ->sortByDesc(fn ($t) => (string) $t['date'])
+            ->values()
+            ->all();
+
+        $year = $enrollment?->year_level;
+        $me = auth()->user()->loadMissing('profile')->profile;
+
+        // The student's profile picture (if they uploaded one), embedded in the PDF.
+        $photo = null;
+        if (($pic = $p?->profile_picture) && is_file($path = storage_path('app/public/profile-pictures/'.basename($pic)))) {
+            $mime = mime_content_type($path) ?: 'image/jpeg';
+            if (in_array($mime, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
+                $photo = 'data:'.$mime.';base64,'.base64_encode(file_get_contents($path));
+            }
+        }
+
+        $pdf = Pdf::loadView('pdf.reports.behavioural-analysis-report', [
+            'violation' => $violation->violation_name,
+            'student' => [
+                'name' => trim(implode(' ', array_filter([$p?->first_name, $p?->middle_name, $p?->last_name]))) ?: $student->username,
+                'id_number' => $student->id_number,
+                'program' => $enrollment?->program?->name ?? $enrollment?->program?->code,
+                'photo' => $photo,
+                'year_level' => $year ?$year.(in_array($year % 100, [11, 12, 13]) ? 'th' : (['th', 'st', 'nd', 'rd'][$year % 10] ?? 'th')).' Year' : null,
+            ],
+            'prediction' => $data['prediction'],
+            'likely' => (int) ($data['binary'] ?? 0) === 1,
+            'insights' => $insights,
+            'recommendations' => $recommendations,
+            'timeline' => $timeline,
+            'prepared_by' => trim(($me?->first_name ?? '').' '.($me?->last_name ?? '')) ?: auth()->user()->username,
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->stream('behavioural-analysis-'.now()->format('Ymd-His').'.pdf');
+    }
+
     private static function breadcrumbViolation($from)
     {
         if (! is_numeric($from) || ! ($violation = Violation::find($from))) {
@@ -479,14 +575,123 @@ class ViolationController extends Controller
     }
 
     /**
-     * AI-written recommendations for the same input. A language model writes
-     * them, which takes ~40s on a CPU, past PHP's default 30s limit.
+     * The AI-written recommendations for the same input, from Google Gemini
+     * (geminiRecommendation()).
      */
     public function recommendViolationAction(Request $request)
     {
-        set_time_limit(150);
+        return self::geminiRecommendation($request);
+    }
 
-        return self::forwardToModel($request, '/api/model/recommend', 120);
+    /**
+     * The recommendations written by Google Gemini: the
+     * page sends the verdict and insights it already got from /predict, and
+     * Gemini gets the same prompt the Python service's language model uses.
+     * Response: { prediction, reco: [string ...] }.
+     */
+    private static function geminiRecommendation(Request $request)
+    {
+        $data = $request->validate([
+            'model_input' => 'required|array',
+            'model_input.violation_type' => 'nullable|string|max:255',
+            'prediction' => 'required|integer|in:0,1',
+            'insights' => 'nullable|array|max:20',
+            'insights.*' => 'string|max:2000',
+        ]);
+
+        $key = config('services.gemini.key');
+        if (! $key) {
+            return response()->json(['message' => 'Recommendation service is not configured.'], 502);
+        }
+
+        $violation = $data['model_input']['violation_type'] ?? 'the violation';
+        $verdict = (int) $data['prediction'] === 1 ? 'is likely to commit it again' : 'is unlikely to commit it again';
+        // Written for the Prefect of Discipline office: the advice is about
+        // what the office does with the student, never about the system.
+        $prompt = 'You are advising the Prefect of Discipline office of a school (Philippines). '
+            ."A student has a discipline record for the violation \"{$violation}\", and based on that record the student {$verdict}. "
+            .'Notes from the record: '.implode(' ', $data['insights'] ?? []).' '
+            .'List exactly 10 actionable recommendations for the Prefect of Discipline on how to handle this student, '
+            .'using the office\'s usual practices: talking with the student, parent or guardian conferences, coordinating with '
+            .'the guidance office, advisers and teachers, follow-up meetings, monitoring the student\'s conduct and attendance, '
+            .'documenting incidents in the student\'s discipline record, and sanctions under the student handbook when warranted. '
+            .'Do not mention any prediction, model, AI, data, flags, scores, software or system, and never tell the student how likely they are to commit the violation again. '
+            .'Number them 1 to 10. Write each one as exactly four complete sentences in one paragraph: what to do, how to carry it out, who is involved, and why it helps the student. Do not include a title/heading before the list or '
+            .'a summary sentence after it — output only the numbered items, nothing else.';
+
+        try {
+            $response = Http::withHeaders(['X-goog-api-key' => $key])
+                // Local PHP installs often lack a CA bundle; production verifies.
+                ->when(app()->isLocal(), fn ($http) => $http->withoutVerifying())
+                ->timeout(60)
+                // Busy (503) or rate limited (429): try again twice.
+                ->retry(3, 2000, fn ($e) => $e instanceof \Illuminate\Http\Client\RequestException
+                    && in_array($e->response->status(), [429, 503]), throw: false)
+                ->post('https://generativelanguage.googleapis.com/v1beta/models/'.config('services.gemini.model').':generateContent', [
+                    'contents' => [['parts' => [['text' => $prompt]]]],
+                ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to reach Gemini for recommendations', ['error' => $e->getMessage()]);
+
+            return response()->json(['message' => 'Recommendation service unavailable.'], 502);
+        }
+
+        if (! $response->successful()) {
+            Log::error('Gemini recommendation request failed', ['status' => $response->status(), 'body' => mb_substr($response->body(), 0, 500)]);
+
+            return response()->json(['message' => 'Recommendation service unavailable.'], 502);
+        }
+
+        $text = collect($response->json('candidates.0.content.parts') ?? [])
+            ->reject(fn ($part) => $part['thought'] ?? false) // the model's reasoning, not its answer
+            ->pluck('text')->implode('');
+        $reco = self::parseRecommendationList($text);
+
+        return response()->json([
+            'prediction' => (int) $data['prediction'],
+            'reco' => array_slice($reco, 0, 10),
+        ]);
+    }
+
+    /**
+     * A numbered list ("1. **Title**: body ...") as one string per item:
+     * wrapped lines joined, markdown bold removed. Falls back to its lines,
+     * then its sentences, when the reply isn't numbered (as the Python
+     * service's parser does).
+     */
+    private static function parseRecommendationList(string $text): array
+    {
+        $items = [];
+        $current = null;
+        foreach (preg_split('/\R/', $text) as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            if (preg_match('/^\d+[.)]\s*(.*)$/', $line, $m)) {
+                if ($current !== null) {
+                    $items[] = $current;
+                }
+                $current = $m[1];
+            } elseif ($current !== null) {
+                $current .= ' '.$line;
+            }
+        }
+        if ($current !== null) {
+            $items[] = $current;
+        }
+
+        if (! $items) {
+            $items = array_values(array_filter(array_map(fn ($l) => trim($l, " -•*\t"), preg_split('/\R/', $text))));
+        }
+        if (count($items) <= 1 && trim($text) !== '') {
+            $items = array_values(array_filter(array_map('trim', preg_split('/(?<=[.!?])\s+/', trim($text)))));
+        }
+
+        return array_values(array_filter(array_map(
+            fn ($i) => trim(str_replace('**', '', $i)),
+            $items
+        )));
     }
 
     private static function forwardToModel(Request $request, string $path, int $timeout)

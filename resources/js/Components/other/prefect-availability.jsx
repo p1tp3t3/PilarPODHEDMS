@@ -1,3 +1,4 @@
+import { Skeleton } from "@mui/material"
 import { useContext, useEffect, useMemo, useState } from "react"
 import AuthContext from "@/context-provider/auth-provider"
 import { usePage } from "@inertiajs/react"
@@ -313,7 +314,7 @@ export const AvailabilityScheduleEditor = ({ userId, reload, embedded = false, o
             )}
 
             {week === null ? (
-                <div className="h-40 rounded-md bg-gray-100 animate-pulse" />
+                <Skeleton variant="rounded" height={160} />
             ) : (
                 <div className="grid gap-4">
                     <div className="rounded-lg border border-gray-200 divide-y divide-gray-100">

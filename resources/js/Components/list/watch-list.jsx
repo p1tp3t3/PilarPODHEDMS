@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
-import { Link, router } from "@inertiajs/react"
+import { router } from "@inertiajs/react"
+import { Chip, IconButton, Tooltip } from "@mui/material"
 import { RefreshCw, WifiOff } from "lucide-react"
 import SearchBar from "../input/search-bar"
 import { PanelBody, PanelHeader, PersonRow, matchesPerson } from "./dashboard-panel-parts"
@@ -52,14 +53,11 @@ const WatchList = () => {
                             handleSearch={(e) => setSearch(e.target.value)}
                         />
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => load(true)}
-                        title="Recompute predictions"
-                        className="shrink-0 h-[2.2rem] w-[2.2rem] grid place-items-center rounded-full border border-gray-300 text-gray-600 hover:bg-gray-50"
-                    >
-                        <RefreshCw size={15} />
-                    </button>
+                    <Tooltip title="Recompute predictions">
+                        <IconButton onClick={() => load(true)} size="small" sx={{ border: 1, borderColor: "divider" }}>
+                            <RefreshCw size={15} />
+                        </IconButton>
+                    </Tooltip>
                 </div>
             </PanelHeader>
 
@@ -78,37 +76,36 @@ const WatchList = () => {
                     empty={search ? "No matching students" : "No enrolled student is predicted to repeat a violation"}
                 >
                     {shown?.map((s) => (
-                        <Link key={s.id} href={analysisUrl(s, s.violations[0]?.violation_id)} className="block" title="Open Behavioural Analysis">
                             <PersonRow
+                                key={s.id}
+                                href={analysisUrl(s, s.violations[0]?.violation_id)}
+                                title="Open Behavioural Analysis"
                                 user={s}
                                 sub={`${s.id_number ? `${s.id_number.toUpperCase()} · ` : ""}${showUserType(s)}`}
                                 right={
-                                    <span className="px-2 py-0.5 rounded-full text-[0.72em] font-bold whitespace-nowrap bg-red-100 text-red-700">
-                                        Likely to Commit
-                                    </span>
+                                    <Chip size="small" color="error" label="Likely to Commit" sx={{ fontWeight: 700, fontSize: "0.68rem", height: 22 }} />
                                 }
                                 footer={
                                     <div className="flex flex-wrap gap-1 mt-1">
                                         {s.violations.map((v) => (
-                                            <span
+                                            <Chip
                                                 key={v.violation_id}
-                                                role="link"
+                                                size="small"
+                                                clickable
+                                                label={v.violation}
                                                 onClick={(e) => {
                                                     // A chip opens its own violation, not the row's top one.
                                                     e.preventDefault()
                                                     e.stopPropagation()
                                                     router.visit(analysisUrl(s, v.violation_id))
                                                 }}
-                                                className="max-w-full truncate text-[0.66em] px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700 cursor-pointer"
                                                 title={`${v.past} time(s), ${v.recent} in the last 90 days — open this violation`}
-                                            >
-                                                {v.violation}
-                                            </span>
+                                                sx={{ maxWidth: "100%", height: 20, fontSize: "0.66rem", borderRadius: 1 }}
+                                            />
                                         ))}
                                     </div>
                                 }
                             />
-                        </Link>
                     ))}
                 </PanelBody>
             )}

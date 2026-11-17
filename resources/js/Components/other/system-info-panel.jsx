@@ -1,3 +1,4 @@
+import { Skeleton } from "@mui/material"
 import { useState, useEffect } from "react";
 import { SystemService } from "@/others/services/system-service";
 import { Database, Cpu, HardDrive, MemoryStick, Server, ListTodo, RefreshCw } from "lucide-react";
@@ -41,12 +42,12 @@ const SystemInfoPanel = () => {
             <div className="grid gap-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     {[...Array(2)].map((_, i) => (
-                        <div key={i} className="bg-white border border-gray-200 rounded-lg h-[9.5rem] animate-pulse" />
+                        <Skeleton key={i} variant="rounded" height={152} sx={{ borderRadius: 2 }} />
                     ))}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     {[...Array(2)].map((_, i) => (
-                        <div key={i} className="bg-white border border-gray-200 rounded-lg h-[13rem] animate-pulse" />
+                        <Skeleton key={i} variant="rounded" height={208} sx={{ borderRadius: 2 }} />
                     ))}
                 </div>
             </div>

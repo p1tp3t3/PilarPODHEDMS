@@ -216,8 +216,8 @@ const AbsentFormRequestList = ({ list = null, events, noted = false }) => {
       type: "actions",
       headerName: "Action",
       width: 250,
-      headerAlign: 'start',
-      align: 'start',
+      headerAlign: 'left',
+      align: 'left',
       renderCell: (params) => {
         const row = params.row;
         return (

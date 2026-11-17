@@ -8,7 +8,11 @@ import { useMemo, useState } from "react"
 import useListData, { reloadListData } from "@/others/hooks/use-list-data"
 import { X, CheckCheck, ListChecks, Trash2 } from "lucide-react"
 import { Head } from "@inertiajs/react"
+import { Button } from "@mui/material"
 import { LabeledCheckbox, setRowsChecked } from "@/Components/input/select-checkbox"
+
+// The toolbar's MUI buttons: pill-shaped, normal case.
+const BTN = { textTransform: 'none', fontWeight: 600, borderRadius: '999px', px: 1.5 }
 
 const Notification = (props) => {
 
@@ -71,45 +75,32 @@ const Notification = (props) => {
                         <div className="flex flex-wrap items-center gap-2 pb-2">
                             {select ? (
                                 <>
-                                    <span className="flex items-center rounded-full border border-gray-300 pl-1 pr-3 py-0.5 text-[0.75em] font-medium text-gray-700">
+                                    <span className="flex items-center rounded-full border border-gray-300 pl-1 pr-3 py-0.5 text-[0.8em] font-medium text-gray-700">
                                         <LabeledCheckbox label="Select all" id="select-all" onChange={selectAllRow} />
                                     </span>
-                                    <button
-                                        type="button"
-                                        onClick={deleteNotif}
-                                        className="flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1.5 text-[0.75em] font-medium text-white hover:bg-red-700"
-                                    >
-                                        <Trash2 size={14} /> Delete selected
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => enableSelect(false)}
-                                        className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.75em] font-medium text-gray-600 hover:bg-gray-100"
-                                    >
-                                        <X size={14} /> Cancel
-                                    </button>
+                                    <Button size="small" variant="contained" color="error" disableElevation
+                                        startIcon={<Trash2 size={15} />} onClick={deleteNotif} sx={BTN}>
+                                        Delete selected
+                                    </Button>
+                                    <Button size="small" color="inherit" startIcon={<X size={15} />}
+                                        onClick={() => enableSelect(false)} sx={{ ...BTN, color: 'text.secondary' }}>
+                                        Cancel
+                                    </Button>
                                 </>
                             ) : (
                                 <>
-                                    <button
-                                        type="button"
-                                        onClick={markAllAsRead}
-                                        className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.75em] font-medium text-blue-600 hover:bg-blue-50"
-                                    >
-                                        <CheckCheck size={14} /> Mark all as read
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => enableSelect(true)}
-                                        className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1.5 text-[0.75em] font-medium text-gray-700 hover:bg-gray-50"
-                                    >
-                                        <ListChecks size={14} /> Select
-                                    </button>
+                                    <Button size="small" startIcon={<CheckCheck size={15} />} onClick={markAllAsRead} sx={BTN}>
+                                        Mark all as read
+                                    </Button>
+                                    <Button size="small" variant="outlined" color="inherit" startIcon={<ListChecks size={15} />}
+                                        onClick={() => enableSelect(true)} sx={{ ...BTN, color: 'text.secondary', borderColor: 'divider' }}>
+                                        Select
+                                    </Button>
                                 </>
                             )}
                         </div>
                     </div>
-                    <div className="px-4 pb-4">
+                    <div className="px-2 sm:px-3 pb-3">
                         <NotificationList
                             list={notif_list}
                             overflow={false}

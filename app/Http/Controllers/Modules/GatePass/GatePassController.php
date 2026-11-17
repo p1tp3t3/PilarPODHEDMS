@@ -46,9 +46,7 @@ class GatePassController extends Controller
             return match (request('status')) {
                 'all' => self::getAllGatePasses(),
                 'confirmed-users' => self::getAllApprovedGatePass(),
-                'expired-users' => self::getGatePassExpired(),
                 'rejected-requests' => self::getAllRejectedGatePass(),
-                'revoked-requests' => self::getAllRevokedGatePass(),
                 default => self::getAllGatePassRequest(),
             };
         };

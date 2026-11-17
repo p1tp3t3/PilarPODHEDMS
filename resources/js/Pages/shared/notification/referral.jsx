@@ -1,21 +1,15 @@
-import { useState, useEffect } from "react"
 import { ReferralService } from "@/others/services/referral-service"
 import AuthLayout from "@/Layouts/auth-layout"
 import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-read"
 import ViewReferralModal from "@/Components/modal/view/view-referral-modal"
 import { Share2 } from "lucide-react"
-import NotifDetailCard, { NotifEmptyState, NotifLoadingState } from "@/Components/other/notif-detail-card"
+import NotifDetailCard, { NotifEmptyState, NotifLoadingState, useNotifRecord } from "@/Components/other/notif-detail-card"
 import { Head } from "@inertiajs/react"
 
 const ReferralNotification = (props) => {
     useMarkNotificationRead()
 
-    const [data, setData] = useState(null)
-
-    useEffect(() => {
-        const id = new URLSearchParams(window.location.search).get('referral_id')
-        ReferralService.getReferralInfo(id, setData)
-    }, [])
+    const data = useNotifRecord('referral_id', ReferralService.getReferralInfo)
     return  (
         <>
             <Head title="Referral Notification" />
@@ -23,7 +17,7 @@ const ReferralNotification = (props) => {
             ?
             (data != '')
             ?
-            <NotifDetailCard icon={Share2} tone="default" title="Referral Notification">
+            <NotifDetailCard icon={Share2} tone="default" title="Referral">
                 <div className="w-full space-y-5">
                     <ViewReferralModal.Body data={data} />
                     {props.auth.user.role == 'staff' &&
@@ -46,7 +40,7 @@ const ReferralNotification = (props) => {
             :
             <NotifEmptyState icon={Share2} message="No Referral Found" />
             :
-            <NotifLoadingState size={5} />
+            <NotifLoadingState />
             }
         </>
     )

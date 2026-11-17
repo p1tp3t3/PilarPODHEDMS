@@ -24,7 +24,11 @@ import TabSwitcher from "@/Components/other/tab-switcher";
 import { Head } from "@inertiajs/react";
 import useListData from "@/others/hooks/use-list-data";
 import ListSkeleton from "@/Components/reload/list-skeleton";
-import { Button } from "@mui/material";
+import { Box, Button, Paper, Typography } from "@mui/material";
+
+// The record tabs' panels (complaints, referrals ... filed).
+// minmax(0, 1fr): a wide table scrolls inside the panel instead of widening it.
+const RECORD_PANEL = { px: { xs: 2, sm: 3, md: 5 }, py: 3, display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 2, minWidth: 0, borderRadius: 1 };
 import { User as UserIcon, ShieldAlert, GraduationCap, FileWarning, FileText, CalendarX, DoorOpen, UserPen, Settings } from "lucide-react";
 
 const calculateAge = (dateOfBirth) => {
@@ -269,7 +273,7 @@ const Profile = (props) => {
                 return <EnrollmentHistory enrollments={props.otherUserProfile.enrollments ?? []} />;
             case "complaints_filed":
                 return (
-                    <div className="w-full bg-white shadow shadow-black/20 px-4 sm:px-6 md:px-10 py-6 grid gap-4 min-w-0">
+                    <Paper elevation={2} sx={RECORD_PANEL}>
                         <div className="w-full sm:w-56">
                             <DropdownField
                                 default={{ val: 'all', label: 'All Complaints' }}
@@ -288,11 +292,11 @@ const Profile = (props) => {
                                 actionEvent={() => {}}
                             />
                         </div>
-                    </div>
+                    </Paper>
                 );
             case "referrals_filed":
                 return (
-                    <div className="w-full bg-white shadow shadow-black/20 px-4 sm:px-6 md:px-10 py-6 grid gap-4 min-w-0">
+                    <Paper elevation={2} sx={RECORD_PANEL}>
                         <div className="w-full sm:w-56">
                             <DropdownField
                                 default={{ val: 'all', label: 'All Referrals' }}
@@ -308,11 +312,11 @@ const Profile = (props) => {
                             viewReferral={(id) => { setViewReferralId(id); openViewReferral(true); }}
                             events={() => {}}
                         />
-                    </div>
+                    </Paper>
                 );
             case "absent_forms_filed":
                 return (
-                    <div className="w-full bg-white shadow shadow-black/20 px-4 sm:px-6 md:px-10 py-6 grid gap-4 min-w-0">
+                    <Paper elevation={2} sx={RECORD_PANEL}>
                         <div className="w-full sm:w-56">
                             <DropdownField
                                 default={{ val: 'all', label: 'All Absent Forms' }}
@@ -328,11 +332,11 @@ const Profile = (props) => {
                                 if (!action || action === "view") { setViewAbsentFormId(id); openViewAbsentForm(true); }
                             }}
                         />
-                    </div>
+                    </Paper>
                 );
             case "gatepass_requested":
                 return (
-                    <div className="w-full bg-white shadow shadow-black/20 px-4 sm:px-6 md:px-10 py-6 grid gap-4 min-w-0">
+                    <Paper elevation={2} sx={RECORD_PANEL}>
                         <div className="w-full sm:w-56">
                             <DropdownField
                                 default={{ val: 'all', label: 'All Gate Passes' }}
@@ -347,7 +351,7 @@ const Profile = (props) => {
                             view={(id) => { setViewGatepassId(id); openViewGatepass(true); }}
                             events={() => {}}
                         />
-                    </div>
+                    </Paper>
                 );
             default:
                 return <About data={profileData} data2={data} setData={setData} />;
@@ -501,39 +505,39 @@ const Profile = (props) => {
                 <div className="w-full grid gap-5 py-5">
                     <div className="">
                         {/* ✅ Responsive container */}
-                        <div className="px-4 sm:px-6 md:px-10 bg-white shadow-md shadow-black/20">
-                            <div className="py-6 md:py-10 flex flex-col md:flex-row justify-between items-center md:items-start gap-6">
+                        <Paper elevation={3} square sx={{ px: { xs: 2, sm: 3, md: 5 } }}>
+                            <div className="py-6 md:py-8 flex flex-col md:flex-row justify-between items-center gap-5">
 
                                 {/* Left Side: Profile Picture + Name */}
-                                <div className="flex flex-col sm:flex-row gap-6 md:gap-10 items-center md:items-start text-center md:text-left">
+                                <div className="flex flex-col sm:flex-row gap-5 md:gap-8 items-center text-center sm:text-left">
                                     <ProfilePic
-                                        size={11}
+                                        size={8}
                                         src={profilePic}
                                         showActive={user.id !== acc.id}
-                                        activeSize={3}
-                                        activeBorderColor="border-white border-[7px]"
+                                        activeSize={2}
+                                        activeBorderColor="border-white border-[5px]"
                                         isActive={isUserOnline(user.id) || checkActiveStatus(user.last_seen)}
                                     />
 
-                                    <div className="flex flex-col gap-1 md:gap-3">
-                                        <h1 className="text-[1.7em] sm:text-[2em] font-bold">
+                                    <div className="flex flex-col gap-1">
+                                        <Typography component="h1" sx={{ fontSize: { xs: "1.7em", sm: "2em" }, fontWeight: 700, lineHeight: 1.25 }}>
                                             {`${user.profile?.first_name ?? ""} ${user.profile?.middle_name ?? ""} ${user.profile?.last_name ?? ""}`}
                                             {user.role === "super_admin" && " (System Admin)"}
-                                        </h1>
+                                        </Typography>
                                         {user.id_number && (
-                                        <p className="text-[1.1em] sm:text-[1.3em] text-gray-700">
+                                        <Typography sx={{ fontSize: { xs: "1.1em", sm: "1.3em" }, color: "text.secondary" }}>
                                             #{user.id_number}
-                                        </p>
+                                        </Typography>
                                         )}
                                         {/* Students: program and year level, e.g. "BSIT • 3rd Year". */}
                                         {user.role === "student" && (
-                                            <p className="text-[0.95em] sm:text-[1.05em] text-gray-600 -mt-1 md:-mt-2">
+                                            <Typography sx={{ fontSize: { xs: "0.95em", sm: "1.05em" }, color: "text.secondary" }}>
                                                 {showUserType(user)}
-                                            </p>
+                                            </Typography>
                                         )}
                                         {/* Earlier ID numbers, e.g. the student ID of someone who is now staff. */}
                                         {props.previous_id_numbers?.length > 0 && (
-                                            <p className="text-[0.8em] text-gray-500 -mt-1 md:-mt-2">
+                                            <Typography component="div" sx={{ fontSize: "0.8em", color: "text.disabled" }}>
                                                 Previously:{" "}
                                                 {props.previous_id_numbers.map((h, i) => (
                                                     <span key={i}>
@@ -542,13 +546,13 @@ const Profile = (props) => {
                                                         {h.role && ` (${h.role.label ?? h.role.name})`}
                                                     </span>
                                                 ))}
-                                            </p>
+                                            </Typography>
                                         )}
                                     </div>
                                 </div>
 
                                 {/* Right Side: Buttons */}
-                                <div className="flex justify-center self-end md:justify-end w-full md:w-auto">
+                                <div className="flex justify-center md:justify-end w-full md:w-auto shrink-0">
                                     <EditProfileAccountBtn
                                         user={user}
                                         acc={acc}
@@ -559,22 +563,22 @@ const Profile = (props) => {
                                     />
                                 </div>
                             </div>
-                        </div>
+                        </Paper>
 
-
-                        {/* ✅ Responsive tabs */}
+                        {/* Tabs */}
         {/* A single tab (just About) needs no tab bar. */}
         {tabOptions.length > 1 && (
-                            <div className="w-full bg-white shadow-black/20 shadow-md border-t border-gray-300 px-4 sm:px-6 md:px-10 flex flex-wrap items-center justify-between gap-3 py-2">
-                                {/* Phones: the full row, so every tab gets an equal share. */}
-                                <div className="min-w-0 max-sm:w-full">
+                            <Paper elevation={3} square sx={{ borderTop: 1, borderColor: "divider", px: { xs: 2, sm: 3, md: 5 }, py: 1, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 1.5 }}>
+                                {/* Below large screens the tabs get the whole row (the
+                                    filters go under them), so no label is squeezed. */}
+                                <div className="min-w-0 w-full lg:w-auto lg:flex-1">
                                     <TabSwitcher tabs={tabOptions} value={tab} onChange={setTab} />
                                 </div>
                                 {/* School year / semester filters don't apply to the System Admin's
                                     profile, or to the About tab (personal info, not records). */}
                                 {props.otherUserProfile.role !== 'super_admin' && tab !== 'about' && (
-                                <div className="flex flex-wrap gap-3 shrink-0">
-                                    <div className="w-full sm:w-48">
+                                <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:shrink-0 pb-1 lg:pb-0">
+                                    <div className="w-full sm:flex-1 lg:flex-none lg:w-48">
                                         <DropdownField
                                             default={{ val: 'all', label: 'All School Years' }}
                                             list={schoolYearFilterOptions}
@@ -583,7 +587,7 @@ const Profile = (props) => {
                                             name="filter_school_year"
                                         />
                                     </div>
-                                    <div className="w-full sm:w-48">
+                                    <div className="w-full sm:flex-1 lg:flex-none lg:w-48">
                                         <DropdownField
                                             default={{ val: 'all', label: 'All Semesters' }}
                                             list={semesterFilterOptions}
@@ -594,7 +598,7 @@ const Profile = (props) => {
                                     </div>
                                 </div>
                                 )}
-                            </div>
+                            </Paper>
                         )}
                     </div>
 

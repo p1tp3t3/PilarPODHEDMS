@@ -50,6 +50,8 @@
 <body>
     @if ($approved)
     <div class="watermark"><img src="{{ public_path('default-pic/approved-pic-pdf.png') }}" alt="Approved"></div>
+    @else
+    @include('pdf.partials.status-watermark', ['status' => $status ?? null])
     @endif
     <div class="footer">Office of Student Affairs and Discipline &middot; Pilar College of Zamboanga City, Inc.@if ($approved) &middot; This form is valid only with the signature of the Prefect of Discipline.@endif</div>
 

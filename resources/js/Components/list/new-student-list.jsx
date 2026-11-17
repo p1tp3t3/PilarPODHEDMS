@@ -1,10 +1,14 @@
 import { useState } from "react"
+import useListData from "@/others/hooks/use-list-data"
 import { readableDate, readableTime, showUserType, profileUrl } from "@/others/function"
-import { Link } from "@inertiajs/react"
+import { Typography } from "@mui/material"
 import SearchBar from "../input/search-bar"
 import { PanelBody, PanelHeader, PersonRow, matchesPerson } from "./dashboard-panel-parts"
 
-const NewStudentList = ({ list = null, weekStart = null, weekEnd = null }) => {
+// Loads its rows from the API (/api/dashboard/panel/new-students).
+const NewStudentList = ({ weekStart = null, weekEnd = null }) => {
+    const { data } = useListData("/api/dashboard/panel/new-students", {})
+    const list = data?.list ?? null
     const [search, setSearch] = useState("")
     const shown = list?.filter((e) => matchesPerson(e, search)) ?? null
 
@@ -24,18 +28,18 @@ const NewStudentList = ({ list = null, weekStart = null, weekEnd = null }) => {
             </PanelHeader>
             <PanelBody list={shown} empty={search ? "No matching students" : "No new students this week"}>
                 {shown?.map((e) => (
-                    <Link key={e.id} href={`${profileUrl(e)}`} className="block">
                         <PersonRow
+                            key={e.id}
+                            href={profileUrl(e)}
                             user={e}
                             sub={`${e.id_number ? `${e.id_number.toUpperCase()} · ` : ""}${showUserType(e)}`}
                             right={
                                 <>
-                                    <span className="text-[0.7em] text-gray-500">{readableDate(e.created_at)}</span>
-                                    <span className="text-[0.68em] text-gray-400">{readableTime(e.created_at)}</span>
+                                    <Typography sx={{ fontSize: "0.72rem", color: "text.secondary" }}>{readableDate(e.created_at)}</Typography>
+                                    <Typography sx={{ fontSize: "0.68rem", color: "text.disabled" }}>{readableTime(e.created_at)}</Typography>
                                 </>
                             }
                         />
-                    </Link>
                 ))}
             </PanelBody>
         </div>

@@ -1,14 +1,14 @@
 import TabSwitcher from "@/Components/other/tab-switcher";
 import PageLayout from "@/Layouts/page-layout";
-import ProfilePic from "@/Components/other/profile-pic";
 import BehaviourAnalysisSkeleton from "@/Components/reload/behaviour-analysis-skeleton";
 import AuthLayout from "@/Layouts/auth-layout";
-import { getProfilePic, getYearLevel, readableDate, readableTime, toTitleCase, ordinal } from "@/others/function";
-import { Box, Select, MenuItem } from "@mui/material";
+import { readableDate, readableTime, toTitleCase, ordinal, openPdfTabPost } from "@/others/function";
+import { Box, Select, MenuItem, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { DataGrid } from "@/Components/other/data-grid";
 import { useEffect, useMemo, useState } from "react";
 import useListData from "@/others/hooks/use-list-data";
-import { ShieldHalf, Clock, FolderOpen, GraduationCap, CalendarRange, AlertTriangle, CalendarPlus } from "lucide-react";
+import { ShieldHalf, Clock, FolderOpen, AlertTriangle, CalendarPlus, FileText } from "lucide-react";
+import { Button as MuiButton } from "@mui/material";
 import axios from "axios";
 import { Head } from "@inertiajs/react";
 import ActionBtn from "@/Components/button/action-btn";
@@ -17,6 +17,8 @@ import AppointmentModal from "@/Components/modal/submission-form/set-appointment
 import Btn from "@/Components/button/normal-btn";
 import { useReload } from "@/context-provider/reload-provider";
 import BreadcrumbNav from "@/Components/other/breadcrumb-nav";
+import { ContributingFactors, Recommendations, toneOf } from "@/Components/card/behaviour-analysis-parts";
+import StudentHeaderCard from "@/Components/card/student-header-card";
 
 // offense_issued_at is only set once a prefect actually issues the offense —
 // until then (or in seeded/demo data) it's null. Fall back to whichever
@@ -84,39 +86,7 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
         <PageLayout
           title="STUDENT VIOLATION"
         >
-                <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm p-5">
-                    {/* Phones: photo, name and details centred in a column;
-                        wider screens: photo beside the details. */}
-                    <div className="flex flex-col items-center text-center sm:flex-row sm:items-center sm:text-left gap-5">
-                        <ProfilePic
-                            src={getProfilePic(props.student.profile?.profile_picture, props.student.profile?.sex)}
-                            size={5}
-                        />
-                        <div>
-                            <div className="text-[1.15em] font-bold text-gray-800">
-                                {props.student.profile?.first_name} {props.student.profile?.middle_name} {props.student.profile?.last_name}
-                            </div>
-                            <div className="mt-2 flex flex-wrap justify-center sm:justify-start gap-2">
-                                {props.student.program?.name && (
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[0.8em] font-semibold bg-gray-100 text-gray-700 border border-gray-200">
-                                        <GraduationCap size="1.1em" className="opacity-70" />
-                                        {props.student.program?.name}
-                                        {props.student.enrollments?.[props.student.enrollments.length - 1]?.year_level
-                                            ? ` • ${getYearLevel(props.student.enrollments[props.student.enrollments.length - 1].year_level)}`
-                                            : ""}
-                                    </span>
-                                )}
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[0.8em] font-semibold bg-gray-100 text-gray-700 border border-gray-200">
-                                    <CalendarRange size="1.1em" className="opacity-70" />
-                                    School Year {props.student.enrollments?.[props.student.enrollments.length - 1]?.school_year?.year || "N/A"}
-                                    {props.student.enrollments?.[props.student.enrollments.length - 1]?.semester
-                                        ? ` • ${ordinal(props.student.enrollments[props.student.enrollments.length - 1].semester)} Semester`
-                                        : ""}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <StudentHeaderCard student={props.student} />
                 <div className="mt-2">
                     <TabSwitcher tabs={optionList} value={option} onChange={setOption} />
                     <div className="mt-6">
@@ -149,6 +119,14 @@ const RecentViolation = ({ violations, user }) => {
   // "View" opens the complaint behind a violation — why it was given.
   const [complaintKey, setComplaintKey] = useState(null);
   const [viewOpen, setViewOpen] = useState(false);
+  // Grouped: one row per violation with its offenses listed. Ungrouped: one
+  // row per offense. The choice is remembered on this browser.
+  const [grouped, setGrouped] = useState(() => localStorage.getItem("student-violations-view") !== "ungrouped");
+  const changeView = (_, v) => {
+    if (v == null) return;
+    setGrouped(v === "grouped");
+    localStorage.setItem("student-violations-view", v);
+  };
 
   const openComplaint = (key) => {
     setComplaintKey(key);
@@ -281,6 +259,65 @@ const RecentViolation = ({ violations, user }) => {
     .map((r, i) => ({ id: i + 1, ...r }));
   const offenseTotal = (violations ?? []).length;
 
+  // Ungrouped: every offense on its own row, newest first.
+  const violationCell = ({ row }) => (
+    <div className="py-3 whitespace-normal leading-snug">
+      <div className="font-semibold text-gray-900">{row.violation_name}</div>
+      <span
+        className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[0.8em] font-semibold ${
+          row.offense_status === 1 ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+        }`}
+      >
+        {row.offense_status === 1 ? "Major" : "Minor"}
+      </span>
+    </div>
+  );
+  const offenseRows = rows
+    .flatMap((r) => r.occurrences.map((o) => ({
+      ...o,
+      violation_name: r.violation_name,
+      offense_status: r.offense_status,
+      time: new Date(o.date ?? 0).getTime(),
+    })))
+    .sort((a, b) => b.time - a.time)
+    .map((r, i) => ({ id: i + 1, ...r, offense: r.occurrence ? `${ordinal(r.occurrence)} offense` : "Offense" }));
+  const offenseColumns = [
+    columns[0],
+    { field: "violation_name", headerName: "Violation", flex: 1.2, minWidth: 220, renderCell: violationCell },
+    {
+      field: "offense", headerName: "Offense", width: 120,
+      sortComparator: (a, b, p1, p2) => (p1.api.getRow(p1.id).occurrence ?? 0) - (p2.api.getRow(p2.id).occurrence ?? 0),
+      renderCell: ({ value }) => <span className="font-semibold text-gray-800">{value}</span>,
+    },
+    {
+      field: "penalty", headerName: "Penalty", flex: 1.2, minWidth: 220,
+      renderCell: ({ value }) => (
+        <div className="py-3 whitespace-normal leading-snug">
+          {value ? <span className="text-gray-900">{value}</span> : <span className="italic text-gray-400">No penalty set</span>}
+        </div>
+      ),
+    },
+    {
+      field: "time", headerName: "Date", width: 190,
+      renderCell: ({ row }) => (
+        <span className="text-gray-700">{row.date ? `${readableDate(row.date)} • ${readableTime(row.date)}` : "No date"}</span>
+      ),
+    },
+    {
+      field: "action", headerName: "Action", width: 100, sortable: false, filterable: false, align: "right",
+      renderCell: ({ row }) => (
+        <ActionBtn
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+          disabled={!row.complaint_key}
+          title="View the complaint behind this offense"
+          onClick={() => openComplaint(row.complaint_key)}
+        >
+          View
+        </ActionBtn>
+      ),
+    },
+  ];
+
   return (
     <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm p-5">
       <ViewComplaintModal
@@ -291,22 +328,36 @@ const RecentViolation = ({ violations, user }) => {
         complainant={complaintKey}
         usr={user}
       />
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
             <AlertTriangle className="text-gray-700" size="1.2em" />
           </div>
           <div className="font-semibold text-gray-800">Recent Violations</div>
         </div>
-        <div className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
-          {rows.length} violation{rows.length === 1 ? "" : "s"} · {offenseTotal} offense{offenseTotal === 1 ? "" : "s"}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+            {rows.length} violation{rows.length === 1 ? "" : "s"} · {offenseTotal} offense{offenseTotal === 1 ? "" : "s"}
+          </div>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={grouped ? "grouped" : "ungrouped"}
+            onChange={changeView}
+            aria-label="Group the offenses by violation"
+            sx={{ "& .MuiToggleButton-root": { textTransform: "none", fontWeight: 600, fontSize: "0.8rem", px: 1.5, py: 0.4 } }}
+          >
+            <ToggleButton value="grouped">Grouped</ToggleButton>
+            <ToggleButton value="ungrouped">Ungrouped</ToggleButton>
+          </ToggleButtonGroup>
         </div>
       </div>
       <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
         <DataGrid
-          rows={rows}
+          key={grouped ? "grouped" : "ungrouped"}
+          rows={grouped ? rows : offenseRows}
           loading={violations == null}
-          columns={columns}
+          columns={grouped ? columns : offenseColumns}
           getRowHeight={() => "auto"}
           pagination
           pageSizeOptions={[5, 10, 20]}
@@ -396,7 +447,9 @@ const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_
           violation_timeline: timeline,
         })
 
-        axios.post(RECOMMEND_URL, { model_input: modelInput })
+        // The verdict and insights go along: Gemini writes the
+        // recommendations from them (no second prediction).
+        axios.post(RECOMMEND_URL, { model_input: modelInput, prediction: Number(json.prediction) === 1 ? 1 : 0, insights: json.insights ?? [] })
           .then(({ data: r }) => {
             if (cancelled) return;
             const ok = Array.isArray(r?.reco)
@@ -442,16 +495,31 @@ const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_
       };
 
 
+  // The analysis on screen as a PDF, in a new tab (once the
+  // recommendations are written).
+  const reportReady = data != null && data.recommendations != null
+  const generateReport = () => {
+    if (!reportReady) return
+    openPdfTabPost(`${window.location.pathname.replace(/\/$/, "")}/analysis-report`, {
+      violation_id: selected,
+      prediction: data.prediction,
+      binary: data.binary == 1 ? 1 : 0,
+      insights: data.insights ?? [],
+      recommendations: data.recommendations ?? [],
+    }, "behavioural analysis report")
+  }
+
   return (
     <div className="grid gap-6">
       {/* Recidivism Prediction */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
         <Select
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
             size="small"
             displayEmpty
             sx={{
-                minWidth: "190px",
+                minWidth: "190px", flex: 1,
                 bgcolor: "var(--dm-surface, white)",
                 '& .MuiOutlinedInput-root, &.MuiOutlinedInput-root': { borderRadius: '8px', fontSize: '0.85em' },
             }}
@@ -465,6 +533,18 @@ const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_
                 </MenuItem>
             ))}
         </Select>
+        <MuiButton
+            variant="contained"
+            disableElevation
+            onClick={generateReport}
+            disabled={!reportReady}
+            startIcon={<FileText size={16} />}
+            title={reportReady ? "Open this analysis as a PDF in a new tab" : "Available once the recommendations are written"}
+            sx={{ textTransform: "none", fontWeight: 600, borderRadius: "8px", whiteSpace: "nowrap", flexShrink: 0, height: 40 }}
+        >
+            Generate Report
+        </MuiButton>
+      </div>
         {data == null
         ?
         <BehaviourAnalysisSkeleton />
@@ -493,53 +573,9 @@ const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_
           </div>
 
           {/* Factors + Recommendations */}
-          <div className="grid lg:grid-cols-2 gap-4">
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-              <div className="text-xs font-bold tracking-wide text-slate-500 uppercase mb-3">
-                Contributing Factors
-              </div>
-              <ul className="space-y-3">
-                {data.insights.map((f, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-sm text-slate-700">
-                    <span className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${riskUI.dot}`}></span>
-                    <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-              <div className="text-xs font-bold tracking-wide text-slate-500 uppercase mb-3">
-                Recommendations
-              </div>
-              {data.recommendations == null ? (
-                // Still being written by the AI: placeholder lines.
-                <div className="space-y-3" aria-label="Loading recommendations">
-                  <div className="text-xs text-slate-500">Writing recommendations…</div>
-                  {[90, 75, 82].map((w, i) => (
-                    <div key={i} className="flex items-start gap-2.5">
-                      <span className="flex-shrink-0 h-5 w-5 rounded-full bg-gray-200 animate-pulse" />
-                      <span className="h-4 rounded bg-gray-200 animate-pulse" style={{ width: w + "%" }} />
-                    </div>
-                  ))}
-                </div>
-              ) : data.recoFailed || data.recommendations.length === 0 ? (
-                <div className="text-sm text-slate-500 italic">
-                  {data.recoFailed ? "Recommendations couldn't be loaded. Please try again later." : "No recommendations."}
-                </div>
-              ) : (
-              <ul className="space-y-3">
-                {data.recommendations.map((f, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-sm text-slate-700">
-                    <span className={`flex-shrink-0 mt-0.5 h-5 w-5 rounded-full flex items-center justify-center text-[0.7em] font-bold text-white ${riskUI.dot}`}>
-                      {i + 1}
-                    </span>
-                    <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
-              )}
-            </div>
+          <div className="grid lg:grid-cols-2 gap-4 items-start">
+            <ContributingFactors insights={data.insights} tone={toneOf(data.binary == 1)} />
+            <Recommendations list={data.recommendations} failed={data.recoFailed} tone={toneOf(data.binary == 1)} />
           </div>
         </div>
         {/* Violation Timeline */}

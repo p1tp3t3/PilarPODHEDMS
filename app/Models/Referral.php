@@ -156,6 +156,8 @@ class Referral extends Model
             'students' => $students,
             'referral_reason' => $this->reason_description,
             'referrer_name' => $referrer ? $fullName($referrer) : $fallbackReferrer,
+            // Watermark on a form that isn't final (pdf.partials.status-watermark).
+            'status' => $this->revoked_at ? 'revoked' : $this->referral_status,
         ])->setPaper('a4');
     }
 }

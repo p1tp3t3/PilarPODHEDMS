@@ -405,10 +405,10 @@ const PrefectDashBoard = (props) => {
                     </div>
                     <div className="flex-1 min-h-0">
                       {choose == "student" && (
-                        <NewStudentList list={props.students} weekStart={props.students_week_start} weekEnd={props.students_week_end} />
+                        <NewStudentList weekStart={props.students_week_start} weekEnd={props.students_week_end} />
                       )}
                       {choose == "appointment" && (
-                        <AppointmentTodayList list={props.appointment_today} />
+                        <AppointmentTodayList />
                       )}
                       {choose == "notification" && <StudentNotificationList />}
                       {choose == "watch" && <WatchList />}

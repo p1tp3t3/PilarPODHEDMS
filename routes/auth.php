@@ -346,7 +346,6 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::post('/complaint/{id}/revoke', [ComplaintController::class, 'revokeComplaint']);
      Route::post('/complaint/{id}/edit', [ComplaintController::class, 'updateComplaint']);
      Route::post('/complaint/verify/{id}/confirm', [ComplaintController::class, 'confirmComplaint'])->middleware('role:sub_admin');
-     Route::post('/complaint/select/{type}', [ComplaintController::class, 'actionMultipleSelect'])->middleware('role:sub_admin');
      Route::post('/complainant/get/{id}', [ComplaintController::class, 'get']);
      Route::get('/complaint/{id}/evidence/{fileName}', [ComplaintController::class, 'downloadEvidence']);
      Route::get('/complaint/{id}/previous-evidence/{fileName}', [ComplaintController::class, 'downloadPreviousEvidence']);
@@ -374,6 +373,7 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
      Route::post('/notification/read', [NotificationController::class, 'markAsRead']);
 
      Route::get('/student-violation/{id}', [ViolationController::class, 'studentViolationIndex']);
+     Route::post('/student-violation/{id}/analysis-report', [ViolationController::class, 'analysisReport']);
      Route::get('/violation-occurence/list/{id}', [ViolationController::class, 'getStudentViolationOccurenceRoute']);
 
      Route::post('/profile/{username}/edit', [ProfileController::class, 'update']);

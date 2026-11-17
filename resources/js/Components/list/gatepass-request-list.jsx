@@ -13,7 +13,8 @@ import { statusLabel } from "@/Components/other/mobile-card-list"
 const statusFor = (e) => {
     if (e.revoked_at) return "revoked"
     if (e.rejected_at) return "rejected"
-    if (e.confirmed_at) return "approved"
+    // Approved and past its expiration: no longer valid (the Expired tab's own).
+    if (e.confirmed_at) return e.date_expiration && new Date(e.date_expiration.replace(" ", "T")) < new Date() ? "expired" : "approved"
     return "pending"
 }
 
@@ -196,8 +197,8 @@ const GatePassRequestList = (props) => {
                 type: "actions",
                 headerName: "Action",
                 width: 300,
-                align: 'start',
-                headerAlign: 'start',
+                align: 'left',
+                headerAlign: 'left',
                 renderCell: (params) => (
                     <div className="flex flex-wrap gap-2 items-center py-1">
                         <ActionBtn

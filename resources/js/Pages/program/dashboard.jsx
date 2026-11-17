@@ -89,7 +89,6 @@ const ProgramDashboard = (props) => {
               <div className="w-full lg:w-1/2 min-w-0 flex flex-col gap-6">
                 <MyRequestsPanel data={props.my_requests} stacked />
                 <NewUserList
-                  list={props.new_users}
                   weekStart={props.new_users_week_start}
                   weekEnd={props.new_users_week_end}
                 />

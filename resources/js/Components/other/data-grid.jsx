@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react"
 import { DataGrid as MuiDataGrid } from "@mui/x-data-grid"
 import { useIsMobile } from "@/others/use-is-mobile"
+import { useListsLoading } from "@/others/hooks/use-list-data"
 import MobileCardList from "./mobile-card-list"
 import EmptyTableOverlay from "./empty-table-overlay"
 
@@ -108,8 +109,15 @@ const withIndexColumn = (columns = []) => (columns.some(isIndexColumn) ? columns
 // On phones every table renders as a card list instead (MobileCardList),
 // except editable grids (inline cell editing needs the real table) or a
 // table that opts out with mobileCards={false}.
-export const DataGrid = ({ slotProps, sx, slots, mobileCards = true, mobileSummary, ...props }) => {
+export const DataGrid = ({ slotProps, sx, slots, mobileCards = true, mobileSummary, followListLoading = true, ...props }) => {
     const isMobile = useIsMobile()
+    // The page's lists are being (re)loaded: skeleton rows until it's done,
+    // not the previous rows. followListLoading={false}: a table that isn't
+    // one of the page's lists (its own data) opts out.
+    const listsLoading = useListsLoading()
+    if (listsLoading && followListLoading) {
+        props = { ...props, loading: true, rows: [] }
+    }
     const rootRef = useRef(null)
     const columns = useMemo(() => withIndexColumn(props.columns), [props.columns])
     const isEditable = !!props.processRowUpdate || (props.columns ?? []).some((c) => c.editable)

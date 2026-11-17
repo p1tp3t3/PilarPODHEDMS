@@ -117,6 +117,10 @@ Route::middleware('web')->group(function () {
     */
     Route::middleware(['auth', 'activate', 'user-activity'])->group(function () {
         Route::post('/bargraph', [DashboardController::class, 'getBargraph']);
+        // Dashboard panels (New Users / New Students / Appointments); the
+        // controller checks each panel against the user's role.
+        Route::get('/dashboard/panel/{panel}', [DashboardController::class, 'panel'])
+            ->whereIn('panel', ['new-users', 'new-students', 'appointments', 'security']);
         Route::get('/my-activity', [ActivityLogController::class, 'index'])->middleware('list-data');
 
         // All / Unread lists for the notifications page and the header's

@@ -7,6 +7,8 @@ import LineGraph from "@/Components/card/line-graph-statistic";
 import DropdownField from "@/Components/input/dropdown";
 import { DashboardService } from "@/others/services/dashboard-service";
 import NewUserList from "@/Components/list/new-user-list";
+import SecurityOverviewPanel from "@/Components/list/security-overview-panel";
+import ModelOverviewPanel from "@/Components/list/model-overview-panel";
 import "../../Responsive/dashboard-responsive.css";
 import { Head, Link } from "@inertiajs/react";
 import LatestActiveAccountList from "@/Components/list/latest-active-user-list";
@@ -14,7 +16,7 @@ import TabSwitcher from "@/Components/other/tab-switcher";
 import { Broadcast } from "@/others/classes/broadcast-cofiguration";
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Users, GraduationCap, FileText, ShieldAlert, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Users, GraduationCap, FileText, AlertTriangle, ShieldCheck } from "lucide-react";
 import { PageTitle } from "@/context-provider/page-title-provider";
 
 // One fixed color per role so a role keeps its color across filters.
@@ -128,9 +130,8 @@ const ITRCDashboard = (props) => {
           {/* === TOP SECTION === */}
           <div className="w-full grid gap-5">
             {/* Quantity Cards */}
-            {/* Phones: 2 per row (last one full width). Mid screens: 3 then 2,
-                both rows full width. Very wide: all 5 in one row. */}
-            <div className="grid grid-cols-2 lg:grid-cols-6 2xl:grid-cols-5 gap-3 sm:gap-4 [&>*]:lg:col-span-2 [&>*:nth-child(n+4)]:lg:col-span-3 [&>*]:2xl:!col-span-1 [&>*:last-child]:max-lg:col-span-2">
+            {/* Phones: 2 per row. Wide screens: all 4 in one row. */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <Link href="/super-admin/user-accounts">
                 <QuantityCard clickable
                   h="h-[6rem]"
@@ -164,18 +165,6 @@ const ITRCDashboard = (props) => {
                   }}
                 />
               </Link>
-              {/* Count only: Violation Management is the prefect's. */}
-              <div>
-                <QuantityCard
-                  h="h-[6rem]"
-                  num={props.total_violation}
-                  icon={ShieldAlert}
-                  label="Violations"
-                  color={{
-                    bg: "bg-white",
-                  }}
-                />
-              </div>
               <Link href="/super-admin/roles">
                 <QuantityCard clickable
                   h="h-[6rem]"
@@ -256,11 +245,17 @@ const ITRCDashboard = (props) => {
             </div>
           </div>
 
+          {/* This week's security events and the ML models' status */}
+          <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+            <SecurityOverviewPanel />
+            <ModelOverviewPanel />
+          </div>
+
           {/* === BOTTOM SECTION === */}
           <div className="w-full flex flex-col lg:flex-row gap-5">
             {/* New Users */}
             <div className="w-full">
-              <NewUserList list={props.new_users} weekStart={props.new_users_week_start} weekEnd={props.new_users_week_end} />
+              <NewUserList weekStart={props.new_users_week_start} weekEnd={props.new_users_week_end} />
             </div>
 
             {/* Latest Active Accounts */}

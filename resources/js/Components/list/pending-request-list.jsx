@@ -1,107 +1,67 @@
 import { TransactionService } from "@/others/services/transaction-service"
 import { useEffect, useState } from "react"
 import ListSkeleton from "../reload/list-skeleton"
+import { FileText } from "lucide-react"
+import { Box, Chip, List, Paper, Typography } from "@mui/material"
+import { MuiRow } from "./mui-list-parts"
 
+// Today's request statuses (complaint, gate pass ...) for the user's role.
 const PendingRequestList = ({ type }) => {
     const [status, setStatus] = useState(null)
 
     useEffect(() => {
         TransactionService.getStatus(setStatus)
     }, [])
-        console.log(status)
 
-    const renderRow = () => {
-        const DefaultRow = (
-            <>
-            <Row label="Complaint Report" status={status.complaint} />
-            <Row label="Gate Pass Request" status={status.gatepass} />
-            </>
-        )
-
-        switch(type) {
-            case 'itrc':
-                return DefaultRow
-            case 'student':
-                return (
-                    <>
-                    {DefaultRow}
-                    </>
-                )
-            case 'faculty':
-                return (
-                    <>
-                    {DefaultRow}
-                    </>
-                )
+    const rows = () => {
+        const defaults = [
+            { label: "Complaint Report", status: status.complaint },
+            { label: "Gate Pass Request", status: status.gatepass },
+        ]
+        switch (type) {
             case 'administrative':
-                return (
-                    <>
-                    {DefaultRow}
-                    <Row label="Referral Request" />
-                    </>
-                )
-            case 'staff':
-                return DefaultRow
+                return [...defaults, { label: "Referral Request" }]
             case 'parent':
-                return (
-                    <>
-                    <Row label="Complaint Requests" />
-                    </>
-                )
+                return [{ label: "Complaint Requests" }]
+            default:
+                return defaults
         }
     }
+
     return (
-        <div className="bg-white w-full h-full rounded-md shadow shadow-black/20">
-            <div className="px-4 py-4 w-full flex flex-col gap-4 h-full">
-                <div>
-                    <h1 className="text-[1em]"><b>Request Status This Day</b></h1>
-                </div>
-                {(status != null)
-                ?
-                <div className="grid gap-1">
-                    {renderRow()}
-                </div>
-                :
-                <div className="w-full h-full grid place-items-center">
-                    <ListSkeleton rows={4} />
-                </div>}
-            </div>       
-        </div>
+        <Paper variant="outlined" sx={{ width: "100%", height: "100%", borderRadius: 2, overflow: "hidden" }}>
+            <Box sx={{ px: 2.5, py: 1.25, borderBottom: 1, borderColor: "divider" }}>
+                <Typography sx={{ fontWeight: 700, fontSize: "0.95rem" }}>Request Status This Day</Typography>
+            </Box>
+            <Box sx={{ px: 1, py: 0.5 }}>
+                {status != null ? (
+                    <List disablePadding>
+                        {rows().map((r) => <Row key={r.label} label={r.label} status={r.status} />)}
+                    </List>
+                ) : (
+                    <ListSkeleton rows={3} />
+                )}
+            </Box>
+        </Paper>
     )
 }
+
 const Row = ({ label, status = 'none' }) => {
-    const statusList = [
-        ['None', 'bg-gray-500'],
-        ['Pending...', 'bg-orange-600'],
-        [(label.toLowerCase().includes('complaint')) ? 'Ongoing' : 'Approved', 'bg-green-600']
-    ]
-    const changeStatus = (status, i) => {
-        if(status == 'none') return statusList[0][i]
-        if(status == 'pending') return statusList[1][i]
-        if(status == (label.toLowerCase().includes('complaint')) ? 'ongoing' : 'approve') return statusList[2][i]
-    }
+    const isComplaint = label.toLowerCase().includes('complaint')
+    const chip = status === 'pending'
+        ? { label: "Pending", color: "warning" }
+        : status === (isComplaint ? 'ongoing' : 'approve')
+            ? { label: isComplaint ? "Ongoing" : "Approved", color: "success" }
+            : { label: "None", color: "default" }
+
     return (
-        <div className="w-full">
-            <div className="py-2 px-3 border flex w-full gap-3">
-                <div className="w-[2.5rem] h-[2.5rem] rounded-full bg-green-400 grid place-items-center text-[1.3em]">
-                    <i className="fa-solid fa-file"></i>
-                </div>
-                <div className="grid gap-1">
-                    <div>
-                        <h1 className="text-[0.9em]">
-                            <b>{label}</b>
-                        </h1>
-                    </div>
-                    <div className="text-[0.8em]">
-                        <div>
-                            <span className={`px-3 py-1 rounded-full text-white ${changeStatus(status, 1)}`}>
-                                {changeStatus(status, 0)}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <MuiRow
+            icon={FileText}
+            iconBg="#dcfce7"
+            iconFg="#16a34a"
+            primary={label}
+            right={<Chip size="small" color={chip.color} label={chip.label} sx={{ height: 22, fontSize: "0.7rem", fontWeight: 600 }} />}
+        />
     )
 }
 export default PendingRequestList

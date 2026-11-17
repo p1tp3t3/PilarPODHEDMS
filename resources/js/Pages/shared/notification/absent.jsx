@@ -2,23 +2,17 @@ import ViewAbsentFormModal from "@/Components/modal/view/view-absent-form-modal"
 import AuthLayout from "@/Layouts/auth-layout"
 import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-read"
 import { AbsentFormService } from "@/others/services/absent-form-service"
-import { useEffect, useState } from "react"
 import { CalendarX } from "lucide-react"
-import NotifDetailCard, { NotifEmptyState, NotifLoadingState } from "@/Components/other/notif-detail-card"
+import NotifDetailCard, { NotifEmptyState, NotifLoadingState, useNotifRecord } from "@/Components/other/notif-detail-card"
 import { parseNotifContent } from "@/others/function"
 import { Head } from "@inertiajs/react"
 
 const AbsentNotification  = (props) => {
     const content = parseNotifContent(props.notif.content)
 
-    const [data, setData] = useState(null)
-
     useMarkNotificationRead()
 
-    useEffect(() => {
-        const id = new URLSearchParams(window.location.search).get('absent_id')
-        AbsentFormService.getAbsentFormInfo(id, setData)
-    }, [])
+    const data = useNotifRecord('absent_id', AbsentFormService.getAbsentFormInfo)
 
 
     return (
@@ -36,7 +30,7 @@ const AbsentNotification  = (props) => {
                 :
                 <NotifEmptyState icon={CalendarX} message="No Absent Form Found" />
                 :
-                <NotifLoadingState size={5} />)
+                <NotifLoadingState />)
                 :
                 <NotifEmptyState icon={CalendarX} message="No Absent Form Found" />
             }

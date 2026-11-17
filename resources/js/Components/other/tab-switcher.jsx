@@ -1,10 +1,14 @@
+import { useEffect, useRef } from "react";
 import { Tabs, Tab, useMediaQuery } from "@mui/material";
+import { reloadListData } from "@/others/hooks/use-list-data";
 
 /**
  * Reusable MUI tab bar, dropped into any page that switches between views.
  * Pass `tabs` as [{ key, label, short? }], the active `value` (a key), and
  * `onChange(key)`. Renders only the tab bar itself — each page still owns
  * rendering whatever content belongs to the active tab.
+ * Clicking the tab that's already selected triggers it again: `onReselect(key)`
+ * if given, otherwise the page's lists are reloaded from their API.
  */
 // A tab's count is left off when it's zero: "Archived (0)" shows as "Archived".
 const tabLabel = (label) => (typeof label === "string" ? label.replace(/\s*\(0\)$/, "") : label);
@@ -18,14 +22,31 @@ const shortLabel = (tab) => {
     return typeof label === "string" && /^All\s/i.test(label) ? "All" : label;
 };
 
-const TabSwitcher = ({ tabs, value, onChange, fullWidth = false }) => {
+const TabSwitcher = ({ tabs, value, onChange, onReselect, fullWidth = false }) => {
     // Phones: the tabs share the full width (none hidden behind a scroll
     // arrow), with shorter labels.
     const isPhone = useMediaQuery("(max-width: 639.98px)");
     const equal = fullWidth || isPhone;
 
+    // The underline follows its tab when the bar's size changes (e.g. a
+    // page shows filters beside it for some tabs); MUI only measures it on
+    // a change of tab or a window resize.
+    const actions = useRef(null);
+    const root = useRef(null);
+    useEffect(() => {
+        if (!root.current || typeof ResizeObserver === "undefined") return;
+        const observer = new ResizeObserver(() => {
+            actions.current?.updateIndicator();
+            actions.current?.updateScrollButtons();
+        });
+        observer.observe(root.current);
+        return () => observer.disconnect();
+    }, []);
+
     return (
         <Tabs
+            ref={root}
+            action={actions}
             value={value}
             onChange={(_, newValue) => onChange(newValue)}
             textColor="primary"
@@ -38,6 +59,11 @@ const TabSwitcher = ({ tabs, value, onChange, fullWidth = false }) => {
                 <Tab
                     key={tab.key}
                     value={tab.key}
+                    // MUI only fires onChange for a different tab.
+                    onClick={() => {
+                        if (tab.key !== value) return;
+                        onReselect ? onReselect(tab.key) : reloadListData();
+                    }}
                     // Text only: a tab's `icon` (still in some pages' tab lists) isn't shown.
                     label={isPhone ? shortLabel(tab) : tabLabel(tab.label)}
                     sx={{

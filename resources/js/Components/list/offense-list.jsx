@@ -16,6 +16,10 @@ import {
     Typography,
     Pagination,
     Box,
+    Avatar,
+    Collapse,
+    ListItemButton,
+    Paper,
 } from "@mui/material";
 
 // Status tabs: "all", or the violation's offense_status ("1" major, "0" minor).
@@ -99,11 +103,7 @@ const OffenseList = ({ list = null }) => {
             </div>
 
             {/* LOADING */}
-            {offenseList === null && (
-                <div className="py-10 flex justify-center">
-                    <ListSkeleton rows={4} />
-                </div>
-            )}
+            {offenseList === null && <ListSkeleton rows={4} />}
 
             {/* DEFAULT WHEN BACKEND RETURNS EMPTY */}
             {offenseList !== null && offenseList.length === 0 && (
@@ -184,53 +184,49 @@ const OffenseMobileItem = ({ i, data, open, toggle }) => {
     const levels = new Set((data.penalties ?? []).map((p) => p.occurrence)).size;
 
     return (
-        <li className="list-none mb-3 last:mb-0 rounded-xl border border-gray-200 bg-white shadow-sm text-[0.85em] overflow-hidden">
-            <button
-                type="button"
-                onClick={toggle}
-                aria-expanded={open}
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-left active:bg-gray-50"
-            >
-                <div className={`shrink-0 h-9 w-9 grid place-items-center rounded-full ${isMajor ? "bg-red-100 text-red-600" : "bg-yellow-100 text-yellow-700"}`}>
+        <Paper component="li" variant="outlined" sx={{ listStyle: "none", mb: 1.5, "&:last-of-type": { mb: 0 }, borderRadius: 3, overflow: "hidden" }}>
+            <ListItemButton onClick={toggle} aria-expanded={open} sx={{ gap: 1.5, py: 1.25 }}>
+                <Avatar sx={{ width: 36, height: 36, bgcolor: isMajor ? "#fee2e2" : "#fef9c3", color: isMajor ? "#dc2626" : "#a16207" }}>
                     <ShieldAlert size={18} />
-                </div>
-                <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-gray-900">{i + 1}. {toTitleCase(data.violation_name)}</div>
-                    <div className="text-[0.85em] text-gray-500 truncate">
-                        {isMajor ? "Major" : "Minor"} offense · {levels} offense level(s)
-                    </div>
-                </div>
-                <ChevronDown size={18} className={`shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
-            </button>
-            {open && (
-                <div className="px-4 pb-4 pt-3 border-t border-gray-100 grid gap-3">
+                </Avatar>
+                <ListItemText
+                    sx={{ my: 0, minWidth: 0 }}
+                    primary={`${i + 1}. ${toTitleCase(data.violation_name)}`}
+                    secondary={`${isMajor ? "Major" : "Minor"} offense · ${levels} offense level(s)`}
+                    slotProps={{
+                        primary: { sx: { fontWeight: 600, fontSize: "0.88rem" } },
+                        secondary: { noWrap: true, sx: { fontSize: "0.75rem" } },
+                    }}
+                />
+                <ChevronDown size={18} style={{ flexShrink: 0, opacity: 0.5, transition: "transform .2s", transform: open ? "rotate(180deg)" : "none" }} />
+            </ListItemButton>
+            <Collapse in={open} unmountOnExit>
+                <Box sx={{ px: 2, pb: 2, pt: 1.5, borderTop: 1, borderColor: "divider", display: "grid", gap: 1.5, fontSize: "0.85rem" }}>
                     {data.keywords?.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                            {data.keywords.map((kw, j) => (
-                                <Chip key={j} label={kw} size="small" variant="outlined" />
-                            ))}
-                        </div>
+                        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                            {data.keywords.map((kw, j) => <Chip key={j} label={kw} size="small" variant="outlined" />)}
+                        </Stack>
                     )}
                     {[1, 2, 3, 4, 5, 6].map((occ) => {
                         const list = penaltiesFor(data, occ);
                         return (
-                            <div key={occ}>
-                                <div className="font-semibold text-gray-800">{ordinal(occ)} Offense:</div>
-                                <div className="mt-1 flex flex-wrap gap-1">
+                            <Box key={occ}>
+                                <Typography sx={{ fontWeight: 600, fontSize: "0.85rem" }}>{ordinal(occ)} Offense:</Typography>
+                                <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
                                     {list.length > 0 ? (
                                         list.map((desc, j) => (
                                             <Chip key={j} label={desc} size="small" variant="outlined" sx={{ height: "auto", "& .MuiChip-label": { whiteSpace: "normal", py: 0.5 } }} />
                                         ))
                                     ) : (
-                                        <span className="italic text-gray-500">No Penalty</span>
+                                        <Typography variant="caption" color="text.secondary" fontStyle="italic">No Penalty</Typography>
                                     )}
-                                </div>
-                            </div>
+                                </Stack>
+                            </Box>
                         );
                     })}
-                </div>
-            )}
-        </li>
+                </Box>
+            </Collapse>
+        </Paper>
     );
 };
 

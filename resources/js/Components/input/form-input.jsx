@@ -1,9 +1,47 @@
-import CircleReload from '../reload/circle-reload'
-import './style.css'
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
+import { CircularProgress, IconButton, InputAdornment, TextField } from '@mui/material'
 import { Eye, EyeOff } from 'lucide-react'
 
+// The previous design, as an MUI filled field: a grey box with a dark-blue
+// line under it that turns lighter blue from the middle on focus, a small
+// label that floats up, 12px text, the error in red under it. (Its classes
+// let dark mode recolour it, as before.)
+const fieldSx = (isTextarea, hasIcon) => ({
+    '& .MuiFilledInput-root': {
+        bgcolor: '#e5e7eb',
+        borderRadius: 0,
+        fontSize: '12px',
+        minHeight: isTextarea ? '10rem' : '2.6rem',
+        alignItems: isTextarea ? 'flex-start' : 'center',
+        '&:hover, &.Mui-focused': { bgcolor: '#e5e7eb' },
+        '&::before, &:hover:not(.Mui-disabled, .Mui-error)::before': { borderBottom: '1px solid #1d4ed8' },
+        '&::after': { borderBottom: '1px solid #3b82f6' },
+        '&.Mui-readOnly-field': { bgcolor: '#f3f4f6', cursor: 'not-allowed', '&::before': { borderBottomColor: '#d1d5db' }, '&::after': { display: 'none' } },
+    },
+    '& .MuiFilledInput-input': { py: isTextarea ? 0 : '6px', pt: isTextarea ? '22px' : '18px' },
+    // The global form styles' focus ring: the underline shows focus instead.
+    '& .MuiFilledInput-input, & .MuiFilledInput-input:focus': { outline: 'none', boxShadow: 'none', border: 0 },
+    '& .MuiInputLabel-root': { fontSize: '12px', color: 'text.secondary' },
+    // With an icon, the label starts after it (as before).
+    '& .MuiInputLabel-root.MuiInputLabel-shrink': { transform: `translate(${hasIcon ? 38 : 12}px, 5px) scale(0.75)` },
+    '& .MuiInputLabel-root:not(.MuiInputLabel-shrink)': { transform: `translate(${hasIcon ? 38 : 12}px, 12px) scale(1)` },
+    '& .MuiInputLabel-root.Mui-focused': { color: '#1d4ed8' },
+    // Icons (the field's own, the password eye) in the app's blue, as before.
+    '& .MuiInputAdornment-root': { mt: '0 !important', color: '#1d4ed8' },
+    '& .MuiInputAdornment-root .MuiIconButton-root': { color: '#1d4ed8' },
+    '& .MuiFormHelperText-root': { mx: 0, mt: 0.25, fontWeight: 600, fontSize: 13, color: '#d12323' },
+})
+
+// Date / time inputs always show their own placeholder, so their label sits on top.
+const SHRINK_TYPES = ['date', 'time', 'datetime-local', 'month', 'week']
+
+/**
+ * The app's text field: an MUI TextField. Same props as before: `val` /
+ * `change`, `error`, `allow` (alpha, numeric, ... typed characters are
+ * checked), `checkExists` (async "already taken?" check, debounced),
+ * `enableShowPassword`, `length` (max length), `min` / `max`, `readOnly`,
+ * `icon` (shown at the start), type="textarea" for several lines.
+ */
 const FormTextfield = ({
     label = null,
     type = 'text',
@@ -13,7 +51,7 @@ const FormTextfield = ({
     error = null,
     change = null,
     icon: Icon = null,
-    color = { border: 'border-blue-700', bg: 'bg-gray-200' },
+    color = null,
     req = false,
     length = null,
     allow = null,
@@ -25,12 +63,10 @@ const FormTextfield = ({
     max = null,
     readOnly = false
 }) => {
-    const [focus, setFocus] = useState(false)
     const [localError, setLocalError] = useState(null)
     const [loading, setLoading] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
-
-    const isStretched = focus || val !== ''
+    const [focused, setFocused] = useState(false)
 
     const getAllowPattern = () => {
         switch(allow) {
@@ -89,7 +125,6 @@ const FormTextfield = ({
                     setLoading(false)
                 }
             } catch (err) {
-
                 if (!cancelled) setLoading(false)
             }
         }, 500) // debounce
@@ -98,91 +133,63 @@ const FormTextfield = ({
             cancelled = true
             clearTimeout(handler)
         }
-    }, [val]) // 👈 only depends on value
+    }, [val])
 
-    return (
-        <div className='w-full flex flex-col'>
-            <div className={`w-[100%] ${(type != 'textarea') ? 'h-[2.6rem]' : 'h-[10rem]'} frm-inpt-brdr border-b-[1px] ${readOnly ? 'border-gray-300 bg-gray-100 cursor-not-allowed' : `${color.border} ${color.bg}`} relative`}>
-                <div className="flex items-center gap-2 pr-3 pl-3">
-                    {Icon &&
-                    <div className='text-[13px]'>
-                        <Icon size={13} className={`${isStretched ? 'text-blue-700' : ''} transition-colors duration-300`} />
-                    </div>}
-                    <div className={`h-[100%] w-[100%] relative flex flex-col ${(type != 'textarea') ? 'justify-center' : ''}`}>
-                        {(type != 'textarea')
-                        ?
-                        <input
-                            value={val}
-                            placeholder=''
-                            className={`text-[12px] h-full ${readOnly ? 'text-gray-600 cursor-not-allowed' : ''}`}
-                            readOnly={readOnly}
-                            tabIndex={readOnly ? -1 : undefined}
-                            type={(type === 'password' && showPassword) ? 'text' : type}
-                            name={name}
-                            id={id}
-                            min={min}
-                            max={max}
-                            onChange={(e) => {
-                                const value = e.target.value
-                                if (validateInput(value)) {
-                                    change && change(e)
-                                }
-                            }}
-                            maxLength={length}
-                        />
-                        :
-                        <textarea
-                            placeholder='' 
-                            className='text-[12px] resize-none h-[80%]'
-                            name={name} 
-                            id={id} 
-                            onChange={change} 
-                            required={req}
-                            value={val}
-                            >
-                                {val}
-                        </textarea>}
-                        <label className="absolute z-[0] cursor-text" htmlFor={id}>{label} {errorAsterisk && <span className='text-[#d12323] '>*</span>}</label>
-                        {loading && (
-                            <span className="absolute right-0 top-1/2 -translate-y-1/2">
-                                <CircleReload size={1.2} />
-                            </span>
-                        )}
-                        {enableShowPassword && type === 'password' && (
-                            <span
-                                className="absolute right-0 top-1/2 -translate-y-1/2 cursor-pointer text-blue-800"
-                                onClick={() => setShowPassword((prev) => !prev)}
-                            >
-                                {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                            </span>
-                        )}
-                    </div>
-                </div>
-                {!readOnly && <motion.div
-                    className="justify-self-center h-[1px] self-end bg-blue-500 absolute"
-                    animate={{ width: isStretched ? '100%' : '0%' }}
-                    transition={{ duration: 0.3 }}
-                ></motion.div>}
-            </div>
-            <div className="text-[#d12323] text-[13px] flex items-center gap-2">
-                <div className="transition-[0.2s] font-[600]">
-                    {localError || error}
-                </div>
-            </div>
-        </div>
+    const isTextarea = type === 'textarea'
+    const message = localError || error
+
+    const end = (loading || (enableShowPassword && type === 'password')) && (
+        <InputAdornment position="end">
+            {loading && <CircularProgress size={16} />}
+            {enableShowPassword && type === 'password' && (
+                <IconButton size="small" edge="end" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((p) => !p)}>
+                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </IconButton>
+            )}
+        </InputAdornment>
     )
-} 
 
-
-
-const Normal = (props) => {
     return (
-        <div className="input-group-2">
-            <input required="" type="text" name="text" autocomplete="off" className="input-2" />
-            <label className="user-label">First Name</label>
-        </div>
+        <TextField
+            fullWidth
+            variant="filled"
+            size="small"
+            label={label}
+            name={name ?? undefined}
+            id={id || undefined}
+            value={val ?? ''}
+            type={isTextarea ? undefined : (type === 'password' && showPassword) ? 'text' : type}
+            multiline={isTextarea}
+            minRows={isTextarea ? 5 : undefined}
+            maxRows={isTextarea ? 12 : undefined}
+            error={!!message}
+            helperText={message || undefined}
+            onChange={(e) => {
+                if (isTextarea || validateInput(e.target.value)) change && change(e)
+            }}
+            sx={fieldSx(isTextarea, !!Icon)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            slotProps={{
+                // The asterisk only (the forms validate themselves).
+                inputLabel: { required: req || errorAsterisk, shrink: SHRINK_TYPES.includes(type) || readOnly || focused || (val ?? '') !== '' },
+                htmlInput: {
+                    maxLength: length ?? undefined,
+                    min: min ?? undefined,
+                    max: max ?? undefined,
+                    readOnly,
+                    tabIndex: readOnly ? -1 : undefined,
+                    // As before: only a textarea carried the browser's `required`.
+                    required: isTextarea && req ? true : undefined,
+                },
+                input: {
+                    ...(Icon && { startAdornment: <InputAdornment position="start"><Icon size={15} /></InputAdornment> }),
+                    ...(end && { endAdornment: end }),
+                    className: readOnly ? 'bg-gray-100 Mui-readOnly-field' : 'bg-gray-200',
+                },
+            }}
+        />
     )
 }
 
-FormTextfield.Normal = Normal
 export default FormTextfield

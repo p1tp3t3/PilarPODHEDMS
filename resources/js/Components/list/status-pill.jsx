@@ -9,6 +9,7 @@ const STATUS_COLORS = {
     approved: "bg-green-500",
     rejected: "bg-red-500",
     revoked: "bg-gray-500",
+    expired: "bg-slate-400",
     // Not request statuses, but shown in other tables' Status columns the
     // same way: violations (major / minor), roles and school years.
     major: "bg-red-500",

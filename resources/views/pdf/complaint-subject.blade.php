@@ -50,6 +50,7 @@
     </style>
 </head>
 <body>
+    @include('pdf.partials.status-watermark', ['status' => $status ?? null])
     <div class="footer">Office of Student Affairs and Discipline &middot; Pilar College of Zamboanga City, Inc. &middot; Confidential</div>
 
     {{-- ===================== PAGE 1: COMPLAINT FORM ===================== --}}

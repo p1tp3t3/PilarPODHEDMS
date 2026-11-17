@@ -18,12 +18,11 @@ import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
 import { change, showWarningModal, showOutputModal } from "@/others/function"
 import { ReportArchiveService } from "@/others/services/report-archive-service"
-import ActionBtn from "@/Components/button/action-btn"
+
 import SetReasonModal from "@/Components/modal/submission-form/set-reason-modal"
 import IssueViolationModal2 from "@/Components/modal/submission-form/issue-violation-modal2"
-import { List, Clock, RotateCw, Ban, X, Check, FilePlus } from "lucide-react"
+import { List, Clock, RotateCw, Ban, FilePlus } from "lucide-react"
 import { Head } from "@inertiajs/react"
-import { LabeledCheckbox, setRowsChecked } from "@/Components/input/select-checkbox"
 import { PageActions } from "@/context-provider/page-title-provider"
 import useListData, { setListQuery } from "@/others/hooks/use-list-data"
 
@@ -55,7 +54,6 @@ const PrefectComplaint = (props) => {
   const [complaintList, setComplaintList] = useState(null)
   useEffect(() => { if (lists) setComplaintList(lists.complaint_list) }, [lists])
   const [select, enableSelect] = useState(false)
-  const [select2, enableSelect2] = useState(false)
   // No Revoked tab (revoked complaints are in the Archive): an old
   // ?status=revoked link lands on All Complaints.
   const [choose, setChoose] = useState(url.get("status") === "revoked" ? "all" : (url.get("status") || "all"))
@@ -159,24 +157,6 @@ const PrefectComplaint = (props) => {
           }
       }
 
-  const handleAction = (type) => {
-    showWarningModal(
-        'Are You Sure You Want To Approve The Selected Complaint?',
-        'Approve Complaint',
-        'Cancel',
-        () => {
-            const checkboxes = document.querySelectorAll(
-              'input[name="selected-row"]:checked'
-            );
-            const ids = Array.from(checkboxes).map((checkbox) => checkbox.value);
-            const param = new URLSearchParams(window.location.search);
-
-            loadRegister(true, "text-wait", 'Approving the Complaint')
-            ComplaintService.bulkAction(type, ids, param.get("page") || 1, setter, successConfirm, error)
-        }
-    )
-  }
-
   const setter = (s) => setComplaintList(s.complaint)
   const successViolation = () =>
     loadRegister(true, "success", "Complaint Resolved Successfully")
@@ -216,9 +196,6 @@ const PrefectComplaint = (props) => {
     setSchoolYear(newSchoolYear)
     setSemester(newSemester)
     setListQuery(`status=${choose}&role=${newRole}&school-year=${newSchoolYear}&semester=${newSemester}`)
-  }
-  const selectAllRow = (e) => {
-    setRowsChecked(e.target.checked)
   }
 
   return (
@@ -292,31 +269,6 @@ const PrefectComplaint = (props) => {
                 <div className="min-w-0 flex-1 overflow-x-auto">
                   <TabSwitcher tabs={optionTab} value={choose} onChange={handleSelect} />
                 </div>
-                {/* Bulk select (Pending tab only) */}
-                {url.get('status') == 'pending' &&
-                <div className="flex items-center gap-3 shrink-0 justify-end">
-                  {select2 && (
-                    <>
-                      <LabeledCheckbox label="Select All" id="select-all" onChange={selectAllRow} className="text-[0.85em]" />
-                      <ActionBtn
-                          className={"bg-green-600 text-white hover:bg-green-700"}
-                          onClick={() => handleAction('approve')}
-                      >
-                          Approve
-                      </ActionBtn>
-                    </>
-                  )}
-                  <ActionBtn
-                    className="bg-blue-700 hover:bg-blue-800"
-                    onClick={() => enableSelect2(!select2)}
-                    title={select2 ? "Cancel selecting" : "Select complaints"}
-                  >
-                    <span className="inline-flex items-center gap-1.5">
-                      {select2 ? <X size={16} /> : <Check size={16} />}
-                      {select2 ? "Cancel" : "Select"}
-                    </span>
-                  </ActionBtn>
-                </div>}
               </div>
               <div className="flex flex-wrap gap-3 items-center md:max-xl:flex-row md:max-xl:flex-nowrap md:max-xl:items-center md:max-xl:[&>div:not(:last-child)]:flex-1 md:max-xl:[&>div:not(:last-child)]:min-w-0 md:max-xl:[&>div:not(:last-child)]:w-auto">
                 <MobileFilters active={countActive(role, schoolYear, semester)}>
@@ -372,7 +324,6 @@ const PrefectComplaint = (props) => {
                   user={props.user}
                   setId={setId}
                   select={select}
-                  select2={select2}
                   actionEvent={setRequestActionEvent}
                 />
             </div>

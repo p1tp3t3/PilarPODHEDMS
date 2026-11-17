@@ -12,6 +12,29 @@ export const reloadListData = () => Promise.all([...loaders].map((load) => load(
 
 const QUERY_EVENT = "list-query-change"
 
+// How many of the page's list requests are still running: while any is,
+// every table on the page shows its loading skeleton (useListsLoading(),
+// read by the shared DataGrid), on the first load and on every reload: a
+// tab clicked (again), a filter changed, a list refreshed after an action.
+let pending = 0
+const LOADING_EVENT = "list-loading-change"
+const setPending = (delta) => {
+    pending = Math.max(0, pending + delta)
+    window.dispatchEvent(new Event(LOADING_EVENT))
+}
+
+/** True while any of the page's lists is being fetched from its API. */
+export const useListsLoading = () => {
+    const [busy, setBusy] = useState(pending > 0)
+    useEffect(() => {
+        const onChange = () => setBusy(pending > 0)
+        window.addEventListener(LOADING_EVENT, onChange)
+        onChange()
+        return () => window.removeEventListener(LOADING_EVENT, onChange)
+    }, [])
+    return busy
+}
+
 /**
  * A filter / tab change on a list page: the address bar gets the new query
  * (no page request — it's kept for a refresh or a shared link) and the
@@ -56,7 +79,8 @@ export const useListQuery = () => {
  * ?status=, router.reload() after saving ...), so the tables follow the
  * page. Pass `url` / `params` to call another endpoint instead;
  * `enabled: false` (a page or section without tables) makes no request.
- * A reload keeps the current rows on screen until the new ones arrive.
+ * While any request runs, the page's tables show their skeleton
+ * (useListsLoading()), on a reload as well as the first load.
  */
 export default function useListData(url = null, params = null, { enabled = true } = {}) {
     const [data, setData] = useState(null)
@@ -84,6 +108,7 @@ export default function useListData(url = null, params = null, { enabled = true 
 
         const ticket = ++latest.current
         setLoading(true)
+        setPending(1)
         // A request that never reached the server (a network blip): tried
         // again a few times, so the table doesn't stay on its skeleton.
         const request = (attempt) => axios
@@ -106,6 +131,7 @@ export default function useListData(url = null, params = null, { enabled = true 
                 setError(e)
             })
             .finally(() => {
+                setPending(-1)
                 if (ticket === latest.current) setLoading(false)
             })
     }, [])

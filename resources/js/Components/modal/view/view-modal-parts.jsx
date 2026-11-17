@@ -1,5 +1,5 @@
 import { getProfilePic, toTitleCase, profileUrl, openPdfTab, showOutputModal } from "../../../others/function"
-import { Button } from "@mui/material"
+import { Button, Skeleton } from "@mui/material"
 import PictureAsPdfOutlined from "@mui/icons-material/PictureAsPdfOutlined"
 import SelectedUser from "../../other/selected-user"
 import { Link, usePage } from "@inertiajs/react"
@@ -69,8 +69,8 @@ export const Stat = ({ icon: Icon, label, value, sub }) => (
         </div>
         <div className="min-w-0">
             <div className="text-[0.7rem] uppercase tracking-wide text-gray-400 font-medium">{label}</div>
-            <div className="text-sm font-medium text-gray-800 truncate">{value}</div>
-            {sub && <div className="text-[0.7rem] text-gray-400 truncate">{sub}</div>}
+            <div className="text-sm font-medium text-gray-800 break-words">{value}</div>
+            {sub && <div className="text-[0.7rem] text-gray-400 break-words">{sub}</div>}
         </div>
     </div>
 )
@@ -153,7 +153,8 @@ export const ByPrefect = ({ prefect, label = "Filed by the Prefect" }) => {
 //   "list"   — a few stacked rows (incident / violation / appointment lists)
 //   "table"  — a header row plus table rows (file previews)
 //   "compact"— a short card (appointment details)
-const Bar = ({ className = "" }) => <div className={`bg-gray-200 rounded animate-pulse ${className}`} />
+// A skeleton bar (MUI); size and shape from the Tailwind classes given.
+const Bar = ({ className = "" }) => <Skeleton variant="rounded" animation="wave" className={className} sx={{ transform: "none" }} />
 
 export const ViewModalSkeleton = ({ variant = "record" }) => {
     if (variant === "list") {
@@ -161,7 +162,7 @@ export const ViewModalSkeleton = ({ variant = "record" }) => {
             <div className="grid gap-3 py-2" aria-busy="true" aria-label="Loading">
                 {[0, 1, 2, 3].map((i) => (
                     <div key={i} className="flex items-center gap-3 border border-gray-100 rounded-lg px-4 py-3">
-                        <div className="h-9 w-9 rounded-full bg-gray-200 animate-pulse shrink-0" />
+                        <Skeleton variant="circular" width={36} height={36} sx={{ flexShrink: 0 }} />
                         <div className="flex-1 grid gap-2">
                             <Bar className="h-3 w-1/2" />
                             <Bar className="h-3 w-1/3" />
@@ -197,7 +198,7 @@ export const ViewModalSkeleton = ({ variant = "record" }) => {
     return (
         <div aria-busy="true" aria-label="Loading">
             <div className="px-6 py-5 border-b border-gray-100 flex items-center gap-4">
-                <div className="h-11 w-11 rounded-full bg-gray-200 animate-pulse shrink-0" />
+                <Skeleton variant="circular" width={44} height={44} sx={{ flexShrink: 0 }} />
                 <div className="flex-1 grid gap-2">
                     <Bar className="h-4 w-1/2" />
                     <Bar className="h-3 w-1/4" />

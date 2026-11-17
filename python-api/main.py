@@ -88,7 +88,7 @@ def train_model():
         'model': model_eivp.status(),
     })
 
-# Many rows at once, probability only (no insights/recommendations) — the
+# Many rows at once, probability only (no insights) — the
 # prefect dashboard's watch list scores every enrolled student this way.
 @app.route('/api/model/predict/batch', methods=['POST'])
 def predict_batch():
@@ -152,21 +152,6 @@ def incident_risk():
         'insights': insight,
     })
 
-# The AI-written recommendations for the same input: slow (a language model),
-# so the page asks for them separately after showing the verdict.
-@app.route('/api/model/recommend', methods=['POST'])
-def incident_recommendation():
-    data = request.get_json()
-
-    pred = model_eivp.predict(data)
-    insight = model_eivp.get_insights(data, pred)
-    reco = model_eivp.get_recommendation(data, pred, insight)
-
-    return jsonify({
-        'prediction': pred,
-        'reco': reco,
-    })
-    
 #------------------------------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------------------------------

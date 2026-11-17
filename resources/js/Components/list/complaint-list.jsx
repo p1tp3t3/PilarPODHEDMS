@@ -8,7 +8,6 @@ import { DataGrid, GridActionsCellItem, GridToolbarContainer } from "@/Component
 import { Box, Button } from "@mui/material";
 import { FolderOpen, FileWarning } from "lucide-react";
 import { StatusAvatar, statusLabel } from "@/Components/other/mobile-card-list";
-import { useIsMobile } from "@/others/use-is-mobile";
 import { SelectCheckbox } from "@/Components/input/select-checkbox";
 
 function CustomNoRowsOverlay() {
@@ -42,20 +41,12 @@ const ComplaintList = ({
   user,
   setId,
   select,
-  select2,
   actionEvent
 }) => {
 
   const statusQuery = new URLSearchParams(window.location.search).get("status");
 
   // Convert list.data to rows
-  const isMobile = useIsMobile();
-  // Pending complaints are selectable for bulk approve. Value is the
-  // encrypted id (decrypted server-side by DecryptEncryptedIds).
-  const canBulkSelect = (obj) => select2 && type === "prefect" && obj.complaint_status === "pending";
-  const bulkCheckbox = (obj) => (
-    <SelectCheckbox value={obj.encrypted_id ?? obj.id} label={`Select complaint ${obj.complaint_number}`} />
-  );
 
   const rows = list?.data?.map((e, i) => ({
     id: e.id,
@@ -136,8 +127,8 @@ const ComplaintList = ({
         field: "complaint_status",
         headerName: "Status",
         width: 120,
-        align: 'start',
-        headerAlign: 'start',
+        align: 'left',
+        headerAlign: 'left',
         renderCell: (params) => {
           return <StatusPill status={params.value} />;
         },
@@ -184,8 +175,8 @@ const ComplaintList = ({
       type: "actions",
       headerName: "Action",
       width: 420,
-      align: 'start',
-      headerAlign: 'start',
+      align: 'left',
+      headerAlign: 'left',
       renderCell: (params) => {
         const obj = params.row;
         return (
@@ -197,7 +188,7 @@ const ComplaintList = ({
                 View
                 </ActionBtn>
 
-                {obj.complaint_status === "pending" && type === "prefect" && !select2 && (
+                {obj.complaint_status === "pending" && type === "prefect" && (
                 <>
                     <ActionBtn
                     onClick={() => actionEvent("confirm", obj.id)}
@@ -214,7 +205,7 @@ const ComplaintList = ({
                 </>
                 )}
 
-                {obj.complaint_status === "rejected" && type === "prefect" && !select && !select2 && (
+                {obj.complaint_status === "rejected" && type === "prefect" && !select && (
                 <ActionBtn
                     onClick={() => actionEvent("reinstate", obj.id)}
                     className="bg-green-600 text-white hover:bg-green-700"
@@ -253,16 +244,13 @@ const ComplaintList = ({
                 <SelectCheckbox name="selected-case" value={obj.case_number} label={`Select case ${obj.case_number}`} />
                 )}
 
-                {/* Bulk approve (prefect's Pending tab). On phones the
-                    checkbox sits on the collapsed row instead. */}
-                {canBulkSelect(obj) && !isMobile && bulkCheckbox(obj)}
             </div>
             );
         }
     });
 
     return cols;
-  }, [list, type, select, select2, user, isMobile]);
+  }, [list, type, select, user]);
 
   return (
     <>
@@ -286,7 +274,7 @@ const ComplaintList = ({
             localeText={{ noRowsLabel: "No complaints found" }}
             // Phones: one row per complaint (complainant for the prefect,
             // else the reference no.); tap for the details and actions.
-            mobileSummary={(row) => ({ select: canBulkSelect(row) ? bulkCheckbox(row) : null, ...(type === "prefect" && row.user ? {
+            mobileSummary={(row) => ({ ...(type === "prefect" && row.user ? {
               name: [row.user?.profile?.first_name, row.user?.profile?.middle_name, row.user?.profile?.last_name].filter(Boolean).join(" "),
               role: `#${row.complaint_number} · ${statusLabel(row.complaint_status)}`,
               picture: row.user.profile?.profile_picture,

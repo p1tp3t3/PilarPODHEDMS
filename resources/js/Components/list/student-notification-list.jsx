@@ -2,9 +2,9 @@ import { useEffect, useState } from "react"
 import { NotificationService } from "@/others/services/notification-service"
 import { readableDate, readableTime, showUserType, toTitleCase } from "@/others/function"
 import TabSwitcher from "../other/tab-switcher"
-import { Link } from "@inertiajs/react"
 import SearchBar from "../input/search-bar"
 import { Clock } from "lucide-react"
+import { Box, Chip, ListSubheader, Typography } from "@mui/material"
 import { PanelBody, PanelHeader, PersonRow } from "./dashboard-panel-parts"
 
 const optionTab = [
@@ -88,35 +88,34 @@ const StudentNotificationList = () => {
                     lastGroup = groupLabel
 
                     return (
-                        <div key={e.id ?? i}>
+                        <Box component="li" key={e.id ?? i} sx={{ listStyle: "none" }}>
                             {showHeader && (
-                                <div className="px-2 pt-3 pb-1 text-[0.72em] font-semibold uppercase tracking-wide text-gray-500">
+                                <ListSubheader disableSticky sx={{ lineHeight: "2rem", fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", px: 1.5, bgcolor: "transparent" }}>
                                     {toTitleCase(groupLabel)}
-                                </div>
+                                </ListSubheader>
                             )}
-                            <Link href={`/notifications?id=${e.id}`} className="block">
+                            <ul style={{ padding: 0, margin: 0 }}>
                                 <PersonRow
+                                    href={`/notifications?id=${e.id}`}
                                     user={e.receiver}
                                     sub={showUserType(e.receiver)}
                                     footer={
-                                        <div className="mt-0.5 text-[0.68em] text-gray-400 flex items-center gap-1">
+                                        <Typography sx={{ mt: 0.25, fontSize: "0.68rem", color: "text.disabled", display: "flex", alignItems: "center", gap: 0.5 }}>
                                             <Clock size={11} /> {readableDate(e.created_at)} · {readableTime(e.created_at)}
-                                        </div>
+                                        </Typography>
                                     }
                                     right={
                                         e.read_since == null ? (
-                                            <span className="text-[0.65em] font-semibold text-blue-600 inline-flex items-center gap-1">
-                                                <span className="w-2 h-2 rounded-full bg-blue-500" /> Unseen
-                                            </span>
+                                            <Chip size="small" color="primary" label="Unseen" sx={{ height: 20, fontSize: "0.65rem", fontWeight: 600 }} />
                                         ) : (
-                                            <span className="text-[0.65em] text-gray-400 leading-tight">
+                                            <Typography sx={{ fontSize: "0.65rem", color: "text.disabled", lineHeight: 1.2 }}>
                                                 Seen<br />{readableDate(e.read_since)}
-                                            </span>
+                                            </Typography>
                                         )
                                     }
                                 />
-                            </Link>
-                        </div>
+                            </ul>
+                        </Box>
                     )
                 })}
             </PanelBody>

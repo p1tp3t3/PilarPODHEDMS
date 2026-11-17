@@ -2,13 +2,14 @@ import ListSkeleton from "../reload/list-skeleton";
 import { checkActiveStatus, getProfilePic, toTitleCase, profileUrl, showUserType } from "@/others/function"
 import LiveActiveSince from "@/Components/other/live-active-since"
 import ProfilePic from "../other/profile-pic"
-import { Link } from "@inertiajs/react"
 import AuthContext from "@/context-provider/auth-provider"
 import { useContext, useState, useEffect, useRef } from "react"
 import SearchBar from "../input/search-bar"
 import { DashboardService } from "@/others/services/dashboard-service"
 import { AlertCircle } from "lucide-react"
 import DropdownField from "../input/dropdown"
+import { List } from "@mui/material"
+import { MuiListEmpty, MuiRow } from "./mui-list-parts"
 
 // Admins (System Admin, prefect) see every active user and can narrow the list
 // down by role.
@@ -128,29 +129,18 @@ const LatestActiveAccountList = ({ dataKey = 'active', ...props }) => {
                     )}
                 </div>
             </div>
-            <div className="px-4 py-3 h-[20rem] w-full overflow-auto overflow-x-hidden z-2">
+            <div className="px-2 py-2 h-[20rem] w-full overflow-auto overflow-x-hidden z-2">
                 {user_list != null
                 ?
                 ((user_list.length != 0)
                 ?
-                user_list.map((e, i) => 
-                    <div key={i}>
-                        <Row data={e} />
-                    </div>
-                )
+                <List disablePadding>
+                    {user_list.map((e) => <Row key={e.id} data={e} />)}
+                </List>
                 :
-                <div className="text-[1em] text-gray-500 w-full grid place-items-center h-full">
-                    <div className="grid place-items-center">
-                        <div className="text-[4em] grid place-items-center">
-                            <AlertCircle size="1em" />
-                        </div>
-                        <div>No Active {userType()} Yet</div>
-                    </div>
-                 </div>)
+                <MuiListEmpty icon={AlertCircle} title={`No Active ${userType()} Yet`} sx={{ height: "100%" }} />)
                 :
-                <div className="w-full p-3">
-                    <ListSkeleton rows={4} height={3} />
-                </div>
+                <ListSkeleton rows={4} />
                 }
             </div>
         </div>
@@ -161,30 +151,23 @@ const Row = ({ data }) => {
     const { isUserOnline } = useContext(AuthContext)
 
     return (
-        <Link className="w-full" href={`${profileUrl(data)}`}>
-            <div className="py-1 px-3 flex justify-between hover:bg-gray-200 items-center border-b">
-                <div className="flex gap-3 items-center">
-                    <div>
-                        <ProfilePic
-                            size={2.5}
-                            src={getProfilePic(data.profile?.profile_picture, data.profile?.sex)}
-                            showActive={true}
-                            isActive={isUserOnline(data.id) || checkActiveStatus(data.last_seen)}
-                            activeBorderColor='border-white border-[3px]'
-                        />
-                    </div>
-                    <div>
-                        {/* First and last name; the subtitle is what's unique to
-                            their role (program and year, program taught, position). */}
-                        <h1 className="text-[0.9em] overflow-hidden max-w-[11rem] text-ellipsis text-nowrap"><b>{toTitleCase([data.profile?.first_name, data.profile?.last_name].filter(Boolean).join(" "))}</b></h1>
-                        <h1 className="text-[0.7em] overflow-hidden max-w-[11rem] text-ellipsis text-nowrap">{showUserType(data) ?? ROLE_OPTIONS.find((r) => r.val === data.role)?.label ?? toTitleCase(data.role ?? "")}</h1>
-                    </div>
-                </div>
-                <div className="text-[0.7em] flex mt-1">
-                    <LiveActiveSince userId={data.id} lastSeen={data.last_seen} className="text-[1em]" align="right" />
-                </div>
-            </div>
-        </Link>
+        // First and last name; the subtitle is what's unique to their role
+        // (program and year, program taught, position).
+        <MuiRow
+            href={profileUrl(data)}
+            avatar={
+                <ProfilePic
+                    size={2.4}
+                    src={getProfilePic(data.profile?.profile_picture, data.profile?.sex)}
+                    showActive={true}
+                    isActive={isUserOnline(data.id) || checkActiveStatus(data.last_seen)}
+                    activeBorderColor='border-white border-[3px]'
+                />
+            }
+            primary={toTitleCase([data.profile?.first_name, data.profile?.last_name].filter(Boolean).join(" "))}
+            secondary={showUserType(data) ?? ROLE_OPTIONS.find((r) => r.val === data.role)?.label ?? toTitleCase(data.role ?? "")}
+            right={<LiveActiveSince userId={data.id} lastSeen={data.last_seen} className="text-[1em]" align="right" />}
+        />
     )
 }
 export default LatestActiveAccountList

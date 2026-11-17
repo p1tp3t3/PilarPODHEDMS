@@ -1,3 +1,4 @@
+import { Skeleton } from "@mui/material"
 import UpModal from "../up-modal"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import { DashboardService } from "@/others/services/dashboard-service"
@@ -95,7 +96,7 @@ const MyCurrentSemesterRecordsModal = ({ close, closeModal, mode = "mine" }) => 
                 {loading ? (
                     <div className="grid gap-2">
                         {[...Array(4)].map((_, i) => (
-                            <div key={i} className="h-14 bg-gray-100 rounded-md animate-pulse" />
+                            <Skeleton key={i} variant="rounded" height={56} />
                         ))}
                     </div>
                 ) : tabs.length === 0 ? (

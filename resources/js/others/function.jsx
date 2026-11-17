@@ -343,6 +343,43 @@ export function openPdfTab(url, label = "document") {
     return true;
 }
 
+// Like openPdfTab(), for a PDF made from what the page is showing: POSTs
+// `fields` (arrays as name[]) with the CSRF token to `url` in a new tab.
+// Call it straight from a click. Returns false when pop-ups are blocked.
+export function openPdfTabPost(url, fields = {}, label = "document") {
+    const name = `pdf-${Date.now()}`;
+    const tab = window.open("", name);
+    if (!tab) return false;
+    const safe = String(label).replace(/[<>&"]/g, "");
+    tab.document.write(`<!doctype html><meta charset="utf-8"><title>Generating ${safe}…</title>
+<body style="margin:0;height:100vh;display:grid;place-items:center;font-family:system-ui,sans-serif;color:#1f3a5f;background:#f3f4f6">
+<div style="text-align:center"><div style="width:42px;height:42px;margin:0 auto 14px;border:4px solid #c9d2de;border-top-color:#1f3a5f;border-radius:50%;animation:s 1s linear infinite"></div>
+<div style="font-weight:600">Generating the ${safe}…</div><div style="font-size:13px;color:#6b7280;margin-top:4px">It will open here when it's ready.</div></div>
+<style>@keyframes s{to{transform:rotate(360deg)}}</style></body>`);
+    tab.document.close();
+
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = url;
+    form.target = name;
+    form.style.display = "none";
+    const add = (key, value) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = value ?? "";
+        form.appendChild(input);
+    };
+    add("_token", document.querySelector('meta[name="csrf-token"]')?.content ?? "");
+    Object.entries(fields).forEach(([key, value]) =>
+        Array.isArray(value) ? value.forEach((v) => add(`${key}[]`, v)) : add(key, value)
+    );
+    document.body.appendChild(form);
+    form.submit();
+    form.remove();
+    return true;
+}
+
 // A random password that meets the password rules (account-settings-form's
 // PASSWORD_RULES): at least one uppercase, lowercase, number and special
 // character. Uses the browser's secure random source, not Math.random.

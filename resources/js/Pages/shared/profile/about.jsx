@@ -1,16 +1,17 @@
 import React, { useState, useContext } from "react"
 import ProfileSectionWrapper from "@/wrapper/profile-section-wrapper"
-import { change, check, checkActiveStatus, getProfilePic, getProgramLogo, getYearLevel, ordinal, readableDate, replaceUnderScoreToSpace, toTitleCase, profileUrl } from "@/others/function"
-import SelectedUser from "@/Components/other/selected-user"
+import { change, check, checkActiveStatus, getProfilePic, getProgramLogo, getYearLevel, ordinal, readableDate, replaceUnderScoreToSpace, toTitleCase, profileUrl, showUserType } from "@/others/function"
 import FormTextfield from "@/Components/input/form-input"
 import FormButton from "@/Components/button/button"
 import { AccountService } from "@/others/services/account-service"
 import AuthContext from "@/context-provider/auth-provider"
-import { Link } from "@inertiajs/react"
 import CheckBoxButton from "@/Components/input/checkbox"
 import { requestType } from "@/others/list/type-list"
 import DropdownField from "@/Components/input/dropdown"
 import { User, Home, Users, GraduationCap } from "lucide-react"
+import { Avatar, Box, Card, CardContent, List, Stack, Typography } from "@mui/material"
+import ProfilePic from "@/Components/other/profile-pic"
+import { MuiRow } from "@/Components/list/mui-list-parts"
 
 const About = (props) => {
     const [editEducationBackground, enableEditEducationBackground] = useState('label'),
@@ -121,9 +122,9 @@ const About = (props) => {
                                 />
                             )}
                         </div>
-                        <div className="flex justify-end">
+                        <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
                             <FormButton type="submit" label={btnLabel} loading={loading} />
-                        </div>
+                        </Box>
                     </form>
                 </ProfileSectionWrapper>}
                 <ProfileSectionWrapper title="Personal Information" icon={User}>
@@ -158,26 +159,22 @@ const About = (props) => {
                             desc={`${replaceUnderScoreToSpace(props.data.user_type.toUpperCase())}${roleSuffix() ? ` (${roleSuffix().toUpperCase()})` : ''}`}
                         />
                         {(['program_head', 'faculty'].includes(props.data.user_type) && props.data.unique_att?.program != null) && (
-                            <div className="border-b border-gray-200 py-3 last:border-b-0">
-                                <div className="font-semibold text-gray-700">
+                            <Box sx={LABEL_ROW}>
+                                <Typography sx={LABEL_TITLE}>
                                     {(props.data.unique_att.programs_handled?.length > 1) ? 'Programs Handled:' : 'Program:'}
-                                </div>
-                                <div className="text-gray-900 mt-1 grid gap-2">
+                                </Typography>
+                                <Stack spacing={1} sx={{ mt: 0.5 }}>
                                     {(props.data.unique_att.programs_handled?.length > 0
                                         ? props.data.unique_att.programs_handled
                                         : [props.data.unique_att.program]
                                     ).map((p) => (
-                                        <div key={p.id} className="flex items-center gap-2">
-                                            <img
-                                                src={getProgramLogo(p.logo)}
-                                                alt=""
-                                                className="w-6 h-6 rounded-full object-cover"
-                                            />
-                                            <div>{p.name ?? p.code}</div>
-                                        </div>
+                                        <Box key={p.id} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                            <Avatar src={getProgramLogo(p.logo)} alt="" sx={{ width: 24, height: 24 }} />
+                                            <Typography sx={LABEL_VALUE}>{p.name ?? p.code}</Typography>
+                                        </Box>
                                     ))}
-                                </div>
-                            </div>
+                                </Stack>
+                            </Box>
                         )}
                         {!['super_admin', 'sub_admin'].includes(props.data.user_type) && !isStaffRole &&
                         <>
@@ -203,7 +200,7 @@ const About = (props) => {
                     <div className="">
                         {/* Everyone's contact details show here, the prefect's
                             included (same as the System Admin's). */}
-                        <div className="grid gap-3">
+                        <Stack spacing={1.5}>
                             <AddressDisplay
                                 title="Current Address"
                                 address={props.data.current_address}
@@ -212,7 +209,7 @@ const About = (props) => {
                                 title="Permanent Address"
                                 address={props.data.permanent_address}
                             />
-                        </div>
+                        </Stack>
                         {/* Left out of the data entirely when the viewer may not see them
                             (a student viewing a sibling's profile). */}
                         {props.data.email !== undefined && (
@@ -236,7 +233,7 @@ const About = (props) => {
                             icon={Users}
                         >
                             {(props.family['members']['parent'].length !== 0 && props.family['members']['child'].length !== 0) ? (
-                                <div className="space-y-4">
+                                <Stack spacing={2}>
                                     <UserGroupSection
                                         title="Parents:"
                                         list={props.family.members.parent}
@@ -245,11 +242,9 @@ const About = (props) => {
                                         title="Children:"
                                         list={props.family.members.child}
                                     />
-                                </div>
+                                </Stack>
                             ) : (
-                                <div className="text-center py-8 text-gray-500">
-                                    No Family Yet
-                                </div>
+                                <Typography sx={EMPTY}>No Family Yet</Typography>
                             )}
                         </ProfileSectionWrapper>
                         {props.data.user_type === 'student' && (
@@ -272,15 +267,19 @@ const About = (props) => {
     )
 }
 
+// One detail: its title over its value, a divider under it (MUI Typography).
+const LABEL_ROW = { py: 1.5, borderBottom: 1, borderColor: "divider", "&:last-of-type": { borderBottom: 0 } }
+const LABEL_TITLE = { fontWeight: 600, fontSize: "0.9rem", color: "text.secondary" }
+const LABEL_VALUE = { fontSize: "0.95rem", color: "text.primary" }
+const EMPTY = { textAlign: "center", py: 4, color: "text.secondary" }
+
 const Label = ({ title, desc }) => {
     const displayDesc = (desc == '' || desc == null) ? 'N/A' : desc
     return (
-        <div className="border-b border-gray-200 py-3 last:border-b-0">
-            <div className="font-semibold text-gray-700">{title}:</div>
-            <div className="text-gray-900 mt-1">
-                <div>{displayDesc}</div>
-            </div>
-        </div>
+        <Box sx={LABEL_ROW}>
+            <Typography sx={LABEL_TITLE}>{title}:</Typography>
+            <Typography component="div" sx={{ ...LABEL_VALUE, mt: 0.5 }}>{displayDesc}</Typography>
+        </Box>
     )
 }
 
@@ -290,17 +289,17 @@ const AddressDisplay = ({ title, address }) => {
     const labels = ['Place', 'City', 'Province', 'Zipcode']
 
     return (
-        <div className="border-b border-gray-200 pb-4">
-            <div className="font-semibold text-gray-700 mb-3">{title}:</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Box sx={{ pb: 2, borderBottom: 1, borderColor: "divider" }}>
+            <Typography sx={{ ...LABEL_TITLE, mb: 1.5 }}>{title}:</Typography>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
                 {labels.map((label, index) => (
-                    <div key={index} className="flex flex-col">
-                        <span className="text-sm font-medium text-gray-600">{label}:</span>
-                        <span className="text-gray-900">{parts[index] || 'N/A'}</span>
-                    </div>
+                    <Box key={index}>
+                        <Typography sx={{ fontSize: "0.82rem", fontWeight: 500, color: "text.secondary" }}>{label}:</Typography>
+                        <Typography sx={LABEL_VALUE}>{parts[index] || 'N/A'}</Typography>
+                    </Box>
                 ))}
-            </div>
-        </div>
+            </Box>
+        </Box>
     )
 }
 
@@ -308,23 +307,29 @@ const UserGroupSection = ({ title, list }) => {
     const { isUserOnline } = useContext(AuthContext);
 
     return (
-        <div className="space-y-3">
-            <div className="font-semibold text-gray-700">{title}</div>
-            <div className="space-y-3">
+        <Box>
+            <Typography sx={LABEL_TITLE}>{title}</Typography>
+            <List disablePadding>
                 {list.map((e, i) => (
-                    <Link key={i} href={`${profileUrl(e)}`} className="block">
-                        <SelectedUser
-                            user={e}
-                            src={getProfilePic(e.profile?.profile_picture, e.profile?.sex)}
-                            name={[e.profile?.first_name, e.profile?.last_name]}
-                            showParentRole={true}
-                            showActive={true}
-                            activeStatus={isUserOnline(e.id) || checkActiveStatus(e.last_seen)}
-                        />
-                    </Link>
+                    <MuiRow
+                        key={e.id ?? i}
+                        divider={false}
+                        href={profileUrl(e)}
+                        avatar={
+                            <ProfilePic
+                                size={2.5}
+                                src={getProfilePic(e.profile?.profile_picture, e.profile?.sex)}
+                                showActive={true}
+                                isActive={isUserOnline(e.id) || checkActiveStatus(e.last_seen)}
+                            />
+                        }
+                        primary={`${e.profile?.first_name ?? ''} ${e.profile?.last_name ?? ''}`}
+                        secondary={showUserType(e, true)}
+                        sx={{ "& .MuiListItemButton-root": { px: 1 } }}
+                    />
                 ))}
-            </div>
-        </div>
+            </List>
+        </Box>
     )
 }
 
@@ -360,12 +365,13 @@ const EducationBackgroundSection = ({ type, list, student_data, program, usr, va
     switch(type) {
         case 'label':
             return (
-                <div className="space-y-6">
+                <Stack spacing={2}>
                     {list.length !== 0 ? (
                         list.map((e, i) => (
-                            <div key={i} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                                <h2 className="text-lg font-bold mb-3">{replaceUnderScoreToSpace(toTitleCase(e.education_type))} {isTransferee(e.education_type, e.transferee)}</h2>
-                                <div className="space-y-3">
+                            <Card key={i} variant="outlined" sx={{ borderRadius: 2, bgcolor: "action.hover" }}>
+                                <CardContent sx={{ "&:last-child": { pb: 2 } }}>
+                                <Typography component="h2" sx={{ fontSize: "1.1rem", fontWeight: 700, mb: 1 }}>{replaceUnderScoreToSpace(toTitleCase(e.education_type))} {isTransferee(e.education_type, e.transferee)}</Typography>
+                                <div>
                                     <Label title="School Name" desc={e.school_name}/>
                                     <Label title="School Address" desc={e.school_address}/>
                                     {e.education_type !== 'senior_high_school' && (
@@ -395,14 +401,13 @@ const EducationBackgroundSection = ({ type, list, student_data, program, usr, va
                                         <Label title="Year Graduated" desc={e.year_graduated || 'N/A'} />
                                     )}
                                 </div>
-                            </div>
+                                </CardContent>
+                            </Card>
                         ))
                     ) : (
-                        <div className="text-center py-8 text-gray-500">
-                            No Education Background Yet
-                        </div>
+                        <Typography sx={EMPTY}>No Education Background Yet</Typography>
                     )}
-                </div>
+                </Stack>
             )
         case 'form':
             return (

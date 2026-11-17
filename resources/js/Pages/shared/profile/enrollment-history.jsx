@@ -1,47 +1,48 @@
 import ProfileSectionWrapper from "@/wrapper/profile-section-wrapper"
 import { getYearLevel, readableDate, replaceUnderScoreToSpace, toTitleCase } from "@/others/function"
 import { GraduationCap, FolderOpen } from "lucide-react"
+import { Box, Card, CardContent, Chip, Stack, Typography } from "@mui/material"
+import { MuiListEmpty } from "@/Components/list/mui-list-parts"
 
+// A student's enrollments, newest first, as MUI cards.
 const EnrollmentHistory = ({ enrollments = [] }) => {
     const history = [...enrollments].reverse()
 
     return (
-        <div className="grid gap-6">
-            <ProfileSectionWrapper title="Enrollment History" icon={GraduationCap}>
-                {history.length === 0 ? (
-                    <div className="py-10 text-center text-gray-500">
-                        <FolderOpen size="2.5em" className="mb-2 mx-auto opacity-60" />
-                        <p>No enrollment records found.</p>
-                    </div>
-                ) : (
-                    <div className="grid gap-3">
-                        {history.map((e, i) => (
-                            <div
-                                key={e.id ?? i}
-                                className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-[0.9em]"
-                            >
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <span className="font-semibold text-gray-800">
+        <ProfileSectionWrapper title="Enrollment History" icon={GraduationCap}>
+            {history.length === 0 ? (
+                <MuiListEmpty icon={FolderOpen} title="No enrollment records found." />
+            ) : (
+                <Stack spacing={1.5}>
+                    {history.map((e, i) => (
+                        <Card key={e.id ?? i} variant="outlined" sx={{ borderRadius: 2, bgcolor: "action.hover" }}>
+                            <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+                                <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+                                    <Typography sx={{ fontWeight: 600, fontSize: "0.9rem" }}>
                                         {e.school_year?.year} {e.semester ? `· ${e.semester} Semester` : ''}
-                                    </span>
-                                    <span className="text-gray-600">
-                                        {e.status ? toTitleCase(replaceUnderScoreToSpace(e.status)) : 'N/A'}
-                                    </span>
-                                </div>
-                                <div className="text-gray-600 mt-1">
+                                    </Typography>
+                                    <Chip
+                                        size="small"
+                                        variant="outlined"
+                                        color={e.dropped_at ? "default" : "primary"}
+                                        label={e.status ? toTitleCase(replaceUnderScoreToSpace(e.status)) : 'N/A'}
+                                    />
+                                </Box>
+                                <Typography sx={{ fontSize: "0.85rem", color: "text.secondary", mt: 0.5 }}>
                                     {e.program?.code ?? 'N/A'}
                                     {e.year_level != null ? ` · ${getYearLevel(e.year_level)}` : ''}
-                                </div>
-                                {e.dropped_at &&
-                                <div className="text-gray-500 mt-1 text-[0.9em]">
-                                    Dropped {readableDate(e.dropped_at)}
-                                </div>}
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </ProfileSectionWrapper>
-        </div>
+                                </Typography>
+                                {e.dropped_at && (
+                                    <Typography sx={{ fontSize: "0.78rem", color: "text.disabled", mt: 0.5 }}>
+                                        Dropped {readableDate(e.dropped_at)}
+                                    </Typography>
+                                )}
+                            </CardContent>
+                        </Card>
+                    ))}
+                </Stack>
+            )}
+        </ProfileSectionWrapper>
     )
 }
 

@@ -25,8 +25,4 @@ export const ComplaintService = {
         const api = new APIRequest(`/complaint/${id}/edit`, "post", formData, () => {}, success, error);
         api.sendPostData();
     },
-    bulkAction(type, ids, page, setter, success, error) {
-        const api = new APIRequest(`/complaint/select/${type}`, "post", { ids, action: type, page }, setter, success, error);
-        api.fetchData();
-    },
 };

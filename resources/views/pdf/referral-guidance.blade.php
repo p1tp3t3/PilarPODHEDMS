@@ -44,6 +44,7 @@
     </style>
 </head>
 <body>
+    @include('pdf.partials.status-watermark', ['status' => $status ?? null])
     <div class="form-code">POD.COL-FO 0015</div>
 
     <table class="letterhead">

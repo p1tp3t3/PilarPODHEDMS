@@ -150,8 +150,8 @@ const ArchiveList = ({ list = [], viewDocument, showType = true }) => {
         type: "actions",
         headerName: "Action",
         width: 200,
-        align: "start",
-        headerAlign: "start",
+        align: "left",
+        headerAlign: "left",
         renderCell: ({ row }) => {
           const data = row.data;
           const t = data.type === "complaint" ? "c" : data.type === "referral" ? "r" : data.type === "absent form" ? "a" : data.type === "gate pass" ? "g" : null;

@@ -43,4 +43,13 @@ return [
         'key' => env('PYTHON_PILARPODHEDMS_ML_API_KEY'),
     ],
 
+    // Google Gemini: writes the Behavioural Analysis recommendations (called
+    // from Laravel).
+    'gemini' => [
+        // Read on the server only. Never use import.meta.env.VITE_GOOGLE_GEMINI_API_KEY
+        // in the frontend: Vite would put the key in the public JavaScript.
+        'key' => env('VITE_GOOGLE_GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-flash-lite-latest'),
+    ],
+
 ];
