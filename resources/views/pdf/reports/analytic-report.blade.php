@@ -83,10 +83,10 @@
   $pct = fn ($n, $total) => $total ? round($n / $total * 100, 1) . '%' : '0%';
   $st = $student ?? null;
 
-  // Formal palette.
-  $NAVY = '#1f3a5f';
-  $SLATE = '#8796ab';
-  $tone = ['pending' => '#c9a227', 'ongoing' => '#8796ab', 'resolved' => '#1f3a5f', 'rejected' => '#7a2e2e', 'revoked' => '#c3ccd8'];
+  // Formal palette: greys only (dark, mid, light), so the charts stay plain.
+  $NAVY = '#222222';
+  $SLATE = '#8a8a8a';
+  $tone = ['pending' => '#b5b5b5', 'ongoing' => '#7a7a7a', 'resolved' => '#222222', 'rejected' => '#4d4d4d', 'revoked' => '#dcdcdc'];
 
   // Column chart.
   $columns = function (array $labels, array $values, string $color) {
@@ -94,7 +94,7 @@
       $html = '<table class="cols"><tr>';
       foreach ($values as $v) {
           $bar = (int) round(((int) $v) / $max * 112);
-          $html .= '<td class="col"><div class="val">' . (int) $v . '</div><div class="bar" style="height:' . max($bar, (int) $v ? 2 : 0) . 'px;background:' . $color . ';"></div></td>';
+          $html .= '<td class="col"><div class="val">' . (int) $v . '</div><div class="bar" style="height:' . max($bar, (int) $v ? 2 : 0) . 'px;background:' . $color . ' !important;"></div></td>';
       }
       $html .= '</tr><tr>';
       foreach ($labels as $l) { $html .= '<td class="lab">' . e($l) . '</td>'; }
@@ -107,7 +107,7 @@
       $html = '<table class="hbars">';
       foreach ($items as $i) {
           $w = round(((int) $i[1]) / $max * 100, 1);
-          $html .= '<tr><td class="hl">' . e($i[0]) . '</td><td class="hb"><div class="bar" style="width:' . max($w, $i[1] ? 1 : 0) . '%;background:' . ($i[2] ?? $color) . ';"></div></td><td class="hv">' . (int) $i[1] . '</td></tr>';
+          $html .= '<tr><td class="hl">' . e($i[0]) . '</td><td class="hb"><div class="bar" style="width:' . max($w, $i[1] ? 1 : 0) . '%;background:' . ($i[2] ?? $color) . ' !important;"></div></td><td class="hv">' . (int) $i[1] . '</td></tr>';
       }
       return $html . '</table>';
   };
@@ -117,10 +117,10 @@
       $total = $items->sum(fn ($i) => $i[1]);
       if (! $total) return '<p class="none">No data for this period.</p>';
       $html = '<table class="stack"><tr>';
-      foreach ($items as $i) { $html .= '<td style="width:' . round($i[1] / $total * 100, 2) . '%;background:' . $i[2] . ';"></td>'; }
+      foreach ($items as $i) { $html .= '<td style="width:' . round($i[1] / $total * 100, 2) . '%;background:' . $i[2] . ' !important;"></td>'; }
       $html .= '</tr></table><table class="legend"><tr>';
       foreach ($items as $i) {
-          $html .= '<td><span class="swatch" style="background:' . $i[2] . ';"></span>' . e($i[0]) . ': <strong>' . (int) $i[1] . '</strong> (' . $pct($i[1], $total) . ')</td>';
+          $html .= '<td><span class="swatch" style="background:' . $i[2] . ' !important;"></span>' . e($i[0]) . ': <strong>' . (int) $i[1] . '</strong> (' . $pct($i[1], $total) . ')</td>';
       }
       return $html . '</tr></table>';
   };

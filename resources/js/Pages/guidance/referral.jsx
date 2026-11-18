@@ -8,7 +8,8 @@ import { Head } from "@inertiajs/react"
 import SchoolYearSemesterFilter from "@/Components/input/school-year-semester-filter"
 
 const GuidanceReferral = (props) => {
-    // The table loads from /api/guidance/referral once the page opens.
+    // The table loads from /api/guidance/referral once the page opens: the
+    // referrals the prefect sent to this office (Guidance or IT Staff).
     const { data: lists } = useListData()
     const [viewReferral, openViewReferral] = useState(false)
     const [referralId, setReferralId] = useState('')
@@ -31,7 +32,10 @@ const GuidanceReferral = (props) => {
             <PageLayout title="REFERRALS FROM THE PREFECT">
                     <SchoolYearSemesterFilter schoolYears={props.school_years} />
                     <div className="w-full bg-white rounded-md shadow-sm shadow-black/20 min-w-0">
+                        {/* The referrals sent to this office (Guidance / IT Staff);
+                            each one's note is written from its View. */}
                         <ReferralList
+                            viewOnly
                             list={lists?.referral?.data}
                             type="sub_admin"
                             viewReferral={setId}

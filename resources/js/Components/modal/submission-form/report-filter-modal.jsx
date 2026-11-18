@@ -1,4 +1,4 @@
-import UpModal from "../up-modal"
+import UpModal, { afterModalClose } from "../up-modal"
 import RadioButton from "@/Components/input/radio"
 import DropdownField from "@/Components/input/dropdown"
 import BetweenTextfield from "@/Components/input/between-input"
@@ -51,9 +51,10 @@ const ReportFilterModal = ({ close, closeModal, value, schoolYears = [], onApply
     }
 
     const clear = () => {
-        setDraft(emptyValue)
         onClear()
         closeModal(false)
+        // Emptied after it has closed, not while it fades out.
+        afterModalClose(() => setDraft(emptyValue))
     }
 
     return (

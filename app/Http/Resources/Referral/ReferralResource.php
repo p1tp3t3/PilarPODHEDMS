@@ -31,6 +31,14 @@ class ReferralResource extends BaseResource
             'revoked_at' => $this->revoked_at,
             'edited_at' => $this->edited_at,
             'send_to_guidance' => $this->send_to_guidance,
+            // Sent on to an office (Guidance / IT Staff) and that office's note.
+            'sent_to' => $this->sent_to,
+            'sent_at' => $this->sent_at,
+            'office_note' => $this->office_note,
+            'office_note_at' => $this->office_note_at,
+            'officeNoteBy' => UserResource::make($this->whenLoaded('officeNoteBy')),
+            // Whether the viewer is that office (so they can write the note).
+            'can_write_office_note' => $this->resource->isSentToOfficeOf($request->user()),
             'confirmed_at' => $this->confirmed_at,
             'archived_at' => $this->archived_at,
             'created_at' => $this->created_at,

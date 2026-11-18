@@ -1,4 +1,4 @@
-import UpModal from "../up-modal"
+import UpModal, { afterModalClose } from "../up-modal"
 import FormTextfield from "@/Components/input/form-input"
 import RichTextEditor from "@/Components/input/rich-text-editor"
 import FormButton from "@/Components/button/button"
@@ -36,9 +36,9 @@ const ScheduleMaintenanceModal = ({ close, closeModal, onScheduled }) => {
                     (res) => {
                         setSubmitting(false)
                         closeLoadingModal()
-                        setStartsAt("")
-                        setMessage("")
                         closeModal(false)
+                        // Emptied after it has closed, not while it fades out.
+                        afterModalClose(() => { setStartsAt(""); setMessage("") })
                         onScheduled?.(res)
                     },
                     (err) => {

@@ -41,7 +41,11 @@
         .signature .caption { font-size: 11px; margin-top: 2px; }
 
         .counselor { margin-top: 26px; }
+        .office-note { border-bottom: 1px solid #111; padding: 4px 2px 6px; line-height: 1.6; text-align: justify; }
+        .office-note-by { text-align: right; font-size: 11px; margin-top: 4px; }
     </style>
+    {{-- Formal body below the header (letterhead and title are left as they are). --}}
+    @include('pdf.partials.formal-body')
 </head>
 <body>
     @include('pdf.partials.status-watermark', ['status' => $status ?? null])
@@ -59,6 +63,8 @@
     </table>
 
     <div class="title">Referral Form</div>
+
+    <div class="doc-body">
 
     <div class="date-row">Date/Time: <span class="fill">{{ $date_time }}</span></div>
 
@@ -87,12 +93,21 @@
         </tr>
     </table>
 
-    {{-- Filled in by hand by the counselor. --}}
+    {{-- The note the office it was sent to (Guidance / IT Staff) wrote in
+         the system; blank lines to fill in by hand when there is none yet. --}}
     <div class="counselor">
-        <div class="label">Counselor's Note:</div>
-        @for ($i = 0; $i < 8; $i++)
-            <div class="line"></div>
-        @endfor
+        <div class="label">{{ ($sent_to ?? null) === 'IT Staff' ? "IT Staff's Note:" : "Counselor's Note:" }}</div>
+        @if (!empty($office_note))
+            <div class="office-note">{!! nl2br(e($office_note)) !!}</div>
+            @if (!empty($office_note_by))
+                <div class="office-note-by">{{ $office_note_by }}</div>
+            @endif
+        @else
+            @for ($i = 0; $i < 8; $i++)
+                <div class="line"></div>
+            @endfor
+        @endif
     </div>
+    </div>{{-- /.doc-body --}}
 </body>
 </html>

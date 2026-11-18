@@ -15,6 +15,8 @@
     <meta charset="UTF-8">
     <title>@yield('title')</title>
     @yield('styles')
+    {{-- The formal body (scoped to .doc-body below; the heading is untouched). --}}
+    @include('pdf.partials.formal-body')
     <style>
         .report-title { text-align: center; font-family: "DejaVu Serif", "Times New Roman", serif; font-size: 16px; font-weight: bold; color: #111; letter-spacing: 3px; text-transform: uppercase; margin: 18px 0 2px; }
         .report-subtitle { text-align: center; font-family: "DejaVu Serif", "Times New Roman", serif; font-size: 10.5px; color: #555; margin: 0; }
@@ -59,6 +61,8 @@
         @endif
     </div>
 
-    @yield('content')
+    <div class="doc-body">
+        @yield('content')
+    </div>
 </body>
 </html>

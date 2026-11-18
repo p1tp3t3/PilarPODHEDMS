@@ -50,9 +50,45 @@ class Referral extends Model
         'revoked_at',
         'edited_at',
         'send_to_guidance',
+        'sent_to',
+        'sent_at',
+        'office_note',
+        'office_note_by',
+        'office_note_at',
         'confirmed_at',
         'archived_at',
     ];
+
+    /** The offices a referral can be sent on to (non_teaching_staff positions). */
+    public const OFFICES = ['Guidance', 'IT Staff'];
+
+    /** The office (Guidance / IT Staff) a user works in, or null. */
+    public static function officeOf(?User $user): ?string
+    {
+        if (! $user || $user->role !== 'non_teaching_staff') {
+            return null;
+        }
+        $position = NonTeachingStaff::where('user_id', $user->id)->first()?->position;
+
+        return in_array($position, self::OFFICES, true) ? $position : null;
+    }
+
+    /** Whether this referral was sent to the office `$user` works in. */
+    public function isSentToOfficeOf(?User $user): bool
+    {
+        $office = self::officeOf($user);
+
+        // Only referrals actually sent with "Send to" (sent_to). The old
+        // send_to_guidance flag was never set by the app (only random test
+        // data), so it doesn't count.
+        return $office !== null && $this->sent_to === $office;
+    }
+
+    /** Only referrals sent to `$office` (for that office's list). */
+    public function scopeSentToOffice($query, string $office)
+    {
+        return $query->where('sent_to', $office);
+    }
 
     public $timestamps = false;
 
@@ -90,26 +126,20 @@ class Referral extends Model
         return $this->belongsTo(User::class, 'prefect_id', 'id');
     }
 
-    /**
-     * Render this referral's Referral Form (POD.COL-FO 0015) into its folder:
-     * one form listing every referred student, since a teacher can refer
-     * several students in one referral. Rebuilt every time so an edited
-     * referral never ships a stale form; the old one-PDF-per-student files
-     * are removed so the folder only holds the current form.
-     *
-     * @param  string  $fallbackReferrer  name shown when the referrer has no profile
-     * @return string full path of the form
-     */
-    public function saveReferralForm(string $fallbackReferrer = ''): string
+    // Who wrote the office's note (Guidance / IT Staff).
+    public function officeNoteBy(): BelongsTo
     {
-        $folder = storage_path("app/private/referrals/referral-{$this->referral_number}");
-        File::ensureDirectoryExists($folder);
-        File::delete(File::glob("{$folder}/referral-student-*.pdf"));
+        return $this->belongsTo(User::class, 'office_note_by', 'id');
+    }
 
-        $filePath = "{$folder}/referral-form-{$this->referral_number}.pdf";
-        $this->referralFormPdf($fallbackReferrer)->save($filePath);
-
-        return $filePath;
+    /**
+     * A referral's form is never saved: it is always built from the record
+     * (so it shows the current details and the office's note), even if an
+     * older saved file is still in its folder.
+     */
+    public function documentPdfPath(): ?string
+    {
+        return null;
     }
 
     protected function canRenderDocumentPdf(): bool
@@ -157,6 +187,10 @@ class Referral extends Model
             'students' => $students,
             'referral_reason' => $this->reason_description,
             'referrer_name' => $referrer ? $fullName($referrer) : $fallbackReferrer,
+            // The note the office it was sent to wrote back (plain text on the form).
+            'office_note' => $this->office_note ? trim(html_entity_decode(strip_tags(str_replace(['</p>', '<br>', '<br/>', '<br />', '</li>'], PHP_EOL, $this->office_note)))) : null,
+            'office_note_by' => $this->office_note_by ? $fullName(User::with('profile')->find($this->office_note_by)?->profile) : null,
+            'sent_to' => $this->sent_to,
             // Watermark on a form that isn't final (pdf.partials.status-watermark).
             'status' => $this->revoked_at ? 'revoked' : $this->referral_status,
         ])->setPaper('a4');

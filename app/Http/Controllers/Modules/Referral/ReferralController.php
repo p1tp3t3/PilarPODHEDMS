@@ -27,7 +27,6 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
-use ZipArchive;
 use App\Http\Resources\System\ProgramResource;
 use App\Http\Resources\Account\UserResource;
 
@@ -82,13 +81,14 @@ class ReferralController extends Controller
     }
 
     /**
-     * Guidance (a non_teaching_staff position, not a role) gets a
-     * read-only view of every referral the prefect has sent — no submit
-     * form, since guidance never files a referral themselves.
+     * The offices a referral can be sent on to — Guidance and IT Staff
+     * (non_teaching_staff positions, not roles) — see the referrals the
+     * prefect sent them, and write a note back on each. They never file a
+     * referral themselves.
      */
     public function guidanceIndex()
     {
-        if (! self::isGuidance()) {
+        if (! Referral::officeOf(auth()->user())) {
             return redirect('/dashboard');
         }
 
@@ -162,7 +162,6 @@ class ReferralController extends Controller
             $prefect = User::with('profile')
                 ->whereRole('sub_admin')
                 ->firstOrFail();
-            $prefectName = trim("{$prefect->profile?->first_name} {$prefect->profile?->middle_name} {$prefect->profile?->last_name}");
 
             $lastIndex = Referral::insertGetId(array_merge($field, [
                 // The prefect filing for a referrer (teacher) is recorded;
@@ -179,12 +178,8 @@ class ReferralController extends Controller
                 ]);
             }
 
-            $referralRecord = Referral::findOrFail($lastIndex);
-            $referredStudents = ReferralReferredStudent::with(['referral', 'user.profile', 'user.program', 'user.enrollments'])
-                ->where('referral_id', $lastIndex)
-                ->get();
-
-            self::generateReferralDocuments($referralRecord, $prefectName);
+            // No referral form is saved: it is built from the record whenever
+            // it's needed (viewing, sending, archive download).
 
             ActionLog::create([
                 'user_id' => auth()->user()->id,
@@ -235,9 +230,18 @@ class ReferralController extends Controller
             'referredStudent.program',
         ]);
 
-        // Prefect sees everything; so does guidance (a non_teaching_staff
-        // position, not a role) — everyone else only sees what they filed.
-        if (auth()->user()->role != 'sub_admin' && ! self::isGuidance()) {
+        // The prefect sees everything; Guidance / IT Staff only what was sent
+        // to their office; everyone else only what they filed.
+        $office = auth()->user()->role === 'sub_admin' ? null : Referral::officeOf(auth()->user());
+        if ($office) {
+            // Sent referrals are approved, so no status tabs: all of them,
+            // the latest sent first.
+            $referrals->sentToOffice($office)->with('officeNoteBy.profile')->whereNull('revoked_at')->latest('sent_at')->latest('created_at');
+            SchoolYearSemester::applyFilter($referrals, 'created_at', request('school-year'), request('semester'));
+
+            return ['data' => ReferralResource::collection($referrals->get())];
+        }
+        if (auth()->user()->role != 'sub_admin') {
             $referrals->where('referrer_id', auth()->user()->id);
         }
 
@@ -313,29 +317,31 @@ class ReferralController extends Controller
             return response()->json(['message' => 'This referral can no longer be approved.'], 409);
         }
 
+        $this->approve($current);
+
+        return self::getAllReferral();
+    }
+
+    /**
+     * Approve a referral: mark it approved and notify the referrer. Used by Approve and by "Send to" (sending a pending or
+     * rejected referral on approves it first).
+     */
+    private function approve(Referral $referral): void
+    {
+        $id = $referral->id;
         Referral::where('id', $id)->update([
             'referral_status' => 'approved',
             'confirmed_at' => now(),
             'archived_at' => archive_retention_date(),
         ]);
 
-        $referralRecord = Referral::findOrFail($id);
-        $referredStudents = ReferralReferredStudent::with(['referral', 'user.profile', 'user.program', 'user.enrollments'])
-            ->where('referral_id', $id)
-            ->get();
-
-        $prefect = User::with('profile')->whereRole('sub_admin')->first();
-        $prefectName = "{$prefect->profile?->first_name} {$prefect->profile?->middle_name} {$prefect->profile?->last_name}";
-
-        self::generateReferralDocuments($referralRecord, $prefectName);
-
-        $referral = Referral::with(['user.profile', 'referredStudent.profile'])->where('id', $id)->first();
+        // No referral form is saved on approval: it is built from the record
+        // whenever it's needed (viewing, sending, archive download).
+        $fresh = Referral::with(['user.profile', 'referredStudent.profile'])->where('id', $id)->first();
 
         notify_single_user(
-            self::getReferralNotifMessageResponseFields($referral)
+            self::getReferralNotifMessageResponseFields($fresh)
         );
-
-        return self::getAllReferral();
     }
 
     /**
@@ -505,21 +511,11 @@ class ReferralController extends Controller
     }
 
     /**
-     * Render the referral's Referral Form (see Referral::saveReferralForm()).
-     *
-     * @return array<int, string> full path of the form, as a one-item list
-     */
-    private function generateReferralDocuments(Referral $referral, string $prefectName): array
-    {
-        return [$referral->saveReferralForm($prefectName)];
-    }
-
-    /**
      * A referral that isn't really the prefect's to handle gets forwarded to
      * whichever office it actually belongs to — Guidance or IT Staff today.
-     * Both destinations work identically: regenerate the per-student PDFs,
-     * email every non_teaching_staff user holding that position, and hand
-     * the prefect a zip of the same documents.
+     * Both destinations work identically: build the referral form from the
+     * record (nothing is saved), email it to every non_teaching_staff user
+     * holding that position, and open it for the prefect in the new tab.
      */
     public function printReferralGuidance($id)
     {
@@ -537,10 +533,15 @@ class ReferralController extends Controller
 
         $referral = Referral::findOrFail($id);
 
-        // A referral's PDF is only kept once it's approved, so only an
-        // approved referral can be sent on (and get its form saved).
-        if (! $referral->confirmed_at || $referral->revoked_at) {
-            return response()->json(['message' => 'Only an approved referral can be sent.'], 422);
+        // A revoked referral can't be sent. A pending (or rejected) one is
+        // approved first — sending it on is the prefect accepting it — so its
+        // form is saved and the referrer is notified, as with Approve.
+        if ($referral->revoked_at) {
+            return response()->json(['message' => 'A revoked referral cannot be sent.'], 422);
+        }
+        if (! $referral->confirmed_at) {
+            $this->approve($referral);
+            $referral->refresh();
         }
 
         $referredStudents = ReferralReferredStudent::with(['referral', 'user.profile', 'user.program', 'user.enrollments'])
@@ -550,7 +551,16 @@ class ReferralController extends Controller
         $prefect = User::with('profile')->whereRole('sub_admin')->first();
         $prefectName = "{$prefect->profile?->first_name} {$prefect->profile?->middle_name} {$prefect->profile?->last_name}";
 
-        $files = self::generateReferralDocuments($referral, $prefectName);
+        // Where it went and when (the office's list, its access and the timeline).
+        $referral->update([
+            'sent_to' => $positionName,
+            'sent_at' => now(),
+            'send_to_guidance' => $positionName === 'Guidance' ? 1 : $referral->send_to_guidance,
+        ]);
+
+        // The referral form, built now from the record (not saved to storage).
+        $pdf = $referral->fresh()->renderDocumentPdf()->output();
+        $pdfName = "referral-form-{$referral->referral_number}.pdf";
 
         $studentNames = $referredStudents
             ->map(fn ($item) => trim("{$item->user->profile?->first_name} {$item->user->profile?->last_name}"))
@@ -567,22 +577,15 @@ class ReferralController extends Controller
                 'student_names' => $studentNames,
                 'date_issued' => Carbon::parse($referral->created_at)->format('F d, Y'),
             ]);
-            foreach ($files as $file) {
-                $mail->attach($file);
-            }
+            $mail->attachData($pdf, $pdfName, ['mime' => 'application/pdf']);
             Mail::to($recipient->email)->send($mail);
         }
 
-        // Build a temporary, non-persisted zip purely for this download response.
-        $zipPath = storage_path('app/private/referrals/tmp-'.uniqid().'.zip');
-        $zip = new ZipArchive;
-        $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
-        foreach ($files as $file) {
-            $zip->addFile($file, basename($file));
-        }
-        $zip->close();
-
-        return response()->download($zipPath, "referral-{$referral->referral_number}.zip")->deleteFileAfterSend(true);
+        // The same form, opened in the tab (view / print).
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$pdfName.'"',
+        ]);
     }
 
     public function get($id)
@@ -598,12 +601,50 @@ class ReferralController extends Controller
             'referralReferredStudent.user.profile',
             'referralReferredStudent.user.program',
             'revisions',
+            'officeNoteBy.profile',
         ])
             ->where('id', $id)
             ->first() ?? abort(404);
         abort_unless($referral->canView(auth()->user()), 403);
 
         return new ReferralResource($referral);
+    }
+
+    /**
+     * The office a referral was sent to (Guidance / IT Staff) writes its note
+     * on it — once: a saved note is final. Only that office; the note is
+     * saved as sanitised rich text and also printed on the referral form.
+     */
+    public function saveOfficeNote(Request $request, $id)
+    {
+        $id = decrypt_id($id) ?? abort(404);
+        $referral = Referral::findOrFail($id);
+        abort_unless($referral->isSentToOfficeOf(auth()->user()), 403);
+        // A note is final once saved: it can't be changed or replaced.
+        if ($referral->office_note) {
+            return response()->json(['message' => 'This referral already has a note. A saved note cannot be changed.'], 409);
+        }
+
+        $data = $request->validate(['note' => 'required|string|max:20000']);
+        $note = clean_rich_text($data['note']);
+        if (trim(strip_tags((string) $note)) === '') {
+            return response()->json(['message' => 'The note is empty.', 'errors' => ['note' => ['Please write a note.']]], 422);
+        }
+
+        $referral->update([
+            'office_note' => $note,
+            'office_note_by' => auth()->id(),
+            'office_note_at' => now(),
+        ]);
+
+        ActionLog::log(
+            auth()->id(),
+            'referral',
+            'Wrote a note on referral #'.$referral->referral_number,
+            ['office_note' => ['from' => null, 'to' => 'saved']]
+        );
+
+        return self::get(encrypt_id($referral->id));
     }
 
     public function getSendReferral()
@@ -614,11 +655,6 @@ class ReferralController extends Controller
     private function isPrefect()
     {
         return auth()->user()->role == 'sub_admin';
-    }
-
-    private function isGuidance()
-    {
-        return NonTeachingStaff::where('user_id', auth()->id())->first()?->position === 'Guidance';
     }
 
     private function getReferralNotifMessageReportFields($request, $prefect, $complaintId, $referral)

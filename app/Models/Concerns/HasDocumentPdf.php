@@ -43,7 +43,7 @@ trait HasDocumentPdf
         return false;
     }
 
-    /** The prefect, the record's owner, and Guidance for referrals. */
+    /** The prefect, the record's owner, and (referrals) the office it was sent to. */
     public function canViewPdf(?User $user): bool
     {
         if (! $user) {
@@ -53,8 +53,10 @@ trait HasDocumentPdf
             return true;
         }
 
+        // A referral: also the office it was sent to (Guidance / IT Staff).
         return $this->documentType() === 'referral'
-            && NonTeachingStaff::where('user_id', $user->id)->first()?->position === 'Guidance';
+            && $this instanceof \App\Models\Referral
+            && $this->isSentToOfficeOf($user);
     }
 
     /** URL of the page that shows the PDF, or null when there is none or the user can't open it. */

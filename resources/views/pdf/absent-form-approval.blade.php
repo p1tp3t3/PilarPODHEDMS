@@ -46,6 +46,8 @@
 
         .footer { position: fixed; bottom: -30px; left: 0; right: 0; text-align: center; font-family: "DejaVu Sans", Arial, sans-serif; font-size: 8.5px; color: #777; border-top: 1px solid #ddd; padding-top: 4px; }
     </style>
+    {{-- Formal body below the header (letterhead and title are left as they are). --}}
+    @include('pdf.partials.formal-body')
 </head>
 <body>
     @if ($approved)
@@ -59,6 +61,8 @@
 
     <div class="title">{{ $approved ? 'Approved Absence Form' : 'Absence Form' }}</div>
     <div class="subtitle">Office of Student Affairs and Discipline</div>
+
+    <div class="doc-body">
 
     <div class="date-row">{{ $date_label ?? 'Date Approved' }}: <strong>{{ $fmt($date_approve) }}</strong></div>
 
@@ -121,5 +125,6 @@
         </tr>
     </table>
     @endif
+    </div>{{-- /.doc-body --}}
 </body>
 </html>

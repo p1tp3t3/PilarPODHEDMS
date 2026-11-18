@@ -1,8 +1,10 @@
 import { ReferralService } from "@/others/services/referral-service"
 import UpModal from "../up-modal"
 import { useEffect, useState } from "react"
-import { Box, Stack } from "@mui/material"
-import { readableDate, readableTime, toTitleCase } from "@/others/function"
+import { Box, Button, Stack, Typography } from "@mui/material"
+import axios from "axios"
+import { readableDate, readableTime, toTitleCase, showOutputModal } from "@/others/function"
+import RichTextEditor from "@/Components/input/rich-text-editor"
 import {
     ModalHeader, Section, Timeline, stepAt, stepAhead, PersonList, safeParseArray, People, prefectName, useOwnerTitle, useIsOwner, ViewModalSkeleton,
     TextBox, Field, Labeled, Text, EditedOn, RecordBody, SectionPair,
@@ -11,6 +13,7 @@ import {
     MessageSquareText,
     History,
     Undo2,
+    NotebookPen,
 } from "lucide-react"
 
 const ViewReferralModal = (props) => {
@@ -18,12 +21,13 @@ const ViewReferralModal = (props) => {
           [reload, setReload] = useState(false)
 
     useEffect(() => {
+        // The previous record is cleared when it opens (skeleton until the new
+        // one loads), not when it closes: clearing it then made the content
+        // vanish mid-animation.
         if(props.close) {
+            setData(null)
             setReload(true)
             getReferralInfo()
-        }else {
-            setReload(false)
-            setData(null)
         }
     }, [props.close])
 
@@ -42,7 +46,7 @@ const ViewReferralModal = (props) => {
             <Box sx={{ width: "100%" }}>
                 {(data != null)
                 ?
-                <Body data={data} />
+                <Body data={data} onSaved={setData} />
                 :
                 reload &&
                 <ViewModalSkeleton variant="record" />}
@@ -64,11 +68,75 @@ const stepsFor = (d) => {
     const rejectedNow = d.referral_status === "rejected"
     if (d.confirmed_at && !rejectedNow) steps.push(stepAt("Approved", d.confirmed_at, d.confirmed_school_year_semester))
     else if (!d.revoked_at) steps.push(stepAhead("Approved", d.rejected_at ? "If the prefect reconsiders" : "Waiting for the prefect's review"))
-    if (d.revoked_at) steps.push(stepAt("Revoked", d.revoked_at, d.revoked_school_year_semester, "stopped"))
+    if (d.revoked_at) return [...steps, stepAt("Revoked", d.revoked_at, d.revoked_school_year_semester, "stopped")]
+    // Sent on to an office (Guidance / IT Staff), then that office's note.
+    if (d.sent_at) {
+        steps.push(stepAt(`Sent to ${d.sent_to}`, d.sent_at))
+        steps.push(d.office_note_at ? stepAt("Noted", d.office_note_at) : stepAhead("Noted", `Waiting for ${d.sent_to}'s note`))
+    }
     return steps
 }
 
-const Body = ({ data }) => {
+// The note from the office the referral was sent to. That office writes it
+// here once (a saved note is final); everyone who can open the referral
+// reads it.
+const OfficeNote = ({ data, onSaved }) => {
+    const [note, setNote] = useState("")
+    const [error, setError] = useState(null)
+    const [saving, setSaving] = useState(false)
+    const canWrite = !!data.can_write_office_note
+    const office = data.sent_to
+
+    if (!data.sent_at && !data.office_note) return null
+    if (!canWrite && !data.office_note) return null
+
+    const author = [data.officeNoteBy?.profile?.first_name, data.officeNoteBy?.profile?.last_name].filter(Boolean).join(" ")
+    const save = () => {
+        if (!note || !note.replace(/<[^>]*>/g, "").trim()) { setError("Please write a note."); return }
+        setSaving(true)
+        setError(null)
+        axios.post(`/referral/${data.encrypted_id}/office-note`, { note })
+            .then(({ data: fresh }) => onSaved(fresh?.data ?? fresh))
+            .catch((e) => {
+                const msg = e?.response?.data?.errors?.note?.[0] ?? e?.response?.data?.message ?? "The note couldn't be saved. Please try again."
+                setError(msg)
+                if (!e?.response?.data?.errors) showOutputModal(msg, "e")
+            })
+            .finally(() => setSaving(false))
+    }
+
+    const writing = canWrite && !data.office_note
+    return (
+        <Section icon={NotebookPen} title={`Note from ${office ?? "the Office"}`}>
+            {writing ? (
+                <Stack sx={{ gap: 1.5 }}>
+                    <RichTextEditor
+                        val={note}
+                        change={(v) => { setNote(v); setError(null) }}
+                        error={error}
+                        placeholder={`Write ${office ?? "your office"}'s note on this referral…`}
+                        minHeight="9rem"
+                    />
+                    <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
+                        <Typography sx={{ fontSize: "0.75rem", color: "text.secondary" }}>Once saved, the note can't be changed.</Typography>
+                        <Button variant="contained" disableElevation size="small" onClick={save} disabled={saving} sx={{ textTransform: "none", fontWeight: 600, borderRadius: "8px" }}>
+                            {saving ? "Saving…" : "Save Note"}
+                        </Button>
+                    </Stack>
+                </Stack>
+            ) : (
+                <Stack sx={{ gap: 1 }}>
+                    <TextBox html={data.office_note} height="auto" sx={{ minHeight: 64 }} />
+                    <Typography sx={{ fontSize: "0.75rem", color: "text.secondary" }}>
+                        {author ? `${author} · ` : ""}{data.office_note_at ? when(data.office_note_at) : ""}
+                    </Typography>
+                </Stack>
+            )}
+        </Section>
+    )
+}
+
+const Body = ({ data, onSaved = () => {} }) => {
     const referrerName = toTitleCase(data.user?.profile?.first_name)
     const ownerId = data.user?.id ?? data.referrer_id
     const title = useOwnerTitle(ownerId, referrerName, "Referral", "Referrer")
@@ -110,6 +178,9 @@ const Body = ({ data }) => {
                 <Section icon={MessageSquareText} title="Reason for the Referral">
                     <TextBox>{data.reason_description}</TextBox>
                 </Section>
+
+                {/* key: a fresh editor state for each record */}
+                <OfficeNote key={data.encrypted_id} data={data} onSaved={onSaved} />
 
                 {data.edited_at && data.revisions?.length > 0 && (() => {
                     const previous = data.revisions[0]

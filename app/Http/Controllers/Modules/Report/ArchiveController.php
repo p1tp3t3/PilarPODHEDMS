@@ -707,6 +707,11 @@ class ArchiveController extends Controller
     private static function addRecordToZip(ZipArchive $zip, $record, string $folderPath, string $dir): int
     {
         $files = is_dir($folderPath) ? File::allFiles($folderPath) : [];
+        // A referral's form is always built from the record (none is saved);
+        // skip any older saved copy so the zip has the current one.
+        if ($record instanceof Referral) {
+            $files = array_values(array_filter($files, fn ($f) => strtolower($f->getExtension()) !== 'pdf'));
+        }
         $hasPdf = collect($files)->contains(fn ($f) => strtolower($f->getExtension()) === 'pdf');
         $added = 0;
         if (! $hasPdf && ($pdf = $record->renderDocumentPdf())) {

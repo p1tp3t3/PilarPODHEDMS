@@ -2,6 +2,12 @@ import { Dialog, IconButton, useMediaQuery } from "@mui/material";
 import { X } from "lucide-react";
 
 const EASE_IN = "cubic-bezier(0.22, 1, 0.36, 1)";
+
+// How long the closing animation runs (transitionDuration.exit below).
+export const MODAL_EXIT_MS = 350;
+// Run `fn` once a modal has finished closing: resetting a form or clearing a
+// record while it is still fading out makes its content jump mid-animation.
+export const afterModalClose = (fn) => setTimeout(fn, MODAL_EXIT_MS + 20);
 const EASE_OUT = "cubic-bezier(0.4, 0, 1, 1)";
 
 /**
@@ -38,7 +44,7 @@ const UpModal = ({
       scroll={isPhone ? "paper" : "body"}
       // Slow and smooth: the modal and its backdrop fade in (MUI Fade) while
       // the panel rises (below); a quicker fade and drop going out.
-      transitionDuration={{ enter: 550, exit: 350 }}
+      transitionDuration={{ enter: 550, exit: MODAL_EXIT_MS }}
       // No jump when it opens: focus isn't moved into it (which scrolled a
       // tall modal down to the focused part) and it opens at its top.
       disableAutoFocus

@@ -52,15 +52,12 @@ class DashboardController extends Controller
                 // "Guard" and "Guidance" aren't separate roles — they're
                 // positions inside non_teaching_staff, each with their own
                 // dashboard.
-                return self::isGuidance() ? self::guidanceDashboard() : self::nonTeachingStaffDashboard();
+                // Guidance and IT Staff (offices referrals are sent to) get a
+                // referrals card on it.
+                return \App\Models\Referral::officeOf(auth()->user()) ? self::guidanceDashboard() : self::nonTeachingStaffDashboard();
             case 'parent':
                 return self::parentDashboard();
         }
-    }
-
-    private function isGuidance()
-    {
-        return NonTeachingStaff::where('user_id', auth()->id())->first()?->position === 'Guidance';
     }
 
     private function isGuard()
@@ -149,13 +146,14 @@ class DashboardController extends Controller
         return Inertia::render('parent/dashboard', $parentProps);
     }
 
-    // Guidance gets the same staff dashboard as everyone else, with a card
-    // for the referrals they review (their Referrals page lists them all).
+    // Guidance / IT Staff get the same staff dashboard as everyone else, with
+    // a card for the referrals sent to them (their Referrals page lists them).
     public function guidanceDashboard()
     {
         return Inertia::render('staff/dashboard', array_merge(self::getStaffStatictics(), [
             'is_guidance' => true,
-            'referral' => Referral::count(),
+            // The referrals sent to this office (Guidance / IT Staff).
+            'referral' => Referral::sentToOffice(Referral::officeOf(auth()->user()) ?? 'Guidance')->whereNull('revoked_at')->count(),
             'my_requests' => self::myRequests(),
         ] + self::violationLists()));
     }

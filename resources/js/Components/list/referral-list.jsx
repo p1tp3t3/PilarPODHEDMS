@@ -19,7 +19,9 @@ const SEND_TO = [
     { key: "send-it-staff", label: "IT Staff", icon: MonitorCog },
 ]
 
-const SendToMenu = ({ encryptedId }) => {
+// Sending a pending referral on approves it too (the server does both), so
+// `onSent` lets the page refresh its list afterwards.
+const SendToMenu = ({ encryptedId, onSent }) => {
     const [anchor, setAnchor] = useState(null)
 
     return (
@@ -46,6 +48,7 @@ const SendToMenu = ({ encryptedId }) => {
                         onClick={() => {
                             setAnchor(null)
                             window.open(`/referral/verify/${encryptedId}/${key}`, "_blank")
+                            onSent?.()
                         }}
                     >
                         <ListItemIcon><Icon size={16} /></ListItemIcon>
@@ -58,7 +61,7 @@ const SendToMenu = ({ encryptedId }) => {
 }
 
 // `viewOnly`: only the View button (e.g. the tables on a profile).
-const ReferralList = ({ style, list = null, type, events, viewReferral, viewOnly = false }) => {
+const ReferralList = ({ style, list = null, type, events, viewReferral, viewOnly = false, onSent }) => {
     const { usr } = useContext(AuthContext)
 
     const urlStatus = useMemo(() => {
@@ -245,7 +248,7 @@ const ReferralList = ({ style, list = null, type, events, viewReferral, viewOnly
                                     Approve
                                 </ActionBtn>
 
-                                <SendToMenu encryptedId={row.raw?.encrypted_id} />
+                                <SendToMenu encryptedId={row.raw?.encrypted_id} onSent={onSent} />
 
                                 <ActionBtn
                                     className="bg-red-500 hover:bg-red-600"
@@ -290,7 +293,7 @@ const ReferralList = ({ style, list = null, type, events, viewReferral, viewOnly
         })
 
         return cols
-    }, [type, isApprovedView, urlStatus, usr?.role, events, viewReferral, viewOnly])
+    }, [type, isApprovedView, urlStatus, usr?.role, events, viewReferral, viewOnly, onSent])
 
     return (
         <div className="w-full">

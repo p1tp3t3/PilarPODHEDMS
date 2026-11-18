@@ -48,6 +48,8 @@
 
         .footer { position: fixed; bottom: -30px; left: 0; right: 0; text-align: center; font-family: "DejaVu Sans", Arial, sans-serif; font-size: 8.5px; color: #777; border-top: 1px solid #ddd; padding-top: 4px; }
     </style>
+    {{-- Formal body below the header (letterhead and title are left as they are). --}}
+    @include('pdf.partials.formal-body')
 </head>
 <body>
     @include('pdf.partials.status-watermark', ['status' => $status ?? null])
@@ -59,6 +61,7 @@
     <div class="title">Complaint Form</div>
     <div class="subtitle">Office of Student Affairs and Discipline</div>
 
+    <div class="doc-body">
     <table class="fields">
         <tr><td class="label">Date:</td><td class="value" style="width: 40%;">{{ $date_filed }}</td><td></td></tr>
     </table>
@@ -108,6 +111,8 @@
         <tr><td></td><td><div class="caption">Prefect of Discipline (Name and Designation)</div></td></tr>
     </table>
 
+    </div>{{-- /.doc-body (page 1) --}}
+
     {{-- ===================== PAGE 2: INCIDENT SUMMARY ===================== --}}
     {{-- Only once the complaint is resolved (not pending, ongoing, rejected or revoked). --}}
     @if ($show_summary ?? false)
@@ -116,6 +121,8 @@
 
     <div class="title">Incident Summary</div>
     <div class="subtitle">Findings of the Office of Student Affairs and Discipline</div>
+
+    <div class="doc-body">
 
     <table class="grid">
         <tr>
@@ -164,6 +171,7 @@
             <td><div class="caption">Noted by</div></td>
         </tr>
     </table>
+    </div>{{-- /.doc-body (page 2) --}}
     @endif
 </body>
 </html>

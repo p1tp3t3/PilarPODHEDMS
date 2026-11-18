@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Document</title>
+    @include('pdf.partials.formal-body')
 </head>
 <body style="text-align: center;">
-    <section style="font-family: 'Times New Roman', Times, serif;">
+    <section class="doc-body">
         <div style="margin-bottom: 2rem;">
             <strong>Evidence/s of Complaint File Number</strong> {{ $case_number }}
         </div>

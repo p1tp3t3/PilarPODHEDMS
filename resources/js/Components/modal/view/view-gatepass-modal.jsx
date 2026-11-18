@@ -1,4 +1,4 @@
-import UpModal from "../up-modal"
+import UpModal, { afterModalClose } from "../up-modal"
 import { GatePassService } from "@/others/services/gatepass-service"
 import { useState, useEffect } from "react"
 import { change, disablePrevDate, readableDate, readableTime, toTitleCase } from "@/others/function"
@@ -37,13 +37,16 @@ const ViewGatePassModal = (props) => {
           [validationErr, setValidationErr] = useState({})
 
     useEffect(() => {
-         if(props.close) {
+        // The previous record is cleared when it opens (skeleton until the new
+        // one loads), not while it closes; approve mode is switched off once
+        // the close animation has finished, so nothing jumps mid-animation.
+        if(props.close) {
+            setData(null)
             getGatePassInfo()
             setReload(true)
         }else {
-            setData(null)
-            setReload(false)
-            props.setApprove(false)
+            const t = afterModalClose(() => props.setApprove(false))
+            return () => clearTimeout(t)
         }
     }, [props.close])
 

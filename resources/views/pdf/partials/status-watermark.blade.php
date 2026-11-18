@@ -6,16 +6,17 @@
 --}}
 @php
     $wmStatus = strtolower(trim((string) ($status ?? '')));
-    $wmColor = ['pending' => '#b7791f', 'rejected' => '#c53030', 'revoked' => '#4a5568'][$wmStatus] ?? null;
+    // A plain grey stamp for every non-final status (formal, not coloured).
+    $wmColor = in_array($wmStatus, ['pending', 'rejected', 'revoked'], true) ? '#555555' : null;
 @endphp
 @if ($wmColor)
 <style>
     .status-watermark { position: fixed; top: 300px; left: 0; right: 0; text-align: center; }
     .status-watermark span {
         display: inline-block; padding: 10px 34px;
-        border: 7px double {{ $wmColor }}; border-radius: 14px; color: {{ $wmColor }};
-        font-family: "DejaVu Sans", Arial, sans-serif; font-size: 76px; font-weight: bold; letter-spacing: 8px;
-        opacity: 0.16; transform: rotate(-20deg);
+        border: 4px double {{ $wmColor }}; color: {{ $wmColor }};
+        font-family: "DejaVu Serif", "Times New Roman", serif; font-size: 72px; font-weight: bold; letter-spacing: 8px;
+        opacity: 0.13; transform: rotate(-20deg);
     }
 </style>
 <div class="status-watermark"><span>{{ strtoupper($wmStatus) }}</span></div>

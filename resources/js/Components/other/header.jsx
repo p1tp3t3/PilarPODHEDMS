@@ -97,6 +97,16 @@ const AuthHeader = (props) => {
       'MessageSent',
       // Only the receiver gets this event: a new message for this user.
       (e) => {
+        // From the person whose conversation is open on the chat page (and
+        // the tab is in view): no sound — you're already talking. That
+        // conversation marks it read, so the badge is re-checked after.
+        const openWithSender = window.__openChatUserId != null
+          && e.message?.sender_id === window.__openChatUserId
+          && document.visibilityState === 'visible';
+        if (openWithSender) {
+          setTimeout(() => ChatService.getUnreadCount((r) => setChatUnread(r.unread_count), () => {}), 1500);
+          return;
+        }
         setChatUnread(e.unread_count);
         playMessageSound();
       }

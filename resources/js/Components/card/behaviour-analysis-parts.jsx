@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Accordion, AccordionDetails, AccordionSummary, Box, Button, Chip, Paper, Skeleton, Stack, Typography } from "@mui/material"
 import { ChevronDown, Lightbulb, ListChecks, RefreshCw, Clock, FolderOpen } from "lucide-react"
-import { readableDate, readableTime } from "@/others/function"
+import { readableDate, readableTime, ordinal, toTitleCase } from "@/others/function"
 
 // The Behavioural Analysis page's two cards under the verdict: the model's
 // contributing factors and the recommendations (MUI).
@@ -228,8 +228,8 @@ const ClampText = ({ text, lines = 3 }) => {
 }
 
 // Every time the student was found to have committed this violation, newest
-// first: a dot on a line, the date beside it, the case number and the
-// incident summary. `dateOf(record)`: when it happened.
+// first: a dot on a line, the date beside it, the case number, which offense
+// it was, the incident summary and the penalty. `dateOf(record)`: when it happened.
 export const ViolationTimeline = ({ records = [], dateOf }) => (
     <Paper variant="outlined" sx={CARD}>
         <CardHeader
@@ -268,11 +268,19 @@ export const ViolationTimeline = ({ records = [], dateOf }) => (
                                 </Box>
                                 <Stack direction="row" sx={{ alignItems: "center", gap: 1, flexWrap: "wrap" }}>
                                     <Chip size="small" variant="outlined" label={`Case No. ${v.complaint?.case_number ?? "—"}`} sx={{ height: 22, fontSize: "0.72rem", fontWeight: 600 }} />
+                                    {v.occurrence && <Chip size="small" label={`${ordinal(v.occurrence)} offense`} sx={{ height: 22, fontSize: "0.72rem", fontWeight: 600 }} />}
                                     {i === 0 && <Typography sx={{ fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--tone-red-fg)" }}>Latest</Typography>}
                                 </Stack>
                                 {summary
                                     ? <ClampText text={summary} />
                                     : <Typography sx={{ mt: 0.75, fontSize: "0.875rem", color: "text.secondary", fontStyle: "italic" }}>No incident summary.</Typography>}
+                                {/* The penalty for this offense (the handbook's tier for its number). */}
+                                <Typography sx={{ mt: 0.75, fontSize: "0.82rem", color: "text.secondary" }}>
+                                    <Box component="span" sx={{ fontWeight: 600 }}>Penalty: </Box>
+                                    {v.penalty
+                                        ? <Box component="span" sx={{ color: "text.primary" }}>{v.penalty.ref_number != null ? `${v.penalty.ref_number} — ` : ""}{toTitleCase(v.penalty.description ?? "")}</Box>
+                                        : <Box component="span" sx={{ fontStyle: "italic" }}>No penalty set</Box>}
+                                </Typography>
                             </Box>
                         </Box>
                     )

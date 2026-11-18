@@ -197,7 +197,7 @@ class ViolationController extends Controller
             // Python prediction API directly per selection instead of
             // round-tripping through a Laravel endpoint each time.
             'model_inputs' => self::getModelInputsForStudent($id),
-            'violation_timelines' => self::getViolationTimelinesForStudent($id),
+            'violation_timelines' => self::getViolationTimelinesForStudent($id, $occurrenceByRecord),
             // Breadcrumb: "?from=<violation>" when opened from a violation's
             // student list (the middleware has already decrypted it).
             'from_violation' => self::breadcrumbViolation(request()->query('from')),
@@ -251,14 +251,22 @@ class ViolationController extends Controller
                 : ['lead' => self::titleCase($r), 'rest' => ''];
         })->all();
 
+        // Which offense each record was and its penalty.
+        $occurrence = collect(self::getStudentViolationOccurence($id))
+            ->flatMap(fn ($v) => collect($v['occurrence_list'])
+                ->mapWithKeys(fn ($o) => [$v['offense']['violation_id'].':'.$o['complaint_id'] => $o]));
         $timeline = ComplaintSubjectViolation::with(['complaint.complaintSubject'])
             ->where('student_id', $id)
             ->where('violation_id', $violation->id)
             ->get()
-            ->map(function ($r) {
+            ->map(function ($r) use ($occurrence) {
                 $c = $r->complaint;
+                $o = $occurrence->get($r->violation_id.':'.$r->complaint_id);
+                $pen = $o['penalty'] ?? null;
 
                 return [
+                    'occurrence' => $o['occurrence'] ?? null,
+                    'penalty' => $pen ? trim(($pen['ref_number'] !== null ? $pen['ref_number'].' — ' : '').ucwords(strtolower((string) ($pen['description'] ?? '')))) : null,
                     'date' => $c ? ($c->offense_issued_at ?? $c->resolved_at ?? $c->confirmed_at ?? $c->created_at) : null,
                     'case_number' => $c?->case_number,
                     'summary' => $c?->incident_summary ?: $c?->complaintSubject->first()?->incident_summary,
@@ -874,8 +882,13 @@ class ViolationController extends Controller
      * complaints, since a violation can appear in the student's selectable
      * list from a still-pending/ongoing complaint too.
      */
-    private static function getViolationTimelinesForStudent($studentId)
+    private static function getViolationTimelinesForStudent($studentId, $occurrenceByRecord = null)
     {
+        // Which offense each record was and its penalty ("violation:complaint" keyed).
+        $occurrenceByRecord ??= collect(self::getStudentViolationOccurence($studentId))
+            ->flatMap(fn ($v) => collect($v['occurrence_list'])
+                ->mapWithKeys(fn ($o) => [$v['offense']['violation_id'].':'.$o['complaint_id'] => $o]));
+
         return ComplaintSubjectViolation::with(['violation', 'complaint.complaintSubject'])
             ->where('student_id', $studentId)
             ->orderByDesc(
@@ -884,6 +897,11 @@ class ViolationController extends Controller
                     ->limit(1)
             )
             ->get()
+            ->each(function ($sv) use ($occurrenceByRecord) {
+                $o = $occurrenceByRecord->get($sv->violation_id.':'.$sv->complaint_id);
+                $sv->occurrence = $o['occurrence'] ?? null;
+                $sv->penalty = $o['penalty'] ?? null;
+            })
             ->groupBy('violation_id')
             ->map(fn ($records) => ComplaintSubjectViolationResource::collection($records));
     }

@@ -9,12 +9,13 @@ const ViewParentRequestModal = (props) => {
           [reload, setReload] = useState(false)
 
     useEffect(() => {
+        // The previous record is cleared when it opens (skeleton until the new
+        // one loads), not when it closes: clearing it then made the content
+        // vanish mid-animation.
         if (props.close) {
+            setData(null)
             setReload(true)
             getParentReqInfo()
-        } else {
-            setReload(false)
-            setData(null)
         }
     }, [props.close])
 

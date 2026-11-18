@@ -162,7 +162,8 @@ export const sidebarPages = [
     },
     {
         type: "link", id: "guidance/referral", href: "/guidance/referral", icon: Share2, label: "Referrals",
-        roles: ["non_teaching_staff"], show: (usr) => usr.non_teaching_staff?.position === "Guidance",
+        // The offices referrals are sent on to: Guidance and IT Staff.
+        roles: ["non_teaching_staff"], show: (usr) => ["Guidance", "IT Staff"].includes(usr.non_teaching_staff?.position),
     },
 
     // ---- parent ----

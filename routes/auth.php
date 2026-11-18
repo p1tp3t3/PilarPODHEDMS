@@ -290,13 +290,16 @@ Route::middleware(['role:parent', 'activate', 'user-activity'])->group(function(
 |--------------------------------------------------------------------------
 | role:non_teaching_staff
 |--------------------------------------------------------------------------
-| "Guard" and "Guidance" are positions inside non_teaching_staff, not
-| separate roles — the position-specific routes below still check
-| ReferralController::isGuidance()/GatePassController's guard check
-| internally, this middleware only confirms the broader role.
+| "Guard", "Guidance" and "IT Staff" are positions inside
+| non_teaching_staff, not separate roles — the position-specific routes
+| below still check the position internally (Referral::officeOf() /
+| GatePassController's guard check); this middleware only confirms the
+| broader role.
 */
 Route::middleware(['role:non_teaching_staff', 'activate', 'user-activity'])->group(function() {
+     // Guidance / IT Staff: the referrals sent to them, and their note on one.
      Route::get('/guidance/referral', [ReferralController::class, 'guidanceIndex']);
+     Route::post('/referral/{id}/office-note', [ReferralController::class, 'saveOfficeNote']);
 });
 
 /*
@@ -324,6 +327,10 @@ Route::middleware(['auth', 'activate', 'user-activity'])->group(function() {
           Route::post('/chat/message/{id}/edit', [ChatController::class, 'editMessage']);
           Route::get('/chat/message/{id}/history', [ChatController::class, 'getEditHistory']);
           Route::get('/chat/unread-count', [ChatController::class, 'unreadCount']);
+          Route::get('/chat/contacts', [ChatController::class, 'contacts']);
+          // A conversation's own address: /chat/{encrypted user id}. Last, so
+          // /chat/unread-count above isn't taken for an id.
+          Route::get('/chat/{id}', [ChatController::class, 'index'])->where('id', '^(?!unread-count$|contacts$|send$|thread$|message$).+');
      });
 
      // Prefect weekly availability: everyone reads it, only a prefect saves (their own).

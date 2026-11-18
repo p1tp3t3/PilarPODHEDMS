@@ -1,6 +1,11 @@
 import { APIRequest } from "../classes/api-req";
 
 export const ChatService = {
+    // The conversation list, as the chat page shows it (reloaded live).
+    getContacts(setter, error) {
+        const api = new APIRequest(`/chat/contacts`, "get", {}, setter, () => {}, error);
+        api.fetchData();
+    },
     getThread(userId, setter, error) {
         const api = new APIRequest(`/chat/thread/${userId}`, "get", {}, setter, () => {}, error);
         api.fetchData();

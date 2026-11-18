@@ -73,6 +73,8 @@ const MobileBottomNav = ({ chatUnread = 0 }) => {
             elevation={8}
             square
             className="md:!hidden"
+            // Pages that fill the screen (chat) measure it to stay above it.
+            data-bottom-nav
             sx={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 80, pb: "env(safe-area-inset-bottom)" }}
         >
             <BottomNavigation showLabels value={value} sx={{ height: 64, overflow: "visible" }}>

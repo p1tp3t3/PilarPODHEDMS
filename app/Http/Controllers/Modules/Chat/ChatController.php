@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Modules\Chat;
 
+use App\Events\ChatListChanged;
 use App\Events\MessageEdited;
 use App\Events\MessageSent;
 use App\Events\MessagesRead;
@@ -124,10 +125,29 @@ class ChatController extends Controller
             ->pluck('student_id');
     }
 
-    public function index()
+    /**
+     * The chat page. `/chat/{id}` (an encrypted user id) opens that
+     * conversation directly — a link to a thread, kept in the address bar as
+     * the user switches conversations. Only someone this user may chat with.
+     */
+    public function index($id = null)
     {
+        $contacts = $this->getContacts();
+        $open = null;
+        if ($id !== null) {
+            $userId = decrypt_id($id);
+            $me = auth()->user();
+            $contact = $userId ? User::with(['profile', 'program', 'enrollments', 'faculty.program', 'headships.program', 'nonTeachingStaff'])->find($userId) : null;
+            if (! $contact || ! $this->canChat($me, $contact)) {
+                return redirect('/chat');
+            }
+            $open = $contacts->firstWhere('id', $contact->id) ?? $this->formatContact($contact, $me);
+        }
+
         return Inertia::render('shared/chat/index', [
-            'contacts' => $this->getContacts(),
+            'contacts' => $contacts,
+            // The conversation to open (from /chat/{id}), or null.
+            'open' => $open,
         ]);
     }
 
@@ -165,37 +185,48 @@ class ChatController extends Controller
             ->whereIn('id', $contactIds)->get()
             ->filter(fn (User $contact) => $this->canChat($me, $contact));
 
-        return $contacts->map(function ($contact) use ($me) {
-            $lastMessage = Message::where(function ($q) use ($me, $contact) {
-                $q->where('sender_id', $me->id)->where('receiver_id', $contact->id);
-            })
-                ->orWhere(function ($q) use ($me, $contact) {
-                    $q->where('sender_id', $contact->id)->where('receiver_id', $me->id);
-                })
-                ->latest('created_at')
-                ->first();
+        return $contacts->map(fn ($contact) => $this->formatContact($contact, $me))
+            ->sortByDesc('last_message_at')->values();
+    }
 
-            return [
-                'id' => $contact->id,
-                'encrypted_id' => encrypt_id($contact->id),
-                'username' => $contact->username,
-                'role' => $contact->role,
-                'profile' => ProfileResource::make($contact->profile),
-                'program' => ProgramResource::make($contact->program),
-                'enrollments' => EnrollmentResource::collection($contact->enrollments),
-                'teaching' => $contact->teaching,
-                'non_teaching_staff' => NonTeachingStaffResource::make($contact->nonTeachingStaff),
-                'last_seen' => $contact->last_seen,
-                'last_message' => $lastMessage
-                    ? ($lastMessage->unsent_at ? 'Message unsent' : $lastMessage->body)
-                    : null,
-                'last_message_at' => $lastMessage?->created_at,
-                'unread_count' => Message::where('sender_id', $contact->id)
-                    ->where('receiver_id', $me->id)
-                    ->whereNull('read_at')
-                    ->count(),
-            ];
-        })->sortByDesc('last_message_at')->values();
+    /** The conversation list (the chat page reloads it live, on any chat event). */
+    public function contacts()
+    {
+        return response()->json(['contacts' => $this->getContacts()]);
+    }
+
+    /** One contact as the chat page lists it (with the last message and unread count). */
+    private function formatContact(User $contact, User $me): array
+    {
+        $lastMessage = Message::where(function ($q) use ($me, $contact) {
+            $q->where('sender_id', $me->id)->where('receiver_id', $contact->id);
+        })
+            ->orWhere(function ($q) use ($me, $contact) {
+                $q->where('sender_id', $contact->id)->where('receiver_id', $me->id);
+            })
+            ->latest('created_at')
+            ->first();
+
+        return [
+            'id' => $contact->id,
+            'encrypted_id' => encrypt_id($contact->id),
+            'username' => $contact->username,
+            'role' => $contact->role,
+            'profile' => ProfileResource::make($contact->profile),
+            'program' => ProgramResource::make($contact->program),
+            'enrollments' => EnrollmentResource::collection($contact->enrollments),
+            'teaching' => $contact->teaching,
+            'non_teaching_staff' => NonTeachingStaffResource::make($contact->nonTeachingStaff),
+            'last_seen' => $contact->last_seen,
+            'last_message' => $lastMessage
+                ? ($lastMessage->unsent_at ? 'Message unsent' : $lastMessage->body)
+                : null,
+            'last_message_at' => $lastMessage?->created_at,
+            'unread_count' => Message::where('sender_id', $contact->id)
+                ->where('receiver_id', $me->id)
+                ->whereNull('read_at')
+                ->count(),
+        ];
     }
 
     public function getThread($userId)
@@ -217,6 +248,8 @@ class ChatController extends Controller
 
         if ($justRead > 0) {
             broadcast(new MessagesRead($contact->id, $me->id, $readAt->toJSON()));
+            // The reader's other tabs / devices: clear the unread badge there too.
+            broadcast(new ChatListChanged($me->id));
         }
 
         $messages = Message::with('replyTo.sender.profile')
@@ -270,9 +303,13 @@ class ChatController extends Controller
         $message->update(['unsent_at' => now()]);
 
         broadcast(new MessageUnsent($message->receiver_id, $message->id));
+        broadcast(new ChatListChanged($message->sender_id)); // the sender's other tabs
 
         return response()->json(['message' => 'Message unsent.']);
     }
+
+    /** How long after sending a message can still be edited (also in the chat page). */
+    public const EDIT_WINDOW_MINUTES = 15;
 
     public function editMessage(Request $request, $id)
     {
@@ -290,6 +327,10 @@ class ChatController extends Controller
         }
         if ($message->unsent_at !== null) {
             return response()->json(['message' => 'This message was unsent.'], 400);
+        }
+        // A message can only be edited within 15 minutes of sending it.
+        if (\Carbon\Carbon::parse($message->created_at)->lt(now()->subMinutes(self::EDIT_WINDOW_MINUTES))) {
+            return response()->json(['message' => 'A message can only be edited within '.self::EDIT_WINDOW_MINUTES.' minutes of sending it.'], 422);
         }
 
         $newBody = trim($request->body);
@@ -313,6 +354,7 @@ class ChatController extends Controller
         ]);
 
         broadcast(new MessageEdited($message->receiver_id, $message->id, $newBody, $editedAt->toJSON()));
+        broadcast(new ChatListChanged($message->sender_id)); // the sender's other tabs
 
         return response()->json(['message' => $message]);
     }
@@ -381,6 +423,9 @@ class ChatController extends Controller
         $message->created_at = now();
 
         broadcast(new MessageSent($message));
+        // The sender's own list (other tabs / devices): this conversation
+        // moves to the top with the new last message.
+        broadcast(new ChatListChanged($message->sender_id));
 
         return response()->json(['message' => $message]);
     }

@@ -48,6 +48,10 @@
 @endsection
 
 @section('content')
+    @php
+        // 1 -> "1st", 2 -> "2nd", 11 -> "11th" (the offense number).
+        $ordinal = fn ($n) => $n.((in_array($n % 100, [11, 12, 13])) ? 'th' : (['th', 'st', 'nd', 'rd'][$n % 10] ?? 'th'));
+    @endphp
     <div class="section-title">I. Student Information</div>
     <table class="info">
         <tr>
@@ -102,8 +106,10 @@
         <thead>
             <tr>
                 <th style="width: 5%">No.</th>
-                <th style="width: 27%">Date</th>
-                <th style="width: 12%">Case No.</th>
+                <th style="width: 19%">Date</th>
+                <th style="width: 10%">Case No.</th>
+                <th style="width: 9%">Offense</th>
+                <th style="width: 22%">Penalty</th>
                 <th>Incident Summary</th>
             </tr>
         </thead>
@@ -111,12 +117,14 @@
             @forelse ($timeline as $i => $t)
                 <tr>
                     <td>{{ $i + 1 }}</td>
-                    <td>{{ $t['date'] ? \Carbon\Carbon::parse($t['date'])->format('F j, Y, g:i A') : 'N/A' }}</td>
+                    <td>{{ $t['date'] ? \Carbon\Carbon::parse($t['date'])->format('M j, Y, g:i A') : 'N/A' }}</td>
                     <td>{{ $t['case_number'] ?? 'N/A' }}</td>
+                    <td>{{ $t['occurrence'] ? $ordinal($t['occurrence']) : '—' }}</td>
+                    <td>{{ $t['penalty'] ?: 'No penalty set' }}</td>
                     <td style="text-align: justify;">{{ $t['summary'] ?: '—' }}</td>
                 </tr>
             @empty
-                <tr><td colspan="4" class="muted" style="text-align:center">No violation history found.</td></tr>
+                <tr><td colspan="6" class="muted" style="text-align:center">No violation history found.</td></tr>
             @endforelse
         </tbody>
     </table>

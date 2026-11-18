@@ -49,7 +49,14 @@ const PrefectReferral = (props) => {
 
     // The table loads from /api/prefect/referrals once the page opens (and
     // again after a tab change or a reload, e.g. from the Report Referral modal).
-    const { data: lists } = useListData()
+    const { data: lists, reload: reloadList } = useListData()
+    // After "Send to": the referral was approved as it was sent, so it leaves
+    // this list. Refresh shortly after, and again on coming back from the
+    // download tab.
+    const refreshAfterSend = () => {
+        setTimeout(reloadList, 2000)
+        window.addEventListener("focus", reloadList, { once: true })
+    }
     useEffect(() => {
         if (lists) setReferralList(lists.referral?.data ?? [])
     }, [lists])
@@ -286,6 +293,7 @@ const PrefectReferral = (props) => {
                                     viewReferral={setViewReferralId}
                                     type={props.user.role}
                                     events={setRequestActionEvent}
+                                    onSent={refreshAfterSend}
                                 />
                             </div>
                         </div>
