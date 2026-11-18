@@ -213,7 +213,7 @@ const GatePassRequestList = (props) => {
                             <>
                                 <ActionBtn
                                     className="bg-green-500 hover:bg-green-600"
-                                    onClick={() => props.events(params.row.id, "confirm")}
+                                    onClick={() => props.events(params.row.encrypted_id, "confirm")}
                                 >
                                     Accept
                                 </ActionBtn>

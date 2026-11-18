@@ -515,7 +515,7 @@ const Chat = ({ contacts: initialContacts, open: openProp = null }) => {
                                                     <Stack direction="row" sx={{ alignItems: "baseline", justifyContent: "space-between", gap: 1 }}>
                                                         <Typography noWrap sx={{ fontSize: "0.87rem", fontWeight: unread ? 700 : 600 }}>{fullName(c)}</Typography>
                                                         {c.last_message_at && (
-                                                            <Typography sx={{ flexShrink: 0, fontSize: "0.68rem", fontWeight: unread ? 600 : 400, color: unread ? "primary.main" : "text.secondary" }}>
+                                                            <Typography sx={{ flexShrink: 0, fontSize: "0.68rem", fontWeight: unread ? 600 : 400, color: unread ? "var(--tone-blue-fg)" : "text.secondary" }}>
                                                                 {contactTimestamp(c.last_message_at)}
                                                             </Typography>
                                                         )}
@@ -546,7 +546,7 @@ const Chat = ({ contacts: initialContacts, open: openProp = null }) => {
                                 <Box sx={{ minWidth: 0 }}>
                                     <Typography noWrap sx={{ fontSize: "0.95rem", fontWeight: 600 }}>{fullName(active)}</Typography>
                                     <Typography noWrap sx={{ fontSize: "0.72rem", color: "text.secondary" }}>
-                                        <Box component="span" sx={isOnline(active) ? { color: "success.main", fontWeight: 500 } : undefined}>{statusLabel(active)}</Box>
+                                        <Box component="span" sx={isOnline(active) ? { color: "var(--tone-green-fg)", fontWeight: 600 } : undefined}>{statusLabel(active)}</Box>
                                         {' · '}{showUserType(active)}
                                     </Typography>
                                 </Box>

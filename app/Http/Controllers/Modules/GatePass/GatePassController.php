@@ -240,6 +240,8 @@ class GatePassController extends Controller
 
     public function approveGatePassRequest($id, ApproveGatePassRequest $request)
     {
+        // A plain id or an encrypted one (the view modal works with the encrypted id).
+        $id = ctype_digit((string) $id) ? (int) $id : (decrypt_id($id) ?? abort(404));
         $gatepass = GatePass::with(['user.profile', 'user.program', 'user.enrollments'])->where('id', $id);
         $expDate = request('expiration_date');
 
@@ -310,6 +312,8 @@ class GatePassController extends Controller
     // ComplaintController::cancelComplaint()'s reject-with-reason pattern.
     public function disapproveGatePassRequest(RejectGatePassRequest $request, $id)
     {
+        // A plain id or an encrypted one (the view modal works with the encrypted id).
+        $id = ctype_digit((string) $id) ? (int) $id : (decrypt_id($id) ?? abort(404));
         DB::beginTransaction();
         try {
             $gatepass = GatePass::with('user.profile')->where('id', $id);
