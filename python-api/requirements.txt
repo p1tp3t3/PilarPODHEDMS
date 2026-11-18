@@ -1,9 +1,0 @@
-Flask
-flask-cors
-pandas
-scikit-learn
-nltk
-huggingface_hub
-joblib
-gunicorn==23.0.0
-gensim
