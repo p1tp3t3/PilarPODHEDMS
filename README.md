@@ -100,7 +100,6 @@ Violation Management is a group of pages:
 | **Violations** | The violation list — each with its keywords (picked from existing keywords or newly added) and its penalty for each offense level (1st to 6th offense). |
 | **Penalties** | The penalty list with its handbook reference numbers (e.g. 1.1 Oral Warning). |
 | **Student Violations** | Students with resolved violations, their total violations and how many violations they have **repeated** (prefect only). |
-| **Access Requests / Edit Access** | Requests to change the violation and penalty lists. |
 
 ![Violation Management: the violation list with its Active and Archived tabs](docs/screenshots/violation-management.png)
 

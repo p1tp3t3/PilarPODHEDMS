@@ -2,7 +2,7 @@ import { ViolationService } from "@/others/services/violation-service";
 import { readableDate, readableTime, showWarningModal, toTitleCase } from "@/others/function";
 import ActionBtn from "@/Components/button/action-btn";
 import { DataGrid } from "@/Components/other/data-grid";
-import { Alert, Box, Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import Btn from "@/Components/button/normal-btn";
 import { Plus } from "lucide-react";
 
@@ -37,11 +37,6 @@ const ManagePenalty = ({ list, events, reload, setter, canAdd = true, canDelete 
                             <Stack direction="row" sx={{ alignItems: "center", gap: 0.75 }}><Plus size={16} /> Add Penalty</Stack>
                         </Btn>
                     </Stack>
-                )}
-                {(!canAdd || !canDelete) && (
-                    <Alert severity="warning" sx={{ borderRadius: 2 }}>
-                        You need prefect-approved access to add or delete penalties. Request it from the Edit Access tab.
-                    </Alert>
                 )}
 
                         <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
