@@ -6,7 +6,6 @@ import { showOutputModal, toTitleCase } from "@/others/function";
 import background from '@/images/bg-pilar2.jpg'
 import { FamilyService } from "@/others/services/family-service";
 import { ReloadProvider, useReload } from "@/context-provider/reload-provider";
-import { PARENT_TERMS_VERSION } from "@/Components/modal/parent-terms-modal";
 import { Validator } from "@/others/classes/validator";
 
 const ParentRegistration = (props) => (
@@ -70,7 +69,8 @@ const ParentRegistrationInner = (props) => {
                 },
                 reason: data.reason,
                 agree_terms: data.agree_terms,
-                terms_version: PARENT_TERMS_VERSION,
+                // The version shown (and agreed to): System Settings' latest.
+                terms_version: props.terms?.version,
             },
             () => {
                 showOutputModal("A Confirmation Link Has Been Sent To Your Email. Please Click It To Submit Your Request For Admin Approval.", "s", () => {
@@ -100,6 +100,7 @@ const ParentRegistrationInner = (props) => {
                     submit={handleSubmit}
                     data={data}
                     programs={props.programs}
+                    terms={props.terms}
                     setData={setData}
                     onchange={handleChange}
                     validationErr={validationErr}

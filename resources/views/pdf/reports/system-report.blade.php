@@ -13,18 +13,18 @@
 
 @section('styles')
 <style>
-    body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #222; }
-    h4 { color: #003366; margin: 14px 0 6px; font-size: 12.5px; }
+    body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #000; }
+    h4 { color: #000; margin: 14px 0 6px; font-size: 12.5px; }
     table.data { width: 100%; border-collapse: collapse; }
     table.data th { background: #003366; color: #fff; padding: 5px 6px; text-align: left; font-size: 10.5px; }
     table.data td { border: 1px solid #ddd; padding: 4px 6px; font-size: 10.5px; }
     table.data tr:nth-child(even) td { background: #f8f9fb; }
     table.data tr { page-break-inside: avoid; }
-    .label { font-weight: bold; color: #333; background: #f3f7fb !important; }
+    .label { font-weight: bold; color: #000; background: #f3f7fb !important; }
     .figure { margin-top: 10px; page-break-inside: avoid; }
-    .figure-title { font-weight: bold; color: #003366; font-size: 11.5px; margin-bottom: 3px; }
-    .figure-sub { font-weight: normal; color: #555; font-size: 10.5px; }
-    .figure-empty { color: #777; font-style: italic; padding: 3px 0; }
+    .figure-title { font-weight: bold; color: #000; font-size: 11.5px; margin-bottom: 3px; }
+    .figure-sub { font-weight: normal; color: #000; font-size: 10.5px; }
+    .figure-empty { color: #000; font-style: italic; padding: 3px 0; }
     table.bars td { border: none !important; border-bottom: 1px solid #eee !important; background: none !important; }
     .bar-track { width: 100%; height: 9px; background: #eef2f7; }
     .bar { height: 9px; }
@@ -40,7 +40,7 @@
                 <tr>
                     @foreach($group as $c)
                         <td class="label" style="width:20%;">{{ $c['label'] }}</td>
-                        <td style="width:13%; font-weight:bold;">{{ $c['value'] }}@if(!empty($c['hint'])) <span style="font-weight:normal; color:#555;">({{ $c['hint'] }})</span>@endif</td>
+                        <td style="width:13%; font-weight:bold;">{{ $c['value'] }}@if(!empty($c['hint'])) <span style="font-weight:normal; color:#000;">({{ $c['hint'] }})</span>@endif</td>
                     @endforeach
                     @for($k = count($group); $k < 3; $k++)<td></td><td></td>@endfor
                 </tr>
@@ -67,7 +67,7 @@
                                 <td style="width:26%;">{{ $r['label'] }}</td>
                                 <td style="width:60%;"><div class="bar-track"><div class="bar" style="width: {{ round($r['value'] / $max * 100) }}%; background: {{ $r['color'] ?? '#1e3a8a' }};"></div></div></td>
                                 <td style="width:7%; text-align:right; font-weight:bold;">{{ $r['value'] }}</td>
-                                <td style="width:7%; text-align:right; color:#555;">{{ round($r['value'] / $sum * 100) }}%</td>
+                                <td style="width:7%; text-align:right; color:#000;">{{ round($r['value'] / $sum * 100) }}%</td>
                             </tr>
                         @endforeach
                         </tbody>

@@ -16,7 +16,7 @@
 <style>
     :root{
       --brand:#0b5ed7;
-      --muted:#666;
+      --muted:#000;
       --paper:#fff;
       --bg:#f4f6f8;
       --card-radius:8px;
@@ -24,7 +24,7 @@
     html,body{
       height:100%;
       margin:0;
-      color:#222;
+      color:#000;
     }
 
     .page {
@@ -72,10 +72,10 @@
     .report-title-old h2 {
       margin:0;
       font-size:20px;
-      color:#123a7a;
+      color:#000;
     }
     .report-title-old .subtitle {
-      color:var(--muted);
+      color:#000;
       font-size:13px;
       margin-top:6px;
     }
@@ -95,8 +95,8 @@
       min-width:160px;
       font-size:13px;
     }
-    .meta .item span.label { color:var(--muted); display:block; font-size:12px; }
-    .meta .item span.value { display:block; font-weight:600; margin-top:4px; color:#222; }
+    .meta .item span.label { color:#000; display:block; font-size:12px; }
+    .meta .item span.value { display:block; font-weight:600; margin-top:4px; color:#000; }
 
      header {
         text-align: center;
@@ -106,13 +106,13 @@
     header h1 {
             margin: 5px 0;
             font-size: 24px;
-            color: #333;
+            color: #000;
         }
 
         header p {
             margin: 0;
             font-size: 14px;
-            color: #666;
+            color: #000;
         }
 
     /* Table styles */
@@ -137,7 +137,7 @@
     }
     tbody tr:nth-child(even){ background:#fbfbfc; }
 
-    .small { font-size:12px; color:var(--muted); }
+    .small { font-size:12px; color:#000; }
 
     /* Footer / signature */
     .footer {
@@ -156,7 +156,7 @@
       width:220px;
       margin-bottom:6px;
     }
-    .sig p { margin:0; font-size:13px; color:var(--muted); }
+    .sig p { margin:0; font-size:13px; color:#000; }
 
     /* Buttons (not printed) */
     .controls { margin-bottom:16px; display:flex; gap:8px; }

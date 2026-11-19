@@ -16,7 +16,7 @@ class GatePassMail extends Mailable
     /**
      * Create a new message instance.
      */
-    private $requester, $date_requested, $date_time_expiration, $prefect_name, $status;
+    private $requester, $date_requested, $date_time_expiration, $prefect_name, $status, $gatepass_number;
 
     public function __construct($data)
     {
@@ -25,6 +25,7 @@ class GatePassMail extends Mailable
         $this->status = $data['status'];
         $this->date_time_expiration = $data['date_time_expiration'];
         $this->prefect_name = $data['prefect_name'];
+        $this->gatepass_number = $data['gatepass_number'] ?? null;
     }
 
     /**
@@ -49,7 +50,8 @@ class GatePassMail extends Mailable
                 'date_requested' => $this->date_requested,
                 'status' => $this->status,
                 'date_time_expiration' => $this->date_time_expiration,
-                'prefect_name' => $this->prefect_name
+                'prefect_name' => $this->prefect_name,
+                'reference' => $this->gatepass_number,
             ]
         );
     }

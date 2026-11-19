@@ -14,7 +14,7 @@
               </td>
             </tr>
             <tr>
-              <td style="padding: 20px; color: #333;">
+              <td style="padding: 20px; color: #000;">
                 <p>Dear {{ $complainant_name }},</p>
                 <p>We are writing to inform you that your complaint against {{ $subject_name }} submitted on <strong>{{ date }}</strong> has been <strong>reviewed and approved</strong> by our office.</p>
                 <p>Your concern is now being acted upon in accordance with institutional procedures. If further action or clarification is needed, our office will contact you directly.</p>
@@ -22,7 +22,7 @@
               </td>
             </tr>
             <tr>
-                <td style="padding: 20px; color: #333;">
+                <td style="padding: 20px; color: #000;">
                     <p style="margin-bottom:0; font-size:16px; line-height:1.6;">
                         Best regards,<br>
                         <strong>{{ $prefect_name }}</strong><br>
@@ -30,7 +30,7 @@
                 </td>
             </tr>
             <tr>
-              <td style="padding: 15px; background-color: #f8f9fa; text-align: center; font-size: 12px; color: #666;">
+              <td style="padding: 15px; background-color: #f8f9fa; text-align: center; font-size: 12px; color: #000;">
                 Pilar College of Zamboanga City – Prefect of Discipline
               </td>
             </tr>

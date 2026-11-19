@@ -174,6 +174,9 @@ class AppointmentController extends Controller
                 'user_id' => $request->user_id,
                 'date_time_appoint' => $dateTimeAppoint,
                 'reason' => $request->reason,
+                // Which violation(s) it addresses; linked to the appointment
+                // once the student accepts (action()).
+                'related_violations' => \App\Models\InterventionViolation::parseIds($request->input('related_violations')),
             ];
             notify_single_user(
                 self::getAppointmentNotifMessage($data)
@@ -277,6 +280,11 @@ class AppointmentController extends Controller
                             'description' => $parsed['reason'],
                         ]);
                         $data['id'] = $lastIndex;
+                        \App\Models\InterventionViolation::sync(
+                            \App\Models\InterventionViolation::APPOINTMENT,
+                            (int) $lastIndex,
+                            \App\Models\InterventionViolation::parseIds($parsed['related_violations'] ?? [])
+                        );
                         $notifMessage = self::notifMessage($data);
 
                         notify_single_user($notifMessage);
@@ -575,11 +583,14 @@ class AppointmentController extends Controller
         $end = Carbon::parse($request->end)->endOfDay();
 
         // Cancelled ones too: the calendar shows them as Cancelled.
-        $accepted = Appointment::withoutGlobalScope('not_cancelled')->with(['user.profile'])
+        $accepted = Appointment::withoutGlobalScope('not_cancelled')->with(['user.profile', 'user.program', 'user.enrollments.program'])
             ->whereBetween('date_time_appoint', [$start, $end])
             ->whereNull('archived_at')
-            ->get()
-            ->map(function ($appointment) {
+            ->get();
+        // The violation(s) each appointment addresses, in one query.
+        $related = \App\Models\InterventionViolation::linkedMany(\App\Models\InterventionViolation::APPOINTMENT, $accepted->pluck('id'));
+        $accepted = $accepted
+            ->map(function ($appointment) use ($related) {
                 $name = trim(($appointment->user->profile->first_name ?? '').' '.($appointment->user->profile->last_name ?? ''));
 
                 // Its real status (every row used to show as "accepted"):
@@ -609,10 +620,18 @@ class AppointmentController extends Controller
                         'attendance_status' => $appointment->attendance_status,
                         'user_id' => $appointment->user_id,
                         'description' => $appointment->description,
+                        'related_violations' => $related[$appointment->id] ?? [],
                         'user' => [
                             'id' => $appointment->user->id,
                             'role' => $appointment->user->role,
                             'profile' => $appointment->user->profile,
+                            // Program and year level, shown under the name
+                            // (e.g. in the Re-Schedule window).
+                            'program' => $appointment->user->program?->only(['code']),
+                            'enrollments' => $appointment->user->enrollments
+                                ->sortBy('created_at')
+                                ->map(fn ($e) => ['year_level' => $e->year_level, 'program' => $e->program?->only(['code'])])
+                                ->values(),
                         ],
                     ],
                 ];
@@ -655,6 +674,8 @@ class AppointmentController extends Controller
                         'notif_id' => $item->id,
                         'user_id' => $item->receiver_id,
                         'reason' => $content['reason'] ?? null,
+                        // Chosen when it was sent; linked once it's accepted.
+                        'related_violations' => \App\Models\InterventionViolation::named($content['related_violations'] ?? []),
                     ],
                 ];
             })
@@ -795,6 +816,7 @@ class AppointmentController extends Controller
                 'date_appoint' => $date,
                 'time_appoint' => $time,
                 'reason' => $reason,
+                'related_violations' => $data['related_violations'] ?? [],
                 'accept' => null,
             ]),
             'read_since' => null,

@@ -33,50 +33,67 @@ const CELL_ALIGN_SX = {
 // Instead the toolbar (columns / filter / search) and the column headers
 // are moved down together to sit just under the app's sticky header bar
 // ([data-app-sticky], AuthLayout), stopping before the table's last row.
+//
+// Without jitter:
+//  - the offset is set in the scroll handler itself, so the header moves in
+//    the same frame as the page (waiting for the next animation frame left
+//    it one frame behind on every scroll, which looked like shaking);
+//  - it is a CSS variable on the table (--dg-sticky-y), which the toolbar and
+//    headers read in CSS, so a re-render of the grid (sorting, hover, data
+//    loading) can't reset it and make the header jump back.
 const useStickyGridHeader = (rootRef, enabled) => {
     useEffect(() => {
         const root = rootRef.current
         if (!enabled || !root) return
+        let last = null
         let frame = null
         const update = () => {
-            frame = null
             const toolbar = root.querySelector(".MuiDataGrid-toolbar")
             const headers = root.querySelector(".MuiDataGrid-topContainer")
-            const parts = [toolbar, headers].filter(Boolean)
-            if (!parts.length) return
+            const stuckHeight = (toolbar?.offsetHeight ?? 0) + (headers?.offsetHeight ?? 0)
+            if (!stuckHeight) return
             const barBottom = document.querySelector("[data-app-sticky]")?.getBoundingClientRect().bottom ?? 0
             const rect = root.getBoundingClientRect()
-            const stuckHeight = parts.reduce((h, el) => h + el.offsetHeight, 0)
             // Never past the bottom: leave room for one row + the footer.
             const footer = root.querySelector(".MuiDataGrid-footerContainer")?.offsetHeight ?? 0
             const max = Math.max(0, rect.height - stuckHeight - footer - 52)
-            const offset = Math.min(Math.max(barBottom - rect.top, 0), max)
-            parts.forEach((el) => {
-                el.style.transform = offset ? `translateY(${offset}px)` : ""
-                el.classList.toggle("dg-stuck", offset > 0)
-            })
+            const offset = Math.round(Math.min(Math.max(barBottom - rect.top, 0), max))
+            if (offset === last) return
+            last = offset
+            root.style.setProperty("--dg-sticky-y", `${offset}px`)
+            root.classList.toggle("dg-stuck", offset > 0)
         }
-        const schedule = () => { if (frame == null) frame = requestAnimationFrame(update) }
+        // Size changes (rows loading, window resizing): once per frame is enough.
+        const schedule = () => { if (frame == null) frame = requestAnimationFrame(() => { frame = null; update() }) }
         // capture: any scrolling element (the window or a layout container).
-        window.addEventListener("scroll", schedule, { passive: true, capture: true })
+        window.addEventListener("scroll", update, { passive: true, capture: true })
         window.addEventListener("resize", schedule)
         const observer = new ResizeObserver(schedule)
         observer.observe(root)
-        schedule()
+        update()
         return () => {
-            window.removeEventListener("scroll", schedule, { capture: true })
+            window.removeEventListener("scroll", update, { capture: true })
             window.removeEventListener("resize", schedule)
             observer.disconnect()
             if (frame != null) cancelAnimationFrame(frame)
+            root.style.removeProperty("--dg-sticky-y")
+            root.classList.remove("dg-stuck")
         }
     }, [rootRef, enabled])
 }
 
 const STICKY_SX = {
-    // Moved over the rows while stuck: on top, with a solid background.
-    '& .MuiDataGrid-toolbar': { position: 'relative', zIndex: 4, bgcolor: 'var(--dm-surface, #fff)' },
-    '& .MuiDataGrid-topContainer': { zIndex: 3 },
-    '& .MuiDataGrid-topContainer.dg-stuck': { boxShadow: '0 4px 6px -4px rgba(0,0,0,0.18)' },
+    // Moved over the rows while stuck (by --dg-sticky-y, set above): on top,
+    // with a solid background, on their own layer so they move smoothly.
+    '& .MuiDataGrid-toolbar': {
+        position: 'relative', zIndex: 4, bgcolor: 'var(--dm-surface, #fff)',
+        transform: 'translate3d(0, var(--dg-sticky-y, 0px), 0)', willChange: 'transform',
+    },
+    '& .MuiDataGrid-topContainer': {
+        zIndex: 3,
+        transform: 'translate3d(0, var(--dg-sticky-y, 0px), 0)', willChange: 'transform',
+    },
+    '&.dg-stuck .MuiDataGrid-topContainer': { boxShadow: '0 4px 6px -4px rgba(0,0,0,0.18)' },
 }
 
 // Every table has a # column: one the table doesn't define itself is added

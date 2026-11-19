@@ -1,37 +1,36 @@
-<div style="margin:0; padding:0; font-family: Arial, sans-serif; background-color: #f4f4f4; width: 100%;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="padding: 20px;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border: 1px solid #ccc; background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAMAAACahl6sAAABg1BMVEX///8AAAAAAIUAAIIAAHwAAH'); background-repeat: no-repeat; background-position: center; background-size: 200px;">
-          <tr>
-            <td style="padding: 20px; background-color: {{ ($status != 'disapprove') ? '#22c02a;' : '#c62828;' }} color: white; text-align: center;">
-              <h2 style="margin: 0;">Gatepass Request {{ ucwords($status) }}d</h2>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 20px; color: #333;">
-              <p>Dear {{ $requester }},</p>
-              <p>Your gatepass request submitted on <strong>{{ $date_requested }}</strong> has been <strong>{{ ucwords($status) }}d</strong>.</p>
-              <p>Expiration will be on <strong>{{ $date_time_expiration }}</strong>.</p>
-              <p>For more details, please check your student dashboard.</p>
-              <p>Thank you.</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 20px; color: #333;">
-              <p style="margin-bottom:0; font-size:16px; line-height:1.6;">
-                  Best regards,<br>
-                  <strong>{{ $prefect_name }}</strong><br>
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 15px; background-color: #f8f9fa; text-align: center; font-size: 12px; color: #666;">
-              Pilar College of Zamboanga City – Prefect of Discipline
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</div>
+@php
+    $approved = $status !== 'disapprove';
+    $when = fn ($d) => $d ? \Illuminate\Support\Carbon::parse($d)->format('F j, Y \a\t g:i A') : null;
+@endphp
+
+@extends('emails.layouts.formal', [
+    'preheader' => $approved ? 'Your gate pass request has been approved.' : 'Your gate pass request was not approved.',
+    'signatory' => $prefect_name,
+    'reference' => $reference ?? null,
+])
+
+@section('subject', $approved ? 'Approval of Gate Pass Request' : 'Gate Pass Request Not Approved')
+
+@section('body')
+    <p style="margin:0 0 14px;">Dear {{ $requester }},</p>
+
+    @if ($approved)
+        <p style="margin:0 0 6px;">
+            This is to inform you that your gate pass request has been reviewed and <strong>approved</strong> by the Office of Student Affairs and Discipline.
+        </p>
+
+        @include('emails.partials.details', ['rows' => [
+            'Reference No.' => $reference ?? null,
+            'Date Requested' => $when($date_requested),
+            'Valid Until' => $when($date_time_expiration),
+        ]])
+
+        <p style="margin:0 0 14px;">
+            Kindly present your gate pass to the security personnel at the gate. It may no longer be used once it has expired. You may view its details in the system under Gate Pass.
+        </p>
+    @else
+        <p style="margin:0 0 14px;">
+            We regret to inform you that your gate pass request{{ !empty($reference) ? ' (Reference No. ' . $reference . ')' : '' }} submitted on <strong>{{ $when($date_requested) }}</strong> was <strong>not approved</strong>. You may view the reason in the system under Gate Pass, or visit the office for clarification.
+        </p>
+    @endif
+@endsection

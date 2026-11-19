@@ -14,18 +14,18 @@
 
 @section('styles')
 <style>
-    body { font-family: DejaVu Sans, sans-serif; font-size: 12px; margin: 25px; color: #222; }
+    body { font-family: DejaVu Sans, sans-serif; font-size: 12px; margin: 25px; color: #000; }
     .report-header { width: 100%; border-bottom: 3px solid #003366; margin-bottom: 15px; padding-bottom: 5px; }
     .report-header td { vertical-align: middle; }
     .report-header img { width: 80px; }
-    .school-name { font-size: 16px; font-weight: bold; color: #003366; margin-bottom: 2px; }
-    .school-info { font-size: 11px; color: #555; }
+    .school-name { font-size: 16px; font-weight: bold; color: #000; margin-bottom: 2px; }
+    .school-info { font-size: 11px; color: #000; }
     .title-box { text-align: center; margin: 15px 0 10px; }
-    .title-box h2 { font-size: 16px; color: #003366; margin: 0; }
+    .title-box h2 { font-size: 16px; color: #000; margin: 0; }
     .profile-section { border: 1px solid #003366; border-radius: 4px; background-color: #f3f7fb; padding: 8px 10px; margin-top: 10px; }
     .profile-table { width: 100%; border-collapse: collapse; }
     .profile-table td { padding: 5px 8px; vertical-align: top; font-size: 12px; }
-    .profile-table .label { font-weight: bold; color: #003366; width: 25%; }
+    .profile-table .label { font-weight: bold; color: #000; width: 25%; }
     table.records { width: 100%; border-collapse: collapse; margin-top: 18px; }
     table.records th { background-color: #003366; color: white; padding: 6px; text-align: left; font-size: 12px; }
     table.records td { border: 1px solid #ddd; padding: 6px; font-size: 11px; }

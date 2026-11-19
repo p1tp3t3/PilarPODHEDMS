@@ -10,11 +10,11 @@
     @endphp
     <style>
         @page { margin: 34px 48px 46px; }
-        body { font-family: "DejaVu Serif", "Times New Roman", serif; font-size: 12px; color: #111; margin: 0; }
+        body { font-family: "DejaVu Serif", "Times New Roman", serif; font-size: 12px; color: #000; margin: 0; }
         .page-break { page-break-before: always; }
 
         .title { text-align: center; font-size: 16px; font-weight: bold; letter-spacing: 3px; text-transform: uppercase; margin: 18px 0 2px; }
-        .subtitle { text-align: center; font-size: 10.5px; color: #555; margin-bottom: 16px; }
+        .subtitle { text-align: center; font-size: 10.5px; color: #000; margin-bottom: 16px; }
 
         /* Underlined fill-in fields like the paper form */
         table.fields { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
@@ -22,7 +22,7 @@
         table.fields td.label { white-space: nowrap; padding-right: 8px; width: 1%; }
         table.fields td.value { border-bottom: 1px solid #111; padding-left: 4px; }
 
-        .section { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 10.5px; font-weight: bold; color: #1f3a5f; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #c9d2de; padding-bottom: 3px; margin: 16px 0 8px; }
+        .section { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 10.5px; font-weight: bold; color: #000; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #c9d2de; padding-bottom: 3px; margin: 16px 0 8px; }
 
         table.grid { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
         table.grid th, table.grid td { border: 1px solid #555; padding: 5px 7px; text-align: left; vertical-align: top; }
@@ -32,7 +32,7 @@
         .list-label { margin: 2px 0 4px; }
         ol.names { margin: 0 0 10px; padding-left: 26px; }
         ol.names li { padding: 3px 0; border-bottom: 1px solid #111; }
-        ol.names .designation, ol.findings .designation { color: #444; font-size: 11px; }
+        ol.names .designation, ol.findings .designation { color: #000; font-size: 11px; }
         ol.findings { margin: 0 0 10px; padding-left: 26px; }
         ol.findings li { padding: 5px 0 7px; border-bottom: 1px solid #c9d2de; }
         ol.findings .finding { margin: 3px 0 0 12px; padding-left: 8px; border-left: 2px solid #b8892b; line-height: 1.5; }
@@ -44,9 +44,9 @@
         table.sign { width: 100%; border-collapse: collapse; margin-top: 26px; }
         table.sign td { vertical-align: bottom; padding: 0; }
         .sign-line { border-bottom: 1px solid #111; text-align: center; font-weight: bold; padding-bottom: 2px; min-height: 16px; }
-        .caption { text-align: center; font-size: 10px; color: #333; margin-top: 2px; }
+        .caption { text-align: center; font-size: 10px; color: #000; margin-top: 2px; }
 
-        .footer { position: fixed; bottom: -30px; left: 0; right: 0; text-align: center; font-family: "DejaVu Sans", Arial, sans-serif; font-size: 8.5px; color: #777; border-top: 1px solid #ddd; padding-top: 4px; }
+        .footer { position: fixed; bottom: -30px; left: 0; right: 0; text-align: center; font-family: "DejaVu Sans", Arial, sans-serif; font-size: 8.5px; color: #000; border-top: 1px solid #ddd; padding-top: 4px; }
     </style>
     {{-- Formal body below the header (letterhead and title are left as they are). --}}
     @include('pdf.partials.formal-body')

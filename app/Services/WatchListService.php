@@ -53,13 +53,10 @@ class WatchListService
      */
     private static function score($inputs)
     {
-        $rows = $inputs->map(fn ($r) => [
-            'key' => "{$r->student_id}:{$r->violation_id}",
-            'violation_type' => $r->violation_type,
-            'past_repeat_same_violation_count' => (int) $r->past_repeat_same_violation_count,
-            'recent_same_violation_count' => (int) $r->recent_same_violation_count,
-            'months_since_last_same_violation' => (int) $r->months_since_last_same_violation,
-        ])->values()->all();
+        // Every model input (ViolationRiskFeatures::FEATURES), plus the key.
+        $rows = $inputs->map(fn ($r) => ['key' => "{$r->student_id}:{$r->violation_id}"]
+            + array_intersect_key((array) $r, array_flip(ViolationRiskFeatures::FEATURES))
+        )->values()->all();
 
         try {
             $response = Http::withoutVerifying()

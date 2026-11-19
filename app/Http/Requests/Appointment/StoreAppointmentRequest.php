@@ -28,6 +28,8 @@ class StoreAppointmentRequest extends FormRequest
             'date_appoint' => 'required|date|after_or_equal:today',
             'time_start' => ['required', 'date_format:H:i', new WithinAppointmentHours],
             'reason' => 'nullable|string',
+            // JSON array of violation ids (multipart form).
+            'related_violations' => 'nullable|string|max:2000',
         ];
     }
 }

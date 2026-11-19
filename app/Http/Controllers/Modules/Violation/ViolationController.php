@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Modules\Violation;
 
+use App\Services\ViolationRiskFeatures;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Modules\Complaint\ComplaintController;
 use App\Models\ActionLog;
@@ -236,7 +237,7 @@ class ViolationController extends Controller
 
         // "Label: explanation" -> its label and its explanation.
         $insights = collect($data['insights'] ?? [])->map(function ($f) {
-            if (preg_match('/^([^:]{2,40}):\s*(.+)$/s', $f, $m)) {
+            if (preg_match('/^([^:]{2,60}):\s*(.+)$/s', $f, $m)) {
                 return ['label' => trim($m[1]), 'body' => ucfirst(trim($m[2]))];
             }
 
@@ -327,6 +328,47 @@ class ViolationController extends Controller
         return self::multipleViolationStore($request);
     }
 
+    /**
+     * What is wrong with a resolution's subjects, or null: each needs a
+     * student, at least one offense, and each offense an existing, active
+     * violation (or "none", alone), with no violation listed twice.
+     */
+    private static function resolutionInputProblem(array $subjects): ?string
+    {
+        $studentIds = collect($subjects)->pluck('student_id');
+        if ($studentIds->contains(fn ($id) => ! is_numeric($id))) {
+            return 'Every subject must be a student.';
+        }
+        if ($studentIds->duplicates()->isNotEmpty()) {
+            return 'A student is listed more than once.';
+        }
+        $students = User::whereIn('id', $studentIds)->whereRole('student')->pluck('id')->map(fn ($id) => (int) $id);
+        if ($studentIds->map(fn ($id) => (int) $id)->diff($students)->isNotEmpty()) {
+            return 'One of the subjects is not a student.';
+        }
+
+        $active = Violation::whereNull('archived_at')->pluck('id')->map(fn ($id) => (int) $id);
+        foreach ($subjects as $i => $sub) {
+            $offenses = collect($sub['offenses'] ?? [])->pluck('violation');
+            $n = $i + 1;
+            if ($offenses->isEmpty() || $offenses->contains(fn ($v) => $v === null || $v === '')) {
+                return "Choose a violation (or \"none\") for subject {$n}.";
+            }
+            if ($offenses->contains('none') && $offenses->count() > 1) {
+                return "Subject {$n} cannot have \"none\" together with a violation.";
+            }
+            $ids = $offenses->reject(fn ($v) => $v === 'none');
+            if ($ids->contains(fn ($v) => ! is_numeric($v) || ! $active->contains((int) $v))) {
+                return "A violation chosen for subject {$n} does not exist or has been archived.";
+            }
+            if ($ids->map(fn ($v) => (int) $v)->duplicates()->isNotEmpty()) {
+                return "Subject {$n} has the same violation listed twice.";
+            }
+        }
+
+        return null;
+    }
+
     private function multipleViolationStore($request)
     {
         DB::beginTransaction();
@@ -346,6 +388,17 @@ class ViolationController extends Controller
             // Fetch complaint
             $complaint = Complaint::with(['user.profile', 'subject.profile'])
                 ->where('id', $request->id);
+            if (! $complaint->exists()) {
+                return response()->json(['message' => 'The complaint was not found.'], 404);
+            }
+
+            // Every input the resolution (and the model's training row built
+            // from it) needs, checked before anything is written.
+            if ($problem = self::resolutionInputProblem($subjects)) {
+                DB::rollBack();
+
+                return response()->json(['message' => $problem], 422);
+            }
 
             $complaintId = $complaint->first()->id;
             $complaintNumber = $complaint->first()->complaint_number;
@@ -449,6 +502,15 @@ class ViolationController extends Controller
                 'archived_at' => archive_retention_date(),
                 'incident_summary' => $summary,
             ]);
+
+            // The Early Intervention Violation Predictor's training rows: each
+            // student's record for each violation as of now. Never blocks the
+            // resolution (a row that can't be built is skipped and logged).
+            try {
+                ViolationRiskFeatures::recordComplaint((int) $complaintId);
+            } catch (\Throwable $e) {
+                Log::warning('Violation predictor: could not save training rows', ['complaint_id' => $complaintId, 'error' => $e->getMessage()]);
+            }
 
             DB::commit();
 
@@ -814,63 +876,19 @@ class ViolationController extends Controller
      */
     private static function getModelInputsForStudent($studentId)
     {
-        return self::modelInputsQuery([$studentId])->get()->keyBy('violation_id');
+        return ViolationRiskFeatures::live([$studentId])->keyBy('violation_id');
     }
 
     /**
      * The model-input rows for many students at once — one row per
      * (student, violation) pair with a resolved occurrence. Shared by the
      * single-student page above and the prefect's watch list, so both feed
-     * the model exactly the same features.
+     * the model exactly the same features (built by ViolationRiskFeatures,
+     * the same code that builds the model's real training history).
      */
     public static function modelInputsForStudents($studentIds)
     {
-        return self::modelInputsQuery($studentIds)->get();
-    }
-
-    private static function modelInputsQuery($studentIds)
-    {
-        $recentDays = 90;
-
-        return DB::table('complaint as c')
-            ->join('complaint_subject as cs', 'cs.complaint_id', '=', 'c.id')
-            ->join('complaint_subject_violation as cso', function ($join) {
-                $join->on('cso.complaint_id', '=', 'c.id')
-                    ->on('cso.student_id', '=', 'cs.student_id');
-            })
-            ->join('violation as o', 'o.id', '=', 'cso.violation_id')
-            ->where('c.complaint_status', 'resolved')
-            ->whereIn('cs.student_id', collect($studentIds)->all())
-            ->groupBy('cs.student_id', 'cso.violation_id', 'o.violation_name')
-            ->selectRaw('
-                cs.student_id,
-                cso.violation_id,
-                o.violation_name AS violation_type,
-
-                COUNT(*) AS past_repeat_same_violation_count,
-
-                -- This feature is only meaningful once there is an actual
-                -- PAST occurrence to measure recency against. For a genuine
-                -- first offense (COUNT(*) = 1) it would otherwise be
-                -- trivially recent by construction, not because of any real
-                -- repeat pattern, which the model (trained mostly on real
-                -- repeat-offender rows, where this IS meaningful) was
-                -- learning as a false risk signal. Pin it to a neutral value
-                -- instead so a first offense is judged on
-                -- past_repeat_same_violation_count (1, i.e. this occurrence
-                -- only) and violation_type, not spurious recency.
-                CAST(CASE WHEN COUNT(*) = 1 THEN 0 ELSE
-                    SUM(
-                        CASE
-                            WHEN c.offense_issued_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-                            THEN 1 ELSE 0
-                        END
-                    )
-                END AS UNSIGNED) AS recent_same_violation_count,
-                CASE WHEN COUNT(*) = 1 THEN 120 ELSE
-                    TIMESTAMPDIFF(MONTH, MAX(COALESCE(c.offense_issued_at, c.resolved_at, c.confirmed_at, c.created_at)), CURDATE())
-                END AS months_since_last_same_violation
-            ', [$recentDays]);
+        return ViolationRiskFeatures::live($studentIds);
     }
 
     /**

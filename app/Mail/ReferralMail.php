@@ -44,6 +44,9 @@ class ReferralMail extends Mailable
                 'prefect_name' => $data['prefect_name'],
                 'student_names' => $data['student_names'],
                 'date_issued' => $data['date_issued'],
+                // Guidance / IT Staff: who the letter is addressed to.
+                'office' => $data['office'] ?? 'Guidance',
+                'reference' => $data['referral_number'] ?? null,
             ]
         );
     }

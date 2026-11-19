@@ -11,8 +11,8 @@
      footer come from pdf.layouts.report and are unchanged. --}}
 @section('styles')
 <style>
-    body { font-family: "DejaVu Serif", "Times New Roman", serif; color: #111; font-size: 10.5px; line-height: 1.5; }
-    .section-title { font-size: 10.5px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #111; border-bottom: 0.75px solid #111; padding-bottom: 2px; margin: 18px 0 8px; }
+    body { font-family: "DejaVu Serif", "Times New Roman", serif; color: #000; font-size: 10.5px; line-height: 1.5; }
+    .section-title { font-size: 10.5px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #000; border-bottom: 0.75px solid #111; padding-bottom: 2px; margin: 18px 0 8px; }
     .section-title:first-child { margin-top: 6px; }
 
     table.info { width: 100%; border-collapse: collapse; }
@@ -40,10 +40,10 @@
     table.timeline th { font-weight: bold; text-align: left; }
     table.timeline tr { page-break-inside: avoid; }
 
-    .muted { color: #444; font-style: italic; }
+    .muted { color: #000; font-style: italic; }
 
 
-    .note { margin-top: 18px; font-size: 9px; color: #444; font-style: italic; text-align: justify; }
+    .note { margin-top: 18px; font-size: 9px; color: #000; font-style: italic; text-align: justify; }
 </style>
 @endsection
 

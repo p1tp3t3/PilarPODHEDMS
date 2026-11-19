@@ -9,6 +9,7 @@ import StudentViolationList from "@/Components/list/student-violation-list";
 import { useReload } from "@/context-provider/reload-provider";
 import PageLayout from "@/Layouts/page-layout";
 import { Head } from "@inertiajs/react";
+import { Box } from "@mui/material";
 
 // The prefect's Violation Management pages (prefect only, see routes/auth.php).
 const ViolationManagement = (props) => {
@@ -89,7 +90,7 @@ const ViolationManagement = (props) => {
             list={penalty_list}
         />
         <PageLayout title={TITLES[section].toUpperCase()}>
-            <div className="min-w-0">
+            <Box sx={{ minWidth: 0 }}>
                 {section === "violations" && (
                     <ManageViolation
                         list={violation_list}
@@ -117,11 +118,9 @@ const ViolationManagement = (props) => {
                 )}
 
                 {section === "student-violations" && (
-                    <div className="grid gap-4">
-                        <StudentViolationList list={lists?.student_violation_list ?? null} />
-                    </div>
+                    <StudentViolationList list={lists?.student_violation_list ?? null} />
                 )}
-            </div>
+            </Box>
         </PageLayout>
         </>
     );

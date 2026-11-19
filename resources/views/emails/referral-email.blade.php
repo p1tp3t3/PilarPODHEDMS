@@ -1,68 +1,27 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Referral Guidance Notification</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 20px;
-        }
-        .notification-container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #ffffff;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        .header {
-            background-color: #007bff;
-            color: #ffffff;
-            padding: 20px;
-            text-align: center;
-        }
-        .header h1 {
-            margin: 0;
-            font-size: 24px;
-        }
-        .content {
-            padding: 20px;
-        }
-        .content p {
-            margin: 10px 0;
-            line-height: 1.6;
-        }
-        .footer {
-            background-color: #f8f9fa;
-            padding: 15px;
-            text-align: center;
-            font-size: 12px;
-            color: #6c757d;
-        }
-    </style>
-</head>
-<body>
-    <div class="notification-container">
-        <div class="header">
-            <h1>Referral Guidance Notification</h1>
-        </div>
-        <div class="content">
-            <p>Dear Guidance Office,</p>
-            <p>A referral has been sent for your review. Please find the referral document(s) attached below:</p>
-            <ul>
-                <li><strong>Referred By:</strong> {{ $prefect_name }}</li>
-                <li><strong>Student(s):</strong> {{ $student_names }}</li>
-                <li><strong>Date Issued:</strong> {{ $date_issued }}</li>
-            </ul>
-        </div>
-        <div class="footer">
-            <p>This is an automated notification from POD Management System. Please do not reply to this email.</p>
-        </div>
-    </div>
-</body>
-</html>
+@php($officeName = ($office ?? 'Guidance') === 'IT Staff' ? 'IT Staff' : 'Guidance Office')
+
+@extends('emails.layouts.formal', [
+    'preheader' => "A referral has been forwarded to the {$officeName}.",
+    'signatory' => $prefect_name,
+    'reference' => $reference ?? null,
+])
+
+@section('subject', 'Referral of Student(s) for Appropriate Action')
+
+@section('body')
+    <p style="margin:0 0 14px;">Dear {{ $officeName }},</p>
+    <p style="margin:0 0 6px;">
+        Respectfully forwarded to your office is a referral from the Office of Student Affairs and Discipline, for your evaluation and appropriate action. The details are as follows:
+    </p>
+
+    @include('emails.partials.details', ['rows' => [
+        'Reference No.' => $reference ?? null,
+        'Student(s)' => $student_names,
+        'Referred By' => $prefect_name . ', Prefect of Discipline',
+        'Date Issued' => $date_issued,
+    ]])
+
+    <p style="margin:0 0 14px;">
+        The referral form is attached to this email. You may also view the referral and record your office's note in the system. Thank you for your assistance.
+    </p>
+@endsection

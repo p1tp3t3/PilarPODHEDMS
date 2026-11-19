@@ -15,7 +15,7 @@ $description = ($user_type == 'student')
             </td>
           </tr>
           <tr>
-            <td style="padding: 20px; color: #333;">
+            <td style="padding: 20px; color: #000;">
               <p>Dear {{ $sender_name }},</p>
               <p>{{ $student_name }} Admission Was Successfully Approved.</p>
               <p>{{ ucwords($description) }}</p>
@@ -23,7 +23,7 @@ $description = ($user_type == 'student')
             </td>
           </tr>
           <tr>
-            <td style="padding: 20px; color: #333;">
+            <td style="padding: 20px; color: #000;">
               <p style="margin-bottom:0; font-size:16px; line-height:1.6;">
                   Best regards,<br>
                   <strong>{{ $prefect_name }}</strong><br>
@@ -31,7 +31,7 @@ $description = ($user_type == 'student')
             </td>
           </tr>
           <tr>
-            <td style="padding: 15px; background-color: #f8f9fa; text-align: center; font-size: 12px; color: #666;">
+            <td style="padding: 15px; background-color: #f8f9fa; text-align: center; font-size: 12px; color: #000;">
               Pilar College of Zamboanga City – Prefect of Discipline
             </td>
           </tr>

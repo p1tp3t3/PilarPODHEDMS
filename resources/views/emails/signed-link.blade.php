@@ -1,8 +1,28 @@
-<div style="background-color: #f9fafb; color: #1f2937; width: 100%; padding: 1rem 0; margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-    <div style="background: white; border-radius: 1rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); padding: 2rem; text-align: center; width: 100%; max-width: 400px; margin: 0 auto;">
-        <h1 style="font-size: 1.5rem; margin-bottom: 1rem;">{{ $heading }}</h1>
-        <p style="margin-bottom: 1.5rem; color: #6b7280;">{{ $description }}</p>
-        <a href="{{ $url }}" style="display: inline-block; background-color: #4a90e2; color: white; text-decoration: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: bold;">{{ $buttonLabel }}</a>
-        <p style="margin-top: 1.5rem; color: #9ca3af; font-size: 0.8rem;">This link expires in 60 minutes. If you did not request this, you can safely ignore this email.</p>
-    </div>
-</div>
+@extends('emails.layouts.formal', [
+    'preheader' => $description,
+])
+
+@section('subject', $heading)
+
+@section('body')
+    <p style="margin:0 0 14px;">Good day,</p>
+    <p style="margin:0 0 6px;">{{ $description }}</p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0 18px;">
+        <tr>
+            <td style="background-color:#1f3a5f;">
+                <a href="{{ $url }}" style="display:inline-block; padding:12px 26px; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:bold; color:#ffffff; text-decoration:none; letter-spacing:0.3px;">{{ $buttonLabel }}</a>
+            </td>
+        </tr>
+    </table>
+
+    <p style="margin:0 0 6px; font-family:Arial, Helvetica, sans-serif; font-size:12.5px; color:#000;">
+        If the button does not work, copy this link into your browser:
+    </p>
+    <p style="margin:0 0 16px; font-family:Arial, Helvetica, sans-serif; font-size:12.5px; word-break:break-all;">
+        <a href="{{ $url }}" style="color:#000;">{{ $url }}</a>
+    </p>
+    <p style="margin:0 0 14px;">
+        This link expires in 60 minutes. If you did not request it, you may safely ignore this email.
+    </p>
+@endsection

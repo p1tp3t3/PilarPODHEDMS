@@ -145,6 +145,7 @@ Route::middleware(['role:super_admin', 'activate', 'user-activity'])->group(func
      Route::post('/system-settings/login-portal-password', [SystemSettingsController::class, 'updateLoginPortalPassword']);
      Route::post('/system-settings/mail-config', [SystemSettingsController::class, 'updateMailConfig']);
      Route::post('/system-settings/mail-config/test', [SystemSettingsController::class, 'sendTestMail']);
+     Route::post('/system-settings/terms', [SystemSettingsController::class, 'updateTerms']);
 });
 
 /*
@@ -217,6 +218,9 @@ Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(functi
     Route::get('/prefect/archive/download', [ArchiveController::class, 'downloadArchive']);
 
     Route::post('/prefect/call-in', [NotificationController::class, 'notifyCallIn']);
+    // "Related violation(s)" of an intervention: the student(s)' options, and a referral's.
+    Route::get('/prefect/intervention/violation-options', [\App\Http\Controllers\Modules\Violation\InterventionViolationController::class, 'options']);
+    Route::post('/prefect/referral/{id}/related-violations', [\App\Http\Controllers\Modules\Violation\InterventionViolationController::class, 'syncReferral']);
     Route::get('/prefect/call-in/history', [NotificationController::class, 'callInHistory']);
     Route::post('/prefect/violation/risk/notify', [NotificationController::class, 'notifyFacultyProgramHead']);
     Route::post('/prefect/violation/create', [ViolationController::class, 'store']);

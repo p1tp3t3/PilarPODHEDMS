@@ -69,7 +69,11 @@ class ModelTrainingController extends Controller
     public function trainPredictor()
     {
         try {
-            $response = self::python(300)->post(self::url('/api/model/train'));
+            // With the school's real history, so the model trains on it and is
+            // tested on real students (ViolationRiskFeatures::trainingRows()).
+            $response = self::python(300)->post(self::url('/api/model/train'), [
+                'real_rows' => \App\Services\ViolationRiskFeatures::trainingRows(),
+            ]);
         } catch (ConnectionException) {
             return self::unreachable();
         }

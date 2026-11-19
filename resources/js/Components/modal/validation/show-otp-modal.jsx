@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import AlertModal from "../alert-modal"
 import shield from '@/images/shield.png'
 import { AuthService } from "@/others/services/auth-service"
-import ActionBtn from "@/Components/button/action-btn"
+import OtpInput from "@/Components/input/otp-input"
+import { Box, Button, Divider, Stack, Typography } from "@mui/material"
 
 const OtpModal = (props) => {
     return (
@@ -30,13 +31,12 @@ const OtpModal = (props) => {
 const Body = (props) => {
     const [pin, setPin] = useState(["", "", "", "", "", ""]);
     const [time, setTime] = useState(60);
-    const [otpPin, setOtpPin] = useState("");
     const [invalid, setInvalid] = useState(false);
     const [error, setError] = useState("");
 
     const [generatedPin, setGeneratedPin] = useState("");   // ✅ NEW STATE
 
-    const inputsRef = useRef([]);
+    const otpRef = useRef(null);
 
     useEffect(() => {
         if (props.close) {
@@ -62,14 +62,10 @@ const Body = (props) => {
         AuthService.sendOtp(otp, props.username, props.contact.email, props.type, () => {}, () => {});
     };
 
-    useEffect(() => {
-        const value = pin.join("");
-        setOtpPin(value);
-
-        if (value.length === pin.length) {
-            validateOtp(value);
-        }
-    }, [pin]);
+    const handleChange = (next) => {
+        setPin(next);
+        if (error) setError("");
+    };
 
     /** -------------------------------------------------------
      * 🧪 Validate the OTP input
@@ -78,17 +74,17 @@ const Body = (props) => {
         setError("");
 
         if (invalid) {
-            setError("O.T.P is already invalid");
+            setError("This code has expired. Please resend a new one.");
             return resetFields();
         }
         
-        AuthService.verifyOtp(value, props.contact.email, () => props.proceedEvent(value), () => setError("O.T.P does not match"))
+        AuthService.verifyOtp(value, props.contact.email, () => props.proceedEvent(value), () => setError("The code is incorrect. Please try again."))
         resetFields();
     };
 
     const resetFields = () => {
         setPin(["", "", "", "", "", ""]);
-        inputsRef.current[0]?.focus();
+        setTimeout(() => otpRef.current?.focus());
     };
 
     /** -------------------------------------------------------
@@ -120,25 +116,6 @@ const Body = (props) => {
         }
     };
 
-    const handleChange = (e, i) => {
-        const value = e.target.value;
-        if (!/^\d?$/.test(value)) return;
-
-        const updated = [...pin];
-        updated[i] = value;
-        setPin(updated);
-
-        if (value && i < pin.length - 1) {
-            inputsRef.current[i + 1]?.focus();
-        }
-    };
-
-    const handleKeyDown = (e, i) => {
-        if (e.key === "Backspace" && !pin[i] && i > 0) {
-            inputsRef.current[i - 1]?.focus();
-        }
-    };
-
     const getContact = () => {
         return props.contact?.email || props.contact?.contact_number || "";
     };
@@ -153,104 +130,48 @@ const Body = (props) => {
     };
 
     return (
-        <div className="bg-white w-full rounded-md p-2 sm:p-4" id="otp">
-            <div className="px-4 sm:px-6 py-5 grid gap-6 w-full max-w-lg mx-auto">
+        <Box sx={{ width: "100%", px: { xs: 2, sm: 4 }, py: { xs: 3, sm: 4 } }}>
+            <Stack spacing={1} sx={{ alignItems: "center", textAlign: "center", mb: 3 }}>
+                <Box component="img" src={shield} alt="" sx={{ width: { xs: 64, sm: 72 }, height: { xs: 64, sm: 72 }, mb: 0.5 }} />
+                <Typography component="h1" sx={{ fontSize: { xs: 20, sm: 24 }, fontWeight: 700, lineHeight: 1.25 }}>
+                    Enter Verification Code
+                </Typography>
+                <Typography sx={{ fontSize: { xs: 13.5, sm: 14.5 }, color: "text.secondary", lineHeight: 1.6 }}>
+                    We've sent a 6-digit code to <b>{maskEmail(getContact())}</b>.
+                </Typography>
+            </Stack>
 
-                {/* HEADER */}
-                <div className="text-center grid gap-2">
-                    <img 
-                        src={shield} 
-                        alt="shield" 
-                        className="w-20 h-20 sm:w-24 sm:h-24 mx-auto"
-                    />
+            <OtpInput ref={otpRef} value={pin} onChange={handleChange} onComplete={validateOtp} error={!!error} />
 
-                    <h1 className="text-lg sm:text-2xl font-bold leading-tight">
-                        OTP Verification
-                    </h1>
-
-                    <p className="text-xs sm:text-sm text-gray-600 px-4">
-                        Enter the 6-digit code sent to your email.
-                    </p>
-                </div>
-
-                {/* OTP INPUTS */}
-                <div className="flex justify-center">
-                    <div className="flex gap-1.5 sm:gap-3">
-                        {pin.map((v, i) => (
-                            <OtpBox
-                                key={i}
-                                ref={(el) => (inputsRef.current[i] = el)}
-                                value={v}
-                                onChange={(e) => handleChange(e, i)}
-                                onKeyDown={(e) => handleKeyDown(e, i)}
-                            />
-                        ))}
-                    </div>
-                </div>
-
-                {/* MESSAGES */}
-                <div className="grid gap-2 text-center">
-                    <p className="text-red-600 font-semibold text-xs sm:text-sm">{error}</p>
-
-                    <p className="text-xs sm:text-sm text-gray-600">
-                        Code sent to <b>{maskEmail(getContact())}</b>
-                    </p>
-
-                    <p className="text-xs sm:text-sm text-gray-600">
-                        OTP is valid for <b>{time}s</b>.
-                    </p>
-
-                    {/* RESEND */}
-                    <button
-                        className={`text-xs sm:text-sm underline transition ${
-                            time === 0 
-                                ? "text-blue-600 hover:text-blue-700" 
-                                : "text-gray-400 cursor-not-allowed"
-                        }`}
+            <Stack spacing={1.25} sx={{ alignItems: "center", textAlign: "center", mt: 2.5 }}>
+                {error && <Typography sx={{ color: "error.main", fontWeight: 600, fontSize: 13.5 }}>{error}</Typography>}
+                <Typography sx={{ fontSize: 13.5, color: time === 0 ? "error.main" : "text.secondary" }}>
+                    {time === 0 ? "The code has expired." : <>The code is valid for <b>{time}s</b>.</>}
+                </Typography>
+                <Typography component="div" sx={{ fontSize: 13.5, color: "text.secondary" }}>
+                    Didn't get a code?{" "}
+                    <Button
+                        variant="text"
+                        size="small"
                         disabled={time !== 0}
                         onClick={resendOtp}
+                        sx={{ minWidth: 0, p: "2px 6px", fontSize: 13.5, fontWeight: 600, textTransform: "none", verticalAlign: "baseline" }}
                     >
                         Resend Code
-                    </button>
-
-                    {/* CLOSE BUTTON AFTER EXPIRATION */}
-                    {time === 0 && (
-                        <div className="mt-2">
-                            <ActionBtn 
-                                className="bg-red-600 text-white hover:bg-red-700 text-xs sm:text-sm px-4 py-2"
-                                onClick={() => props.closeModal(false)}
-                            >
-                                Close
-                            </ActionBtn>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
+                    </Button>
+                </Typography>
+                <Divider flexItem sx={{ my: 0.5 }} />
+                <Button
+                    variant="text"
+                    color="inherit"
+                    onClick={() => props.closeModal(false)}
+                    sx={{ fontSize: 14, fontWeight: 600, textTransform: "none", color: "text.secondary" }}
+                >
+                    Cancel
+                </Button>
+            </Stack>
+        </Box>
     );
 };
-
-const OtpBox = React.forwardRef(({ value, onChange, onKeyDown }, ref) => (
-    <div className="w-10 h-12 sm:w-12 sm:h-14 flex-shrink-0">
-        <input
-            ref={ref}
-            type="password"
-            maxLength={1}
-            className="
-                w-full h-full 
-                border-2 border-gray-300 
-                rounded-lg 
-                text-center 
-                text-lg sm:text-2xl 
-                focus:border-blue-500 
-                outline-none
-            "
-            value={value}
-            onChange={onChange}
-            onKeyDown={onKeyDown}
-        />
-    </div>
-));
-
 
 export default OtpModal;

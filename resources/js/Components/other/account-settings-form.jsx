@@ -10,6 +10,23 @@ import { Validator } from "@/others/classes/validator";
 import { FormCache, accountSetupCacheKey } from "@/others/classes/form-cache";
 import { StepHeading } from "@/Layouts/setup-layout";
 import { KeyRound, ArrowLeft, Circle, CircleCheck } from "lucide-react";
+import { Box, Button, Paper, Stack, Typography } from "@mui/material";
+
+// One settings card (Username & Email, Password).
+const SettingsCard = ({ title, compact = false, children }) => (
+    <Paper
+        variant="outlined"
+        sx={{ px: { xs: 2.5, md: compact ? 4 : 5 }, py: compact ? 3 : 4, borderRadius: compact ? 3 : 2 }}
+    >
+        {title && <Typography component="h2" sx={{ fontSize: 18, fontWeight: 600, mb: 2.5 }}>{title}</Typography>}
+        {children}
+    </Paper>
+);
+
+// The submit row: full width on phones, right-aligned otherwise.
+const Actions = ({ children, sx }) => (
+    <Box sx={{ display: "flex", justifyContent: { xs: "stretch", sm: "flex-end" }, "& > button": { width: { xs: "100%", sm: "auto" } }, ...sx }}>{children}</Box>
+);
 
 /**
  * Username/email and password are two independent submissions (separate
@@ -25,7 +42,7 @@ const AccountSettingsForm = ({ user, targetAccount, reload, forceAccountSetup = 
     const isForceSetup = forceAccountSetup && isEditingOwnAccount;
 
     return (
-        <div className="w-full pb-5 grid gap-6 relative">
+        <Box sx={{ width: "100%", pb: 2.5, display: "grid", gap: 3, position: "relative" }}>
             {!isForceSetup && (
                 <AccountInfoForm
                     authUser={user}
@@ -43,7 +60,7 @@ const AccountSettingsForm = ({ user, targetAccount, reload, forceAccountSetup = 
                 isForceSetup={isForceSetup}
                 onBackToProfile={onBackToProfile}
             />
-        </div>
+        </Box>
     );
 };
 
@@ -100,9 +117,8 @@ const AccountInfoForm = ({ authUser, targetAccount, isAdmin, reload }) => {
     };
 
     return (
-        <div className="bg-white px-5 md:px-10 py-8 rounded-lg shadow-sm shadow-black/20">
-            <h2 className="text-lg font-semibold mb-5">Username &amp; Email</h2>
-            <form onSubmit={handleSubmit} className="grid gap-6">
+        <SettingsCard title="Username & Email">
+            <Box component="form" onSubmit={handleSubmit} sx={{ display: "grid", gap: 3 }}>
                 {/* Usernames and emails are managed by the System Admin; everyone else sees theirs. */}
                 <FormTextfield
                     label="Username"
@@ -125,16 +141,14 @@ const AccountInfoForm = ({ authUser, targetAccount, isAdmin, reload }) => {
                 />
 
                 {isAdmin ? (
-                    <div className="grid justify-end">
-                        <FormButton type="submit" label="Save Changes" />
-                    </div>
+                    <Actions><FormButton type="submit" label="Save Changes" /></Actions>
                 ) : (
-                    <p className="text-[0.85em] text-gray-500">
+                    <Typography sx={{ fontSize: 13.5, color: "text.secondary" }}>
                         To change your username or email, contact the System Admin.
-                    </p>
+                    </Typography>
                 )}
-            </form>
-        </div>
+            </Box>
+        </SettingsCard>
     );
 };
 
@@ -151,20 +165,20 @@ const PASSWORD_RULES = [
 const PasswordChecklist = ({ password = "", confirmation = "" }) => {
     const rules = [...PASSWORD_RULES, { label: "Both passwords match", test: (p) => p !== "" && p === confirmation }];
     return (
-        <div className="-mt-2 rounded-lg bg-gray-50 border border-gray-100 px-4 py-3">
-            <ul className="grid sm:grid-cols-2 gap-x-4 gap-y-1.5">
+        <Paper variant="outlined" sx={{ mt: -1, px: 2, py: 1.5, borderRadius: 2, bgcolor: "action.hover" }}>
+            <Box component="ul" sx={{ m: 0, p: 0, listStyle: "none", display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, columnGap: 2, rowGap: 0.75 }}>
                 {rules.map((r) => {
                     const ok = r.test(password);
                     return (
-                        <li key={r.label} className={`flex items-center gap-2 text-[0.82em] ${ok ? "text-green-700" : "text-gray-500"}`}>
-                            {ok ? <CircleCheck size={15} className="shrink-0" /> : <Circle size={15} className="shrink-0 text-gray-300" />}
+                        <Box component="li" key={r.label} sx={{ display: "flex", alignItems: "center", gap: 1, fontSize: 13, color: ok ? "success.main" : "text.secondary" }}>
+                            {ok ? <CircleCheck size={15} style={{ flexShrink: 0 }} /> : <Circle size={15} style={{ flexShrink: 0, opacity: 0.4 }} />}
                             {r.label}
-                        </li>
+                        </Box>
                     );
                 })}
-            </ul>
-            <p className="text-[0.78em] text-gray-500 mt-2.5">It also can't contain your name, username, ID number or email, or be a commonly used password.</p>
-        </div>
+            </Box>
+            <Typography sx={{ fontSize: 12.5, color: "text.secondary", mt: 1.25 }}>It also can't contain your name, username, ID number or email, or be a commonly used password.</Typography>
+        </Paper>
     );
 };
 
@@ -203,20 +217,19 @@ const ResetPasswordCard = ({ targetAccount, reload }) => {
     };
 
     return (
-        <div className="bg-white px-5 md:px-10 py-8 rounded-lg shadow-sm shadow-black/20">
-            <h2 className="text-lg font-semibold mb-3">Password</h2>
-            <p className="text-[0.9em] text-gray-600">
+        <SettingsCard title="Password">
+            <Typography sx={{ fontSize: 14.5, color: "text.secondary", mt: -1 }}>
                 Resets the password to the default, <b>lastname_IDnumber</b>
-                {canReset && <> (<code className="font-semibold">{defaultPasswordOf(targetAccount)}</code>)</>}.
+                {canReset && <> (<Box component="code" sx={{ fontWeight: 600, color: "text.primary" }}>{defaultPasswordOf(targetAccount)}</Box>)</>}.
                 {" "}{name} must change it at their next login.
-            </p>
+            </Typography>
             {!canReset && (
-                <p className="text-[0.85em] text-[#d12323] mt-2">This account has no ID number or last name, so it has no default password.</p>
+                <Typography sx={{ fontSize: 13.5, color: "error.main", mt: 1 }}>This account has no ID number or last name, so it has no default password.</Typography>
             )}
-            <div className="grid justify-end mt-5">
+            <Actions sx={{ mt: 2.5 }}>
                 <FormButton type="button" label="Reset Password" click={reset} enable={canReset} />
-            </div>
-        </div>
+            </Actions>
+        </SettingsCard>
     );
 };
 
@@ -395,27 +408,25 @@ const OwnPasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount
                 />
             )}
 
-            <div className={isForceSetup || isForcePassword ? "bg-white px-5 sm:px-8 py-6 rounded-xl shadow-sm shadow-black/10" : "bg-white px-5 md:px-10 py-8 rounded-lg shadow-sm shadow-black/20"}>
+            <SettingsCard compact={isForceSetup || isForcePassword} title={isForceSetup || isForcePassword ? null : "Password"}>
                 {isForcePassword ? (
-                    <div className="mb-6">
+                    <Box sx={{ mb: 3 }}>
                         <StepHeading
                             icon={KeyRound}
                             title="Set a New Password"
                             desc="The administrator reset your password to the default (lastname_IDnumber). Enter it, then choose your own."
                         />
-                    </div>
+                    </Box>
                 ) : isForceSetup ? (
-                    <div className="mb-6">
+                    <Box sx={{ mb: 3 }}>
                         <StepHeading
                             icon={KeyRound}
                             title="Set a New Password"
                             desc="Replace the default password your account was created with. You'll use this one to log in from now on."
                         />
-                    </div>
-                ) : (
-                    <h2 className="text-lg font-semibold mb-5">Password</h2>
-                )}
-                <form onSubmit={handleSubmit} className="grid gap-6">
+                    </Box>
+                ) : null}
+                <Box component="form" onSubmit={handleSubmit} sx={{ display: "grid", gap: 3 }}>
                     {showCurrentPassword && (
                         <FormTextfield
                             label={isForcePassword ? "Default Password (lastname_IDnumber)" : "Enter Your Current Password"}
@@ -457,37 +468,35 @@ const OwnPasswordForm = ({ authUser, targetAccount, isAdmin, isEditingOwnAccount
                         errorAsterisk={error.password_confirmationAsterisk}
                     />
 
-                    <div className="-mt-2">
+                    <Box sx={{ mt: -1 }}>
                         <GeneratePassword
                             value={data.password}
                             onGenerate={(password) => setData((prev) => ({ ...prev, password, password_confirmation: password }))}
                         />
-                    </div>
+                    </Box>
 
                     {(isForceSetup || isForcePassword) && <PasswordChecklist password={data.password} confirmation={data.password_confirmation} />}
 
                     {isForcePassword ? (
-                        <div className="grid sm:justify-end pt-2">
-                            <FormButton type="submit" label="Save New Password" />
-                        </div>
+                        <Actions sx={{ pt: 1 }}><FormButton type="submit" label="Save New Password" /></Actions>
                     ) : isForceSetup ? (
-                        <div className="flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-3 pt-2">
-                            <button
+                        <Stack direction={{ xs: "column-reverse", sm: "row" }} sx={{ justifyContent: "space-between", alignItems: { sm: "center" }, gap: 1.5, pt: 1 }}>
+                            <Button
                                 type="button"
+                                color="inherit"
+                                startIcon={<ArrowLeft size={16} />}
                                 onClick={() => { onBackToProfile?.(); window.scrollTo({ top: 0 }) }}
-                                className="inline-flex items-center justify-center gap-1.5 text-[0.9em] font-semibold text-gray-600 hover:text-gray-900 px-3 py-2"
+                                sx={{ textTransform: "none", fontWeight: 600, color: "text.secondary" }}
                             >
-                                <ArrowLeft size={16} /> Back to Profile
-                            </button>
+                                Back to Profile
+                            </Button>
                             <FormButton type="submit" label="Complete Account Setup" />
-                        </div>
+                        </Stack>
                     ) : (
-                        <div className="grid justify-end">
-                            <FormButton type="submit" label="Change Password" />
-                        </div>
+                        <Actions><FormButton type="submit" label="Change Password" /></Actions>
                     )}
-                </form>
-            </div>
+                </Box>
+            </SettingsCard>
         </>
     );
 };

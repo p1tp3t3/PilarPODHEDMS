@@ -1,4 +1,5 @@
 import UpModal from "../up-modal"
+import { Box, Typography } from "@mui/material"
 import FormTextfield from "@/Components/input/form-input"
 import { showOutputModal, showWarningModal } from "@/others/function"
 import { useState, useEffect } from "react"
@@ -76,14 +77,13 @@ const SetPenaltyModal = (props) => {
             w='w-[25rem]'
             cntr={true}
         >
-            <div className="w-full">
-                <form onSubmit={handleSubmit} noValidate>
-                    <div className="grid gap-5">
-                        <div className="text-[1.2em] text-center">
-                            <h1><b>Add New Penalty</b></h1>
-                        </div>
+            <Box sx={{ width: "100%" }}>
+                <Box component="form" onSubmit={handleSubmit} noValidate sx={{ display: "grid", gap: 2.5 }}>
+                        <Typography component="h1" sx={{ fontSize: "1.2rem", fontWeight: 700, textAlign: "center" }}>
+                            Add New Penalty
+                        </Typography>
 
-                        <div className="grid gap-3">
+                        <Box sx={{ display: "grid", gap: 1.5 }}>
                             <FormTextfield
                                 label='Reference No. (e.g. 6 or 1.4)'
                                 name='ref_number'
@@ -102,13 +102,10 @@ const SetPenaltyModal = (props) => {
                                 error={errors.description}
                                 errorAsterisk={!!errors.description}
                             />
-                        </div>
-                        <div className="grid">
-                            <FormButton label='Submit' type='submit' />
-                        </div>
-                    </div>
-                </form>
-            </div>
+                        </Box>
+                        <FormButton label='Submit' type='submit' />
+                </Box>
+            </Box>
         </UpModal>
     )
 }

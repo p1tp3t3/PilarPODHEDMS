@@ -15,9 +15,9 @@
                             <img src="{{ public_path('default-pic/pilar-pdf.png') }}" alt="Pilar College" style="width: 66px; height: 66px;">
                         </td>
                         <td style="vertical-align: middle; text-align: center; font-family: 'DejaVu Serif', 'Times New Roman', serif;">
-                            <div style="font-size: 16px; font-weight: bold; color: #1f3a5f; letter-spacing: 0.3px;">Pilar College of Zamboanga City, Inc.</div>
-                            <div style="font-size: 10.5px; color: #444; margin-top: 1px;">R.T. Lim Boulevard, Zamboanga City, 7000 &middot; College Department</div>
-                            <div style="font-size: 11px; font-weight: bold; color: #1f3a5f; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px;">Office of Student Affairs and Discipline</div>
+                            <div style="font-size: 16px; font-weight: bold; color: #000; letter-spacing: 0.3px;">Pilar College of Zamboanga City, Inc.</div>
+                            <div style="font-size: 10.5px; color: #000; margin-top: 1px;">R.T. Lim Boulevard, Zamboanga City, 7000 &middot; College Department</div>
+                            <div style="font-size: 11px; font-weight: bold; color: #000; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px;">Office of Student Affairs and Discipline</div>
                         </td>
                     </tr>
                 </table>
@@ -32,13 +32,13 @@
         </td>
         {{-- Serif like the paper forms, whatever the page's own font. --}}
         <td style="vertical-align: middle; font-family: 'DejaVu Serif', 'Times New Roman', serif;">
-            <div style="font-size: 16px; font-weight: bold; color: #1f3a5f; letter-spacing: 0.3px;">Pilar College of Zamboanga City, Inc.</div>
-            <div style="font-size: 10.5px; color: #444; margin-top: 1px;">R.T. Lim Boulevard, Zamboanga City, 7000 &middot; College Department</div>
-            <div style="font-size: 11px; font-weight: bold; color: #1f3a5f; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px;">Office of Student Affairs and Discipline</div>
+            <div style="font-size: 16px; font-weight: bold; color: #000; letter-spacing: 0.3px;">Pilar College of Zamboanga City, Inc.</div>
+            <div style="font-size: 10.5px; color: #000; margin-top: 1px;">R.T. Lim Boulevard, Zamboanga City, 7000 &middot; College Department</div>
+            <div style="font-size: 11px; font-weight: bold; color: #000; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px;">Office of Student Affairs and Discipline</div>
         </td>
-        <td style="vertical-align: middle; text-align: right; font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 9.5px; color: #333; line-height: 1.5;">
+        <td style="vertical-align: middle; text-align: right; font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 9.5px; color: #000; line-height: 1.5;">
             @foreach ($meta ?? [] as $label => $value)
-                {{ $label }} <strong style="color: #111;">{{ $value ?? 'N/A' }}</strong><br>
+                {{ $label }} <strong style="color: #000;">{{ $value ?? 'N/A' }}</strong><br>
             @endforeach
         </td>
     </tr>

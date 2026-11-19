@@ -18,7 +18,7 @@
     font-family: DejaVu Sans, sans-serif;
     font-size: 12px;
     margin: 12px;
-    color: #222;
+    color: #000;
   }
 
   /* --- HEADER --- */
@@ -40,13 +40,13 @@
   .school-name {
     font-size: 16px;
     font-weight: bold;
-    color: #003366;
+    color: #000;
     margin-bottom: 2px;
   }
 
   .school-info {
     font-size: 11px;
-    color: #555;
+    color: #000;
   }
 
   .title-box {
@@ -56,7 +56,7 @@
 
   .title-box h2 {
     font-size: 16px;
-    color: #003366;
+    color: #000;
     margin: 0;
   }
 
@@ -82,7 +82,7 @@
 
   .profile-table .label {
     font-weight: bold;
-    color: #003366;
+    color: #000;
     width: 25%;
   }
 
@@ -125,11 +125,11 @@
   }
 
   .category-minor {
-    color: #856404;
+    color: #000;
   }
 
   .category-major {
-    color: #b71c1c;
+    color: #000;
     font-weight: bold;
   }
 
@@ -153,13 +153,13 @@
     display: block;
     font-size: 20px;
     font-weight: bold;
-    color: #003366;
+    color: #000;
   }
 
   .summary-label {
     display: block;
     font-size: 10.5px;
-    color: #555;
+    color: #000;
   }
 
   /* --- FOOTER / SIGNATURE --- */
@@ -183,7 +183,7 @@
   .sig p {
     margin: 0;
     font-size: 11px;
-    color: #444;
+    color: #000;
   }
 
   hr {
@@ -254,7 +254,7 @@
   @endif
 
   {{-- INCIDENT RECORDS --}}
-  <h4 style="margin-top:15px; color:#003366;">Incident Records</h4>
+  <h4 style="margin-top:15px; color:#000;">Incident Records</h4>
 
   @if($type == 'incident')
     @forelse ($data as $incident)
@@ -283,9 +283,9 @@
               <table style="width:100%; border-collapse:collapse;">
                 <thead>
                   <tr>
-                    <th style="width:50%; background-color:#f3f7fb; color:#003366;">Violation</th>
-                    <th style="width:15%; background-color:#f3f7fb; color:#003366;">Occurrence</th>
-                    <th style="background-color:#f3f7fb; color:#003366;">Penalty</th>
+                    <th style="width:50%; background-color:#f3f7fb; color:#000;">Violation</th>
+                    <th style="width:15%; background-color:#f3f7fb; color:#000;">Occurrence</th>
+                    <th style="background-color:#f3f7fb; color:#000;">Penalty</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -297,7 +297,7 @@
                     </tr>
                   @empty
                     <tr>
-                      <td colspan="3" style="text-align:center; color:#888; font-style:italic;">No violation formally charged for this incident.</td>
+                      <td colspan="3" style="text-align:center; color:#000; font-style:italic;">No violation formally charged for this incident.</td>
                     </tr>
                   @endforelse
                 </tbody>
@@ -305,7 +305,7 @@
             </td>
           </tr>
           <tr>
-            <td colspan="6" style="background-color:#fbfcfe; font-size:10.5px; color:#444;">
+            <td colspan="6" style="background-color:#fbfcfe; font-size:10.5px; color:#000;">
               <strong>Reported By:</strong> {{ $incident['complainant'] }}
               &nbsp;&nbsp;|&nbsp;&nbsp;
               <strong>Resolved On:</strong> {{ $incident['resolved_at'] }}

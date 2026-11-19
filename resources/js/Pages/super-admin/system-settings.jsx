@@ -3,13 +3,16 @@ import AuthLayout from "@/Layouts/auth-layout";
 import PageLayout from "@/Layouts/page-layout";
 import FormTextfield from "@/Components/input/form-input";
 import FormButton from "@/Components/button/button";
-import AccountSettingsForm from "@/Components/other/account-settings-form";
 import { SystemService } from "@/others/services/system-service";
-import { change, showOutputModal } from "@/others/function";
+import { change, readableDate, showOutputModal, showWarningModal } from "@/others/function";
 import TabSwitcher from "@/Components/other/tab-switcher";
 import { useReload } from "@/context-provider/reload-provider";
 import { Head } from "@inertiajs/react";
 import { Validator } from "@/others/classes/validator";
+import RichTextEditor from "@/Components/input/rich-text-editor";
+import ParentTermsModal from "@/Components/modal/parent-terms-modal";
+import { Box, Button, Paper, Stack, Typography } from "@mui/material";
+import { Eye } from "lucide-react";
 
 const SystemSettings = (props) => {
     const [activeTab, setActiveTab] = useState("login_portal");
@@ -24,7 +27,7 @@ const SystemSettings = (props) => {
                         tabs={[
                             { key: "login_portal", label: "Super Admin Login Portal" },
                             { key: "mail", label: "Mail Configuration" },
-                            { key: "account", label: "Account Settings" },
+                            { key: "terms", label: "Terms and Conditions" },
                         ]}
                         value={activeTab}
                         onChange={setActiveTab}
@@ -45,13 +48,10 @@ const SystemSettings = (props) => {
                             />
                         )}
 
-                        {activeTab === "account" && (
-                            <AccountSettingsForm
-                                user={props.user}
-                                targetAccount={props.user}
-                                reload={loadRegister}
-                            />
+                        {activeTab === "terms" && (
+                            <TermsTab terms={props.terms} reload={loadRegister} />
                         )}
+
                     </div>
             </PageLayout>
         </>
@@ -234,6 +234,117 @@ const MailConfigTab = ({ mailConfig, reload }) => {
                 </form>
             </div>
         </div>
+    );
+};
+
+// The parent/guardian Terms and Conditions (shown on parent registration).
+// Each save is a new version; parents registering afterwards agree to it.
+const TermsTab = ({ terms: initial, reload }) => {
+    const [terms, setTerms] = useState(initial);
+    const [content, setContent] = useState(initial?.content ?? "");
+    const [error, setError] = useState("");
+    const [preview, setPreview] = useState(false);
+    const dirty = content !== (terms?.content ?? "");
+
+    const plainText = (html) => {
+        const el = document.createElement("div");
+        el.innerHTML = html ?? "";
+        return (el.textContent ?? "").trim();
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!plainText(content)) {
+            setError("The Terms and Conditions cannot be empty.");
+            return;
+        }
+
+        showWarningModal(
+            "Save these Terms and Conditions? Parents who register from now on will agree to this version.",
+            "Save Terms and Conditions",
+            "Cancel",
+            () => {
+                reload(true, "text-wait", "Saving terms and conditions...");
+                SystemService.saveTerms(
+                    content,
+                    (res) => {
+                        if (res?.terms) {
+                            setTerms(res.terms);
+                            setContent(res.terms.content);
+                        }
+                        setError("");
+                        reload(true, "success", "Terms and Conditions Saved Successfully");
+                    },
+                    (err) => {
+                        reload(false);
+                        const msg = err?.response?.data?.errors?.content?.[0] || err?.response?.data?.message;
+                        if (msg) setError(msg);
+                        else showOutputModal("Failed to Save Terms and Conditions", "e");
+                    }
+                );
+            }
+        );
+    };
+
+    return (
+        <Box sx={{ maxWidth: "52rem" }}>
+            <Paper variant="outlined" sx={{ p: { xs: 2.5, sm: 4 }, borderRadius: 2 }}>
+                <Stack direction={{ xs: "column", sm: "row" }} sx={{ justifyContent: "space-between", alignItems: { sm: "flex-start" }, gap: 1.5, mb: 2.5 }}>
+                    <Box>
+                        <Typography component="h2" sx={{ fontSize: 18, fontWeight: 600 }}>Terms and Conditions</Typography>
+                        <Typography sx={{ fontSize: 13.5, color: "text.secondary", mt: 0.5 }}>
+                            Shown to parents/guardians on the registration form. They must agree to it before registering.
+                        </Typography>
+                        <Typography sx={{ fontSize: 12.5, color: "text.secondary", mt: 0.75 }}>
+                            {terms?.is_default
+                                ? "Using the default text (not edited yet)."
+                                : <>Last updated {readableDate(terms?.updated_at)}{terms?.updated_by ? ` by ${terms.updated_by}` : ""}.</>}
+                        </Typography>
+                    </Box>
+                    <Button
+                        type="button"
+                        size="small"
+                        variant="outlined"
+                        color="inherit"
+                        startIcon={<Eye size={15} />}
+                        onClick={() => setPreview(true)}
+                        sx={{ textTransform: "none", fontWeight: 600, borderRadius: 2, borderColor: "divider", color: "text.secondary", flexShrink: 0, alignSelf: { xs: "flex-start", sm: "auto" } }}
+                    >
+                        Preview
+                    </Button>
+                </Stack>
+
+                <Box component="form" onSubmit={handleSubmit} sx={{ display: "grid", gap: 2.5 }}>
+                    <RichTextEditor
+                        val={content}
+                        change={(v) => { setContent(v); setError(""); }}
+                        error={error}
+                        placeholder="Write the terms and conditions…"
+                        minHeight="24rem"
+                    />
+                    <Stack direction={{ xs: "column-reverse", sm: "row" }} sx={{ justifyContent: "flex-end", alignItems: { sm: "center" }, gap: 1.5 }}>
+                        {dirty && (
+                            <Button
+                                type="button"
+                                color="inherit"
+                                onClick={() => { setContent(terms?.content ?? ""); setError(""); }}
+                                sx={{ textTransform: "none", fontWeight: 600, color: "text.secondary" }}
+                            >
+                                Discard Changes
+                            </Button>
+                        )}
+                        <FormButton type="submit" label="Save Terms and Conditions" enable={dirty} />
+                    </Stack>
+                </Box>
+            </Paper>
+
+            {/* What parents see (the unsaved text, too). */}
+            <ParentTermsModal
+                open={preview}
+                onClose={() => setPreview(false)}
+                terms={{ ...terms, content }}
+            />
+        </Box>
     );
 };
 

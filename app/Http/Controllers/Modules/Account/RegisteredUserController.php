@@ -63,6 +63,8 @@ class RegisteredUserController extends Controller
 
         return Inertia::render('guest/parent-registration', [
             'programs' => ProgramResource::collection($programs),
+            // The Terms and Conditions in effect (System Settings).
+            'terms' => \App\Models\TermsAndConditions::current(),
         ]);
     }
 

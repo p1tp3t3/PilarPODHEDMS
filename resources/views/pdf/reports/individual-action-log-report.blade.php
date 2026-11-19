@@ -13,7 +13,7 @@
     font-family: DejaVu Sans, sans-serif;
     font-size: 12px;
     margin: 25px;
-    color: #222;
+    color: #000;
   }
 
   /* --- HEADER --- */
@@ -35,13 +35,13 @@
   .school-name {
     font-size: 16px;
     font-weight: bold;
-    color: #003366;
+    color: #000;
     margin-bottom: 2px;
   }
 
   .school-info {
     font-size: 11px;
-    color: #555;
+    color: #000;
   }
 
   .title-box {
@@ -51,7 +51,7 @@
 
   .title-box h2 {
     font-size: 16px;
-    color: #003366;
+    color: #000;
     margin: 0;
   }
 
@@ -77,7 +77,7 @@
 
   .profile-table .label {
     font-weight: bold;
-    color: #003366;
+    color: #000;
     width: 25%;
   }
 
@@ -120,11 +120,11 @@
   }
 
   .category-minor {
-    color: #856404;
+    color: #000;
   }
 
   .category-major {
-    color: #b71c1c;
+    color: #000;
     font-weight: bold;
   }
 
@@ -133,7 +133,7 @@
     margin-top: 25px;
     font-size: 11px;
     text-align: right;
-    color: #555;
+    color: #000;
   }
 
   hr {
@@ -188,7 +188,7 @@
   </div>
 
   {{-- INCIDENT RECORDS --}}
-  <h4 style="margin-top:15px; color:#003366;">Action Log Report</h4>
+  <h4 style="margin-top:15px; color:#000;">Action Log Report</h4>
   <table class="incidents">
     <thead>
       <tr>

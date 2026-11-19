@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { Chip } from "@mui/material"
 import { CalendarDays } from "lucide-react"
 import { ViewModalSkeleton } from "./view-modal-parts"
+import { RelatedViolationsList } from "@/Components/input/related-violations-field"
 
 const ATTENDANCE_META = {
     present: { label: "Present", backgroundColor: "var(--tone-green-bg)", color: "var(--tone-green-fg)" },
@@ -83,6 +84,8 @@ const ViewAppointmentModal = ({ close, closeModal, id }) => {
                         {data.description}
                     </div>
                 )}
+
+                <RelatedViolationsList list={data.related_violations} />
 
                 {data.rejected_reason && (
                     <div className="text-[0.85em] text-red-600">

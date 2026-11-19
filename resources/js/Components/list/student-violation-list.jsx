@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Box } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import { DataGrid, GridActionsCellItem, GridToolbarContainer, GridToolbarQuickFilter } from "@/Components/other/data-grid";
 import ProfilePic from "../other/profile-pic";
 import { getProfilePic, getYearLevel, toTitleCase, studentProgram, showUserType } from "@/others/function";
@@ -46,7 +46,7 @@ const StudentViolationList = ({ list = [], fromKey = null }) => {
       field: "id",
       headerName: "#",
       width: 50,
-      renderCell: (params) => <span>{params.value + 1}.</span>,
+      renderCell: (params) => <Typography sx={{ fontSize: "0.82rem", color: "text.secondary" }}>{params.value + 1}</Typography>,
     },
     { field: "id_number", headerName: "Student ID", width: 120 },
     {
@@ -61,22 +61,22 @@ const StudentViolationList = ({ list = [], fromKey = null }) => {
             if (!user) return null;
 
             return (
-            <div className="flex items-center gap-3 h-full">
+            <Stack direction="row" sx={{ alignItems: "center", gap: 1.5, height: "100%", minWidth: 0 }}>
                 <ProfilePic
                 size={1.9}
                 src={getProfilePic(user.profile?.profile_picture, user.profile?.sex)}
                 />
-                <div className="flex flex-col justify-center leading-tight">
-                <h1 className="text-[0.8em] font-bold">
-                    {`${user.profile?.first_name || ""} ${user.profile?.middle_name || ""} ${user.profile?.last_name || ""}`}
-                </h1>
-                <p className="text-[0.7em]">
-                    {user.role === "student"
-                    ? showUserType(user)
-                    : `${user.teaching?.program?.code ?? ""} ${user?.role === "program_head" ? "(Program Head)" : "(Faculty)"}`.trim()}
-                </p>
-                </div>
-            </div>
+                <Box sx={{ minWidth: 0 }}>
+                    <Typography noWrap sx={{ fontSize: "0.85rem", fontWeight: 600, lineHeight: 1.3 }}>
+                        {[user.profile?.first_name, user.profile?.middle_name, user.profile?.last_name].filter(Boolean).join(" ")}
+                    </Typography>
+                    <Typography noWrap sx={{ fontSize: "0.75rem", color: "text.secondary", lineHeight: 1.3 }}>
+                        {user.role === "student"
+                        ? showUserType(user)
+                        : `${user.teaching?.program?.code ?? ""} ${user?.role === "program_head" ? "(Program Head)" : "(Faculty)"}`.trim()}
+                    </Typography>
+                </Box>
+            </Stack>
             );
         },
     },
@@ -94,12 +94,13 @@ const StudentViolationList = ({ list = [], fromKey = null }) => {
       // once; hover lists which ones and how many times.
       valueGetter: (value) => value?.length ?? 0,
       renderCell: ({ row, value }) => (
-        <span
-          className={value ? "font-semibold text-red-700" : "text-gray-500"}
+        <Typography
+          component="span"
           title={row.repeat_violations?.map((r) => `${toTitleCase(r.name)} ×${r.count}`).join(", ") || "No repeated violations"}
+          sx={{ fontSize: "0.875rem", fontWeight: value ? 700 : 400, color: value ? "var(--tone-red-fg)" : "text.secondary" }}
         >
           {value}
-        </span>
+        </Typography>
       ),
     }] : []),
     { field: "violation_count", headerName: "Total Violation Counts", width: 160 },
@@ -113,14 +114,14 @@ const StudentViolationList = ({ list = [], fromKey = null }) => {
       renderCell: (params) => {
         const obj = params.row;
         return (
-            <div className="flex gap-2 items-center h-full">
+            <Stack direction="row" sx={{ gap: 1, alignItems: "center", height: "100%" }}>
                 <ActionBtn
                     className="bg-blue-600 text-white hover:bg-blue-700"
                     onClick={() => router.visit(`/student-violation/${obj.user?.encrypted_id}${fromKey ? `?from=${encodeURIComponent(fromKey)}` : ""}`)}
                 >
                 View
                 </ActionBtn>
-            </div>
+            </Stack>
             );
         }
     },

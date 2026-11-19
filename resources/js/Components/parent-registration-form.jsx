@@ -343,6 +343,7 @@ const ParentRegistrationForm = (props) => {
       </form>
       <ParentTermsModal
         open={termsOpen}
+        terms={props.terms}
         onClose={() => setTermsOpen(false)}
         onAgree={() => {
           props.onchange({ target: { name: "agree_terms", value: true } });

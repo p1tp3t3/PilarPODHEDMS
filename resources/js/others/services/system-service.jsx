@@ -52,6 +52,11 @@ export const SystemService = {
         const api = new APIRequest("/system-settings/mail-config", "post", data, () => {}, success, error);
         api.fetchData();
     },
+    saveTerms(content, success, error) {
+        // fetchData() hands the response (with the saved terms) to the setter.
+        const api = new APIRequest("/system-settings/terms", "post", { content }, success, () => {}, error);
+        api.fetchData();
+    },
     sendTestEmail(testEmail, success, error) {
         const api = new APIRequest("/system-settings/mail-config/test", "post", { test_email: testEmail }, () => {}, success, error);
         api.fetchData();

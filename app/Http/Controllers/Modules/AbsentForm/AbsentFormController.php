@@ -433,6 +433,7 @@ class AbsentFormController extends Controller
             // --- Email must succeed ---
 
             $emailData = [
+                'form_number' => $student->form_number,
                 'sender_name' => $prefectName,
                 'student_name' => $studentName,
                 'prefect_name' => $prefectName,

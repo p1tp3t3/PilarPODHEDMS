@@ -5,9 +5,10 @@ import ActionBtn from "@/Components/button/action-btn";
 import TabSwitcher from "@/Components/other/tab-switcher";
 import { useState } from "react";
 import { DataGrid } from "@/Components/other/data-grid";
-import { Box } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
+import Btn from "@/Components/button/normal-btn";
 import { router } from "@inertiajs/react";
-import { ShieldAlert } from "lucide-react";
+import { Plus, ShieldAlert } from "lucide-react";
 
 const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditRow = true, canDelete = true, canView = true }) => {
     // Active violations by default; archived ones sit in their own tab.
@@ -72,24 +73,21 @@ const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditR
     };
 
     return (
-        <div className="flex-1 min-w-0 overflow-y-auto">
+        <Box sx={{ minWidth: 0 }}>
 
-            {/* Toolbar */}
-            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                <TabSwitcher value={view} onChange={setView} tabs={[{ key: "active", label: "Active" }, { key: "archived", label: "Archived" }]} />
+            {/* Toolbar: Active / Archived, and Add Violation. */}
+            <Stack direction={{ xs: "column-reverse", sm: "row" }} sx={{ alignItems: { sm: "center" }, justifyContent: "space-between", gap: 1.5, mb: 2 }}>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <TabSwitcher value={view} onChange={setView} tabs={[{ key: "active", label: "Active" }, { key: "archived", label: "Archived" }]} />
+                </Box>
                 {canAdd && (
-                <button
-                    className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full sm:w-auto"
-                    onClick={() => events[0]("violation", "add")}
-                >
-                    Add Violation
-                </button>
+                    <Btn onclick={() => events[0]("violation", "add")} icon={<Plus size={18} />} label="Add Violation">
+                        <Stack direction="row" sx={{ alignItems: "center", gap: 0.75 }}><Plus size={16} /> Add Violation</Stack>
+                    </Btn>
                 )}
-            </div>
+            </Stack>
 
             {/* DATA TABLE */}
-            <div className="w-full min-w-0">
-                <div className="w-full min-w-0">
                     <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                         <DataGrid
                             rows={rows}
@@ -109,9 +107,12 @@ const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditR
                                 name: toTitleCase(row.violation_name),
                                 role: `${row.offense_status ? "Major" : "Minor"} offense · ${new Set((row.penalties ?? []).map((p) => p.occurrence)).size} offense level(s)${row.archived_at ? " · Archived" : ""}`,
                                 avatar: (
-                                    <div className={`h-9 w-9 grid place-items-center rounded-full ${row.offense_status ? "bg-red-100 text-red-600" : "bg-yellow-100 text-yellow-700"}`}>
+                                    <Box sx={{
+                                        width: 36, height: 36, borderRadius: "50%", display: "grid", placeItems: "center",
+                                        bgcolor: `var(--tone-${row.offense_status ? "red" : "amber"}-bg)`, color: `var(--tone-${row.offense_status ? "red" : "amber"}-fg)`,
+                                    }}>
                                         <ShieldAlert size={18} />
-                                    </div>
+                                    </Box>
                                 ),
                                 hide: ["violation_name", "offense_status"],
                             })}
@@ -130,9 +131,9 @@ const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditR
                                     flex: 1,
                                     minWidth: 220,
                                     renderCell: ({ row }) => (
-                                        <div className="py-2 font-semibold">
+                                        <Typography sx={{ py: 1, fontSize: "0.875rem", fontWeight: 600, lineHeight: 1.4, whiteSpace: "normal" }}>
                                             {toTitleCase(row.violation_name)}
-                                        </div>
+                                        </Typography>
                                     ),
                                 },
                                 {
@@ -140,18 +141,22 @@ const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditR
                                     headerName: "Status",
                                     width: 110,
                                     renderCell: ({ row }) => (
-                                        <div className="py-2 flex flex-wrap gap-1.5">
+                                        <Stack direction="row" sx={{ py: 1, flexWrap: "wrap", gap: 0.75 }}>
                                             <StatusPill status={row.offense_status ? "major" : "minor"} />
                                             {row.archived_at && <StatusPill status="archived" />}
-                                        </div>
+                                        </Stack>
                                     ),
                                 },
                                 {
                                     field: "created_at",
                                     headerName: "Added Since",
                                     width: 190,
-                                    renderCell: ({ row }) =>
-                                        `${readableDate(row.created_at)} (${readableTime(row.created_at)})`,
+                                    renderCell: ({ row }) => (
+                                        <Stack sx={{ lineHeight: 1.3 }}>
+                                            <Typography sx={{ fontSize: "0.85rem" }}>{readableDate(row.created_at)}</Typography>
+                                            <Typography sx={{ fontSize: "0.75rem", color: "text.secondary" }}>{readableTime(row.created_at)}</Typography>
+                                        </Stack>
+                                    ),
                                 },
                                 {
                                     field: "actions",
@@ -162,7 +167,7 @@ const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditR
                                     headerAlign: "left",
                                     align: "left",
                                     renderCell: ({ row }) => (
-                                        <div className="flex gap-2 items-center h-full py-2">
+                                        <Stack direction="row" sx={{ gap: 1, alignItems: "center", flexWrap: "wrap", py: 1 }}>
                                             {canView && (
                                             <ActionBtn
                                                 className="bg-blue-600 hover:bg-blue-700"
@@ -204,15 +209,13 @@ const ManageViolation = ({ list, events, reload, setter, canAdd = true, canEditR
                                                 Delete
                                             </ActionBtn>
                                             ))}
-                                        </div>
+                                        </Stack>
                                     ),
                                 },
                             ]}
                         />
                     </Box>
-                </div>
-            </div>
-        </div>
+        </Box>
     );
 };
 

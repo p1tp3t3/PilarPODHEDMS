@@ -115,4 +115,17 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Email Logo
+    |--------------------------------------------------------------------------
+    |
+    | The school logo in the letterhead of every system email. A public link,
+    | not an embedded image: mail apps (Gmail) list an embedded image as an
+    | attachment, and a link to this site would not load on a local install.
+    |
+    */
+
+    'logo_url' => env('MAIL_LOGO_URL', 'https://raw.githubusercontent.com/p1tp3t3/PilarPODHEDMS/refs/heads/main/public/default-pic/pilar.png'),
+
 ];

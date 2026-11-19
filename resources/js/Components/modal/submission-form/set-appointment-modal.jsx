@@ -12,6 +12,7 @@ import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
 import { X } from "lucide-react"
 import { Validator } from "@/others/classes/validator"
+import RelatedViolationsField from "@/Components/input/related-violations-field"
 
 
 const AppointmentModal = (props) => {
@@ -38,10 +39,15 @@ const AppointmentModal = (props) => {
     })
 
     const [searchedStudentParent, setSearchedStudentParent] = useState(locked ? [locked] : null)
+    // The violation(s) a new appointment addresses (defaultViolationIds: e.g.
+    // the one open on the Behavioural Analysis page).
+    const [relatedViolations, setRelatedViolations] = useState(props.defaultViolationIds ?? [])
+    const showRelated = props.user_type == 'sub_admin' && !isResched && !isCancel
 
 
 
     useEffect(() => {
+        if (props.close) setRelatedViolations(props.defaultViolationIds ?? [])
         if (locked) {
             // Fresh form for the fixed person every time it opens.
             setSearchedStudentParent([locked])
@@ -115,7 +121,8 @@ const AppointmentModal = (props) => {
             'Cancel',
             () => {
                 props.reload(true, 'text-wait', label2 + '. Please Wait')
-                AppointmentService.schedule(isResched, props.appointmentId, appoint, isResched ? props.setData : ()=>{}, success, error)
+                const payload = showRelated ? { ...appoint, related_violations: JSON.stringify(relatedViolations) } : appoint
+                AppointmentService.schedule(isResched, props.appointmentId, payload, isResched ? props.setData : ()=>{}, success, error)
             }
         )
     }
@@ -134,6 +141,7 @@ const AppointmentModal = (props) => {
     };
     const unselect = () => {
         setSearchedStudentParent(null)
+        setRelatedViolations([])
         setAppointment((prev) => ({
             ...prev,
             user_id: props.id
@@ -260,6 +268,12 @@ const AppointmentModal = (props) => {
                             </>
                             :
                             '')}
+                            {showRelated && searchedStudentParent?.[0] &&
+                            <RelatedViolationsField
+                                studentIds={[searchedStudentParent[0].id]}
+                                value={relatedViolations}
+                                onChange={setRelatedViolations}
+                            />}
                             <div className="w-full">
                                 <RichTextEditor
                                     label={`Reason to ${((isResched) ? 'Re-Schedule' : (isCancel) ? 'Cancel' : 'Appoint')}`}

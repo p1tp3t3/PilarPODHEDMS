@@ -11,6 +11,7 @@ import { AppointmentService } from "@/others/services/appointment-service"
 import { Phone, TriangleAlert } from "lucide-react"
 import { Link } from "@inertiajs/react"
 import { Validator } from "@/others/classes/validator"
+import RelatedViolationsField from "@/Components/input/related-violations-field"
 
 const CallInModal = (props) => {
     const { showToast } = useContext(AuthContext)
@@ -24,7 +25,9 @@ const CallInModal = (props) => {
               'receiver_id': '',
               'call_in_reason': '',
           }),
-          [validationErr, setValidationError] = useState({})
+          [validationErr, setValidationError] = useState({}),
+          // The violation(s) the office call addresses.
+          [relatedViolations, setRelatedViolations] = useState([])
 
     const handleSearch = (e) => {
         const val = e.target.value;
@@ -43,12 +46,13 @@ const CallInModal = (props) => {
         if (Validator.hasErrors(found)) return
         if(!submit) {
             setSubmit(true)
-            AppointmentService.callIn(data, success, error)
+            AppointmentService.callIn({ ...data, related_violations: JSON.stringify(relatedViolations) }, success, error)
         }
     }
     const getSearchedStudent = (s, user) => {
         const f = [user]
         setSearchedStudent(f)
+        setRelatedViolations([])
         setData((prev) => ({
             ...prev,
             receiver_id: f[0].id
@@ -64,6 +68,7 @@ const CallInModal = (props) => {
             call_in_reason: '',
         }))
         setSearchedStudent(null)
+        setRelatedViolations([])
         setSubmit(false)
     }
     const error = (e) => {
@@ -118,6 +123,12 @@ const CallInModal = (props) => {
                                 />
                             </div>
                         )}
+                        {searchedStudent &&
+                        <RelatedViolationsField
+                            studentIds={[searchedStudent[0].id]}
+                            value={relatedViolations}
+                            onChange={setRelatedViolations}
+                        />}
                         <div>
                             <RichTextEditor
                                 label="Enter Your Message"

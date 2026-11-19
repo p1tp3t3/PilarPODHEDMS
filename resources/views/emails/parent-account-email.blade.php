@@ -1,87 +1,25 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-  <title>Parent Account</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f4f4f4;
-      margin: 0;
-      padding: 0;
-    }
-    .email-container {
-      max-width: 600px;
-      margin: auto;
-      background: #ffffff;
-      padding: 20px;
-      border-radius: 6px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    }
-    .header {
-      background-color: #2a4365;
-      color: #ffffff;
-      padding: 20px;
-      border-radius: 6px 6px 0 0;
-      text-align: center;
-    }
-    .section {
-      padding: 15px 0;
-      border-bottom: 1px solid #e2e2e2;
-      display: grid;
-      gap: 10px;
-    }
-    .section:last-child {
-      border-bottom: none;
-    }
-    .label {
-      font-weight: bold;
-      color: #333333;
-    }
-    .value {
-      margin-top: 5px;
-      color: #555555;
-    }
-    .footer {
-      text-align: center;
-      color: #888888;
-      font-size: 12px;
-      padding: 10px;
-    }
-  </style>
-</head>
-<body>
-  <div class="email-container">
-    <div class="header">
-        <h2>Your Parent Account</h2>
-    </div>
+@extends('emails.layouts.formal', [
+    'preheader' => 'Your parent/guardian account is ready.',
+])
 
-    @foreach($parents as $parent)
-        <div class="section">
-            <div>
-                <div class="label">Parent Name:</div>
-                <div class="value">{{ $parent['name'] }}</div>
-            </div>
-            <div>
-                <div class="label">Role:</div>
-                <div class="value">{{ $parent['role'] }}</div>
-            </div>
-            <div>
-                <div class="label">Username:</div>
-                <div class="value">{{ $parent['username'] }}</div>
-            </div>
-            <div>
-                <div class="label">Password:</div>
-                <div class="value">{{ $parent['password'] }}</div>
-            </div>
-        </div>
+@section('subject', 'Parent/Guardian Account Credentials')
+
+@section('body')
+    <p style="margin:0 0 14px;">Good day,</p>
+    <p style="margin:0 0 6px;">
+        Your parent/guardian account in the Prefect of Discipline Management System has been created. Through this account you may view your child's discipline records, appointments and notices from the Office of Student Affairs and Discipline. Your login details are as follows:
+    </p>
+
+    @foreach ($parents as $parent)
+        @include('emails.partials.details', ['rows' => [
+            'Name' => $parent['name'] ?? null,
+            'Relationship' => $parent['role'] ?? null,
+            'Username' => $parent['username'] ?? null,
+            'Temporary Password' => $parent['password'] ?? null,
+        ]])
     @endforeach
 
-    <div class="footer">
-      &copy; 2025 Your School Name. All rights reserved.
-    </div>
-  </div>
-</body>
-</html>
+    <p style="margin:0 0 14px;">
+        For your security, you will be asked to change this temporary password the first time you log in. Please keep your login details private.
+    </p>
+@endsection

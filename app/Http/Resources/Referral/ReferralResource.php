@@ -39,6 +39,9 @@ class ReferralResource extends BaseResource
             'officeNoteBy' => UserResource::make($this->whenLoaded('officeNoteBy')),
             // Whether the viewer is that office (so they can write the note).
             'can_write_office_note' => $this->resource->isSentToOfficeOf($request->user()),
+            // The violation(s) the referral addresses (set by the Prefect).
+            'related_violations' => \App\Models\InterventionViolation::linked(\App\Models\InterventionViolation::REFERRAL, (int) $this->id),
+            'can_set_related_violations' => $request->user()?->role === 'sub_admin',
             'confirmed_at' => $this->confirmed_at,
             'archived_at' => $this->archived_at,
             'created_at' => $this->created_at,

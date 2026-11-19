@@ -26,6 +26,8 @@ class AppointmentResource extends BaseResource
             'rejected_reason' => $this->rejected_reason,
             'confirmed_at' => $this->confirmed_at,
             'description' => $this->description,
+            // The violation(s) the appointment addresses.
+            'related_violations' => \App\Models\InterventionViolation::linked(\App\Models\InterventionViolation::APPOINTMENT, (int) $this->id),
             'archived_at' => $this->field('archived_at'),
             'created_at' => $this->field('created_at'),
             'user' => UserResource::make($this->whenLoaded('user')),

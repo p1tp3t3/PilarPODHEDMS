@@ -17,48 +17,48 @@
 @section('styles')
 <style>
   /* Page margins: pdf/layouts/report. */
-  body { margin: 0 !important; padding: 0 !important; font-family: "DejaVu Serif", "Times New Roman", serif; font-size: 11px; color: #1a1a1a; }
+  body { margin: 0 !important; padding: 0 !important; font-family: "DejaVu Serif", "Times New Roman", serif; font-size: 11px; color: #000; }
   table { width: 100% !important; max-width: 100%; border-collapse: collapse; }
   tr { page-break-inside: avoid; }
 
   /* numbered sections */
-  h3.sec { font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #1f3a5f; border-bottom: 1px solid #1f3a5f; padding-bottom: 3px; margin: 20px 0 8px; }
-  h4.sub { font-size: 11px; font-weight: bold; color: #1f3a5f; margin: 12px 0 4px; }
+  h3.sec { font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #000; border-bottom: 1px solid #1f3a5f; padding-bottom: 3px; margin: 20px 0 8px; }
+  h4.sub { font-size: 11px; font-weight: bold; color: #000; margin: 12px 0 4px; }
   p.text { text-align: justify; line-height: 1.6; margin: 0 0 6px; }
   .keep { page-break-inside: avoid; }
-  .caption { font-size: 9.5px; font-style: italic; color: #444; text-align: center; margin: 4px 0 10px; }
-  p.none { font-style: italic; color: #666; margin: 4px 0 8px; }
+  .caption { font-size: 9.5px; font-style: italic; color: #000; text-align: center; margin: 4px 0 10px; }
+  p.none { font-style: italic; color: #000; margin: 4px 0 8px; }
 
   /* formal data tables */
   table.data { margin-top: 4px; }
-  table.data th { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px; background: #e8edf3; color: #1f3a5f; border: 1px solid #9aa9bb; padding: 5px 6px; text-align: left; }
+  table.data th { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px; background: #e8edf3; color: #000; border: 1px solid #9aa9bb; padding: 5px 6px; text-align: left; }
   table.data td { border: 1px solid #c3ccd8; padding: 4px 6px; font-size: 10.5px; }
   table.data td.num, table.data th.num { text-align: right; }
   table.data td.c, table.data th.c { text-align: center; }
-  table.data td.none { text-align: center; font-style: italic; color: #666; }
+  table.data td.none { text-align: center; font-style: italic; color: #000; }
 
   /* key figures */
   table.figures td { border: 1px solid #c3ccd8; padding: 6px 8px; font-size: 10.5px; width: 25%; }
-  table.figures td.k { background: #f4f6f9; color: #333; }
-  table.figures td.v { font-weight: bold; color: #111; }
+  table.figures td.k { background: #f4f6f9; color: #000; }
+  table.figures td.v { font-weight: bold; color: #000; }
 
   /* student header */
   table.who td { border: none; padding: 0; vertical-align: middle; }
   td.who-photo { width: 76px; }
   td.who-photo img { width: 64px; height: 64px; border-radius: 32px; border: 1px solid #9aa9bb; }
-  td.who-name .n { font-size: 15px; font-weight: bold; color: #1f3a5f; }
-  td.who-name .m { font-size: 10.5px; color: #444; margin-top: 2px; }
+  td.who-name .n { font-size: 15px; font-weight: bold; color: #000; }
+  td.who-name .m { font-size: 10.5px; color: #000; margin-top: 2px; }
 
   /* charts (navy / slate, formal) */
   table.cols { margin-top: 6px; }
   table.cols td { border: none; padding: 0 3px; text-align: center; font-family: "DejaVu Sans", Arial, sans-serif; }
   table.cols td.col { vertical-align: bottom; height: 130px; border-bottom: 1px solid #7a8aa0; }
-  table.cols td.lab { font-size: 8.5px; color: #333; padding-top: 3px; }
-  table.cols .val { font-size: 8.5px; color: #222; margin-bottom: 2px; }
+  table.cols td.lab { font-size: 8.5px; color: #000; padding-top: 3px; }
+  table.cols .val { font-size: 8.5px; color: #000; margin-bottom: 2px; }
   table.cols .bar { width: 64%; margin: 0 auto; }
   table.hbars { margin-top: 6px; }
   table.hbars td { border: none; padding: 2px 4px; vertical-align: middle; font-family: "DejaVu Sans", Arial, sans-serif; }
-  table.hbars td.hl { width: 40%; font-size: 9.5px; text-align: right; color: #222; }
+  table.hbars td.hl { width: 40%; font-size: 9.5px; text-align: right; color: #000; }
   table.hbars td.hb { border-left: 1px solid #7a8aa0; }
   table.hbars td.hv { width: 6%; font-size: 9.5px; font-weight: bold; }
   table.hbars .bar { height: 11px; }
@@ -73,7 +73,7 @@
   table.sign td { border: none; padding: 0 10px; vertical-align: bottom; width: 50%; }
   .sign-label { font-size: 10.5px; margin-bottom: 26px; }
   .sign-line { border-top: 1px solid #111; padding-top: 3px; text-align: center; font-weight: bold; font-size: 10.5px; min-height: 12px; }
-  .sign-role { text-align: center; font-size: 9.5px; color: #333; }
+  .sign-role { text-align: center; font-size: 9.5px; color: #000; }
 </style>
 @endsection
 

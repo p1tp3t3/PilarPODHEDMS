@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use App\Http\Resources\Account\UserResource;
+use App\Models\ActionLog;
+use App\Models\TermsAndConditions;
 
 class SystemSettingsController extends Controller
 {
@@ -25,6 +27,35 @@ class SystemSettingsController extends Controller
                 'username' => config('mail.mailers.smtp.username') ?? '',
                 'has_password' => ! empty(config('mail.mailers.smtp.password')),
             ],
+            'terms' => TermsAndConditions::current(),
+        ]);
+    }
+
+    /**
+     * Save the parent/guardian Terms and Conditions as a new version (the
+     * latest one is what the registration form shows). Sanitised rich text.
+     */
+    public function updateTerms(Request $request)
+    {
+        $request->validate(['content' => 'required|string|max:100000']);
+
+        $content = clean_rich_text($request->input('content'));
+        if (trim(html_entity_decode(strip_tags($content ?? ''))) === '') {
+            return response()->json(['message' => 'The Terms and Conditions cannot be empty.', 'errors' => ['content' => ['The Terms and Conditions cannot be empty.']]], 422);
+        }
+
+        TermsAndConditions::create([
+            'content' => $content,
+            // Sent with each registration as the version agreed to (max 20).
+            'version' => now()->format('Y-m-d H:i:s'),
+            'updated_by' => auth()->id(),
+        ]);
+
+        ActionLog::log(auth()->id(), 'system', 'Updated the parent/guardian Terms and Conditions');
+
+        return response()->json([
+            'message' => 'Terms and Conditions saved successfully.',
+            'terms' => TermsAndConditions::current(),
         ]);
     }
 

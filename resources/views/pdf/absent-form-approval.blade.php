@@ -18,14 +18,14 @@
     <title>{{ $approved ? 'Approved Absence Form' : 'Absence Form' }}</title>
     <style>
         @page { margin: 34px 48px 46px; }
-        body { font-family: "DejaVu Serif", "Times New Roman", serif; font-size: 12px; color: #111; margin: 0; }
+        body { font-family: "DejaVu Serif", "Times New Roman", serif; font-size: 12px; color: #000; margin: 0; }
 
         .title { text-align: center; font-size: 16px; font-weight: bold; letter-spacing: 3px; text-transform: uppercase; margin: 20px 0 2px; }
-        .subtitle { text-align: center; font-size: 10.5px; color: #555; margin-bottom: 18px; }
+        .subtitle { text-align: center; font-size: 10.5px; color: #000; margin-bottom: 18px; }
 
         .date-row { text-align: right; margin-bottom: 16px; }
 
-        .section { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 10.5px; font-weight: bold; color: #1f3a5f; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #c9d2de; padding-bottom: 3px; margin: 18px 0 8px; }
+        .section { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 10.5px; font-weight: bold; color: #000; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #c9d2de; padding-bottom: 3px; margin: 18px 0 8px; }
 
         table.fields { width: 100%; border-collapse: collapse; }
         table.fields td { padding: 5px 0; vertical-align: bottom; }
@@ -38,13 +38,13 @@
         table.sign { width: 100%; border-collapse: collapse; margin-top: 46px; }
         table.sign td { vertical-align: bottom; padding: 0; }
         .sign-line { border-bottom: 1px solid #111; text-align: center; font-weight: bold; padding-bottom: 2px; min-height: 16px; }
-        .caption { text-align: center; font-size: 10px; color: #333; margin-top: 2px; }
+        .caption { text-align: center; font-size: 10px; color: #000; margin-top: 2px; }
 
         /* Large faint "approved" watermark across the middle of the page */
         .watermark { position: fixed; top: 245px; left: 0; right: 0; text-align: center; }
         .watermark img { width: 440px; height: 440px; opacity: 0.16; transform: rotate(-20deg); }
 
-        .footer { position: fixed; bottom: -30px; left: 0; right: 0; text-align: center; font-family: "DejaVu Sans", Arial, sans-serif; font-size: 8.5px; color: #777; border-top: 1px solid #ddd; padding-top: 4px; }
+        .footer { position: fixed; bottom: -30px; left: 0; right: 0; text-align: center; font-family: "DejaVu Sans", Arial, sans-serif; font-size: 8.5px; color: #000; border-top: 1px solid #ddd; padding-top: 4px; }
     </style>
     {{-- Formal body below the header (letterhead and title are left as they are). --}}
     @include('pdf.partials.formal-body')

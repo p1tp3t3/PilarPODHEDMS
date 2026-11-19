@@ -5,7 +5,8 @@ import { useState, useEffect } from "react"
 import FormButton from "@/Components/button/button"
 import { ViolationService } from "@/others/services/violation-service"
 import RadioButton from "@/Components/input/radio"
-import { Select, MenuItem, Autocomplete, TextField, Chip } from "@mui/material"
+import { Select, MenuItem, Autocomplete, TextField, Chip, Box, Button, IconButton, Paper, Stack, Tooltip, Typography } from "@mui/material"
+import { Minus, Plus } from "lucide-react"
 import { Validator } from "@/others/classes/validator"
 
 const SetViolationModal = (props) => {
@@ -200,167 +201,176 @@ const SetViolationModal = (props) => {
             w="w-[48rem]"
             cntr={true}
         >
-            <div className="w-full">
-                <form onSubmit={handleSubmit}>
-                    <div className="grid gap-5">
-                        <div className="text-[1.2em] text-center font-bold">
-                            {action === "add" ? "Add New Violation" : "Edit Violation"}
-                        </div>
+            <Box sx={{ width: "100%" }}>
+                <Box component="form" onSubmit={handleSubmit} sx={{ display: "grid", gap: 2.5 }}>
+                    <Typography component="h1" sx={{ fontSize: "1.2rem", fontWeight: 700, textAlign: "center" }}>
+                        {action === "add" ? "Add New Violation" : "Edit Violation"}
+                    </Typography>
 
-                        <div className="grid gap-5">
-                            <FormTextfield
-                                label="Violation Name"
-                                name="violation_name"
-                                val={data.violation_name}
-                                change={handleChange}
-                                error={validationErr.violation_name}
-                                errorAsterisk={validationErr.violation_nameAsterisk}
-                            />
+                    <FormTextfield
+                        label="Violation Name"
+                        name="violation_name"
+                        val={data.violation_name}
+                        change={handleChange}
+                        error={validationErr.violation_name}
+                        errorAsterisk={validationErr.violation_nameAsterisk}
+                    />
 
-                            <div className="grid gap-2">
-                                <label className="text-[0.9em] font-medium text-gray-700">
-                                    Keywords {validationErr.keywordsAsterisk && <span className="text-red-600">*</span>}
-                                </label>
+                    <Box sx={{ display: "grid", gap: 1 }}>
+                        <Typography component="label" sx={{ fontSize: "0.875rem", fontWeight: 500, color: "text.secondary" }}>
+                            Keywords {validationErr.keywordsAsterisk && <Box component="span" sx={{ color: "error.main" }}>*</Box>}
+                        </Typography>
 
-                                {/* Pick from keywords already used on other violations... */}
-                                <Autocomplete
-                                    multiple
-                                    size="small"
-                                    options={keywordOptions}
-                                    value={data.keywords}
-                                    onChange={(e, value) => setKeywordList(value)}
-                                    filterSelectedOptions
-                                    disableCloseOnSelect
-                                    renderTags={(value, getTagProps) =>
-                                        value.map((kw, i) => {
-                                            const { key, ...tagProps } = getTagProps({ index: i })
-                                            return <Chip key={key} label={kw} size="small" {...tagProps} />
-                                        })
-                                    }
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            placeholder={data.keywords.length ? "" : "Select keywords"}
-                                            error={!!validationErr.keywords}
-                                        />
-                                    )}
-                                    noOptionsText="No other saved keywords — add a new one below"
+                        {/* Pick from keywords already used on other violations... */}
+                        <Autocomplete
+                            multiple
+                            size="small"
+                            options={keywordOptions}
+                            value={data.keywords}
+                            onChange={(e, value) => setKeywordList(value)}
+                            filterSelectedOptions
+                            disableCloseOnSelect
+                            renderTags={(value, getTagProps) =>
+                                value.map((kw, i) => {
+                                    const { key, ...tagProps } = getTagProps({ index: i })
+                                    return <Chip key={key} label={kw} size="small" {...tagProps} />
+                                })
+                            }
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    placeholder={data.keywords.length ? "" : "Select keywords"}
+                                    error={!!validationErr.keywords}
+                                    sx={{ "& input": { boxShadow: "none !important", outline: "none !important" } }}
                                 />
+                            )}
+                            noOptionsText="No other saved keywords — add a new one below"
+                        />
 
-                                {/* ...or add a brand-new one (optional). */}
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="text"
-                                        value={keywordInput}
-                                        onChange={(e) => setKeywordInput(e.target.value)}
-                                        onKeyDown={handleKeywordKeyDown}
-                                        placeholder="New keyword (optional) — press Enter to add"
-                                        className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-[0.9em] focus:outline-none focus:ring-2 focus:ring-blue-400"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={addKeyword}
-                                        disabled={!keywordInput.trim()}
-                                        className="bg-blue-500 text-white px-3 py-2 rounded-md hover:bg-blue-600 text-[0.9em] disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        Add
-                                    </button>
-                                </div>
-
-                                {validationErr.keywords && (
-                                    <p className="text-red-600 text-sm">{validationErr.keywords}</p>
-                                )}
-                            </div>
-
-                            <RadioButton
-                                label="Status"
-                                name="offense_status"
-                                list={[
-                                    { val: "1", label: "Major" },
-                                    { val: "0", label: "Minor" },
-                                ]}
-                                val={data.offense_status}
-                                change={handleChange}
-                                error={validationErr.offense_status}
-                                errorAsterisk={validationErr.offense_statusAsterisk}
+                        {/* ...or add a brand-new one (optional). */}
+                        <Stack direction="row" sx={{ gap: 1, alignItems: "center" }}>
+                            <TextField
+                                size="small"
+                                fullWidth
+                                value={keywordInput}
+                                onChange={(e) => setKeywordInput(e.target.value)}
+                                onKeyDown={handleKeywordKeyDown}
+                                placeholder="New keyword (optional) — press Enter to add"
+                                sx={{ "& input": { fontSize: "0.875rem", boxShadow: "none !important", outline: "none !important" } }}
                             />
+                            <Button
+                                type="button"
+                                variant="contained"
+                                disableElevation
+                                onClick={addKeyword}
+                                disabled={!keywordInput.trim()}
+                                startIcon={<Plus size={16} />}
+                                sx={{ textTransform: "none", fontWeight: 600, borderRadius: 2, flexShrink: 0, bgcolor: "#1d4ed8", "&:hover": { bgcolor: "#1e40af" } }}
+                            >
+                                Add
+                            </Button>
+                        </Stack>
 
-                            {/* PENALTIES SECTION */}
-                            <div className="grid gap-3 mt-1">
-                                <h2 className="font-bold text-[1.05em]">Penalties per Occurrence</h2>
+                        {validationErr.keywords && (
+                            <Typography sx={{ color: "error.main", fontSize: "0.82rem" }}>{validationErr.keywords}</Typography>
+                        )}
+                    </Box>
 
-                                <div className="grid gap-3 md:grid-cols-2">
-                                {penalties.map((occ, occIndex) => (
-                                    <div key={occ.occurrence} className="border border-gray-200 rounded-md p-3">
-                                        <h3 className="font-semibold text-[0.9em] mb-2">{ordinal(occ.occurrence)} Offense</h3>
+                    <RadioButton
+                        label="Status"
+                        name="offense_status"
+                        list={[
+                            { val: "1", label: "Major" },
+                            { val: "0", label: "Minor" },
+                        ]}
+                        val={data.offense_status}
+                        change={handleChange}
+                        error={validationErr.offense_status}
+                        errorAsterisk={validationErr.offense_statusAsterisk}
+                    />
 
-                                        {/* Penalties added to this offense scroll inside the box
-                                            (about 3 rows tall) instead of growing it. */}
-                                        <div className="max-h-[8.5rem] overflow-y-auto overflow-x-hidden pr-1 pt-1">
-                                        {occ.list.map((p, pIndex) => (
-                                            <div key={pIndex} className="flex items-center gap-2 mb-2">
-                                                <Select
+                    {/* PENALTIES SECTION */}
+                    <Box sx={{ display: "grid", gap: 1.5, mt: 0.5 }}>
+                        <Typography component="h2" sx={{ fontWeight: 700, fontSize: "1rem" }}>Penalties per Occurrence</Typography>
+
+                        <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" } }}>
+                        {penalties.map((occ, occIndex) => (
+                            <Paper key={occ.occurrence} variant="outlined" sx={{ p: 1.5, borderRadius: 2, minWidth: 0 }}>
+                                <Typography component="h3" sx={{ fontWeight: 600, fontSize: "0.875rem", mb: 1 }}>{ordinal(occ.occurrence)} Offense</Typography>
+
+                                {/* Penalties added to this offense scroll inside the box
+                                    (about 3 rows tall) instead of growing it. */}
+                                <Box sx={{ maxHeight: "8.5rem", overflowY: "auto", overflowX: "hidden", pr: 0.5, pt: 0.5 }}>
+                                {occ.list.map((p, pIndex) => (
+                                    <Stack key={pIndex} direction="row" sx={{ alignItems: "center", gap: 1, mb: 1 }}>
+                                        <Select
+                                            size="small"
+                                            fullWidth
+                                            value={p.penalty_id}
+                                            displayEmpty
+                                            renderValue={(v) => {
+                                                if (!v) return <Box component="span" sx={{ color: "text.disabled" }}>(Optional) Select Penalty</Box>
+                                                const opt = props.penalty.find((o) => String(o.id) === String(v))
+                                                return opt ? (opt.ref_number != null ? `${opt.ref_number} — ${toTitleCase(opt.description)}` : toTitleCase(opt.description)) : v
+                                            }}
+                                            onChange={(e) =>
+                                                handlePenaltyChange(occIndex, pIndex, e.target.value)
+                                            }
+                                            sx={{ minWidth: 0, '& .MuiOutlinedInput-root, &.MuiOutlinedInput-root': { borderRadius: '8px', fontSize: '0.85em' } }}
+                                        >
+                                            <MenuItem value="">(Optional) Select Penalty</MenuItem>
+                                            {/* String ids, matching the saved penalties loaded for editing —
+                                                MUI's Select compares strictly, so 2 !== "2" showed blank. */}
+                                            {props.penalty.map(opt => (
+                                                <MenuItem key={opt.id} value={String(opt.id)}>
+                                                    {opt.ref_number != null ? `${opt.ref_number} — ${toTitleCase(opt.description)}` : toTitleCase(opt.description)}
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+
+                                        {pIndex === 0 ? (
+                                            <Tooltip title="Add another penalty for this offense">
+                                                <IconButton
+                                                    type="button"
                                                     size="small"
-                                                    fullWidth
-                                                    value={p.penalty_id}
-                                                    displayEmpty
-                                                    renderValue={(v) => {
-                                                        if (!v) return <span className="text-gray-400">(Optional) Select Penalty</span>
-                                                        const opt = props.penalty.find((o) => String(o.id) === String(v))
-                                                        return opt ? (opt.ref_number != null ? `${opt.ref_number} — ${toTitleCase(opt.description)}` : toTitleCase(opt.description)) : v
-                                                    }}
-                                                    onChange={(e) =>
-                                                        handlePenaltyChange(occIndex, pIndex, e.target.value)
-                                                    }
-                                                    sx={{ '& .MuiOutlinedInput-root, &.MuiOutlinedInput-root': { borderRadius: '8px', fontSize: '0.85em' } }}
+                                                    onClick={() => addPenalty(occIndex)}
+                                                    aria-label="Add another penalty"
+                                                    sx={{ flexShrink: 0, bgcolor: "var(--tone-green-bg)", color: "var(--tone-green-fg)", border: 1, borderColor: "var(--tone-green-bd)", borderRadius: 1.5, "&:hover": { bgcolor: "var(--tone-green-bg)", filter: "brightness(0.95)" } }}
                                                 >
-                                                    <MenuItem value="">(Optional) Select Penalty</MenuItem>
-                                                    {/* String ids, matching the saved penalties loaded for editing —
-                                                        MUI's Select compares strictly, so 2 !== "2" showed blank. */}
-                                                    {props.penalty.map(opt => (
-                                                        <MenuItem key={opt.id} value={String(opt.id)}>
-                                                            {opt.ref_number != null ? `${opt.ref_number} — ${toTitleCase(opt.description)}` : toTitleCase(opt.description)}
-                                                        </MenuItem>
-                                                    ))}
-                                                </Select>
-
-                                                {pIndex === 0 ? (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => addPenalty(occIndex)}
-                                                        className="bg-green-500 text-white px-3 py-1 rounded"
-                                                    >
-                                                        +
-                                                    </button>
-                                                ) : (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removePenalty(occIndex, pIndex)}
-                                                        className="bg-red-500 text-white px-3 py-1 rounded"
-                                                    >
-                                                        -
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ))}
-                                        </div>
-                                    </div>
+                                                    <Plus size={16} />
+                                                </IconButton>
+                                            </Tooltip>
+                                        ) : (
+                                            <Tooltip title="Remove this penalty">
+                                                <IconButton
+                                                    type="button"
+                                                    size="small"
+                                                    onClick={() => removePenalty(occIndex, pIndex)}
+                                                    aria-label="Remove this penalty"
+                                                    sx={{ flexShrink: 0, bgcolor: "var(--tone-red-bg)", color: "var(--tone-red-fg)", border: 1, borderColor: "var(--tone-red-bd)", borderRadius: 1.5, "&:hover": { bgcolor: "var(--tone-red-bg)", filter: "brightness(0.95)" } }}
+                                                >
+                                                    <Minus size={16} />
+                                                </IconButton>
+                                            </Tooltip>
+                                        )}
+                                    </Stack>
                                 ))}
-                                </div>
+                                </Box>
+                            </Paper>
+                        ))}
+                        </Box>
 
-                                {validationErr.penalties && (
-                                    <p className="text-red-600 text-sm">{validationErr.penalties}</p>
-                                )}
-                            </div>
+                        {validationErr.penalties && (
+                            <Typography sx={{ color: "error.main", fontSize: "0.82rem" }}>{validationErr.penalties}</Typography>
+                        )}
+                    </Box>
 
-                            <FormButton
-                                label={action === "add" ? "Submit" : "Update"}
-                                type="submit"
-                            />
-                        </div>
-                    </div>
-                </form>
-            </div>
+                    <FormButton
+                        label={action === "add" ? "Submit" : "Update"}
+                        type="submit"
+                    />
+                </Box>
+            </Box>
         </UpModal>
     );
 };

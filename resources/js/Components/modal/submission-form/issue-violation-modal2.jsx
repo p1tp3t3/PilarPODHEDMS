@@ -145,9 +145,9 @@ const IssueViolationModal2 = (props) => {
               props.closeModal(false);
             });
           },
-          () => {
+          (err) => {
             props.reload(true, "");
-            showOutputModal("Failed to Resolve Complaint", "e", () => {
+            showOutputModal(err?.response?.data?.message || "Failed to Resolve Complaint", "e", () => {
               props.reload(false);
             });
           }

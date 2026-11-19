@@ -48,7 +48,8 @@ class AbsentFormMail extends Mailable
                 'date_to' => $data['date_to'],
                 'reason' => $data['reason'],
                 'confirmed_at' => $data['confirmed_at'],
-                'file' => $data['file']
+                'file' => $data['file'],
+                'reference' => $data['form_number'] ?? null,
             ]
         );
     }

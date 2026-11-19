@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Wand2, Copy, Check } from "lucide-react";
 import { generateStrongPassword } from "@/others/function";
+import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 
 // "Generate Password" button used wherever a password is set (account
 // settings, registering a new user). It makes a password that meets the
@@ -32,31 +33,44 @@ const GeneratePassword = ({ onGenerate, value, length = 16, note = "Save it some
     const shown = generated && (value === undefined || value === generated);
 
     return (
-        <div className="grid gap-2">
-            <div>
-                <button
+        <Box sx={{ display: "grid", gap: 1 }}>
+            <Box>
+                <Button
                     type="button"
+                    size="small"
+                    variant="outlined"
+                    color="inherit"
+                    startIcon={<Wand2 size={14} />}
                     onClick={generate}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 text-[0.8em] font-semibold px-3 py-1.5"
+                    sx={{ textTransform: "none", fontWeight: 600, fontSize: 12.5, borderRadius: 2, borderColor: "divider", color: "text.secondary" }}
                 >
-                    <Wand2 size={14} /> Generate Password
-                </button>
-            </div>
+                    Generate Password
+                </Button>
+            </Box>
             {shown && (
-                <div className="flex flex-wrap items-center gap-2 rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-[0.8em]">
-                    <span className="text-blue-900">New password:</span>
-                    <code className="font-mono font-semibold text-gray-900 break-all">{generated}</code>
-                    <button
-                        type="button"
-                        onClick={copy}
-                        className="ml-auto inline-flex items-center gap-1 rounded bg-white border border-blue-200 text-blue-700 hover:bg-blue-100 px-2 py-0.5"
-                    >
-                        {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
-                    </button>
-                    {note && <p className="w-full text-[0.95em] text-blue-900/80">{note}</p>}
-                </div>
+                <Alert
+                    severity="info"
+                    icon={false}
+                    sx={{ borderRadius: 2, py: 0.5, "& .MuiAlert-message": { width: "100%" } }}
+                >
+                    <Stack direction="row" sx={{ alignItems: "center", flexWrap: "wrap", gap: 1 }}>
+                        <Typography sx={{ fontSize: 13 }}>New password:</Typography>
+                        <Typography component="code" sx={{ fontFamily: "monospace", fontWeight: 700, fontSize: 13.5, wordBreak: "break-all" }}>{generated}</Typography>
+                        <Button
+                            type="button"
+                            size="small"
+                            variant="outlined"
+                            onClick={copy}
+                            startIcon={copied ? <Check size={12} /> : <Copy size={12} />}
+                            sx={{ ml: "auto", minWidth: 0, py: 0.1, textTransform: "none", fontSize: 12 }}
+                        >
+                            {copied ? "Copied" : "Copy"}
+                        </Button>
+                    </Stack>
+                    {note && <Typography sx={{ fontSize: 12.5, mt: 0.5, opacity: 0.85 }}>{note}</Typography>}
+                </Alert>
             )}
-        </div>
+        </Box>
     );
 };
 

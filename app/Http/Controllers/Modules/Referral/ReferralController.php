@@ -573,9 +573,11 @@ class ReferralController extends Controller
         })->with('profile')->get();
         foreach ($recipients as $recipient) {
             $mail = new ReferralMail([
+                'referral_number' => $referral->referral_number,
                 'prefect_name' => $prefectName,
                 'student_names' => $studentNames,
                 'date_issued' => Carbon::parse($referral->created_at)->format('F d, Y'),
+                'office' => $positionName,
             ]);
             $mail->attachData($pdf, $pdfName, ['mime' => 'application/pdf']);
             Mail::to($recipient->email)->send($mail);

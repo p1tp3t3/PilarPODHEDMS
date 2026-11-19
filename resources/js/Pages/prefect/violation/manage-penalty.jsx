@@ -2,7 +2,9 @@ import { ViolationService } from "@/others/services/violation-service";
 import { readableDate, readableTime, showWarningModal, toTitleCase } from "@/others/function";
 import ActionBtn from "@/Components/button/action-btn";
 import { DataGrid } from "@/Components/other/data-grid";
-import { Box } from "@mui/material";
+import { Alert, Box, Stack, Typography } from "@mui/material";
+import Btn from "@/Components/button/normal-btn";
+import { Plus } from "lucide-react";
 
 const ManagePenalty = ({ list, events, reload, setter, canAdd = true, canDelete = true }) => {
     const deletePenalty = (e) => {
@@ -27,21 +29,21 @@ const ManagePenalty = ({ list, events, reload, setter, canAdd = true, canDelete 
     };
 
     return (
-        <div className="flex-1 min-w-0 overflow-y-auto">
-            <div className="grid gap-5 min-w-0">
+        <Box sx={{ minWidth: 0 }}>
+            <Stack sx={{ gap: 2.5, minWidth: 0 }}>
                 {canAdd && (
-                <div className="flex justify-end">
-                    <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full sm:w-auto" onClick={() => events[0]('penalty', 'add')}>Add Penalty</button>
-                </div>
+                    <Stack direction="row" sx={{ justifyContent: "flex-end" }}>
+                        <Btn onclick={() => events[0]('penalty', 'add')} icon={<Plus size={18} />} label="Add Penalty">
+                            <Stack direction="row" sx={{ alignItems: "center", gap: 0.75 }}><Plus size={16} /> Add Penalty</Stack>
+                        </Btn>
+                    </Stack>
                 )}
                 {(!canAdd || !canDelete) && (
-                    <div className="text-[0.85em] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-4 py-2">
+                    <Alert severity="warning" sx={{ borderRadius: 2 }}>
                         You need prefect-approved access to add or delete penalties. Request it from the Edit Access tab.
-                    </div>
+                    </Alert>
                 )}
 
-                <div className="w-full min-w-0">
-                    <div className="w-full min-w-0">
                         <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                             <DataGrid
                                 rows={list ?? []}
@@ -71,21 +73,29 @@ const ManagePenalty = ({ list, events, reload, setter, canAdd = true, canDelete 
                                         align: "left",
                                         headerAlign: "left",
                                         valueGetter: (value) => (value === null || value === undefined || value === "" ? null : Number(value)),
-                                        renderCell: ({ row }) => row.ref_number ?? "—",
+                                        renderCell: ({ row }) => (
+                                            <Typography sx={{ fontSize: "0.875rem", fontWeight: 600 }}>{row.ref_number ?? "—"}</Typography>
+                                        ),
                                     },
                                     {
                                         field: "description",
                                         headerName: "Penalty Name",
                                         flex: 1,
                                         minWidth: 220,
-                                        renderCell: ({ row }) => toTitleCase(row.description),
+                                        renderCell: ({ row }) => (
+                                            <Typography sx={{ fontSize: "0.875rem", whiteSpace: "normal" }}>{toTitleCase(row.description)}</Typography>
+                                        ),
                                     },
                                     {
                                         field: "created_at",
                                         headerName: "Added Since",
                                         width: 190,
-                                        renderCell: ({ row }) =>
-                                            `${readableDate(row.created_at)} (${readableTime(row.created_at)})`,
+                                        renderCell: ({ row }) => (
+                                            <Stack sx={{ lineHeight: 1.3 }}>
+                                                <Typography sx={{ fontSize: "0.85rem" }}>{readableDate(row.created_at)}</Typography>
+                                                <Typography sx={{ fontSize: "0.75rem", color: "text.secondary" }}>{readableTime(row.created_at)}</Typography>
+                                            </Stack>
+                                        ),
                                     },
                                     {
                                         field: "actions",
@@ -107,10 +117,8 @@ const ManagePenalty = ({ list, events, reload, setter, canAdd = true, canDelete 
                                 ]}
                             />
                         </Box>
-                    </div>
-                </div>
-            </div>
-        </div>
+            </Stack>
+        </Box>
     )
 }
 

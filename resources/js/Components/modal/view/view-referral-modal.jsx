@@ -7,13 +7,15 @@ import { readableDate, readableTime, toTitleCase, showOutputModal } from "@/othe
 import RichTextEditor from "@/Components/input/rich-text-editor"
 import {
     ModalHeader, Section, Timeline, stepAt, stepAhead, PersonList, safeParseArray, People, prefectName, useOwnerTitle, useIsOwner, ViewModalSkeleton,
-    TextBox, Field, Labeled, Text, EditedOn, RecordBody, SectionPair,
+    TextBox, Field, Labeled, Text, EditedOn, RecordBody, SectionPair, Pill,
 } from "./view-modal-parts"
+import RelatedViolationsField from "@/Components/input/related-violations-field"
 import {
     MessageSquareText,
     History,
     Undo2,
     NotebookPen,
+    Link2,
 } from "lucide-react"
 
 const ViewReferralModal = (props) => {
@@ -136,6 +138,60 @@ const OfficeNote = ({ data, onSaved }) => {
     )
 }
 
+// The violation(s) the referral addresses: the Prefect sets them; others
+// see them. Counts the referral (once approved) as an intervention for those
+// violations in the early-intervention predictor.
+const RelatedViolations = ({ data }) => {
+    const [saved, setSaved] = useState(data.related_violations ?? [])
+    const [ids, setIds] = useState((data.related_violations ?? []).map((v) => v.id))
+    const [saving, setSaving] = useState(false)
+    const [message, setMessage] = useState(null)
+    const studentIds = (data.referralReferredStudent ?? []).map((s) => s.student_id).filter(Boolean)
+    const dirty = ids.slice().sort().join(",") !== saved.map((v) => v.id).sort().join(",")
+
+    if (!data.can_set_related_violations) {
+        return saved.length === 0 ? null : (
+            <Section icon={Link2} title="Related Violation(s)">
+                <Stack direction="row" sx={{ gap: 0.75, flexWrap: "wrap" }}>
+                    {saved.map((v) => <Pill key={v.id} tone="blue" label={v.name} sx={{ height: 26, fontWeight: 500 }} />)}
+                </Stack>
+            </Section>
+        )
+    }
+    const save = () => {
+        setSaving(true)
+        setMessage(null)
+        axios.post(`/prefect/referral/${data.encrypted_id}/related-violations`, { related_violations: ids })
+            .then((res) => {
+                const list = res.data?.related_violations ?? []
+                setSaved(list)
+                setIds(list.map((v) => v.id))
+                setMessage({ ok: true, text: "Saved." })
+            })
+            .catch((err) => setMessage({ ok: false, text: err?.response?.data?.message ?? "Could not save." }))
+            .finally(() => setSaving(false))
+    }
+    return (
+        <Section icon={Link2} title="Related Violation(s)">
+            <Stack sx={{ gap: 1 }}>
+                <RelatedViolationsField
+                    studentIds={studentIds}
+                    value={ids}
+                    onChange={(v) => { setIds(v); setMessage(null) }}
+                    helper="The violation(s) this referral addresses. Once approved, it counts as an intervention for them in the early-intervention predictor."
+                />
+                <Stack direction="row" sx={{ alignItems: "center", justifyContent: "flex-end", gap: 1 }}>
+                    {message && <Typography sx={{ fontSize: "0.75rem", color: message.ok ? "success.main" : "error.main" }}>{message.text}</Typography>}
+                    <Button size="small" variant="contained" disableElevation disabled={!dirty || saving} onClick={save}
+                        sx={{ textTransform: "none", fontWeight: 600, borderRadius: 2 }}>
+                        {saving ? "Saving..." : "Save"}
+                    </Button>
+                </Stack>
+            </Stack>
+        </Section>
+    )
+}
+
 const Body = ({ data, onSaved = () => {} }) => {
     const referrerName = toTitleCase(data.user?.profile?.first_name)
     const ownerId = data.user?.id ?? data.referrer_id
@@ -178,6 +234,8 @@ const Body = ({ data, onSaved = () => {} }) => {
                 <Section icon={MessageSquareText} title="Reason for the Referral">
                     <TextBox>{data.reason_description}</TextBox>
                 </Section>
+
+                <RelatedViolations key={`rv-${data.encrypted_id}`} data={data} />
 
                 {/* key: a fresh editor state for each record */}
                 <OfficeNote key={data.encrypted_id} data={data} onSaved={onSaved} />

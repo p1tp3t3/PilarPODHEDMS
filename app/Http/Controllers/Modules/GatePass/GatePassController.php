@@ -220,6 +220,7 @@ class GatePassController extends Controller
                 ['status' => ['from' => null, 'to' => 'approved']]
             );
             Mail::to($student->email)->send(new GatePassMail([
+                'gatepass_number' => $gatepass->gatepass_number,
                 'requester' => $student->profile?->first_name,
                 'status' => 'approve',
                 'date_requested' => $gatepass->created_at,
@@ -256,6 +257,7 @@ class GatePassController extends Controller
             $gatepass = $gatepass->first();
 
             $data = [
+                'gatepass_number' => $gatepass->gatepass_number,
                 'requester' => $gatepass->user->profile?->first_name,
                 'status' => 'approve',
                 'date_requested' => $gatepass->created_at,

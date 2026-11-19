@@ -25,10 +25,28 @@ const CARD = { borderRadius: 3, overflow: "hidden", minWidth: 0 }
 /* ---------------- Contributing factors ---------------- */
 
 // An insight reads "Label: explanation" -> a small label over justified text.
+// "Label (raises risk): text" -> label, its direction (raises / lowers the
+// risk, or none) and the text.
 const splitFactor = (text) => {
-    const m = String(text).match(/^([^:]{2,40}):\s*(.+)$/s)
+    const m = String(text).match(/^([^:]{2,60}):\s*(.+)$/s)
     const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1)
-    return m ? { label: m[1].trim(), body: cap(m[2].trim()) } : { label: null, body: String(text) }
+    if (!m) return { label: null, body: String(text), direction: null }
+    const d = m[1].match(/^(.*?)\s*\((raises|lowers) risk\)$/i)
+    return { label: (d ? d[1] : m[1]).trim(), direction: d ? d[2].toLowerCase() : null, body: cap(m[2].trim()) }
+}
+
+const DirectionTag = ({ direction }) => {
+    if (!direction) return null
+    const up = direction === "raises"
+    return (
+        <Box component="span" sx={{
+            display: "inline-flex", alignItems: "center", ml: 1, px: 0.75, py: "1px", borderRadius: 99,
+            fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.03em", textTransform: "none", verticalAlign: "middle",
+            bgcolor: `var(--tone-${up ? "red" : "green"}-bg)`, color: `var(--tone-${up ? "red" : "green"}-fg)`,
+        }}>
+            {up ? "▲ Raises risk" : "▼ Lowers risk"}
+        </Box>
+    )
 }
 
 export const ContributingFactors = ({ insights = [], tone }) => (
@@ -36,9 +54,11 @@ export const ContributingFactors = ({ insights = [], tone }) => (
         <CardHeader icon={ListChecks} title="Contributing Factors" tone={tone} />
         <Box sx={{ px: { xs: 2, sm: 2.5 }, py: 1 }}>
             {insights.map((f, i) => {
-                const { label, body } = splitFactor(f)
-                // The closing "Result" stands out in the verdict's tint.
+                const { label, body, direction } = splitFactor(f)
+                // The closing "Result" and the opening "Main reason" stand out
+                // in the verdict's tint.
                 const isResult = /^(result|verdict)$/i.test(label ?? "")
+                const isMain = /^main reason/i.test(label ?? "")
                 return (
                     <Box
                         key={i}
@@ -46,11 +66,13 @@ export const ContributingFactors = ({ insights = [], tone }) => (
                             py: 1.5,
                             borderTop: i ? 1 : 0, borderColor: "divider",
                             ...(isResult && { mx: -1, px: 1.5, borderRadius: 2, bgcolor: tone.soft, borderTop: 0, mt: 1 }),
+                            ...(isMain && { mx: -1, px: 1.5, borderRadius: 2, border: 1, borderColor: tone.text, mb: 1 }),
                         }}
                     >
                         {label && (
-                            <Typography sx={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: isResult ? tone.text : "text.secondary", mb: 0.25 }}>
+                            <Typography sx={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: isResult || isMain ? tone.text : "text.secondary", mb: 0.25 }}>
                                 {label}
+                                <DirectionTag direction={direction} />
                             </Typography>
                         )}
                         <Typography sx={{ fontSize: "0.875rem", lineHeight: 1.65, color: "text.primary", textAlign: "justify", hyphens: "auto" }}>{body}</Typography>

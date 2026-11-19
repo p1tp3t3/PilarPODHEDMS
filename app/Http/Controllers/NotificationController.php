@@ -108,6 +108,23 @@ class NotificationController extends Controller
                 'reason' => $request->call_in_reason,
             ];
 
+            // The office call itself, so it is on record as an intervention
+            // (it was only ever a notification), with the violation(s) it
+            // addresses.
+            $callInId = DB::table('call_in')->insertGetId([
+                'student_id' => $student->id,
+                'issued_by' => $prefect->id,
+                'date_time_call_in' => now(),
+                'reason' => clean_rich_text((string) $request->call_in_reason) ?? '',
+                'call_in_status' => 'accepted',
+                'confirmed_at' => now(),
+            ]);
+            \App\Models\InterventionViolation::sync(
+                \App\Models\InterventionViolation::CALL_IN,
+                (int) $callInId,
+                \App\Models\InterventionViolation::parseIds($request->input('related_violations'))
+            );
+
             /** Store notification before sending email */
             $id = Notifications::insertGetId($data);
 
@@ -203,21 +220,6 @@ class NotificationController extends Controller
                 ];
             })
             ->values();
-    }
-
-    public function notifyViolationRisk(Request $request)
-    {
-        $program = $request->program;
-        $faculty = User::with('faculty')->whereHas('faculty', function ($q) use ($program) {
-            $q->where('program_id', $program);
-        })->where('user_type', 'faculty')
-            ->get();
-        $programDean = User::with('administrative')->whereHas('administrative', function ($q) use ($program) {
-            $q->where('type', 'program_dean')
-                ->where('program_id', $program);
-        })->where('user_type', 'administrative')
-            ->first();
-
     }
 
     public function markAsRead(Request $request)

@@ -3,7 +3,7 @@ import PageLayout from "@/Layouts/page-layout";
 import BehaviourAnalysisSkeleton from "@/Components/reload/behaviour-analysis-skeleton";
 import AuthLayout from "@/Layouts/auth-layout";
 import { readableDate, readableTime, toTitleCase, ordinal, openPdfTabPost, showOutputModal } from "@/others/function";
-import { Box, Paper, Select, Stack, Typography, MenuItem, ToggleButton, ToggleButtonGroup, IconButton, Tooltip } from "@mui/material";
+import { Box, Chip, Paper, Select, Stack, Typography, MenuItem, ToggleButton, ToggleButtonGroup, IconButton, Tooltip } from "@mui/material";
 import { DataGrid } from "@/Components/other/data-grid";
 import { useEffect, useMemo, useState } from "react";
 import useListData from "@/others/hooks/use-list-data";
@@ -43,6 +43,9 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
   const viewer = props.auth?.user ?? props.user
   const isPrefect = viewer?.role === 'sub_admin'
   const [appointOpen, setAppointOpen] = useState(false)
+  // The violation open in Behavioural Analysis, pre-selected as the one the
+  // appointment addresses.
+  const [appointViolation, setAppointViolation] = useState(null)
   const { loadRegister } = useReload()
 
   // Path back to where this page was opened from: the dashboard's Watch
@@ -77,6 +80,7 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
             reload={loadRegister}
             lockedUser={{ ...props.student, role: props.student.role ?? 'student' }}
             defaultReason="<p>Consultation with the Prefect of Discipline regarding your recent violations, as an early intervention.</p>"
+            defaultViolationIds={appointViolation ? [Number(appointViolation)] : []}
           />
         )}
         <div className="pt-4">
@@ -99,7 +103,7 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
                                 violation_timelines={props.violation_timelines}
                                 // Set Appointment sits in the verdict card,
                                 // for the prefect, when it says "Likely".
-                                onAppoint={isPrefect ? () => setAppointOpen(true) : null}
+                                onAppoint={isPrefect ? (violationId) => { setAppointViolation(violationId ?? null); setAppointOpen(true) } : null}
                             />
                         )}
                     </div>
@@ -114,6 +118,68 @@ StudentViolation.layout = (page) => <AuthLayout user={page.props.user}>{page}</A
 /* ===============================
    RECENT VIOLATIONS TABLE
 ================================ */
+// --- Recent Violations: small cells shared by both views ------------------
+
+// Major / Minor, as a small tinted chip.
+const SeverityChip = ({ major }) => (
+  <Chip
+    size="small"
+    label={major ? "Major" : "Minor"}
+    sx={{
+      height: 20, fontSize: "0.68rem", fontWeight: 700, flexShrink: 0,
+      bgcolor: `var(--tone-${major ? "red" : "blue"}-bg)`, color: `var(--tone-${major ? "red" : "blue"}-fg)`,
+    }}
+  />
+)
+
+const ViolationCell = ({ name, major }) => (
+  <Stack sx={{ py: 1.25, gap: 0.5, minWidth: 0, whiteSpace: "normal" }}>
+    <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, lineHeight: 1.35 }}>{name}</Typography>
+    <Box><SeverityChip major={major} /></Box>
+  </Stack>
+)
+
+// "6.0 — Exclusion": the penalty's code, muted, then what it is.
+const PenaltyText = ({ penalty, code }) => penalty
+  ? (
+    <Typography component="span" sx={{ fontSize: "0.85rem", lineHeight: 1.45 }}>
+      {code != null && <Box component="span" sx={{ color: "text.secondary", fontWeight: 600, mr: 0.75 }}>{code}</Box>}
+      {penalty}
+    </Typography>
+  )
+  : <Typography component="span" sx={{ fontSize: "0.85rem", fontStyle: "italic", color: "text.disabled" }}>No penalty set</Typography>
+
+const OffenseChip = ({ label }) => (
+  <Chip size="small" variant="outlined" label={label}
+    sx={{ height: 22, fontSize: "0.72rem", fontWeight: 600, borderColor: "divider", flexShrink: 0 }} />
+)
+
+const DateText = ({ date }) => date
+  ? (
+    <Stack sx={{ lineHeight: 1.3 }}>
+      <Typography sx={{ fontSize: "0.85rem" }}>{readableDate(date)}</Typography>
+      <Typography sx={{ fontSize: "0.75rem", color: "text.secondary" }}>{readableTime(date)}</Typography>
+    </Stack>
+  )
+  : <Typography sx={{ fontSize: "0.85rem", color: "text.disabled" }}>No date</Typography>
+
+// View the complaint behind an offense (the system's own action button).
+const ViewComplaintButton = ({ complaintKey, onOpen }) => (
+  <ActionBtn
+    className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
+    disabled={!complaintKey}
+    title={complaintKey ? "View the complaint behind this offense" : "No complaint on record"}
+    onClick={() => onOpen(complaintKey)}
+  >
+    View
+  </ActionBtn>
+)
+
+// The penalty's code ("6.0") and description apart, for PenaltyText.
+const penaltyParts = (penalty) => penalty
+  ? { code: penalty.ref_number ?? null, text: toTitleCase(penalty.description ?? "") || null }
+  : { code: null, text: null }
+
 const RecentViolation = ({ violations, user }) => {
   // "View" opens the complaint behind a violation — why it was given.
   const [complaintKey, setComplaintKey] = useState(null);
@@ -132,95 +198,58 @@ const RecentViolation = ({ violations, user }) => {
     setViewOpen(true);
   };
 
-  const penaltyLabel = (penalty) =>
-    penalty
-      ? `${penalty.ref_number != null ? `${penalty.ref_number} — ` : ""}${toTitleCase(penalty.description ?? "")}`
-      : null;
+  const indexColumn = {
+    field: "index",
+    headerName: "#",
+    width: 56,
+    sortable: false,
+    filterable: false,
+    renderCell: (params) => (
+      <Typography sx={{ fontSize: "0.82rem", color: "text.secondary" }}>
+        {params.api.getRowIndexRelativeToVisibleRows(params.id) + 1}
+      </Typography>
+    ),
+  };
 
   const columns = [
-    {
-      field: "index",
-      headerName: "#",
-      width: 60,
-      sortable: false,
-      renderCell: (params) => `${params.api.getRowIndexRelativeToVisibleRows(params.id) + 1}.`,
-    },
+    indexColumn,
     {
       field: "violation_name",
       headerName: "Violation",
-      flex: 1,
+      flex: 1.1,
       minWidth: 220,
-      renderCell: ({ row }) => (
-        <div className="py-3 whitespace-normal leading-snug">
-          <div className="font-semibold text-gray-900">{row.violation_name}</div>
-          <span
-            className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[0.8em] font-semibold ${
-              row.offense_status === 1 ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
-            }`}
-          >
-            {row.offense_status === 1 ? "Major" : "Minor"}
-          </span>
-        </div>
-      ),
+      renderCell: ({ row }) => <ViolationCell name={row.violation_name} major={row.offense_status === 1} />,
     },
     {
       field: "occurrence_count",
-      headerName: "Occurrences",
-      width: 120,
-      renderCell: ({ value }) => (
-        <span className="font-semibold text-gray-800">{value} time{value === 1 ? "" : "s"}</span>
-      ),
-    },
-    {
-      field: "current_penalty",
-      headerName: "Current Penalty",
-      flex: 1,
-      minWidth: 220,
-      sortable: false,
-      renderCell: ({ row }) => (
-        <div className="py-3 whitespace-normal leading-snug">
-          {row.current_penalty ? (
-            <span className="text-gray-900 font-medium">{row.current_penalty}</span>
-          ) : (
-            <span className="italic text-gray-400">No penalty set</span>
-          )}
-        </div>
-      ),
+      headerName: "Times",
+      width: 90,
+      renderCell: ({ value }) => <OffenseChip label={`${value}×`} />,
     },
     {
       field: "occurrences",
-      headerName: "Each Occurrence",
-      flex: 1.6,
-      minWidth: 340,
+      headerName: "Offenses",
+      flex: 2,
+      minWidth: 380,
       sortable: false,
       filterable: false,
       // Every time it happened: which offense, its penalty, when, and a
-      // View for the complaint behind it.
+      // View for the complaint behind it. The latest is last.
       renderCell: ({ row }) => (
-        <ol className="py-3 grid gap-2 w-full">
+        <Stack component="ol" sx={{ m: 0, p: 0, py: 1.25, gap: 1, width: "100%", listStyle: "none" }}>
           {row.occurrences.map((o) => (
-            <li key={o.key} className="flex items-start justify-between gap-3">
-              <div className="min-w-0 whitespace-normal leading-snug">
-                <div className="text-gray-800">
-                  <span className="font-semibold">{o.occurrence ? `${ordinal(o.occurrence)} offense` : "Offense"}</span>
-                  {" — "}
-                  {o.penalty ?? <span className="italic text-gray-400">No penalty set</span>}
-                </div>
-                <div className="text-[0.85em] text-gray-500">
-                  {o.date ? `${readableDate(o.date)} • ${readableTime(o.date)}` : "No date"}
-                </div>
-              </div>
-              <ActionBtn
-                className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
-                disabled={!o.complaint_key}
-                title="View the complaint behind this offense"
-                onClick={() => openComplaint(o.complaint_key)}
-              >
-                View
-              </ActionBtn>
-            </li>
+            <Stack component="li" key={o.key} direction="row" sx={{ alignItems: "center", gap: 1.25, minWidth: 0 }}>
+              <OffenseChip label={o.occurrence ? `${ordinal(o.occurrence)} offense` : "Offense"} />
+              <Box sx={{ flex: 1, minWidth: 0, whiteSpace: "normal" }}>
+                <PenaltyText penalty={o.penalty} code={o.penalty_code} />
+                <Typography sx={{ fontSize: "0.72rem", color: "text.secondary" }}>
+                  {o.date ? `${readableDate(o.date)} · ${readableTime(o.date)}` : "No date"}
+                </Typography>
+              </Box>
+              <ViewComplaintButton complaintKey={o.complaint_key} onOpen={openComplaint} />
+            </Stack>
           ))}
-        </ol>
+        </Stack>
       ),
     },
   ];
@@ -236,20 +265,22 @@ const RecentViolation = ({ violations, user }) => {
   )
     .map(({ violation, records }) => {
       const occurrences = records
-        .map((v, k) => ({
-          key: `${v.complaint_id}-${k}`,
-          occurrence: v.occurrence,
-          penalty: penaltyLabel(v.penalty),
-          date: bestComplaintDate(v.complaint),
-          complaint_key: v.complaint_key,
-        }))
+        .map((v, k) => {
+          const p = penaltyParts(v.penalty)
+          return {
+            key: `${v.complaint_id}-${k}`,
+            occurrence: v.occurrence,
+            penalty: p.text,
+            penalty_code: p.code,
+            date: bestComplaintDate(v.complaint),
+            complaint_key: v.complaint_key,
+          }
+        })
         .sort((a, b) => (a.occurrence ?? 0) - (b.occurrence ?? 0) || new Date(a.date ?? 0) - new Date(b.date ?? 0));
-      const latest = occurrences[occurrences.length - 1];
       return {
         violation_name: violation?.violation_name,
         offense_status: violation?.offense_status,
         occurrence_count: occurrences.length,
-        current_penalty: latest?.penalty ?? null,
         last_date: occurrences.reduce((m, o) => Math.max(m, new Date(o.date ?? 0).getTime()), 0),
         occurrences,
       };
@@ -259,18 +290,6 @@ const RecentViolation = ({ violations, user }) => {
   const offenseTotal = (violations ?? []).length;
 
   // Ungrouped: every offense on its own row, newest first.
-  const violationCell = ({ row }) => (
-    <div className="py-3 whitespace-normal leading-snug">
-      <div className="font-semibold text-gray-900">{row.violation_name}</div>
-      <span
-        className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[0.8em] font-semibold ${
-          row.offense_status === 1 ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
-        }`}
-      >
-        {row.offense_status === 1 ? "Major" : "Minor"}
-      </span>
-    </div>
-  );
   const offenseRows = rows
     .flatMap((r) => r.occurrences.map((o) => ({
       ...o,
@@ -281,44 +300,35 @@ const RecentViolation = ({ violations, user }) => {
     .sort((a, b) => b.time - a.time)
     .map((r, i) => ({ id: i + 1, ...r, offense: r.occurrence ? `${ordinal(r.occurrence)} offense` : "Offense" }));
   const offenseColumns = [
-    columns[0],
-    { field: "violation_name", headerName: "Violation", flex: 1.2, minWidth: 220, renderCell: violationCell },
+    indexColumn,
+    {
+      field: "violation_name", headerName: "Violation", flex: 1.3, minWidth: 220,
+      renderCell: ({ row }) => <ViolationCell name={row.violation_name} major={row.offense_status === 1} />,
+    },
     {
       field: "offense", headerName: "Offense", width: 120,
       sortComparator: (a, b, p1, p2) => (p1.api.getRow(p1.id).occurrence ?? 0) - (p2.api.getRow(p2.id).occurrence ?? 0),
-      renderCell: ({ value }) => <span className="font-semibold text-gray-800">{value}</span>,
+      renderCell: ({ value }) => <OffenseChip label={value} />,
     },
     {
-      field: "penalty", headerName: "Penalty", flex: 1.2, minWidth: 220,
-      renderCell: ({ value }) => (
-        <div className="py-3 whitespace-normal leading-snug">
-          {value ? <span className="text-gray-900">{value}</span> : <span className="italic text-gray-400">No penalty set</span>}
-        </div>
-      ),
-    },
-    {
-      field: "time", headerName: "Date", width: 190,
+      field: "penalty", headerName: "Penalty", flex: 1, minWidth: 200,
       renderCell: ({ row }) => (
-        <span className="text-gray-700">{row.date ? `${readableDate(row.date)} • ${readableTime(row.date)}` : "No date"}</span>
+        <Box sx={{ py: 1.25, whiteSpace: "normal" }}><PenaltyText penalty={row.penalty} code={row.penalty_code} /></Box>
       ),
     },
     {
-      field: "action", headerName: "Action", width: 100, sortable: false, filterable: false, align: "right",
-      renderCell: ({ row }) => (
-        <ActionBtn
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-          disabled={!row.complaint_key}
-          title="View the complaint behind this offense"
-          onClick={() => openComplaint(row.complaint_key)}
-        >
-          View
-        </ActionBtn>
-      ),
+      field: "time", headerName: "Date", width: 140,
+      renderCell: ({ row }) => <DateText date={row.date} />,
+    },
+    {
+      field: "action", headerName: "Action", width: 96, sortable: false, filterable: false, disableColumnMenu: true,
+      align: "center", headerAlign: "center",
+      renderCell: ({ row }) => <ViewComplaintButton complaintKey={row.complaint_key} onOpen={openComplaint} />,
     },
   ];
 
   return (
-    <div className="w-full bg-white rounded-md shadow-black/20 shadow-sm p-5">
+    <Paper variant="outlined" sx={{ borderRadius: 3, overflow: "hidden", minWidth: 0 }}>
       <ViewComplaintModal
         close={viewOpen}
         closeModal={setViewOpen}
@@ -327,30 +337,34 @@ const RecentViolation = ({ violations, user }) => {
         complainant={complaintKey}
         usr={user}
       />
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
-            <AlertTriangle className="text-gray-700" size="1.2em" />
-          </div>
-          <div className="font-semibold text-gray-800">Recent Violations</div>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <div className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
-            {rows.length} violation{rows.length === 1 ? "" : "s"} · {offenseTotal} offense{offenseTotal === 1 ? "" : "s"}
-          </div>
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={grouped ? "grouped" : "ungrouped"}
-            onChange={changeView}
-            aria-label="Group the offenses by violation"
-            sx={{ "& .MuiToggleButton-root": { textTransform: "none", fontWeight: 600, fontSize: "0.8rem", px: 1.5, py: 0.4 } }}
-          >
-            <ToggleButton value="grouped">Grouped</ToggleButton>
-            <ToggleButton value="ungrouped">Ungrouped</ToggleButton>
-          </ToggleButtonGroup>
-        </div>
-      </div>
+      {/* Header: title, the counts and the Grouped / Ungrouped switch. */}
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        sx={{ alignItems: { sm: "center" }, justifyContent: "space-between", gap: 1.5, px: { xs: 2, sm: 2.5 }, py: 1.75, borderBottom: 1, borderColor: "divider" }}
+      >
+        <Stack direction="row" sx={{ alignItems: "center", gap: 1.25 }}>
+          <Box sx={{ width: 36, height: 36, borderRadius: "50%", display: "grid", placeItems: "center", bgcolor: "var(--tone-red-bg)", color: "var(--tone-red-fg)", flexShrink: 0 }}>
+            <AlertTriangle size={17} />
+          </Box>
+          <Box>
+            <Typography sx={{ fontWeight: 600, fontSize: "1rem", lineHeight: 1.3 }}>Recent Violations</Typography>
+            <Typography sx={{ fontSize: "0.75rem", color: "text.secondary" }}>
+              {rows.length} violation{rows.length === 1 ? "" : "s"} · {offenseTotal} offense{offenseTotal === 1 ? "" : "s"}
+            </Typography>
+          </Box>
+        </Stack>
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={grouped ? "grouped" : "ungrouped"}
+          onChange={changeView}
+          aria-label="Group the offenses by violation"
+          sx={{ alignSelf: { xs: "flex-start", sm: "auto" }, "& .MuiToggleButton-root": { textTransform: "none", fontWeight: 600, fontSize: "0.8rem", px: 1.5, py: 0.4 } }}
+        >
+          <ToggleButton value="grouped">Grouped</ToggleButton>
+          <ToggleButton value="ungrouped">Ungrouped</ToggleButton>
+        </ToggleButtonGroup>
+      </Stack>
       <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
         <DataGrid
           key={grouped ? "grouped" : "ungrouped"}
@@ -369,9 +383,19 @@ const RecentViolation = ({ violations, user }) => {
           hideFooterSelectedRowCount
           showToolbar
           localeText={{ noRowsLabel: "No recent violations found" }}
+          // Sits inside the card: no frame of its own, a light header row.
+          sx={{
+            border: 0,
+            borderRadius: 0,
+            "& .MuiDataGrid-toolbar": { minHeight: 44, px: 1, borderBottom: 1, borderColor: "divider" },
+            "& .MuiDataGrid-columnHeader": { bgcolor: "action.hover" },
+            "& .MuiDataGrid-columnHeaderTitle": { fontSize: "0.78rem", fontWeight: 600, color: "text.secondary" },
+            "& .MuiDataGrid-cell": { display: "flex", alignItems: "center" },
+            "& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": { outline: "none" },
+          }}
         />
       </Box>
-    </div>
+    </Paper>
   );
 };
 
@@ -559,60 +583,105 @@ const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_
 
       {data == null
         ? <BehaviourAnalysisSkeleton />
-        : (
-        // Wide screens: the verdict and its factors on the left (kept in view
-        // while scrolling), recommendations and the timeline on the right.
-        // Phones: one column in that order.
-        <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", lg: "minmax(300px, 380px) minmax(0, 1fr)" }, alignItems: "start" }}>
-          <Stack sx={{ gap: 2, position: { lg: "sticky" }, top: { lg: 16 } }}>
-            <VerdictCard
-              prediction={data.prediction}
-              likely={data.binary == 1}
-              violation={violation}
-              onAppoint={onAppoint && data.binary == 1 ? onAppoint : null}
-            />
-            <ContributingFactors insights={data.insights} tone={toneOf(data.binary == 1)} />
-          </Stack>
-          <Stack sx={{ gap: 2, minWidth: 0 }}>
-            <Recommendations
-              list={data.recommendations}
-              failed={data.recoFailed}
-              tone={toneOf(data.binary == 1)}
-              onRefresh={canRefresh && model_inputs?.[selected] ? refreshRecommendations : null}
-              refreshing={refreshing}
-            />
-            <ViolationTimeline records={data.violation_timeline} dateOf={(v) => bestComplaintDate(v.complaint)} />
-          </Stack>
-        </Box>
-      )}
+        : (() => {
+          // The "Main reason" goes in the verdict banner; the rest are the
+          // Contributing Factors.
+          const insights = data.insights ?? []
+          const mainReason = insights.find((f) => /^main reason\s*:/i.test(f))
+          const factors = insights.filter((f) => f !== mainReason)
+          const tone = toneOf(data.binary == 1)
+          const input = model_inputs?.[selected] ?? {}
+          const lastRecord = (data.violation_timeline ?? [])
+            .map((v) => bestComplaintDate(v.complaint))
+            .filter(Boolean)
+            .sort((x, y) => new Date(y) - new Date(x))[0]
+          return (
+            // Top: the verdict, its main reason and the key facts, full
+            // width. Then the factors and the recommendations side by side,
+            // and the timeline across the bottom. Phones: one column.
+            <Stack sx={{ gap: 2 }}>
+              <VerdictCard
+                prediction={data.prediction}
+                likely={data.binary == 1}
+                violation={violation}
+                mainReason={mainReason?.replace(/^main reason\s*:\s*/i, "")}
+                facts={[
+                  { label: "Times committed", value: input.past_repeat_same_violation_count ?? "—" },
+                  { label: "Last offense", value: lastRecord ? readableDate(lastRecord) : "—" },
+                  { label: "Other violations", value: input.other_violations_count ?? "—", hint: input.other_violations_recent_count ? `${input.other_violations_recent_count} in the last 90 days` : null },
+                  { label: "Interventions since", value: input.interventions_since_last ?? "—" },
+                ]}
+                onAppoint={onAppoint && data.binary == 1 ? () => onAppoint(selected) : null}
+              />
+              <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1fr) minmax(0, 1fr)" }, alignItems: "start" }}>
+                <ContributingFactors insights={factors} tone={tone} />
+                <Recommendations
+                  list={data.recommendations}
+                  failed={data.recoFailed}
+                  tone={tone}
+                  onRefresh={canRefresh && model_inputs?.[selected] ? refreshRecommendations : null}
+                  refreshing={refreshing}
+                />
+              </Box>
+              <ViolationTimeline records={data.violation_timeline} dateOf={(v) => bestComplaintDate(v.complaint)} />
+            </Stack>
+          )
+        })()}
     </div>
   );
 };
 
-// The verdict, kept minimal: a small dot and the result in its tone, what it
-// is about, and (for the prefect, when "Likely") Set Appointment.
-const VerdictCard = ({ prediction, likely, violation, onAppoint }) => {
+// The verdict banner: the result in its tone and what it is about, the
+// main reason for it, (for the prefect, when "Likely") Set Appointment, and
+// a strip of the key facts from the record.
+const VerdictCard = ({ prediction, likely, violation, mainReason, facts = [], onAppoint }) => {
   const tone = likely ? "red" : "green"
   return (
-    <Paper variant="outlined" sx={{ borderRadius: 3, p: 2.5 }}>
-      <Stack direction="row" sx={{ alignItems: "center", gap: 1 }}>
-        <Box sx={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, bgcolor: `var(--tone-${tone}-fg)` }} />
-        <Typography sx={{ fontSize: "1rem", fontWeight: 700, lineHeight: 1.3, color: `var(--tone-${tone}-fg)` }}>{prediction}</Typography>
+    <Paper variant="outlined" sx={{ borderRadius: 3, overflow: "hidden" }}>
+      <Stack direction={{ xs: "column", md: "row" }} sx={{ gap: 2, p: { xs: 2, sm: 2.5 }, alignItems: { md: "center" } }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Stack direction="row" sx={{ alignItems: "center", gap: 1 }}>
+            <Box sx={{ width: 9, height: 9, borderRadius: "50%", flexShrink: 0, bgcolor: `var(--tone-${tone}-fg)` }} />
+            <Typography sx={{ fontSize: "1.15rem", fontWeight: 700, lineHeight: 1.3, color: `var(--tone-${tone}-fg)` }}>{prediction}</Typography>
+          </Stack>
+          <Typography sx={{ mt: 0.5, fontSize: "0.82rem", lineHeight: 1.55, color: "text.secondary" }}>
+            Prediction for repeating "{violation}", based on the student's discipline record.
+          </Typography>
+          {mainReason && (
+            <Typography sx={{ mt: 1, fontSize: "0.875rem", lineHeight: 1.6 }}>
+              <Box component="span" sx={{ fontWeight: 700, color: `var(--tone-${tone}-fg)` }}>Main reason: </Box>
+              {mainReason}
+            </Typography>
+          )}
+        </Box>
+        {onAppoint && (
+          <Box sx={{ flexShrink: 0 }}>
+            <Btn onclick={onAppoint} icon={<CalendarPlus size={19} />}>Set Appointment</Btn>
+          </Box>
+        )}
       </Stack>
-      <Typography sx={{ mt: 0.75, fontSize: "0.82rem", lineHeight: 1.55, color: "text.secondary" }}>
-        Prediction for repeating "{violation}", based on the student's discipline record.
-      </Typography>
-      {onAppoint && (
-        <Box sx={{ mt: 1.75 }}>
-          <Btn onclick={onAppoint} icon={<CalendarPlus size={19} />}>Set Appointment</Btn>
+      {facts.length > 0 && (
+        <Box sx={{
+          display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: `repeat(${facts.length}, minmax(0, 1fr))` },
+          borderTop: 1, borderColor: "divider", bgcolor: "action.hover",
+        }}>
+          {facts.map((f, i) => (
+            <Box key={f.label} sx={{
+              px: { xs: 2, sm: 2.5 }, py: 1.25, minWidth: 0,
+              borderStyle: "solid", borderColor: "divider", borderWidth: 0,
+              borderLeftWidth: { xs: i % 2 ? 1 : 0, md: i ? 1 : 0 },
+              borderTopWidth: { xs: i > 1 ? 1 : 0, md: 0 },
+            }}>
+              <Typography sx={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "text.secondary" }}>{f.label}</Typography>
+              <Typography sx={{ fontSize: "1rem", fontWeight: 700, lineHeight: 1.4 }}>{f.value}</Typography>
+              {f.hint && <Typography sx={{ fontSize: "0.7rem", color: "text.secondary" }}>{f.hint}</Typography>}
+            </Box>
+          ))}
         </Box>
       )}
     </Paper>
   )
 }
-
-
-
 
 export default StudentViolation;
 

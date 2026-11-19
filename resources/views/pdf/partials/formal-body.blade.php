@@ -12,7 +12,7 @@
 <style>
     .doc-body, .doc-body * {
         font-family: "DejaVu Serif", "Times New Roman", serif !important;
-        color: #111 !important;
+        color: #000 !important;
         border-radius: 0 !important;
         box-shadow: none !important;
         text-shadow: none !important;
@@ -36,7 +36,7 @@
 
     /* Secondary text: a dark grey, still easy to read. */
     .doc-body .muted, .doc-body .note, .doc-body .lbl, .doc-body .figure-sub, .doc-body .figure-empty,
-    .doc-body .empty, .doc-body .none, .doc-body small, .doc-body .school-info { color: #444 !important; }
+    .doc-body .empty, .doc-body .none, .doc-body small, .doc-body .school-info { color: #000 !important; }
 
     /* Single-colour bar charts: dark grey on a light grey track. */
     .doc-body .bar { background-color: #555 !important; }

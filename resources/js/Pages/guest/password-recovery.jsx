@@ -5,8 +5,9 @@ import { change, showOutputModal, showWarningModal } from "@/others/function"
 import { PasswordRecoveryService } from "@/others/services/password-recovery-service"
 import { useEffect, useRef, useState } from "react"
 import { Head, Link } from "@inertiajs/react"
-import { motion } from "framer-motion"
 import { User, Lock } from "lucide-react"
+import { Box, Button, CircularProgress, Divider, Link as MuiLink, Paper, Stack, Typography } from "@mui/material"
+import OtpInput from "@/Components/input/otp-input"
 import shield from "@/images/shield.png"
 import { Validator } from "@/others/classes/validator"
 
@@ -75,17 +76,12 @@ const PasswordRecovery = () => {
 
     return (
         <Card>
-            <div className="mb-6 text-center">
-                <h1 className="text-2xl sm:text-3xl font-bold mb-2">
-                    Forgot Your Password?
-                </h1>
-                <p className="text-sm sm:text-base leading-relaxed text-justify">
-                    Enter your <b>Username</b> or <b>User I.D</b> below. We'll email a 6-digit
-                    verification code to your registered email address.
-                </p>
-            </div>
+            <Heading
+                title="Forgot Your Password?"
+                desc={<>Enter your <b>Username</b> or <b>User I.D</b>. We'll email a 6-digit verification code to your registered email address.</>}
+            />
 
-            <form className="flex flex-col gap-6" onSubmit={requestOtp}>
+            <Box component="form" onSubmit={requestOtp} sx={{ display: "grid", gap: 3 }}>
                 <FormTextfield
                     label="Username / User I.D"
                     type="text"
@@ -99,40 +95,58 @@ const PasswordRecovery = () => {
                     req={true}
                 />
 
-                <div className="w-full flex justify-end">
+                <Box sx={ACTIONS}>
                     <FormButton
                         label={submitting ? "Sending..." : "Send Verification Code"}
                         type="submit"
                         enable={!submitting}
-                        className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md transition-all font-semibold"
+                        loading={submitting}
                     />
-                </div>
-            </form>
+                </Box>
+            </Box>
 
-            <div className="mt-6 text-center text-sm text-gray-500">
-                <p>
-                    Remember your password?{" "}
-                    <Link href="/" className="text-blue-600 hover:underline font-medium">
-                        Log in
-                    </Link>
-                </p>
-            </div>
+            <Typography sx={{ mt: 3, textAlign: "center", fontSize: 14, color: "text.secondary" }}>
+                Remember your password? <BackLink>Log in</BackLink>
+            </Typography>
         </Card>
     )
 }
 
+// The submit button: full width on phones, right-aligned otherwise.
+const ACTIONS = { display: "flex", justifyContent: { xs: "stretch", sm: "flex-end" }, "& > button": { width: { xs: "100%", sm: "auto" } } }
+
+// The white card every step sits in.
 const Card = ({ children }) => (
     <>
         <Head title="Password Recovery" />
-        <div className="flex justify-center items-center bg-gradient-to-br">
-            <motion.div
-                className="w-full max-w-md sm:max-w-lg bg-white rounded-2xl shadow-xl p-6 hover:shadow-2xl"
-                whileHover={{ scale: 1.01 }}
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%" }}>
+            <Paper
+                elevation={0}
+                sx={{
+                    width: "100%",
+                    maxWidth: 480,
+                    p: { xs: 3, sm: 4 },
+                    borderRadius: 4,
+                    boxShadow: "0 20px 50px rgba(0,0,0,.28)",
+                }}
             >
                 {children}
-            </motion.div>
-        </div>
+            </Paper>
+        </Box>
     </>
+)
+
+// Title and a short line under it, centred (an image above, if given).
+const Heading = ({ image, title, desc }) => (
+    <Stack spacing={1} sx={{ alignItems: "center", textAlign: "center", mb: 3 }}>
+        {image && <Box component="img" src={image} alt="" sx={{ width: { xs: 64, sm: 72 }, height: { xs: 64, sm: 72 }, mb: 0.5 }} />}
+        <Typography component="h1" sx={{ fontSize: { xs: 22, sm: 26 }, fontWeight: 700, lineHeight: 1.25 }}>{title}</Typography>
+        {desc && <Typography sx={{ fontSize: { xs: 13.5, sm: 14.5 }, color: "text.secondary", lineHeight: 1.6, maxWidth: 400 }}>{desc}</Typography>}
+    </Stack>
+)
+
+const BackLink = ({ children }) => (
+    <MuiLink component={Link} href="/" underline="hover" sx={{ fontWeight: 600, color: "primary.main" }}>{children}</MuiLink>
 )
 
 const OtpStep = ({ username, maskedEmail, onVerified, onResend }) => {
@@ -140,39 +154,19 @@ const OtpStep = ({ username, maskedEmail, onVerified, onResend }) => {
     const [error, setError] = useState("")
     const [verifying, setVerifying] = useState(false)
     const [time, setTime] = useState(RESEND_SECONDS)
-    const inputsRef = useRef([])
+    const otpRef = useRef(null)
 
     useEffect(() => {
-        inputsRef.current[0]?.focus()
+        otpRef.current?.focus()
         const interval = setInterval(() => {
             setTime((prev) => (prev <= 1 ? 0 : prev - 1))
         }, 1000)
         return () => clearInterval(interval)
     }, [])
 
-    const handleChange = (e, i) => {
-        const value = e.target.value
-        if (!/^\d?$/.test(value)) return
-
-        const updated = [...pin]
-        updated[i] = value
-        setPin(updated)
+    const handleChange = (next) => {
+        setPin(next)
         if (error) setError("")
-
-        if (value && i < pin.length - 1) {
-            inputsRef.current[i + 1]?.focus()
-        }
-
-        const joined = updated.join("")
-        if (joined.length === OTP_LENGTH) {
-            verify(joined)
-        }
-    }
-
-    const handleKeyDown = (e, i) => {
-        if (e.key === "Backspace" && !pin[i] && i > 0) {
-            inputsRef.current[i - 1]?.focus()
-        }
     }
 
     const verify = (code) => {
@@ -188,7 +182,7 @@ const OtpStep = ({ username, maskedEmail, onVerified, onResend }) => {
                 setVerifying(false)
                 setError(err.response?.data?.message || "Invalid or expired code.")
                 setPin(Array(OTP_LENGTH).fill(""))
-                inputsRef.current[0]?.focus()
+                setTimeout(() => otpRef.current?.focus())
             }
         )
     }
@@ -199,58 +193,43 @@ const OtpStep = ({ username, maskedEmail, onVerified, onResend }) => {
         setTime(RESEND_SECONDS)
         setPin(Array(OTP_LENGTH).fill(""))
         setError("")
-        inputsRef.current[0]?.focus()
+        otpRef.current?.focus()
     }
 
     return (
-        <div className="grid gap-6">
-            <div className="text-center grid gap-2">
-                <img src={shield} alt="shield" className="w-20 h-20 sm:w-24 sm:h-24 mx-auto" />
-                <h1 className="text-2xl sm:text-3xl font-bold">Enter Verification Code</h1>
-                <p className="text-sm sm:text-base text-gray-600">
-                    We've sent a 6-digit code to{" "}
-                    {maskedEmail ? <b>{maskedEmail}</b> : "the email registered to this account"}.
-                </p>
-            </div>
+        <Box>
+            <Heading
+                image={shield}
+                title="Enter Verification Code"
+                desc={<>We've sent a 6-digit code to {maskedEmail ? <b>{maskedEmail}</b> : "the email registered to this account"}.</>}
+            />
 
-            <div className="flex justify-center">
-                <div className="flex gap-1.5 sm:gap-3">
-                    {pin.map((v, i) => (
-                        <div className="w-10 h-12 sm:w-12 sm:h-14 flex-shrink-0" key={i}>
-                            <input
-                                ref={(el) => (inputsRef.current[i] = el)}
-                                type="password"
-                                inputMode="numeric"
-                                maxLength={1}
-                                disabled={verifying}
-                                className="w-full h-full border-2 border-gray-300 rounded-lg text-center text-lg sm:text-2xl focus:border-blue-500 outline-none"
-                                value={v}
-                                onChange={(e) => handleChange(e, i)}
-                                onKeyDown={(e) => handleKeyDown(e, i)}
-                            />
-                        </div>
-                    ))}
-                </div>
-            </div>
+            <OtpInput ref={otpRef} value={pin} onChange={handleChange} onComplete={verify} disabled={verifying} error={!!error} />
 
-            <div className="grid gap-2 text-center">
-                {error && <p className="text-red-600 font-semibold text-xs sm:text-sm">{error}</p>}
-                <p className="text-xs sm:text-sm text-gray-600">
+            <Stack spacing={1.25} sx={{ alignItems: "center", textAlign: "center", mt: 2.5 }}>
+                {verifying && (
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center", color: "text.secondary" }}>
+                        <CircularProgress size={14} />
+                        <Typography sx={{ fontSize: 13 }}>Verifying...</Typography>
+                    </Stack>
+                )}
+                {error && <Typography sx={{ color: "error.main", fontWeight: 600, fontSize: 13.5 }}>{error}</Typography>}
+                <Typography component="div" sx={{ fontSize: 13.5, color: "text.secondary" }}>
                     Didn't get a code?{" "}
-                    <button
-                        type="button"
-                        className={`underline font-medium ${time === 0 ? "text-blue-600 hover:text-blue-700" : "text-gray-400 cursor-not-allowed"}`}
+                    <Button
+                        variant="text"
+                        size="small"
                         disabled={time !== 0}
                         onClick={resend}
+                        sx={{ minWidth: 0, p: "2px 6px", fontSize: 13.5, fontWeight: 600, textTransform: "none", verticalAlign: "baseline" }}
                     >
                         Resend{time !== 0 ? ` (${time}s)` : ""}
-                    </button>
-                </p>
-                <Link href="/" className="text-blue-600 hover:underline font-medium text-sm">
-                    Back to Log in
-                </Link>
-            </div>
-        </div>
+                    </Button>
+                </Typography>
+                <Divider flexItem sx={{ my: 0.5 }} />
+                <Typography sx={{ fontSize: 14 }}><BackLink>Back to Log in</BackLink></Typography>
+            </Stack>
+        </Box>
     )
 }
 
@@ -306,48 +285,46 @@ const ResetStep = ({ username }) => {
     }
 
     return (
-        <div className="grid gap-6">
-            <div className="grid gap-2 text-center sm:text-left">
-                <h1 className="text-2xl font-bold text-gray-800">Reset Your Password</h1>
-                <p className="text-sm text-gray-600 leading-snug">
-                    Verified! Please enter your new password below.
-                </p>
-            </div>
+        <Box>
+            <Heading
+                title="Reset Your Password"
+                desc="Verified! Enter your new password below."
+            />
 
-            <form onSubmit={handleSubmit} className="grid gap-6">
-                <div className="grid gap-5">
-                    <FormTextfield
-                        label="New Password"
-                        type="password"
-                        name="new_password"
-                        id="new_password"
-                        val={data.new_password}
-                        error={errorNewPassword}
-                        icon={Lock}
-                        change={handleChange}
-                        enableShowPassword={true}
-                        req={true}
-                    />
+            <Box component="form" onSubmit={handleSubmit} sx={{ display: "grid", gap: 3 }}>
+                <FormTextfield
+                    label="New Password"
+                    type="password"
+                    name="new_password"
+                    id="new_password"
+                    val={data.new_password}
+                    error={errorNewPassword}
+                    icon={Lock}
+                    change={handleChange}
+                    enableShowPassword={true}
+                    req={true}
+                />
 
-                    <FormTextfield
-                        label="Re-Enter New Password"
-                        type="password"
-                        name="password_confirmation"
-                        id="password_confirmation"
-                        val={data.password_confirmation}
-                        error={errorPassword}
-                        icon={Lock}
-                        change={handleChange}
-                        enableShowPassword={true}
-                        req={true}
-                    />
-                </div>
+                <FormTextfield
+                    label="Re-Enter New Password"
+                    type="password"
+                    name="password_confirmation"
+                    id="password_confirmation"
+                    val={data.password_confirmation}
+                    error={errorPassword}
+                    icon={Lock}
+                    change={handleChange}
+                    enableShowPassword={true}
+                    req={true}
+                />
 
-                <div className="flex justify-end">
-                    <FormButton label="Save Changes" type="submit" enable={!reload} />
-                </div>
-            </form>
-        </div>
+                <Box sx={ACTIONS}>
+                    <FormButton label="Save Changes" type="submit" enable={!reload} loading={reload} />
+                </Box>
+            </Box>
+
+            <Typography sx={{ mt: 3, textAlign: "center", fontSize: 14 }}><BackLink>Back to Log in</BackLink></Typography>
+        </Box>
     )
 }
 

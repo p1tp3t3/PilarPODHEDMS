@@ -5,9 +5,9 @@
     <title>Referral Form</title>
     <style>
         @page { margin: 40px 55px; }
-        body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 12px; color: #111; margin: 0; }
+        body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 12px; color: #000; margin: 0; }
 
-        .form-code { text-align: right; font-size: 10px; color: #333; }
+        .form-code { text-align: right; font-size: 10px; color: #000; }
 
         /* Letterhead: logo on the left, school name centered beside it */
         .letterhead { width: 100%; border-collapse: collapse; margin-top: 4px; }
@@ -28,7 +28,7 @@
         /* Students referred (one or more) */
         ol.students { margin: 0 0 16px; padding-left: 26px; }
         ol.students li { padding: 3px 0; border-bottom: 1px solid #111; }
-        ol.students .course { color: #444; font-size: 11px; }
+        ol.students .course { color: #000; font-size: 11px; }
 
         /* Reason: the written reason, then ruled lines like the paper form */
         .reason { border-bottom: 1px solid #111; padding: 2px 2px 4px; min-height: 18px; }
