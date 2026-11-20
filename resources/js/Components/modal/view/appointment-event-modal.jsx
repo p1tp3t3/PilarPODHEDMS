@@ -27,6 +27,12 @@ const AttendanceButton = ({ color, children, onClick }) => (
     </Button>
 )
 
+const plain = (html) => {
+    if (!html) return ""
+    const doc = new DOMParser().parseFromString(String(html).replace(/<\/p>|<br\s*\/?>/gi, "\n"), "text/html")
+    return (doc.body.textContent || "").replace(/\n{3,}/g, "\n\n").trim()
+}
+
 // The calendar's appointment window: who and when, the reason and what it
 // addresses, and (for an accepted one not yet marked) attendance, reschedule
 // and cancel.
@@ -41,7 +47,7 @@ const AppointmentEventModal = ({ close, closeModal, event, onCancel, onReschedul
     const attendance = extendedProps.attendance_status || "not_marked"
     const profile = extendedProps.user?.profile
     const name = title.replace(" (Pending)", "")
-    const reason = extendedProps.description || extendedProps.reason
+    const reason = plain(extendedProps.description || extendedProps.reason)
     const when = start?.toLocaleString(undefined, {
         weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit",
     })
