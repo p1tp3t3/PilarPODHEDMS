@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react"
-import { Link } from "@inertiajs/react"
 import Box from "@mui/material/Box"
 import { DataGrid } from "@/Components/other/data-grid"
 import ProfilePic from "@/Components/other/profile-pic"
@@ -7,7 +6,9 @@ import ActionBtn from "@/Components/button/action-btn"
 import DropdownField from "@/Components/input/dropdown"
 import MobileFilters, { countActive } from "@/Components/other/mobile-filters"
 import { AppointmentService } from "@/others/services/appointment-service"
-import { getProfilePic, profileUrl, readableDate, readableTime } from "@/others/function"
+import ViewCallInModal, { ATTENDANCE } from "@/Components/modal/view/view-call-in-modal"
+import { toneStyle } from "@/Components/list/status-pill"
+import { getProfilePic, readableDate, readableTime } from "@/others/function"
 
 /**
  * The prefect's history of call-ins: which student was called in, why, by
@@ -22,6 +23,8 @@ const semesterList = [
 
 const CallInHistoryList = ({ refreshKey = 0, schoolYears = [], programs = [] }) => {
     const [list, setList] = useState(null)
+    const [viewing, setViewing] = useState(null)
+    const [viewOpen, setViewOpen] = useState(false)
     const [failed, setFailed] = useState(false)
 
     // School year / semester / program, read from and kept in the URL.
@@ -47,6 +50,7 @@ const CallInHistoryList = ({ refreshKey = 0, schoolYears = [], programs = [] }) 
 
     const columns = useMemo(() => [
         { field: "i", headerName: "#", width: 55 },
+        { field: "call_in_number", headerName: "Reference No.", width: 130, valueGetter: (v) => v ?? "N/A" },
         {
             field: "student",
             headerName: "Student",
@@ -64,7 +68,6 @@ const CallInHistoryList = ({ refreshKey = 0, schoolYears = [], programs = [] }) 
             ),
         },
         { field: "program", headerName: "Program", width: 110, valueGetter: (_, row) => row.student?.program ?? "N/A" },
-        { field: "reason", headerName: "Reason", flex: 1.5, minWidth: 220, valueGetter: (v) => v ?? "N/A" },
         { field: "called_by", headerName: "Called In By", width: 160, valueGetter: (v) => v ?? "N/A" },
         {
             field: "created_at",
@@ -79,7 +82,8 @@ const CallInHistoryList = ({ refreshKey = 0, schoolYears = [], programs = [] }) 
         },
         {
             field: "read_since",
-            headerName: "Status",
+            // Whether the student has opened the notification.
+            headerName: "Seen",
             width: 120,
             valueGetter: (v) => (v ? "Seen" : "Not seen yet"),
             renderCell: ({ row, value }) => (
@@ -94,20 +98,42 @@ const CallInHistoryList = ({ refreshKey = 0, schoolYears = [], programs = [] }) 
             ),
         },
         {
+            // Whether the student came (marked by the Prefect in the view).
+            field: "attendance_status",
+            headerName: "Attendance",
+            width: 130,
+            valueGetter: (v) => ATTENDANCE[v ?? "not_marked"].label,
+            renderCell: ({ row, value }) => (
+                <span className="inline-block px-2 py-1 rounded-xl leading-none whitespace-nowrap font-medium text-[0.85em]"
+                    style={toneStyle(ATTENDANCE[row.attendance_status ?? "not_marked"].tone)}>
+                    {value}
+                </span>
+            ),
+        },
+        {
             field: "actions",
             type: "actions",
             headerName: "Action",
             width: 100,
-            renderCell: ({ row }) => row.student && (
-                <Link href={profileUrl(row.student)}>
-                    <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700">View</ActionBtn>
-                </Link>
+            // The call-in's details (message, related violations) in a view.
+            renderCell: ({ row }) => (
+                <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => { setViewing(row); setViewOpen(true) }}>View</ActionBtn>
             ),
         },
     ], [])
 
     return (
         <div className="grid gap-4 min-w-0">
+        <ViewCallInModal
+            close={viewOpen}
+            closeModal={setViewOpen}
+            callIn={viewing}
+            // Attendance marked: update that row (and the open view).
+            onMarked={(row) => {
+                setViewing(row)
+                setList((prev) => (prev ?? []).map((e) => (e.id === row.id ? { ...e, ...row } : e)))
+            }}
+        />
         <div className="w-full flex flex-col sm:flex-row sm:flex-wrap gap-3">
             <MobileFilters active={countActive(filters["school-year"], filters.semester, filters.program)}>
                 <div className="w-full sm:w-48">

@@ -5,13 +5,14 @@ namespace App\Models;
 use App\Models\Concerns\HasDerivedSchoolYearSemester;
 use App\Models\Concerns\HasRecordAccess;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Concerns\LimitsEdits;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class GatePass extends Model
 {
-    use HasFactory, HasDerivedSchoolYearSemester, HasRecordAccess;
+    use HasFactory, HasDerivedSchoolYearSemester, HasRecordAccess, LimitsEdits;
 
     protected $table = 'gate_pass';
 

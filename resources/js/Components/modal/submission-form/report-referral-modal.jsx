@@ -1,3 +1,4 @@
+import RemoveBtn from "@/Components/button/remove-btn"
 import { reloadListData } from "@/others/hooks/use-list-data"
 import UpModal from "../up-modal"
 import SearchUserBar from "@/Components/input/search-user-bar"
@@ -7,7 +8,6 @@ import FormButton from "@/Components/button/button"
 import { useState, useEffect } from "react"
 import { getProfilePic, showWarningModal, showOutputModal, toTitleCase, isSamePerson, showUserType } from "@/others/function"
 import { ReferralService } from "@/others/services/referral-service"
-import { X } from "lucide-react"
 import { Validator } from "@/others/classes/validator"
 
 const ReportReferralModal = (props) => {
@@ -149,17 +149,9 @@ const SelectedUser = (props) => {
         : toTitleCase(props.user.parent?.parent_role)
     return (
         <div className="flex-shrink-0 grid relative w-[5rem]">
+            <RemoveBtn onClick={() => props.unselect(props.index)} sx={{ position: "absolute", top: -10, right: -6, zIndex: 5 }} />
             <div className="justify-self-center grid">
                 <div className="grid w-[2.5rem] justify-self-center relative">
-                    <div className="absolute -top-1 right-0 z-[5]">
-                        <button
-                            type="button"
-                            className="bg-gray-300 w-[1.2rem] h-[1.2rem] rounded-full text-[0.8em]"
-                            onClick={() => props.unselect(props.index)}
-                        >
-                            <X size={12} />
-                        </button>
-                    </div>
                     <div className="justify-self-center">
                         <ProfilePic src={props.src} size={2.5} />
                     </div>

@@ -123,12 +123,12 @@ const CallInModal = (props) => {
                                 />
                             </div>
                         )}
-                        {searchedStudent &&
+                        {/* Always shown; disabled until a student is chosen. */}
                         <RelatedViolationsField
-                            studentIds={[searchedStudent[0].id]}
+                            studentIds={searchedStudent ? [searchedStudent[0].id] : []}
                             value={relatedViolations}
                             onChange={setRelatedViolations}
-                        />}
+                        />
                         <div>
                             <RichTextEditor
                                 label="Enter Your Message"
@@ -140,9 +140,9 @@ const CallInModal = (props) => {
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                        {/* The call-ins already sent: Appointment page, Call-In History tab. */}
+                        {/* The call-ins already sent: Appointment menu → Call-In History. */}
                         <Link
-                            href="/prefect/appointment?tab=call-ins"
+                            href="/prefect/call-ins"
                             onClick={() => props.closeModal(false)}
                             className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
                         >

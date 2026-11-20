@@ -30,6 +30,8 @@ class ReferralResource extends BaseResource
             'rejected_at' => $this->rejected_at,
             'revoked_at' => $this->revoked_at,
             'edited_at' => $this->edited_at,
+            // Edits left while pending (up to 3; LimitsEdits).
+            'edits_left' => $this->resource->editsLeft(),
             'send_to_guidance' => $this->send_to_guidance,
             // Sent on to an office (Guidance / IT Staff) and that office's note.
             'sent_to' => $this->sent_to,
@@ -41,7 +43,12 @@ class ReferralResource extends BaseResource
             'can_write_office_note' => $this->resource->isSentToOfficeOf($request->user()),
             // The violation(s) the referral addresses (set by the Prefect).
             'related_violations' => \App\Models\InterventionViolation::linked(\App\Models\InterventionViolation::REFERRAL, (int) $this->id),
-            'can_set_related_violations' => $request->user()?->role === 'sub_admin',
+            // The same, per referred student: {student id: [{id, name}]}
+            // (each student is referred about their own violation(s)).
+            'related_violations_by_student' => (object) \App\Models\InterventionViolation::linkedByStudent(\App\Models\InterventionViolation::REFERRAL, (int) $this->id),
+            // The Prefect, while it is still pending: once approved the
+            // students are already intervened (rejected / revoked: closed).
+            'can_set_related_violations' => $request->user()?->role === 'sub_admin' && $this->resource->awaitsIntervention(),
             'confirmed_at' => $this->confirmed_at,
             'archived_at' => $this->archived_at,
             'created_at' => $this->created_at,

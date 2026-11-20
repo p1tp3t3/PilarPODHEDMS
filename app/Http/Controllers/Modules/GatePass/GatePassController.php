@@ -198,19 +198,7 @@ class GatePassController extends Controller
             $gatepass->refresh();
 
             notify_single_user(
-                self::getGatePassResponseNotif($student->id, [
-                    'id' => $gatepass->id,
-                    'first_name' => $student->profile?->first_name,
-                    'last_name' => $student->profile?->last_name,
-                    'profile_picture' => $student->profile?->profile_picture,
-                    'user_type' => $student->role,
-                    'name' => $student->program?->code,
-                    'reason' => $gatepass->reason,
-                    'allow_to' => $gatepass->allow_to,
-                    'confirmed_at' => $gatepass->confirmed_at,
-                    'date_expiration' => $gatepass->date_expiration,
-                    'created_at' => $gatepass->created_at,
-                ], 'The prefect has issued you a gate pass.'),
+                self::getGatePassResponseNotif($student->id, ['id' => $gatepass->id], 'The prefect has issued you a gate pass.'),
                 new SendGatePass($student->id)
             );
             ActionLog::log(
@@ -264,19 +252,7 @@ class GatePassController extends Controller
                 'date_time_expiration' => $gatepass->date_expiration,
                 'prefect_name' => $prefect,
             ];
-            $dataNotif = [
-                'id' => $gatepass->id,
-                'first_name' => $gatepass->user->profile?->first_name,
-                'last_name' => $gatepass->user->profile?->last_name,
-                'profile_picture' => $gatepass->user->profile?->profile_picture,
-                'user_type' => $gatepass->user->role,
-                'name' => $gatepass->user->program?->code,
-                'reason' => $gatepass->reason,
-                'allow_to' => json_encode(request('allow_to')),
-                'confirmed_at' => $gatepass->confirmed_at,
-                'date_expiration' => $gatepass->date_expiration,
-                'created_at' => $gatepass->created_at,
-            ];
+            $dataNotif = ['id' => $gatepass->id];
 
             $gatepass = $gatepass->first();
 
@@ -380,22 +356,25 @@ class GatePassController extends Controller
      */
     public function updateGatePass(UpdateGatePassRequest $request, $id)
     {
+        // The checks come before the transaction: an early return inside it
+        // would leave it open.
+        $gatepass = GatePass::where('id', $id)->first();
+
+        if (! $gatepass) {
+            return response()->json(['message' => 'Gate pass not found.'], 404);
+        }
+        if ($gatepass->user_id !== auth()->id()) {
+            return response()->json(['message' => 'You can only edit a gate pass you requested yourself.'], 403);
+        }
+        if ($gatepass->confirmed_at !== null || $gatepass->rejected_at !== null || $gatepass->revoked_at !== null) {
+            return response()->json(['message' => 'This gate pass can no longer be edited.'], 400);
+        }
+        if ($gatepass->editsLeft() <= 0) {
+            return response()->json(['message' => 'You have already used all '.GatePass::MAX_EDITS.' edits for this gate pass.'], 400);
+        }
+
         DB::beginTransaction();
         try {
-            $gatepass = GatePass::where('id', $id)->first();
-
-            if (! $gatepass) {
-                return response()->json(['message' => 'Gate pass not found.'], 404);
-            }
-            if ($gatepass->user_id !== auth()->id()) {
-                return response()->json(['message' => 'You can only edit a gate pass you requested yourself.'], 403);
-            }
-            if ($gatepass->confirmed_at !== null || $gatepass->rejected_at !== null || $gatepass->revoked_at !== null) {
-                return response()->json(['message' => 'This gate pass can no longer be edited.'], 400);
-            }
-            if ($gatepass->edited_at !== null) {
-                return response()->json(['message' => 'You have already used your one edit for this gate pass.'], 400);
-            }
 
             GatePassRevision::create([
                 'gate_pass_id' => $id,
@@ -611,24 +590,10 @@ class GatePassController extends Controller
     {
         $user = auth()->user();
 
-        // Build consistent notification payload for getContent()
         $data = [
             'sender_message' => 'You have requested a gate pass.',
             'receiver_message' => $user->profile?->first_name.' '.$user->profile?->last_name.' has requested a gate pass.',
             'id' => $id,
-            // User info
-            'first_name' => $user->profile?->first_name,
-            'last_name' => $user->profile?->last_name,
-            'profile_picture' => $user->profile?->profile_picture,
-            'user_type' => $user->role,
-            'name' => $user->program?->code ?? null,
-
-            // Gatepass info (only reason is known at request stage)
-            'reason' => request('other_reason') ?? null,
-            'allow_to' => null,
-            'confirmed_at' => null,
-            'date_expiration' => null,
-            'created_at' => now(),
         ];
 
         return [
@@ -647,16 +612,6 @@ class GatePassController extends Controller
             'sender_message' => $message,
             'receiver_message' => $message,
             'id' => $data['id'],
-            'first_name' => $data['first_name'],
-            'last_name' => $data['last_name'],
-            'profile_picture' => $data['profile_picture'],
-            'user_type' => $data['user_type'],
-            'name' => $data['name'],
-            'reason' => $data['reason'],
-            'allow_to' => request('allow_to'),
-            'confirmed_at' => $data['confirmed_at'],
-            'date_expiration' => $data['date_expiration'],
-            'created_at' => $data['created_at'],
         ];
 
         return [
@@ -668,30 +623,17 @@ class GatePassController extends Controller
         ];
     }
 
+    /**
+     * A gate pass notification's content: the messages and the gate pass's
+     * id only. Its page fetches the gate pass itself (GET /gatepass/{id}),
+     * so it always shows the pass as it is now.
+     */
     public function getContent($data)
     {
         return json_encode([
+            'id' => $data['id'] ?? null,
             'sender_notif_message' => $data['sender_message'],
             'receiver_notif_message' => $data['receiver_message'],
-            'gatepass' => [
-                'id' => $data['id'] ?? null,
-                'user' => [
-                    'first_name' => $data['first_name'] ?? null,
-                    'last_name' => $data['last_name'] ?? null,
-                    'profile_picture' => $data['profile_picture'] ?? null,
-                    'user_type' => $data['user_type'] ?? null,
-                    'student' => [
-                        'program' => [
-                            'name' => $data['name'] ?? null,
-                        ],
-                    ],
-                ],
-                'reason' => $data['reason'] ?? null,
-                'allow_to' => $data['allow_to'] ?? null,
-                'confirmed_at' => $data['confirmed_at'] ?? null,
-                'date_expiration' => $data['date_expiration'] ?? null,
-                'created_at' => $data['created_at'] ?? now(),
-            ],
         ]);
     }
 }

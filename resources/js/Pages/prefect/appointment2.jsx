@@ -9,30 +9,18 @@ import AppointmentModal from "@/Components/modal/submission-form/set-appointment
 import { useReload } from "@/context-provider/reload-provider";
 import { showWarningModal, showOutputModal } from "@/others/function";
 import { Paper, Popover, List, ListItemButton } from "@mui/material";
-import { CalendarPlus, Eye, CalendarDays, PhoneCall } from "lucide-react";
+import { CalendarPlus, Eye } from "lucide-react";
 import { Head } from "@inertiajs/react";
-import TabSwitcher from "@/Components/other/tab-switcher";
 import PageLayout from "@/Layouts/page-layout";
 import CallInHistoryList from "@/Components/list/call-in-history-list";
 
-const PAGE_TABS = [
-  { key: "calendar", label: "Calendar", icon: CalendarDays },
-  { key: "call-ins", label: "Call-In History", icon: PhoneCall },
-];
 
 const PrefectAppointment2 = (props) => {
-  // ?tab=call-ins opens the call-in history directly; kept in the URL so a
-  // reload stays on the same tab.
-  const [tab, setTab] = useState(() =>
-    new URLSearchParams(window.location.search).get("tab") === "call-ins" ? "call-ins" : "calendar"
-  );
-  const changeTab = (key) => {
-    setTab(key);
-    const url = new URL(window.location.href);
-    if (key === "calendar") url.searchParams.delete("tab");
-    else url.searchParams.set("tab", key);
-    window.history.replaceState(window.history.state, "", url);
-  };
+  // Two pages in the Appointment menu: the calendar (/prefect/appointment)
+  // and the call-in history (/prefect/call-ins; the old ?tab=call-ins too).
+  const tab = props.section === "call-ins" || new URLSearchParams(window.location.search).get("tab") === "call-ins"
+    ? "call-ins"
+    : "calendar";
 
   const [appointmentId, setAppointmentId] = useState("");
   const [date, setDate] = useState(new Date());
@@ -173,7 +161,7 @@ const PrefectAppointment2 = (props) => {
 
   return (
     <>
-      <Head title="Appointment" />
+      <Head title={tab === "call-ins" ? "Call-In History" : "Calendar"} />
       <AppointmentModal
         label={formLabel}
         close={appoint}
@@ -241,8 +229,7 @@ const PrefectAppointment2 = (props) => {
         )}
       </Popover>
 
-      <PageLayout title="APPOINTMENT">
-        <TabSwitcher tabs={PAGE_TABS} value={tab} onChange={changeTab} />
+      <PageLayout title={tab === "call-ins" ? "CALL-IN HISTORY" : "CALENDAR"}>
 
         <Paper elevation={2} sx={{ p: { xs: 1.25, sm: 2.5 }, borderRadius: "0.5rem", width: "100%", minWidth: 0, overflow: "hidden" }}>
           {tab === "calendar" ? (

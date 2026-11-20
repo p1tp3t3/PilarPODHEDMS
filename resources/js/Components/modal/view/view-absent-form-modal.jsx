@@ -1,11 +1,11 @@
 import UpModal from "../up-modal"
 import { useState, useEffect } from "react"
-import { Box, Stack } from "@mui/material"
+import { Box, Stack, Typography } from "@mui/material"
 import { readableDate, readableTime } from "../../../others/function"
 import { AbsentFormService } from "@/others/services/absent-form-service"
 import {
     ModalHeader, Section, Timeline, stepAt, stepAhead, safeParseArray, People, prefectName, useOwnerTitle, useIsOwner, ViewModalSkeleton,
-    Pill, TextBox, Field, Labeled, Text, EditedOn, RecordBody, EvidenceGrid,
+    Pill, TextBox, Field, Labeled, Text, RecordBody, EvidenceGrid,
 } from "./view-modal-parts"
 import {
     Undo2,
@@ -70,6 +70,11 @@ const asImages = (list) => list.map((e) => ({ ...e, type: 'img' }))
 // later (e.g. once more evidence comes in). A revoke stops it.
 const stepsFor = (d) => {
     const steps = [stepAt("Submitted", d.created_at, d.school_year_semester)]
+    // Rejected, then edited and resubmitted: that rejection (kept on the
+    // version that got it) and the resubmission.
+    const earlier = (d.revisions ?? []).find((r) => r.rejected_at)
+    if (earlier) steps.push(stepAt("Rejected", earlier.rejected_at, null, "failed", earlier.rejected_reason))
+    if (d.resubmitted_at) steps.push(stepAt("Resubmitted", d.resubmitted_at, null))
     if (d.rejected_at) steps.push(stepAt("Rejected", d.rejected_at, d.rejected_school_year_semester, "failed", d.rejected_reason))
     if (d.confirmed_at) steps.push(stepAt("Approved", d.confirmed_at, d.confirmed_school_year_semester))
     else if (!d.revoked_at) steps.push(stepAhead("Approved", d.rejected_at ? "If the prefect reconsiders" : "Waiting for the prefect's review"))
@@ -132,13 +137,17 @@ const Body = ({ data }) => {
                     <TextBox>{data.note}</TextBox>
                 </Section>}
 
-                {data.edited_at && data.revisions?.length > 0 && (() => {
-                    const previous = data.revisions[0]
+                {/* Every earlier version, newest first (the audit trail): each one
+                    as it was, with its evidence (kept in previous_evidences/) and,
+                    when it was rejected and then resubmitted, why. */}
+                {(data.revisions ?? []).map((previous, idx, all) => {
                     const previousReasons = safeParseArray(previous.reason)
                     const previousEvidences = safeParseArray(previous.evidences)
+                    const label = `Previous Version ${all.length - idx}`
                     return (
-                        <Section icon={History} title="Previous Version (Before Edit)" tone="amber">
+                        <Section key={previous.id ?? idx} icon={History} title={previous.rejected_at ? `${label} (Rejected, Before Resubmitting)` : `${label} (Before Edit)`} tone="amber">
                             <Stack sx={{ gap: 1.5 }}>
+                                {previous.rejected_at && <Field label="Rejected because">{previous.rejected_reason || "No reason given"}</Field>}
                                 <Field label="Date of Absent">{readableDate(previous.date_from)} to {readableDate(previous.date_to)}</Field>
                                 <Labeled label="Reason">
                                     <TextBox tone="amber" height="auto" sx={{ color: "text.primary" }}>
@@ -150,11 +159,13 @@ const Body = ({ data }) => {
                                     <EvidenceGrid small files={asImages(previousEvidences)} label="Previous evidence"
                                         srcOf={(file) => `/absent-form/${data.encrypted_id}/previous-evidence/${file}`} />
                                 </Labeled>}
-                                <EditedOn>{when(data.edited_at)}</EditedOn>
+                                <Typography sx={{ fontSize: "0.75em", color: "text.disabled" }}>
+                                    {previous.rejected_at ? "Resubmitted" : "Edited"} on {when(previous.created_at)}
+                                </Typography>
                             </Stack>
                         </Section>
                     )
-                })()}
+                })}
             </RecordBody>
         </Box>
     )

@@ -272,11 +272,17 @@ class AbsentFormController extends Controller
         if ($absence->student_id !== auth()->id()) {
             return response()->json(['message' => 'You can only edit an absent form you filed yourself.'], 403);
         }
-        if ($absence->confirmed_at !== null || $absence->rejected_at !== null || $absence->revoked_at !== null) {
+        // Rejected (e.g. for lack of evidence): it can be edited and
+        // resubmitted once, going back to the prefect as pending.
+        $resubmit = $absence->rejected_at !== null && $absence->confirmed_at === null && $absence->revoked_at === null;
+        if ($resubmit && $absence->resubmitted_at !== null) {
+            return response()->json(['message' => 'You have already resubmitted this absent form once.'], 400);
+        }
+        if (! $resubmit && ($absence->confirmed_at !== null || $absence->rejected_at !== null || $absence->revoked_at !== null)) {
             return response()->json(['message' => 'This absent form can no longer be edited.'], 400);
         }
-        if ($absence->edited_at !== null) {
-            return response()->json(['message' => 'You have already used your one edit for this absent form.'], 400);
+        if (! $resubmit && $absence->editsLeft() <= 0) {
+            return response()->json(['message' => 'You have already used all '.Absence::MAX_EDITS.' edits for this absent form.'], 400);
         }
 
         DB::beginTransaction();
@@ -287,6 +293,9 @@ class AbsentFormController extends Controller
                 'date_from' => $absence->date_from,
                 'date_to' => $absence->date_to,
                 'evidences' => $absence->evidences,
+                // Resubmitting: the rejection this version got.
+                'rejected_reason' => $resubmit ? $absence->rejected_reason : null,
+                'rejected_at' => $resubmit ? $absence->rejected_at : null,
                 'created_at' => now(),
             ]);
 
@@ -318,7 +327,15 @@ class AbsentFormController extends Controller
             $newEvidence = array_filter($request->file('evidence') ?? []);
             if (! empty($newEvidence)) {
                 File::ensureDirectoryExists($evidencesFolder);
-                $i = count($existing) + 1;
+                // Never reuse a file name: previous_evidences/ keeps every
+                // earlier version's files under their names (the audit trail),
+                // so a new file numbers after every name ever used here.
+                $used = array_merge(
+                    array_column($existing, 'file'),
+                    File::isDirectory($evidencesFolder) ? array_map(fn ($f) => $f->getFilename(), File::files($evidencesFolder)) : [],
+                    File::isDirectory($previousEvidencesFolder) ? array_map(fn ($f) => $f->getFilename(), File::files($previousEvidencesFolder)) : [],
+                );
+                $i = 1 + max([0, ...array_map(fn ($n) => (int) strtok((string) $n, '-'), $used)]);
 
                 foreach ($newEvidence as $e) {
                     $extension = $e->getClientOriginalExtension();
@@ -338,6 +355,14 @@ class AbsentFormController extends Controller
                 'date_to' => $request->date_to,
                 'evidences' => json_encode($existing),
                 'edited_at' => now(),
+                // Back to the prefect as pending (out of the Archive), the
+                // rejection kept on the revision above.
+                ...($resubmit ? [
+                    'rejected_reason' => null,
+                    'rejected_at' => null,
+                    'archived_at' => null,
+                    'resubmitted_at' => now(),
+                ] : []),
             ]);
 
             $changes = [];
@@ -351,9 +376,27 @@ class AbsentFormController extends Controller
             ActionLog::log(
                 auth()->id(),
                 'absent form',
-                "Edited their own absent form (#{$absence->form_number})",
+                $resubmit
+                    ? "Edited and resubmitted their rejected absent form (#{$absence->form_number})"
+                    : "Edited their own absent form (#{$absence->form_number})",
                 $changes
             );
+
+            // Resubmitted: the prefect is told to review it again.
+            if ($resubmit && ($prefect = \App\Models\User::whereRole('sub_admin')->first())) {
+                $name = trim(auth()->user()->profile?->first_name.' '.auth()->user()->profile?->last_name);
+                notify_single_user([
+                    'notif_type' => 'absent',
+                    'sender_id' => auth()->id(),
+                    'receiver_id' => $prefect->id,
+                    'content' => json_encode([
+                        'id' => (int) $id,
+                        'sender_notif_message' => "You resubmitted absent form #{$absence->form_number}.",
+                        'receiver_notif_message' => "{$name} edited and resubmitted rejected absent form #{$absence->form_number} for your review.",
+                    ]),
+                    'read_since' => null,
+                ]);
+            }
 
             DB::commit();
 

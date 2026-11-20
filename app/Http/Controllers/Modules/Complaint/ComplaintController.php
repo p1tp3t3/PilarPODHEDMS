@@ -336,22 +336,31 @@ class ComplaintController extends Controller
      */
     public function updateComplaint(UpdateComplaintRequest $request, $id)
     {
+        // The checks come before the transaction: an early return inside it
+        // would leave it open.
+        $complaint = Complaint::where('id', $id)->first();
+
+        if (! $complaint) {
+            return response()->json(['message' => 'Complaint not found.'], 404);
+        }
+        if ($complaint->complainant_id !== auth()->id()) {
+            return response()->json(['message' => 'You can only edit a complaint you filed yourself.'], 403);
+        }
+        // Rejected (e.g. for lack of evidence): it can be edited and
+        // resubmitted once, going back to the prefect as pending.
+        $resubmit = $complaint->complaint_status === 'rejected' && $complaint->revoked_at === null;
+        if ($resubmit && $complaint->resubmitted_at !== null) {
+            return response()->json(['message' => 'You have already resubmitted this complaint once.'], 400);
+        }
+        if (! $resubmit && $complaint->complaint_status !== 'pending') {
+            return response()->json(['message' => 'This complaint can no longer be edited.'], 400);
+        }
+        if (! $resubmit && $complaint->editsLeft() <= 0) {
+            return response()->json(['message' => 'You have already used all '.Complaint::MAX_EDITS.' edits for this complaint.'], 400);
+        }
+
         DB::beginTransaction();
         try {
-            $complaint = Complaint::where('id', $id)->first();
-
-            if (! $complaint) {
-                return response()->json(['message' => 'Complaint not found.'], 404);
-            }
-            if ($complaint->complainant_id !== auth()->id()) {
-                return response()->json(['message' => 'You can only edit a complaint you filed yourself.'], 403);
-            }
-            if ($complaint->complaint_status !== 'pending') {
-                return response()->json(['message' => 'This complaint can no longer be edited.'], 400);
-            }
-            if ($complaint->edited_at !== null) {
-                return response()->json(['message' => 'You have already used your one edit for this complaint.'], 400);
-            }
 
             // Snapshot everything as it was right before this (one-time) edit
             // overwrites it, so the prefect can still see the previous
@@ -371,6 +380,9 @@ class ComplaintController extends Controller
                 'complaint_description' => $complaint->complaint_description,
                 'complaint_evidences' => $complaint->complaint_evidences,
                 'subjects' => json_encode($previousSubjects),
+                // Resubmitting: the rejection this version got.
+                'rejected_reason' => $resubmit ? $complaint->rejected_reason : null,
+                'rejected_at' => $resubmit ? $complaint->rejected_at : null,
                 'created_at' => now(),
             ]);
 
@@ -378,6 +390,17 @@ class ComplaintController extends Controller
                 'incident_id' => $request->incident_id,
                 'complaint_description' => $request->complaint_description,
                 'edited_at' => now(),
+                // Back to the prefect as pending (out of the Archive), the
+                // rejection kept on the revision above.
+                ...($resubmit ? [
+                    'complaint_status' => 'pending',
+                    'rejected_reason' => null,
+                    'rejected_at' => null,
+                    // Waiting for the prefect again: no earlier approval stands.
+                    'confirmed_at' => null,
+                    'archived_at' => null,
+                    'resubmitted_at' => now(),
+                ] : []),
             ]);
 
             $newSubjectIds = collect($request->student_subjects)->map(fn ($s) => (int) $s);
@@ -424,7 +447,15 @@ class ComplaintController extends Controller
             if (! empty($evidence)) {
                 File::ensureDirectoryExists($evidencesFolder);
 
-                $i = count($existing) + 1;
+                // Never reuse a file name: previous_evidences/ keeps every
+                // earlier version's files under their names (the audit trail),
+                // so a new file numbers after every name ever used here.
+                $used = array_merge(
+                    array_column($existing, 'file'),
+                    File::isDirectory($evidencesFolder) ? array_map(fn ($f) => $f->getFilename(), File::files($evidencesFolder)) : [],
+                    File::isDirectory($previousEvidencesFolder) ? array_map(fn ($f) => $f->getFilename(), File::files($previousEvidencesFolder)) : [],
+                );
+                $i = 1 + max([0, ...array_map(fn ($n) => (int) strtok((string) $n, '-'), $used)]);
                 foreach ($evidence as $e) {
                     $extension = $e->getClientOriginalExtension();
                     $type = str_contains($e->getMimeType(), 'image') ? 'pic' : 'vid';
@@ -440,8 +471,26 @@ class ComplaintController extends Controller
             ActionLog::create([
                 'user_id' => auth()->id(),
                 'action_type' => 'complaint',
-                'details' => "edits their own complaint (#{$complaint->complaint_number})",
+                'details' => $resubmit
+                    ? "edits and resubmits their rejected complaint (#{$complaint->complaint_number})"
+                    : "edits their own complaint (#{$complaint->complaint_number})",
             ]);
+
+            // Resubmitted: the prefect is told to review it again.
+            if ($resubmit && ($prefect = User::whereRole('sub_admin')->first())) {
+                $name = trim(auth()->user()->profile?->first_name.' '.auth()->user()->profile?->last_name);
+                notify_single_user([
+                    'notif_type' => 'complaint',
+                    'sender_id' => auth()->id(),
+                    'receiver_id' => $prefect->id,
+                    'content' => json_encode([
+                        'id' => (int) $id,
+                        'sender_notif_message' => "You resubmitted complaint #{$complaint->complaint_number}.",
+                        'receiver_notif_message' => "{$name} edited and resubmitted rejected complaint #{$complaint->complaint_number} for your review.",
+                    ]),
+                    'read_since' => null,
+                ], new SendComplaint($prefect->id));
+            }
 
             DB::commit();
 
@@ -708,7 +757,8 @@ class ComplaintController extends Controller
                     ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
                     ->timeout(10)
                     ->post(config('services.python_api.url').'/api/complaint/context', [
-                        'complaint_text' => $complaint->complaint_description,
+                        // Plain text: the saved description is editor HTML.
+                        'complaint_text' => rich_text_to_plain($complaint->complaint_description),
                     ]);
                 $predictions = $api->successful() ? $api->json() : [];
             } catch (Exception $e) {

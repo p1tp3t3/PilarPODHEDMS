@@ -43,6 +43,8 @@ class AppointmentController extends Controller
         if (auth()->user()->role == 'sub_admin') {
             $props = array_merge($props, [
                 'appointment_request_list' => null,
+                // Which page: the calendar, or the call-in history (/prefect/call-ins).
+                'section' => $request->route('section') === 'call-ins' ? 'call-ins' : 'calendar',
                 'student_parent_list' => fn () => UserResource::collection(User::with('profile')->whereRole(['student', 'parent'])->get()),
                 // For the Call-In History's filter dropdowns.
                 'school_years' => \App\Models\SchoolYear::orderByDesc('year')->pluck('year'),
@@ -177,6 +179,9 @@ class AppointmentController extends Controller
                 // Which violation(s) it addresses; linked to the appointment
                 // once the student accepts (action()).
                 'related_violations' => \App\Models\InterventionViolation::parseIds($request->input('related_violations')),
+                // Set from a complaint's Intervene button: that complaint
+                // (one this student is a subject of), kept on the appointment.
+                'complaint_id' => self::complaintFor($request->input('complaint_id'), (int) $request->user_id),
             ];
             notify_single_user(
                 self::getAppointmentNotifMessage($data)
@@ -278,11 +283,13 @@ class AppointmentController extends Controller
                             'user_id' => $notifData->receiver_id,
                             'date_time_appoint' => $dateTimeAppoint,
                             'description' => $parsed['reason'],
+                            'complaint_id' => $parsed['complaint_id'] ?? null,
                         ]);
                         $data['id'] = $lastIndex;
                         \App\Models\InterventionViolation::sync(
                             \App\Models\InterventionViolation::APPOINTMENT,
                             (int) $lastIndex,
+                            (int) $notifData->receiver_id,
                             \App\Models\InterventionViolation::parseIds($parsed['related_violations'] ?? [])
                         );
                         $notifMessage = self::notifMessage($data);
@@ -817,6 +824,7 @@ class AppointmentController extends Controller
                 'time_appoint' => $time,
                 'reason' => $reason,
                 'related_violations' => $data['related_violations'] ?? [],
+                'complaint_id' => $data['complaint_id'] ?? null,
                 'accept' => null,
             ]),
             'read_since' => null,
@@ -841,5 +849,20 @@ class AppointmentController extends Controller
         );
 
         return new AppointmentResource($appointment);
+    }
+
+    /**
+     * The complaint an appointment is set from (Intervene on a complaint):
+     * its id when the student is one of its subjects, else null.
+     */
+    private static function complaintFor(mixed $id, int $studentId): ?int
+    {
+        if (! is_numeric($id)) {
+            return null;
+        }
+        $isSubject = \Illuminate\Support\Facades\DB::table('complaint_subject')
+            ->where('complaint_id', (int) $id)->where('student_id', $studentId)->exists();
+
+        return $isSubject ? (int) $id : null;
     }
 }

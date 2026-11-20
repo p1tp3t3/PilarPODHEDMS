@@ -2,7 +2,7 @@ import { getProfilePic, toTitleCase, profileUrl, openPdfTab, showOutputModal, sh
 import { Avatar, Box, Button, ButtonBase, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Paper, Skeleton, Stack, Tooltip, Typography } from "@mui/material"
 import { useState } from "react"
 import PictureAsPdfOutlined from "@mui/icons-material/PictureAsPdfOutlined"
-import SelectedUser from "../../other/selected-user"
+import { ChevronRight } from "lucide-react"
 import { Link, usePage } from "@inertiajs/react"
 
 // Shared building blocks for the "view [record]" modals (complaint, referral,
@@ -60,7 +60,8 @@ export const useOwnerTitle = (ownerId, name, noun, fallback = "Student") =>
 // none or the viewer can't open it. The right padding keeps clear of the modal's ✕.
 // `person`: who filed it (a user, with photo and profile link) or
 // `personName` for someone with no account; shown as "<personLabel> <name>".
-export const ModalHeader = ({ title, reference, status, pdfUrl, person, personName, personLabel = "Filed by" }) => (
+// `badge`: a ready-made status pill, for statuses outside StatusBadge's list.
+export const ModalHeader = ({ title, reference, status, badge, pdfUrl, person, personName, personLabel = "Filed by" }) => (
     <Box sx={{ bgcolor: "action.hover", borderBottom: 1, borderColor: "divider", pl: 3, pr: 6, py: 2, borderTopLeftRadius: 6, borderTopRightRadius: 6 }}>
         <Stack direction="row" sx={{ flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", columnGap: 2, rowGap: 1 }}>
             <Stack direction="row" sx={{ minWidth: 0, alignItems: "center", gap: 1.75 }}>
@@ -77,12 +78,12 @@ export const ModalHeader = ({ title, reference, status, pdfUrl, person, personNa
                                 {[person.profile?.first_name, person.profile?.last_name].filter(Boolean).join(" ")}
                               </Box>
                             : <Box component="span" sx={{ color: "text.primary", fontWeight: 600 }}>{personName}</Box>}
-                        {person && <> · {showUserType(person, true)}</>}
+                        {person && showUserType(person, true) && <> · {showUserType(person, true)}</>}
                     </Typography>
                 )}
                 <Stack direction="row" sx={{ mt: 0.5, flexWrap: "wrap", alignItems: "center", gap: 1 }}>
                     {reference && <Typography component="span" sx={{ fontFamily: "monospace", fontSize: "0.75rem", color: "text.secondary" }}>#{reference}</Typography>}
-                    {status !== undefined && <StatusBadge status={status} />}
+                    {badge ?? (status !== undefined && <StatusBadge status={status} />)}
                 </Stack>
             </Box>
             </Stack>
@@ -295,39 +296,54 @@ export const EvidenceGrid = ({ files, srcOf, small = false, label = "Evidence" }
 // referred students), or a graceful empty state when neither is present
 // (a record left with no resolvable subject shouldn't crash the modal).
 // `linkable` = false shows the person without a link to their profile.
-export const PersonList = ({ data, data_list = null, emptyLabel = 'No one on record.', linkable = true }) => {
-    const Wrap = ({ user, children }) => linkable
-        ? <Box component={Link} href={profileUrl(user)} sx={{ display: "block", color: "inherit", textDecoration: "none" }}>{children}</Box>
-        : <Box>{children}</Box>
-
-    if (data_list != null && data_list.length !== 0) {
-        return (
-            <Box sx={{ display: "flex", flexWrap: "wrap", columnGap: 4, rowGap: 1.5 }}>
-                {data_list.map((e, i) => (
-                    <Wrap key={e.user?.id ?? i} user={e.user}>
-                        <SelectedUser
-                            src={getProfilePic(e.user.profile?.profile_picture, e.user.profile?.sex)}
-                            name={[e.user.profile?.first_name, e.user.profile?.last_name]}
-                            user={e.user}
-                        />
-                    </Wrap>
-                ))}
+// The people a record is about (a complaint's subjects, a referral's
+// students): each one a card (photo, name, program and year), opening their
+// profile when `linkable`.
+const PersonCard = ({ user, linkable }) => {
+    const name = [user?.profile?.first_name, user?.profile?.last_name].filter(Boolean).join(" ") || "Unknown"
+    const role = user ? showUserType(user, true) : null
+    return (
+        <Box
+            {...(linkable ? { component: Link, href: profileUrl(user) } : {})}
+            sx={{
+                display: "flex", alignItems: "center", gap: 1.5, minWidth: 0,
+                px: 1.5, py: 1.25, border: 1, borderColor: "divider", borderRadius: 2,
+                bgcolor: "background.paper", color: "inherit", textDecoration: "none",
+                transition: "background-color .15s, border-color .15s",
+                ...(linkable && { "&:hover": { bgcolor: "action.hover", borderColor: "primary.main" } }),
+            }}
+        >
+            <Avatar src={getProfilePic(user?.profile?.profile_picture, user?.profile?.sex)} alt="" sx={{ width: 40, height: 40, flexShrink: 0 }} />
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography noWrap sx={{ fontSize: "0.925rem", fontWeight: 600, color: "text.primary", lineHeight: 1.3 }}>{name}</Typography>
+                {role && <Typography noWrap sx={{ fontSize: "0.775rem", color: "text.secondary" }}>{role}</Typography>}
             </Box>
-        )
-    }
+            {linkable && <Box component="span" sx={{ display: "flex", color: "text.disabled", flexShrink: 0 }}><ChevronRight size={18} /></Box>}
+        </Box>
+    )
+}
 
-    if (data == null) {
+// `action(user)`: a button beside a person's card (outside its link), e.g.
+// Intervene.
+export const PersonList = ({ data, data_list = null, emptyLabel = 'No one on record.', linkable = true, action }) => {
+    const users = data_list?.length ? data_list.map((e) => e.user).filter(Boolean) : (data ? [data] : [])
+    if (users.length === 0) {
         return <Typography sx={{ fontSize: "0.875rem", color: "text.secondary" }}>{emptyLabel}</Typography>
     }
-
     return (
-        <Wrap user={data}>
-            <SelectedUser
-                src={getProfilePic(data.profile?.profile_picture, data.profile?.sex)}
-                name={[data.profile?.first_name, data.profile?.last_name]}
-                user={data}
-            />
-        </Wrap>
+        <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", sm: users.length > 1 ? "1fr 1fr" : "1fr" } }}>
+            {users.map((u, i) => {
+                const extra = action?.(u)
+                return extra
+                    ? (
+                        <Stack key={u.id ?? i} direction="row" sx={{ alignItems: "center", gap: 1, minWidth: 0 }}>
+                            <Box sx={{ flex: 1, minWidth: 0 }}><PersonCard user={u} linkable={linkable} /></Box>
+                            {extra}
+                        </Stack>
+                    )
+                    : <PersonCard key={u.id ?? i} user={u} linkable={linkable} />
+            })}
+        </Box>
     )
 }
 

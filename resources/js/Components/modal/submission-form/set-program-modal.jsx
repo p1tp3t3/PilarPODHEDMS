@@ -1,3 +1,4 @@
+import { reloadListData } from "@/others/hooks/use-list-data"
 import UpModal from "../up-modal"
 import FormTextfield from "@/Components/input/form-input"
 import ProfilePicEdit from "@/Components/input/profile-pic-edit-input"
@@ -98,6 +99,8 @@ const SetProgramModal = (props) => {
                         showOutputModal(successMsg, 's', () => {
                             props.reload(false)
                             props.closeModal(false)
+                            // Refresh the table(s) behind it to show the change.
+                            reloadListData()
                         })
                     },
                     (e) => {

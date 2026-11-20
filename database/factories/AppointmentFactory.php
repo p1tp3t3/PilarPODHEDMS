@@ -13,8 +13,8 @@ class AppointmentFactory extends Factory
 {
     public function definition(): array
     {
-        $user = User::whereRole(['student', 'parent'])->inRandomOrder()->first()
-            ?? User::inRandomOrder()->first();
+        // Students only: an appointment is never with a parent.
+        $user = User::whereRole('student')->inRandomOrder()->first();
 
         $createdAt = $this->faker->dateTimeBetween('-6 months', 'now');
         $dateTimeAppoint = Carbon::parse($createdAt)

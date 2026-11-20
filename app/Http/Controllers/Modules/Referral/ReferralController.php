@@ -409,8 +409,8 @@ class ReferralController extends Controller
         if ($referral->referral_status !== 'pending' || $referral->confirmed_at !== null) {
             return response()->json(['message' => 'This referral can no longer be edited.'], 400);
         }
-        if ($referral->edited_at !== null) {
-            return response()->json(['message' => 'You have already used your one edit for this referral.'], 400);
+        if ($referral->editsLeft() <= 0) {
+            return response()->json(['message' => 'You have already used all '.Referral::MAX_EDITS.' edits for this referral.'], 400);
         }
 
         DB::beginTransaction();

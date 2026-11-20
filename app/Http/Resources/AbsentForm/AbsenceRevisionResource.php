@@ -20,6 +20,9 @@ class AbsenceRevisionResource extends BaseResource
             'date_from' => $this->field('date_from'),
             'date_to' => $this->field('date_to'),
             'evidences' => $this->field('evidences'),
+            // The rejection this version got before it was resubmitted.
+            'rejected_reason' => $this->field('rejected_reason'),
+            'rejected_at' => $this->field('rejected_at'),
             'created_at' => $this->field('created_at'),
             'encrypted_id' => $this->field('encrypted_id'),
         ];

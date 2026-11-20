@@ -17,6 +17,9 @@ class ComplaintRevision extends Model
         'complaint_description',
         'complaint_evidences',
         'subjects',
+        // The rejection this version got before it was resubmitted.
+        'rejected_reason',
+        'rejected_at',
         'created_at',
     ];
 

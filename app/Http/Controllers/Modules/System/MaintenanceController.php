@@ -927,13 +927,8 @@ class MaintenanceController extends Controller
             }
         }
 
-        Http::withoutVerifying()
-            ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
-            ->post(config('services.python_api.url').'/api/violation/add', [
-                'violation' => preg_replace('/[^\w\s]/', ' ', $data['violation_name']),
-                'keywords' => self::flattenKeywords($data['keywords'] ?? []),
-                'id' => $violation->id,
-            ]);
+        // The violation is saved; the analyzer sync must not fail the save.
+        self::syncViolationToAnalyzer($violation, true);
 
         return self::getViolation();
     }
@@ -967,13 +962,19 @@ class MaintenanceController extends Controller
         // Keep the Python AI/ML API's violation dataset in sync — previously
         // only create/delete synced, so an edited name/keywords silently
         // never reached the Word2Vec matching feature at all.
-        Http::withoutVerifying()
-            ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
-            ->post(config('services.python_api.url').'/api/violation/update', [
-                'violation' => preg_replace('/[^\w\s]/', ' ', $data['violation_name']),
-                'keywords' => self::flattenKeywords($data['keywords'] ?? []),
-                'id' => $request->id,
-            ]);
+        // The edit is saved; if the analyzer is down, it is only logged.
+        try {
+            Http::withoutVerifying()
+                ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
+                ->timeout(15)
+                ->post(config('services.python_api.url').'/api/violation/update', [
+                    'violation' => preg_replace('/[^\w\s]/', ' ', $data['violation_name']),
+                    'keywords' => self::flattenKeywords($data['keywords'] ?? []),
+                    'id' => $request->id,
+                ]);
+        } catch (\Exception $e) {
+            Log::warning('Violation analyzer sync failed', ['id' => $request->id, 'error' => $e->getMessage()]);
+        }
 
         // =============================
         // UPDATE VIOLATION PENALTIES

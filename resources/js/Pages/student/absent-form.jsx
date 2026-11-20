@@ -1,3 +1,4 @@
+import EditsLeft from "@/Components/other/edits-left"
 import SchoolYearSemesterFilter from "@/Components/input/school-year-semester-filter"
 import SingleRowNotice from "@/Components/other/single-row-notice"
 import AuthLayout from "@/Layouts/auth-layout"
@@ -33,7 +34,10 @@ const absentFormStatusKey = (form) => {
 }
 
 const isRevocable = (form) => !form.confirmed_at && !form.rejected_at && !form.revoked_at
-const isEditable = (form) => isRevocable(form) && !form.edited_at
+// Pending: up to 3 edits (form.edits_left from the server).
+const isEditable = (form) => isRevocable(form) && (form.edits_left ?? 3) > 0
+// Rejected (e.g. lack of proof): it can be fixed and sent back, once.
+const isResubmittable = (form) => !!form.rejected_at && !form.confirmed_at && !form.revoked_at && !form.resubmitted_at
 
 const optionTab = [
     { key: "all", label: "All Absent Forms", icon: List },
@@ -146,12 +150,16 @@ const AbsentForm = (props) => {
             },
         },
         {
-            field: "actions", type: "actions", headerName: "Action", width: 220, align: "left", headerAlign: "left",
+            field: "actions", type: "actions", headerName: "Action", width: 340, align: "left", headerAlign: "left",
             renderCell: ({ row }) => (
                 <div className="flex gap-2 items-center h-full">
                     <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => openView(row)}>View</ActionBtn>
                     {isEditable(row) && (
                         <ActionBtn className="bg-green-600 text-white hover:bg-green-700" onClick={() => { setEditForm(row); setEditOpen(true) }}>Edit</ActionBtn>
+                    )}
+                    {isRevocable(row) && <EditsLeft left={row.edits_left} />}
+                    {isResubmittable(row) && (
+                        <ActionBtn className="bg-green-600 text-white hover:bg-green-700" onClick={() => { setEditForm(row); setEditOpen(true) }}>Edit & Resubmit</ActionBtn>
                     )}
                     {isRevocable(row) && (
                         <ActionBtn className="bg-red-600 text-white hover:bg-red-700" onClick={() => handleRevoke(row.id)}>Revoke</ActionBtn>

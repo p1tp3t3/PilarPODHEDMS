@@ -1,3 +1,4 @@
+import EditsLeft from "@/Components/other/edits-left"
 import SchoolYearSemesterFilter from "@/Components/input/school-year-semester-filter"
 import SingleRowNotice from "@/Components/other/single-row-notice"
 import { useState, useEffect } from "react";
@@ -35,7 +36,8 @@ const gatePassStatusKey = (gp) => {
 };
 
 const isRevocable = (gp) => !gp.confirmed_at && !gp.rejected_at && !gp.revoked_at;
-const isEditable = (gp) => isRevocable(gp) && !gp.edited_at;
+// Pending: up to 3 edits (gp.edits_left from the server).
+const isEditable = (gp) => isRevocable(gp) && (gp.edits_left ?? 3) > 0;
 
 // A request only permanently blocks new ones while it's still pending or
 // currently approved/unexpired — once it's rejected, revoked, or expired,
@@ -154,13 +156,14 @@ const GatePass = (props) => {
       renderCell: ({ row }) => <StatusPill status={gatePassStatusKey(row)} />,
     },
     {
-      field: "actions", type: "actions", headerName: "Action", width: 220, align: "left", headerAlign: "left",
+      field: "actions", type: "actions", headerName: "Action", width: 340, align: "left", headerAlign: "left",
       renderCell: ({ row }) => (
         <div className="flex gap-2 items-center h-full">
           <ActionBtn className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => { setViewId(row.encrypted_id); setViewOpen(true); }}>View</ActionBtn>
           {isEditable(row) && (
             <ActionBtn className="bg-green-600 text-white hover:bg-green-700" onClick={() => handleEdit(row)}>Edit</ActionBtn>
           )}
+          {isRevocable(row) && <EditsLeft left={row.edits_left} />}
           {isRevocable(row) && (
             <ActionBtn className="bg-red-600 text-white hover:bg-red-700" onClick={() => handleRevoke(row.id)}>Revoke</ActionBtn>
           )}

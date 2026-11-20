@@ -1,7 +1,8 @@
 import AuthLayout from "@/Layouts/auth-layout"
 import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-read"
 import { parseNotifContent, readableDate, readableTime, toTitleCase } from "@/others/function"
-import NotifDetailCard from "@/Components/other/notif-detail-card"
+import NotifDetailCard, { NotifRow } from "@/Components/other/notif-detail-card"
+import { Box, Typography } from "@mui/material"
 import { CalendarClock } from "lucide-react"
 import { Head } from "@inertiajs/react"
 
@@ -19,20 +20,17 @@ const SemesterSummaryNotification = ({ notif }) => {
                 icon={CalendarClock}
                 tone="warning"
                 title={content.label ? `${content.label} Has Ended` : "Semester Has Ended"}
-                timestamp={`${readableDate(notif.created_at)} (${readableTime(notif.created_at)})`}
+                timestamp={`${readableDate(notif.created_at)} • ${readableTime(notif.created_at)}`}
             >
-                <p className="text-[0.9em] text-gray-700 mb-4">
+                <Typography sx={{ fontSize: "0.95rem", color: "text.primary", lineHeight: 1.65 }}>
                     {content.receiver_notif_message}
-                </p>
+                </Typography>
                 {entries.length > 0 && (
-                    <div className="grid gap-2">
+                    <Box sx={{ mt: 2, px: 2, py: 0.5, border: 1, borderColor: "divider", borderRadius: 2 }}>
                         {entries.map(([type, count]) => (
-                            <div key={type} className="flex justify-between text-[0.85em] border-b border-gray-100 pb-2 last:border-0">
-                                <span className="text-gray-600">{toTitleCase(type)}{count === 1 ? "" : "s"} Still Unresolved</span>
-                                <span className="font-semibold text-gray-900">{count}</span>
-                            </div>
+                            <NotifRow key={type} label={`${toTitleCase(type)}${count === 1 ? "" : "s"} Still Unresolved`}>{count}</NotifRow>
                         ))}
-                    </div>
+                    </Box>
                 )}
             </NotifDetailCard>
         </>

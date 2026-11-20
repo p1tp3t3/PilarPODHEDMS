@@ -1,3 +1,4 @@
+import EditsLeft from "@/Components/other/edits-left"
 import "./style.css";
 import StatusPill from "@/Components/list/status-pill";
 import ProfilePic from "../other/profile-pic";
@@ -225,12 +226,27 @@ const ComplaintList = ({
                     Resolve
                 </ActionBtn>
                 )}
-                {obj.complainant_id === user?.id && user?.role !== "sub_admin" && obj.complaint_status === "pending" && !obj.edited_at && (
+                {/* Pending: up to 3 edits, and how many are left. */}
+                {obj.complainant_id === user?.id && user?.role !== "sub_admin" && obj.complaint_status === "pending" && (
+                <>
+                {(obj.edits_left ?? 3) > 0 && (
                 <ActionBtn
                     onClick={() => actionEvent("edit", obj.encrypted_id)}
                     className="bg-green-600 text-white hover:bg-green-700"
                 >
                     Edit
+                </ActionBtn>
+                )}
+                <EditsLeft left={obj.edits_left} />
+                </>
+                )}
+                {/* Rejected (e.g. lack of evidence): fix it and send it back, once. */}
+                {obj.complainant_id === user?.id && user?.role !== "sub_admin" && obj.complaint_status === "rejected" && !obj.revoked_at && !obj.resubmitted_at && (
+                <ActionBtn
+                    onClick={() => actionEvent("edit", obj.encrypted_id)}
+                    className="bg-green-600 text-white hover:bg-green-700"
+                >
+                    Edit & Resubmit
                 </ActionBtn>
                 )}
 

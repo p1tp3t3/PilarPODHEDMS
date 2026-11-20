@@ -21,6 +21,9 @@ class ComplaintRevisionResource extends BaseResource
             'complaint_description' => $this->field('complaint_description'),
             'complaint_evidences' => $this->field('complaint_evidences'),
             'subjects' => $this->field('subjects'),
+            // The rejection this version got before it was resubmitted.
+            'rejected_reason' => $this->field('rejected_reason'),
+            'rejected_at' => $this->field('rejected_at'),
             'created_at' => $this->field('created_at'),
             'encrypted_id' => $this->field('encrypted_id'),
             'complaint' => ComplaintResource::make($this->whenLoaded('complaint')),

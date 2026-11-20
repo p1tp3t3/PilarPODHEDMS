@@ -6,6 +6,7 @@ use App\Events\NotifyUser;
 use App\Mail\CallInMail;
 use App\Models\ActionLog;
 use App\Models\Enrollment;
+use App\Models\InterventionViolation;
 use App\Models\Notifications;
 use App\Models\SchoolYearSemester;
 use App\Models\User;
@@ -22,6 +23,8 @@ use App\Http\Resources\Notification\NotificationsResource;
 
 class NotificationController extends Controller
 {
+    use \App\Traits\GeneratesSequenceCode;
+
     public function index()
     {
         // ?id= is the notification's encrypted id — read through request()
@@ -111,7 +114,11 @@ class NotificationController extends Controller
             // The office call itself, so it is on record as an intervention
             // (it was only ever a notification), with the violation(s) it
             // addresses.
+            // Its reference number, like an appointment's (date + count that day).
+            $callInNumber = $this->generateSequenceCode(\App\Models\CallIn::class, 'call_in_number');
+            $emailNotifData['reference'] = $callInNumber;
             $callInId = DB::table('call_in')->insertGetId([
+                'call_in_number' => $callInNumber,
                 'student_id' => $student->id,
                 'issued_by' => $prefect->id,
                 'date_time_call_in' => now(),
@@ -122,6 +129,7 @@ class NotificationController extends Controller
             \App\Models\InterventionViolation::sync(
                 \App\Models\InterventionViolation::CALL_IN,
                 (int) $callInId,
+                (int) $student->id,
                 \App\Models\InterventionViolation::parseIds($request->input('related_violations'))
             );
 
@@ -131,6 +139,8 @@ class NotificationController extends Controller
             Notifications::where('id', $id)->update([
                 'content' => json_encode([
                     'id' => $id,
+                    // The call-in record (its related violations, in Call-In History's view).
+                    'call_in_id' => $callInId,
                     'is_program_head' => false,
                     'sender_notif_message' => 'You called in a student.',
                     'receiver_notif_message' => $request->call_in_reason,
@@ -192,13 +202,16 @@ class NotificationController extends Controller
             $query->whereIn('receiver_id', Enrollment::studentIdsInProgram($program));
         }
 
-        return $query
-            ->latest('created_at')
-            ->latest('id')
-            ->get()
-            ->map(function ($n) {
+        $notifs = $query->latest('created_at')->latest('id')->get();
+        // Each one's call-in record (its attendance), when the notification names it.
+        $callInIds = $notifs->map(fn ($n) => json_decode($n->content, true)['call_in_id'] ?? null)->filter()->all();
+        $callIns = DB::table('call_in')->whereIn('id', $callInIds)->get(['id', 'call_in_number', 'attendance_status', 'attendance_marked_at'])->keyBy('id');
+
+        return $notifs
+            ->map(function ($n) use ($callIns) {
                 $content = json_decode($n->content, true) ?? [];
                 $student = $n->receiver;
+                $callIn = $callIns[$content['call_in_id'] ?? 0] ?? null;
                 $name = fn ($u) => $u ? trim("{$u->profile?->first_name} {$u->profile?->last_name}") ?: $u->username : null;
 
                 return [
@@ -212,7 +225,30 @@ class NotificationController extends Controller
                         'encrypted_id' => encrypt_id($student->id),
                         'role' => $student->role,
                         'username' => $student->username,
+                        // For the view's header: program and year level.
+                        'academic' => [
+                            'program' => $student->latestEnrollment?->program?->code,
+                            'year_level' => $student->latestEnrollment?->year_level,
+                        ],
+                        // For the view's header (photo, name).
+                        'profile' => [
+                            'first_name' => $student->profile?->first_name,
+                            'last_name' => $student->profile?->last_name,
+                            'profile_picture' => $student->profile?->profile_picture,
+                            'sex' => $student->profile?->sex,
+                        ],
                     ] : null,
+                    // The violation(s) the call-in addressed (call-ins sent
+                    // before call_in_id was stored: none on record).
+                    'related_violations' => isset($content['call_in_id']) && $student
+                        ? array_values(InterventionViolation::linkedByStudent(InterventionViolation::CALL_IN, (int) $content['call_in_id'])[$student->id] ?? [])
+                        : [],
+                    // Did the student come (marked by the Prefect)? null: a
+                    // call-in sent before its record was linked (can't be marked).
+                    'call_in_key' => $callIn ? encrypt_id((int) $callIn->id) : null,
+                    'call_in_number' => $callIn?->call_in_number,
+                    'attendance_status' => $callIn?->attendance_status,
+                    'attendance_marked_at' => $callIn?->attendance_marked_at,
                     'reason' => $content['receiver_notif_message'] ?? null,
                     'called_by' => $name($n->sender),
                     'read_since' => $n->read_since,
@@ -220,6 +256,35 @@ class NotificationController extends Controller
                 ];
             })
             ->values();
+    }
+
+    /**
+     * The Prefect marks whether the student came for a call-in:
+     * status = present | absent. Only a call-in the student attended counts
+     * as an intervention (ViolationRiskFeatures).
+     */
+    public function markCallInAttendance(Request $request, $id)
+    {
+        $id = decrypt_id((string) $id) ?? abort(404);
+        $request->validate(['status' => 'required|in:present,absent']);
+        $callIn = DB::table('call_in')->where('id', $id)->first() ?? abort(404);
+
+        DB::table('call_in')->where('id', $callIn->id)->update([
+            'attendance_status' => $request->status,
+            'attendance_marked_at' => now(),
+        ]);
+        ActionLog::log(
+            auth()->id(),
+            'call-in',
+            'Marked a call-in as '.$request->status,
+            ['attendance' => ['from' => $callIn->attendance_status, 'to' => $request->status]]
+        );
+
+        return response()->json([
+            'message' => $request->status === 'present' ? 'Marked as present.' : 'Marked as absent.',
+            'attendance_status' => $request->status,
+            'attendance_marked_at' => now(),
+        ]);
     }
 
     public function markAsRead(Request $request)

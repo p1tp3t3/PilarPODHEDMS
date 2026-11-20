@@ -2,21 +2,32 @@ import UpModal from "../up-modal"
 import { AppointmentService } from "@/others/services/appointment-service"
 import { readableDate, readableTime } from "@/others/function"
 import { useEffect, useState } from "react"
-import { Chip } from "@mui/material"
-import { CalendarDays } from "lucide-react"
-import { ViewModalSkeleton } from "./view-modal-parts"
-import { RelatedViolationsList } from "@/Components/input/related-violations-field"
+import { Box, Stack } from "@mui/material"
+import { Link2, MessageSquareText, XCircle } from "lucide-react"
+import { ModalHeader, Section, People, Pill, Text, TextBox, RecordBody, ViewModalSkeleton } from "./view-modal-parts"
 
-const ATTENDANCE_META = {
-    present: { label: "Present", backgroundColor: "var(--tone-green-bg)", color: "var(--tone-green-fg)" },
-    absent: { label: "Absent", backgroundColor: "var(--tone-red-bg)", color: "var(--tone-red-fg)" },
-    not_marked: { label: "Attendance Not Marked", backgroundColor: "var(--dm-raised, #f3f4f6)", color: "var(--dm-text-soft, #6b7280)" },
+// The appointment's status, one label: replied (Waiting for Reply /
+// Declined), then attendance once accepted (Scheduled / Attended / Absent).
+const statusOf = (d) => {
+    if (d.appointment_status === "rejected") return { label: "Declined", tone: "red" }
+    if (d.appointment_status !== "accepted") return { label: "Waiting for Reply", tone: "amber" }
+    if (d.attendance_status === "present") return { label: "Attended", tone: "green" }
+    if (d.attendance_status === "absent") return { label: "Absent", tone: "red" }
+    return { label: "Scheduled", tone: "blue" }
+}
+
+// The reason may be saved editor HTML: shown as plain text (never as HTML).
+const plain = (html) => {
+    if (!html) return ""
+    const doc = new DOMParser().parseFromString(String(html).replace(/<\/p>|<br\s*\/?>/gi, "\n"), "text/html")
+    return (doc.body.textContent || "").replace(/\n{3,}/g, "\n\n").trim()
 }
 
 // Read-only appointment details, fetched by the appointment's own id —
 // deliberately separate from AppointmentEventModal (which needs a full
 // FullCalendar event shape and carries admin-only cancel/reschedule/mark-
 // attendance actions that don't belong in a plain "view" deep link).
+// Laid out like the other record views (complaint, referral, gate pass).
 const ViewAppointmentModal = ({ close, closeModal, id }) => {
     const [data, setData] = useState(null)
 
@@ -27,72 +38,50 @@ const ViewAppointmentModal = ({ close, closeModal, id }) => {
         }
     }, [close, id])
 
-    if (!data) {
-        return (
-            <UpModal close={close} closeModal={closeModal} isEnableOuterClose={true} cntr={true} pd={["px-6", "py-6"]} bgColor="bg-white" w="w-[26rem]">
-                <ViewModalSkeleton variant="compact" />
-            </UpModal>
-        )
-    }
-
-    const isAccepted = data.appointment_status === "accepted"
-    const attendance = data.attendance_status || "not_marked"
-    const attendanceMeta = ATTENDANCE_META[attendance] || ATTENDANCE_META.not_marked
-    const name = data.user?.profile
-        ? `${data.user.profile.first_name ?? ""} ${data.user.profile.last_name ?? ""}`.trim()
-        : "Appointment"
+    const status = data ? statusOf(data) : null
+    const name = data?.user?.profile?.first_name
 
     return (
-        <UpModal close={close} closeModal={closeModal} isEnableOuterClose={true} cntr={true} pd={["px-6", "py-6"]} bgColor="bg-white" w="w-[26rem]">
-            <div className="grid gap-4">
-                <div className="flex items-center justify-between">
-                    <div className="min-w-0 pr-6">
-                        <h1 className="text-[1.1em] font-bold">{name}</h1>
-                        {data.appointment_number && (
-                            <p className="text-[0.8em] text-gray-500">Ref. No. {data.appointment_number}</p>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {isAccepted && (
-                            <Chip
-                                label={attendanceMeta.label}
-                                size="small"
-                                sx={{ fontWeight: 600, backgroundColor: attendanceMeta.backgroundColor, color: attendanceMeta.color }}
-                            />
-                        )}
-                        <Chip
-                            label={isAccepted ? "Accepted" : (data.appointment_status ?? "Pending")}
-                            size="small"
-                            sx={{
-                                fontWeight: 600,
-                                textTransform: "capitalize",
-                                // Light/dark tints: resources/css/app.css (--tone-*).
-                                backgroundColor: isAccepted ? "var(--tone-green-bg)" : "var(--tone-amber-bg)",
-                                color: isAccepted ? "var(--tone-green-fg)" : "var(--tone-amber-fg)",
-                            }}
+        <UpModal close={close} closeModal={closeModal} isEnableOuterClose={true} cntr={true} pd={["p-0", ""]} bgColor="bg-white" w="w-[36rem] max-w-[90vw]">
+            <Box sx={{ width: "100%" }}>
+                {!data ? <ViewModalSkeleton variant="record" /> : (
+                    <>
+                        <ModalHeader
+                            title={name ? `${name}'s Appointment` : "Appointment"}
+                            reference={data.appointment_number}
+                            person={data.user}
+                            personLabel="With"
+                            badge={<Pill tone={status.tone} label={status.label} />}
                         />
-                    </div>
-                </div>
+                        <RecordBody>
+                            <People rows={[
+                                { label: "Date", content: <Text>{readableDate(data.date_time_appoint)}</Text> },
+                                { label: "Time", content: <Text>{readableTime(data.date_time_appoint)}</Text> },
+                            ]} />
 
-                <div className="text-[0.85em] text-gray-600 flex items-center gap-2">
-                    <CalendarDays size="1em" />
-                    {readableDate(data.date_time_appoint)} ({readableTime(data.date_time_appoint)})
-                </div>
+                            {data.description && (
+                                <Section icon={MessageSquareText} title="Reason for the Appointment">
+                                    <TextBox height="auto" sx={{ maxHeight: 200, whiteSpace: "pre-line" }}>{plain(data.description)}</TextBox>
+                                </Section>
+                            )}
 
-                {data.description && (
-                    <div className="text-[0.85em] text-gray-700 bg-gray-50 rounded-md p-3">
-                        {data.description}
-                    </div>
+                            {data.related_violations?.length > 0 && (
+                                <Section icon={Link2} title="Related Violation(s)">
+                                    <Stack direction="row" sx={{ gap: 0.75, flexWrap: "wrap" }}>
+                                        {data.related_violations.map((v) => <Pill key={v.id} tone="blue" label={v.name} sx={{ height: 26, fontWeight: 500 }} />)}
+                                    </Stack>
+                                </Section>
+                            )}
+
+                            {data.rejected_reason && (
+                                <Section icon={XCircle} title="Reason for Declining" tone="red">
+                                    <TextBox height="auto" tone="red" sx={{ whiteSpace: "pre-line" }}>{plain(data.rejected_reason)}</TextBox>
+                                </Section>
+                            )}
+                        </RecordBody>
+                    </>
                 )}
-
-                <RelatedViolationsList list={data.related_violations} />
-
-                {data.rejected_reason && (
-                    <div className="text-[0.85em] text-red-600">
-                        Reason: {data.rejected_reason}
-                    </div>
-                )}
-            </div>
+            </Box>
         </UpModal>
     )
 }

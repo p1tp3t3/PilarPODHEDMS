@@ -6,7 +6,8 @@ import { AppointmentService } from "@/others/services/appointment-service";
 import { showOutputModal, showWarningModal, readableDate, readableTime, parseNotifContent } from "@/others/function";
 import { useState } from "react";
 import { CalendarClock } from "lucide-react";
-import NotifDetailCard from "@/Components/other/notif-detail-card";
+import NotifDetailCard, { NotifRow } from "@/Components/other/notif-detail-card"
+import { Box, Button, Typography } from "@mui/material";
 import { Head } from "@inertiajs/react";
 
 const AppointmentNotification = (props) => {
@@ -248,17 +249,23 @@ const AppointmentNotification = (props) => {
           actions={
             isAppointment && isPending && receiver ? (
               <>
-                <button
-                  className="px-6 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 font-medium rounded-full transition-colors"
+                <Button
+                  variant="outlined"
+                  color="error"
+                  disableElevation
+                  sx={{ textTransform: "none", fontWeight: 600, borderRadius: 2 }}
                   onClick={() => setReasonModalOpen(true)}
                 >
                   {content.type === "sched"
                     ? "Decline Appointment"
                     : "Decline Reschedule"}
-                </button>
+                </Button>
 
-                <button
-                  className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-full transition-colors"
+                <Button
+                  variant="contained"
+                  color="success"
+                  disableElevation
+                  sx={{ textTransform: "none", fontWeight: 600, borderRadius: 2 }}
                   onClick={() =>
                     handleResponse("accept", content.type, data.id)
                   }
@@ -266,26 +273,23 @@ const AppointmentNotification = (props) => {
                   {content.type === "sched"
                     ? "Accept Appointment"
                     : "Accept Reschedule"}
-                </button>
+                </Button>
               </>
             ) : null
           }
         >
-          <div className="grid gap-3">
-            <div className="flex justify-between text-[0.92em]">
-              <span className="text-gray-500">Date of Appointment</span>
-              <span className="font-medium text-gray-800">{content.date_appoint}</span>
-            </div>
-            <div className="flex justify-between text-[0.92em]">
-              <span className="text-gray-500">Time</span>
-              <span className="font-medium text-gray-800">{content.time_appoint}</span>
-            </div>
-            {content.reason && (
-              <p className="text-gray-600 italic text-[0.9em] pt-2 border-t border-gray-50">
-                “{content.reason}”
-              </p>
-            )}
-          </div>
+          <Box sx={{ px: 2, py: 0.5, border: 1, borderColor: "divider", borderRadius: 2 }}>
+            <NotifRow label="Date of Appointment">{content.date_appoint}</NotifRow>
+            <NotifRow label="Time">{content.time_appoint}</NotifRow>
+          </Box>
+          {content.reason && (
+            <Box sx={{ mt: 2 }}>
+              <Typography sx={{ fontSize: "0.75rem", fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: "text.secondary", mb: 0.5 }}>
+                Reason
+              </Typography>
+              <Typography sx={{ fontSize: "0.95rem", color: "text.primary", lineHeight: 1.65 }}>{content.reason}</Typography>
+            </Box>
+          )}
         </NotifDetailCard>
     </>
   );

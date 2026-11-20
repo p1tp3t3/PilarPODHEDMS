@@ -1,3 +1,4 @@
+import { reloadListData } from "@/others/hooks/use-list-data"
 import UpModal from "../up-modal"
 import { Box, Typography } from "@mui/material"
 import FormTextfield from "@/Components/input/form-input"
@@ -49,6 +50,8 @@ const SetPenaltyModal = (props) => {
                         showOutputModal('New Penalty Created Successfully', 's', () => {
                             props.reload(false)
                             props.closeModal(false)
+                            // Refresh the table(s) behind it to show the change.
+                            reloadListData()
                         })
                     },
                     (e) => {

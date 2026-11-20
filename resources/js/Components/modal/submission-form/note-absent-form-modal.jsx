@@ -1,3 +1,4 @@
+import { reloadListData } from "@/others/hooks/use-list-data"
 import RichTextEditor from "@/Components/input/rich-text-editor"
 import UpModal from "../up-modal"
 import { showWarningModal, showOutputModal } from "@/others/function"
@@ -38,6 +39,8 @@ const NoteAbsentFormModal = (props) => {
             's',
             () => {
                 props.closeModal(false)
+                // Refresh the table(s) behind it to show the change.
+                reloadListData()
                 props.reload(false)
             }
         )

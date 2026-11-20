@@ -1,3 +1,5 @@
+import EditsLeft, { editsLeftSentence } from "@/Components/other/edits-left"
+import RemoveBtn from "@/Components/button/remove-btn"
 import { reloadListData } from "@/others/hooks/use-list-data"
 import UpModal from "../up-modal"
 import SearchUserBar from "@/Components/input/search-user-bar"
@@ -7,7 +9,6 @@ import FormButton from "@/Components/button/button"
 import { useState, useEffect } from "react"
 import { getProfilePic, showWarningModal, showOutputModal, toTitleCase, isSamePerson } from "@/others/function"
 import { ReferralService } from "@/others/services/referral-service"
-import { X } from "lucide-react"
 import { Validator } from "@/others/classes/validator"
 
 const EditReferralModal = (props) => {
@@ -58,7 +59,7 @@ const EditReferralModal = (props) => {
         f.append("referral_reason", reason)
 
         showWarningModal(
-            "Save Changes To This Referral? You Will Not Be Able To Edit It Again.",
+            `Save Changes To This Referral? ${editsLeftSentence(props.data?.edits_left)}`,
             "Save Changes",
             "Cancel",
             () => {
@@ -93,7 +94,11 @@ const EditReferralModal = (props) => {
         >
             <div className="w-full">
                 <div className="pt-2 text-[1.1em] sm:text-[1.2em]">
-                    <h1><b>Edit Your Referral</b></h1>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h1><b>Edit Your Referral</b></h1>
+                        {/* How many edits remain (up to 3 while pending). */}
+                        <EditsLeft left={props.data?.edits_left} />
+                    </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="py-3 w-full grid gap-4">
@@ -120,17 +125,9 @@ const EditReferralModal = (props) => {
                         <div className="flex overflow-y-hidden overflow-x-auto w-full pt-2">
                             {selectedStudents.map((e, i) => (
                                 <div key={e.id} className="flex-shrink-0 grid relative w-[5rem]">
+                                    <RemoveBtn onClick={() => removeStudent(i)} sx={{ position: "absolute", top: -10, right: -6, zIndex: 5 }} />
                                     <div className="justify-self-center grid">
                                         <div className="grid w-[2.5rem] justify-self-center relative">
-                                            <div className="absolute -top-1 right-0 z-[5]">
-                                                <button
-                                                    type="button"
-                                                    className="bg-gray-300 w-[1.2rem] h-[1.2rem] rounded-full text-[0.8em]"
-                                                    onClick={() => removeStudent(i)}
-                                                >
-                                                    <X size={12} />
-                                                </button>
-                                            </div>
                                             <div className="justify-self-center">
                                                 <ProfilePic src={getProfilePic(e.profile?.profile_picture, e.profile?.sex)} size={2.5} />
                                             </div>

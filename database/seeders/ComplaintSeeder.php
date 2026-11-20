@@ -200,10 +200,11 @@ class ComplaintSeeder extends Seeder
             ->reject(fn ($id) => in_array($id, [$complainantId, $originalSubjectId]))
             ->random();
 
-        $complaint = Complaint::factory()->create([
+        // pending(): its dates match (no approval, rejection or case number
+        // left over from the factory's random status).
+        $complaint = Complaint::factory()->pending()->create([
             'complainant_id' => $complainantId,
             'incident_id' => $violation?->id,
-            'complaint_status' => 'pending',
         ]);
         $this->attachSubjects($complaint, [$originalSubjectId]);
 

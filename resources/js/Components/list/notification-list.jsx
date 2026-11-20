@@ -58,7 +58,18 @@ const messageOf = (obj) => {
             ? "Your Student Has Been Called In By The Office of the Prefect"
             : "You Have Been Called in By the Prefect"
     }
-    return toTitleCase(plain(content.receiver_notif_message))
+    const text = plain(content.receiver_notif_message)
+    return text ? toTitleCase(text) : (FALLBACK[obj.notif_type] ?? "You Have A New Notification")
+}
+// When a notification carries no message: a line by its kind, never blank.
+const FALLBACK = {
+    complaint: "You Have A Complaint Notification",
+    referral: "You Have A Referral Notification",
+    absent: "You Have An Absent Form Notification",
+    appointment: "You Have An Appointment Notification",
+    gatepass: "You Have A Gate Pass Notification",
+    semester_summary: "The Semester Has Ended",
+    user: "User Account Generation Update",
 }
 
 // "Today" / "Yesterday" / "2 Days Ago" ... / the date.

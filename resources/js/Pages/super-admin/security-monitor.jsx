@@ -84,14 +84,15 @@ const applyFilters = (entries, f, schoolYears) => {
 const Detail = ({ label, children }) => (
     <div className="grid gap-0.5 min-w-0">
         <div className="text-[0.75em] uppercase tracking-wide text-gray-500">{label}</div>
-        <div className="text-[0.9em] break-words">{children || <span className="text-gray-400">—</span>}</div>
+        {/* anywhere: a long link or token (no spaces) wraps instead of widening the window. */}
+        <div className="text-[0.9em] [overflow-wrap:anywhere]">{children || <span className="text-gray-400">—</span>}</div>
     </div>
 )
 
 const EntryModal = ({ entry, close }) => (
     <UpModal close={!!entry} closeModal={close} isEnableOuterClose={true} cntr={true} pd={["px-6", "py-6"]} w="w-[40rem] max-w-[calc(100vw-2rem)]">
         {entry && (
-            <div className="grid gap-4">
+            <div className="grid gap-4 w-full min-w-0 [grid-template-columns:minmax(0,1fr)]">
                 <div className="flex items-start justify-between gap-3">
                     <div className="grid gap-1 min-w-0">
                         <h1 className="text-[1.15em] font-bold">{entry.type_label}</h1>
@@ -102,7 +103,7 @@ const EntryModal = ({ entry, close }) => (
                     </div>
                 </div>
                 <Detail label="Description">{entry.message}</Detail>
-                <div className="grid sm:grid-cols-2 gap-4">
+                <div className="grid sm:grid-cols-2 gap-4 min-w-0">
                     <Detail label="IP Address">{entry.ip}</Detail>
                     <Detail label="User">{entry.username ? `${entry.username} (${toTitleCase((entry.role ?? "").replaceAll("_", " "))})` : "Guest (not signed in)"}</Detail>
                 </div>

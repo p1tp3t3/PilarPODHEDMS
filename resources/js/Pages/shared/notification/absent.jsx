@@ -3,17 +3,13 @@ import AuthLayout from "@/Layouts/auth-layout"
 import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-read"
 import { AbsentFormService } from "@/others/services/absent-form-service"
 import { CalendarX } from "lucide-react"
-import NotifDetailCard, { NotifEmptyState, NotifLoadingState, useNotifRecord } from "@/Components/other/notif-detail-card"
-import { parseNotifContent } from "@/others/function"
+import { NotifRecordCard, NotifEmptyState, NotifLoadingState, useNotifRecord } from "@/Components/other/notif-detail-card"
 import { Head } from "@inertiajs/react"
 
 const AbsentNotification  = (props) => {
-    const content = parseNotifContent(props.notif.content)
-
     useMarkNotificationRead()
 
     const data = useNotifRecord('absent_id', AbsentFormService.getAbsentFormInfo)
-
 
     return (
         <>
@@ -24,9 +20,9 @@ const AbsentNotification  = (props) => {
                 ?
                 (data != '')
                 ?
-                <NotifDetailCard icon={CalendarX} tone="default" title="Absent Form">
+                <NotifRecordCard>
                     <ViewAbsentFormModal.Body data={data} />
-                </NotifDetailCard>
+                </NotifRecordCard>
                 :
                 <NotifEmptyState icon={CalendarX} message="No Absent Form Found" />
                 :
@@ -39,34 +35,5 @@ const AbsentNotification  = (props) => {
 }
 
 AbsentNotification.layout = (page) => <AuthLayout user={page.props.user}>{page}</AuthLayout>
-
-const ApproveModal = ({ content }) =>  {
-    return (
-        <div className="bg-white shadow rounded-lg w-full max-w-2xl p-6">
-            <h1 className="text-2xl font-bold mb-4">
-                Your Absent Form Has Been Approved
-            </h1>
-            <div className="border-t border-b py-4 mb-6">
-                <p className="mb-2 text-gray-700">
-                    <span className="font-medium">Date: {content.date_appoint}</span>
-                </p>
-                <p className="mb-2 text-gray-700">
-                    <span className="font-medium">Time: {content.time_appoint}</span>
-                </p>
-                <p className="text-gray-700">
-                    {content.reason}
-                </p>
-            </div>
-            <div>
-                <p className="text-gray-700">
-                    From: Prefect Name
-                </p>
-                <p className="text-gray-700">
-                    Prefect Of Discipline Of The Higher Education Department
-                </p>
-            </div>
-        </div>
-    )
-}
 
 export default AbsentNotification

@@ -8,6 +8,7 @@ use App\Models\Concerns\HasDocumentPdf;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Concerns\LimitsEdits;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -16,7 +17,7 @@ use Illuminate\Support\Facades\File;
 
 class Referral extends Model
 {
-    use HasFactory, HasDerivedSchoolYearSemester, HasDocumentPdf, HasRecordAccess;
+    use HasFactory, HasDerivedSchoolYearSemester, HasDocumentPdf, HasRecordAccess, LimitsEdits;
 
     protected function documentFolder(): string
     {
@@ -211,5 +212,15 @@ class Referral extends Model
     protected function canViewExtra(User $user): bool
     {
         return $this->canViewPdf($user);
+    }
+
+    /**
+     * Still pending (not approved, rejected or revoked): its related
+     * violations can be set and its students intervened. Once approved, the
+     * students are already intervened.
+     */
+    public function awaitsIntervention(): bool
+    {
+        return $this->confirmed_at === null && $this->rejected_at === null && $this->revoked_at === null;
     }
 }

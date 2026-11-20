@@ -22,6 +22,9 @@ class ModelTrainingController extends Controller
 {
     private static function python(int $timeout = 30): PendingRequest
     {
+        // Wait as long as the call may take (PHP stops a request after 30 s).
+        set_time_limit($timeout + 30);
+
         return Http::withoutVerifying()
             ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])
             ->timeout($timeout);
@@ -151,7 +154,8 @@ class ModelTrainingController extends Controller
 
         try {
             return self::relay(
-                self::python(60)->post(self::url('/api/complaint/context'), ['complaint_text' => $data['complaint_text']]),
+                // Plain text, as a complaint's is sent (it may be pasted HTML).
+                self::python(60)->post(self::url('/api/complaint/context'), ['complaint_text' => rich_text_to_plain($data['complaint_text'])]),
                 'The analyzer could not process this text.'
             );
         } catch (ConnectionException) {

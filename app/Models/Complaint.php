@@ -7,6 +7,7 @@ use App\Models\Concerns\HasRecordAccess;
 use App\Models\Concerns\HasDocumentPdf;
 use Database\Factories\ComplaintFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Concerns\LimitsEdits;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 class Complaint extends Model
 {
     /** @use HasFactory<ComplaintFactory> */
-    use HasFactory, HasDerivedSchoolYearSemester, HasDocumentPdf, HasRecordAccess;
+    use HasFactory, HasDerivedSchoolYearSemester, HasDocumentPdf, HasRecordAccess, LimitsEdits;
 
     // Cleaned on read too, for complaints saved before it was cleaned on save.
     protected function complaintDescription(): \Illuminate\Database\Eloquent\Casts\Attribute
@@ -82,6 +83,7 @@ class Complaint extends Model
         'rejected_at',
         'revoked_at',
         'edited_at',
+        'resubmitted_at',
         'confirmed_at',
         'offense_issued_at',
         'complaint_status',

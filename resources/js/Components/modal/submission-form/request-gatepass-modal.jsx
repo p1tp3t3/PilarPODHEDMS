@@ -1,3 +1,4 @@
+import { reloadListData } from "@/others/hooks/use-list-data"
 import { router } from "@inertiajs/react"
 import UpModal from "../up-modal"
 import CheckBoxButton from "../../input/checkbox"
@@ -53,6 +54,8 @@ const RequestGatePassModal = (props) => {
             () => {
                 props.reload(false)
                 props.closeModal(false)
+                // Refresh the table(s) behind it to show the change.
+                reloadListData()
                 setData((prev) => ({
                     ...prev,
                     other_reason: "",

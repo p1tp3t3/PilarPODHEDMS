@@ -1,3 +1,5 @@
+import { reloadListData } from "@/others/hooks/use-list-data"
+import RemoveBtn from "@/Components/button/remove-btn"
 import UpModal from "../up-modal"
 import FormTextfield from "../../input/form-input"
 import RichTextEditor from "../../input/rich-text-editor"
@@ -12,7 +14,6 @@ import { ComplaintService } from "@/others/services/complaint-service"
 import { clearField, showOutputModal, getProfilePic, showWarningModal, toTitleCase, showUserType, isSamePerson } from "@/others/function"
 import PicVidUpload from "@/Components/input/pic-vid-upload"
 import ProfilePic from "@/Components/other/profile-pic"
-import { X } from "lucide-react"
 import { Validator } from "@/others/classes/validator"
 
 const IssueComplaintModal = (props) => {
@@ -140,6 +141,8 @@ const IssueComplaintModal = (props) => {
             () => {
                 props.reload(false);
                 props.closeModal(false);
+                // Refresh the table(s) behind it to show the change.
+                reloadListData()
                 // CLEAR FILE LISTS
                 setReqPictureList([]);
                 setPictureList([]);
@@ -454,19 +457,10 @@ const SelectedUser2 = (props) => {
     const isStudent = showUserType(props.user, true)
     return (
         <div className="flex-shrink-0 grid relative w-[5rem]">
+            {props.unselect && <RemoveBtn onClick={() => props.unselect(props.index)} sx={{ position: "absolute", top: -10, right: -6, zIndex: 5 }} />}
             <div className="justify-self-center grid">
                 <div>
                     <div className="grid w-[2.5rem] justify-self-center">
-                        {props.unselect &&
-                        <div className="absolute">
-                            <button 
-                                type="button" 
-                                className="bg-gray-300 relative top-[-0.3rem] z-[5] w-[1.2rem] h-[1.2rem] rounded-full text-[0.8em]"
-                                onClick={() => props.unselect(props.index)}
-                            >
-                                <X size={12} />
-                            </button>
-                        </div>}
                         <div className="justify-self-center">
                             <ProfilePic 
                                 src={props.src} 

@@ -17,6 +17,7 @@ import AppointmentTodayList from "@/Components/list/appointment-today-list"
 import NewStudentList from "@/Components/list/new-student-list"
 import StudentNotificationList from "@/Components/list/student-notification-list"
 import WatchList from "@/Components/list/watch-list"
+import InterventionsThisWeekList from "@/Components/list/interventions-this-week-list"
 import TabSwitcher from "@/Components/other/tab-switcher"
 import UnresolvedComplaintModal from "@/Components/modal/validation/unresolved-complaint-modal"
 import { Head, Link, router } from "@inertiajs/react"
@@ -110,6 +111,8 @@ const PrefectDashBoard = (props) => {
     { key: "appointment", label: "Appointments" },
     { key: "notification", label: "Notifications" },
     { key: "watch", label: "Watch List" },
+    // The students intervened this week (the panel shows the week's dates).
+    { key: "intervened", label: "Intervened" },
   ]
 
   const optionTab2 = [
@@ -412,6 +415,7 @@ const PrefectDashBoard = (props) => {
                       )}
                       {choose == "notification" && <StudentNotificationList />}
                       {choose == "watch" && <WatchList />}
+                      {choose == "intervened" && <InterventionsThisWeekList />}
                     </div>
                   </div>
                   <div className="w-full lg:w-[50%]">

@@ -1,23 +1,33 @@
 import ViewGatePassModal from "@/Components/modal/view/view-gatepass-modal"
 import AuthLayout from "@/Layouts/auth-layout"
 import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-read"
+import { GatePassService } from "@/others/services/gatepass-service"
 import { DoorOpen } from "lucide-react"
-import NotifDetailCard from "@/Components/other/notif-detail-card"
-import { parseNotifContent } from "@/others/function"
+import { NotifRecordCard, NotifEmptyState, NotifLoadingState, useNotifRecord } from "@/Components/other/notif-detail-card"
 import { Head } from "@inertiajs/react"
 
-const GatePassNotification = (props) => {
+// The gate pass is fetched (?gatepass_id=), not read from the notification,
+// so it shows the pass as it is now.
+const GatePassNotification = () => {
     useMarkNotificationRead()
 
-    const content = parseNotifContent(props.notif.content)
-
+    const data = useNotifRecord('gatepass_id', GatePassService.getGatePassRecord)
 
     return (
         <>
             <Head title="Gate Pass Notification" />
-            <NotifDetailCard icon={DoorOpen} tone="default" title="Gate Pass">
-                <ViewGatePassModal.Body data={content['gatepass']} />
-            </NotifDetailCard>
+            {data != null
+            ?
+            (data != '')
+            ?
+            <NotifRecordCard>
+                <ViewGatePassModal.Body data={data} />
+            </NotifRecordCard>
+            :
+            <NotifEmptyState icon={DoorOpen} message="No Gate Pass Found" />
+            :
+            <NotifLoadingState />
+            }
         </>
     )
 }

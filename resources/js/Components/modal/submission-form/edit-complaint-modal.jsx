@@ -1,3 +1,5 @@
+import EditsLeft, { editsLeftSentence } from "@/Components/other/edits-left"
+import RemoveBtn from "@/Components/button/remove-btn"
 import { reloadListData } from "@/others/hooks/use-list-data"
 import UpModal from "../up-modal"
 import RichTextEditor from "../../input/rich-text-editor"
@@ -10,8 +12,8 @@ import { ComplaintService } from "@/others/services/complaint-service"
 import { showOutputModal, showWarningModal, getProfilePic, toTitleCase, isSamePerson } from "@/others/function"
 import PicVidUpload from "@/Components/input/pic-vid-upload"
 import ProfilePic from "@/Components/other/profile-pic"
-import { X } from "lucide-react"
 import { Validator } from "@/others/classes/validator"
+import RejectedNote from "@/Components/other/rejected-note"
 
 const safeParseArray = (value) => {
     if (Array.isArray(value)) return value
@@ -25,6 +27,8 @@ const safeParseArray = (value) => {
 }
 
 const EditComplaintModal = (props) => {
+    // A rejected complaint: editing resubmits it to the prefect (once).
+    const resubmit = props.data?.complaint_status === "rejected"
     const [search, setSearch] = useState(""),
           [selectedStudents, setSelectedStudents] = useState([]),
           [incident, setIncident] = useState(''),
@@ -103,11 +107,13 @@ const EditComplaintModal = (props) => {
         concatFileList.forEach((file, index) => f.append(`evidence[${index}]`, file))
 
         showWarningModal(
-            'Save Changes To This Complaint? You Will Not Be Able To Edit It Again.',
-            'Save Changes',
+            resubmit
+                ? 'Resubmit This Complaint To The Prefect? You Can Only Resubmit It Once.'
+                : `Save Changes To This Complaint? ${editsLeftSentence(props.data?.edits_left)}`,
+            resubmit ? 'Resubmit' : 'Save Changes',
             'Cancel',
             () => {
-                props.reload(true, "text-wait", "Saving Your Changes")
+                props.reload(true, "text-wait", resubmit ? "Resubmitting Your Complaint" : "Saving Your Changes")
                 ComplaintService.update(props.data.id, f, success, error)
             }
         )
@@ -115,7 +121,7 @@ const EditComplaintModal = (props) => {
 
     const success = () => {
         props.reload(true, '')
-        showOutputModal("Complaint Updated Successfully", "s", () => {
+        showOutputModal(resubmit ? "Complaint Resubmitted To The Prefect" : "Complaint Updated Successfully", "s", () => {
             props.reload(false)
             props.closeModal(false)
             reloadListData()
@@ -139,8 +145,17 @@ const EditComplaintModal = (props) => {
         >
             <div className="w-full">
                 <div className="pt-2 text-[1.1em] sm:text-[1.2em]">
-                    <h1><b>Edit Your Complaint</b></h1>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h1><b>{resubmit ? "Edit & Resubmit Your Complaint" : "Edit Your Complaint"}</b></h1>
+                        {/* How many edits remain (up to 3 while pending). */}
+                        {!resubmit && <EditsLeft left={props.data?.edits_left} />}
+                    </div>
                 </div>
+                {/* Rejected: why, so the changes can address it. */}
+                {resubmit && (
+                    <RejectedNote reason={props.data?.rejected_reason}
+                        text="Make the changes needed (e.g. add evidence), then resubmit it. The prefect will review it again. You can resubmit it once." />
+                )}
                 <div className="py-3 w-full">
                     <form onSubmit={handleSubmit} className="grid gap-4">
                         <div className="grid gap-2">
@@ -168,17 +183,9 @@ const EditComplaintModal = (props) => {
                             <div className="flex overflow-y-hidden overflow-x-auto w-full pt-2">
                                 {selectedStudents.map((e, i) => (
                                     <div key={e.id} className="flex-shrink-0 grid relative w-[5rem]">
+                                        <RemoveBtn onClick={() => removeStudent(i)} sx={{ position: "absolute", top: -10, right: -6, zIndex: 5 }} />
                                         <div className="justify-self-center grid">
                                             <div className="grid w-[2.5rem] justify-self-center relative">
-                                                <div className="absolute -top-1 right-0 z-[5]">
-                                                    <button
-                                                        type="button"
-                                                        className="bg-gray-300 w-[1.2rem] h-[1.2rem] rounded-full text-[0.8em]"
-                                                        onClick={() => removeStudent(i)}
-                                                    >
-                                                        <X size={12} />
-                                                    </button>
-                                                </div>
                                                 <div className="justify-self-center">
                                                     <ProfilePic src={getProfilePic(e.profile?.profile_picture, e.profile?.sex)} size={2.5} />
                                                 </div>
@@ -268,7 +275,7 @@ const EditComplaintModal = (props) => {
                         </div>
 
                         <div className="w-full flex justify-end pt-2">
-                            <FormButton label='Save Changes' type="submit" />
+                            <FormButton label={resubmit ? 'Resubmit' : 'Save Changes'} type="submit" />
                         </div>
                     </form>
                 </div>

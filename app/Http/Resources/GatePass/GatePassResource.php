@@ -30,6 +30,8 @@ class GatePassResource extends BaseResource
             'rejected_at' => $this->rejected_at,
             'revoked_at' => $this->revoked_at,
             'edited_at' => $this->edited_at,
+            // Edits left while pending (up to 3; LimitsEdits).
+            'edits_left' => $this->resource->editsLeft(),
             'archived_at' => $this->field('archived_at'),
             'created_at' => $this->created_at,
             'user' => UserResource::make($this->whenLoaded('user')),

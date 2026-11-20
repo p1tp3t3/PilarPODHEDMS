@@ -85,6 +85,8 @@ Route::middleware('web')->group(function () {
         Route::get('/violation-management/penalties', [MaintenanceController::class, 'violationManagementIndex'])->defaults('section', 'penalties')->middleware('list-data');
         Route::get('/violation-management/student-violations', [MaintenanceController::class, 'violationManagementIndex'])->defaults('section', 'student-violations')->middleware('list-data');
         Route::get('/violation-management/{id}/students', [ViolationController::class, 'violationStudentsIndex'])->middleware('list-data');
+        Route::get('/prefect/interventions', [\App\Http\Controllers\Modules\Violation\InterventionController::class, 'index'])->middleware('list-data');
+        Route::get('/prefect/report/action-log', [ReportController::class, 'prefectActionLogIndex'])->middleware('list-data');
         Route::get('/prefect/report/{section}', [ReportController::class, 'index'])
             ->whereIn('section', ['incident', 'violation', 'tardy', 'appointment', 'gatepass', 'analytics', 'saved-filters', 'generated'])->middleware('list-data');
     });

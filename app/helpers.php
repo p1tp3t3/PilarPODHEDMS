@@ -199,6 +199,24 @@ if (!function_exists('clean_rich_text')) {
     }
 }
 
+if (!function_exists('rich_text_to_plain')) {
+    /**
+     * Saved editor HTML as plain text: tags out (a paragraph or line break
+     * becomes a space, so words don't run together), entities like &nbsp;
+     * and &amp; decoded, spaces collapsed. For text analysis (the Python
+     * complaint-context analyzer), which would otherwise read tag names
+     * ("strong", "blockquote") and entities ("nbsp", "amp") as words.
+     */
+    function rich_text_to_plain(?string $html): string
+    {
+        $text = preg_replace('#<(br|hr)\s*/?>|</(p|li|h[1-6]|blockquote|div)>#i', ' ', (string) $html);
+        $text = html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = str_replace("\u{00A0}", ' ', $text);
+
+        return trim(preg_replace('/\s+/u', ' ', $text));
+    }
+}
+
 if (!function_exists('default_password')) {
     /**
      * A new account's starting password: last name and ID number, lowercase,

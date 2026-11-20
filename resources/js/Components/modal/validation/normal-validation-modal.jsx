@@ -27,8 +27,9 @@ const NormalValidationModal = (props) => {
                     </p>
                     <div className="justify-self-end flex text-[0.8em] w-full">
                         {props.btn.map((e, i) =>
-                        <button 
-                            type="button" 
+                        <button
+                            key={e.label ?? i}
+                            type="button"
                             className={`px-4 py-4 border w-full ${(e.satisfied) ? 'bg-blue-600 text-white border-none' :  ''}`}
                             onClick={e.click}
                         >

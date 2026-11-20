@@ -1,3 +1,5 @@
+import EditsLeft, { editsLeftSentence } from "@/Components/other/edits-left"
+import { reloadListData } from "@/others/hooks/use-list-data"
 import UpModal from "../up-modal";
 import { showWarningModal, showOutputModal, toTitleCase } from "../../../others/function";
 import RichTextEditor from "@/Components/input/rich-text-editor";
@@ -8,6 +10,7 @@ import BetweenTextfield from "@/Components/input/between-input";
 import { useEffect, useState } from "react";
 import { AbsentFormService } from "@/others/services/absent-form-service";
 import { Validator } from "@/others/classes/validator";
+import RejectedNote from "@/Components/other/rejected-note";
 
 const REASONS = [
     { value: "Excused Absence", label: "Excused Absence" },
@@ -26,6 +29,8 @@ const safeParseArray = (value) => {
 };
 
 const EditAbsentFormModal = (props) => {
+    // A rejected absent form: editing resubmits it to the prefect (once).
+    const resubmit = !!props.data?.rejected_at && !props.data?.confirmed_at
     const [data, setData] = useState({ date_from: "", date_to: "" });
     const [checkedReasons, setCheckedReasons] = useState([]);
     const [otherReason, setOtherReason] = useState("");
@@ -76,11 +81,13 @@ const EditAbsentFormModal = (props) => {
         req_picture_list.forEach((file, i) => f.append(`evidence[${i}]`, file));
 
         showWarningModal(
-            "Save Changes To This Absent Form? You Will Not Be Able To Edit It Again.",
-            "Save Changes",
+            resubmit
+                ? "Resubmit This Absent Form To The Prefect? You Can Only Resubmit It Once."
+                : `Save Changes To This Absent Form? ${editsLeftSentence(props.data?.edits_left)}`,
+            resubmit ? "Resubmit" : "Save Changes",
             "Cancel",
             () => {
-                props.reload(true, "text-wait", "Saving Your Changes");
+                props.reload(true, "text-wait", resubmit ? "Resubmitting Your Absent Form" : "Saving Your Changes");
                 AbsentFormService.update(props.data.id, f, success, error);
             }
         );
@@ -88,9 +95,11 @@ const EditAbsentFormModal = (props) => {
 
     const success = () => {
         props.reload(true, "");
-        showOutputModal("Absent Form Updated Successfully", "s", () => {
+        showOutputModal(resubmit ? "Absent Form Resubmitted To The Prefect" : "Absent Form Updated Successfully", "s", () => {
             props.reload(false);
             props.closeModal(false);
+            // Refresh the table(s) behind it to show the change.
+            reloadListData()
         });
     };
     const error = (e) => {
@@ -111,8 +120,17 @@ const EditAbsentFormModal = (props) => {
         >
             <div className="w-full">
                 <div className="pt-2 text-[1.1em] sm:text-[1.2em]">
-                    <h1><b>Edit Your Absent Form</b></h1>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h1><b>{resubmit ? "Edit & Resubmit Your Absent Form" : "Edit Your Absent Form"}</b></h1>
+                        {/* How many edits remain (up to 3 while pending). */}
+                        {!resubmit && <EditsLeft left={props.data?.edits_left} />}
+                    </div>
                 </div>
+                {/* Rejected: why, so the changes can address it. */}
+                {resubmit && (
+                    <RejectedNote reason={props.data?.rejected_reason}
+                        text="Make the changes needed (e.g. add proof), then resubmit it. The prefect will review it again. You can resubmit it once." />
+                )}
                 <div className="py-3 w-full">
                     <form onSubmit={handleSubmit} className="grid gap-5">
                         <div>
@@ -188,7 +206,7 @@ const EditAbsentFormModal = (props) => {
                         </div>
 
                         <div className="grid justify-end">
-                            <FormButton type="submit" label="Save Changes" />
+                            <FormButton type="submit" label={resubmit ? "Resubmit" : "Save Changes"} />
                         </div>
                     </form>
                 </div>

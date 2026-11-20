@@ -8,13 +8,13 @@ import { readableDate, readableTime, parseNotifContent } from "@/others/function
 import { UserPlus } from "lucide-react"
 import NotifDetailCard from "@/Components/other/notif-detail-card"
 import { Head } from "@inertiajs/react"
+import { Stack, Typography } from "@mui/material"
 
 const UserNotification = ({ user, notif }) => {
     useMarkNotificationRead()
 
     const [data, setData] = useState(notif)
     const [users, setUsers] = useState(null)
-    const [loading, setLoading] = useState(true)
 
     const content = parseNotifContent(data.content)
 
@@ -53,8 +53,7 @@ const UserNotification = ({ user, notif }) => {
 
     return (
         <>
-        <Head title="User Notification" />
-        <div className="w-full max-w-4xl mx-auto py-6 sm:py-10 space-y-5">
+            <Head title="User Notification" />
             <NotifDetailCard
                 icon={UserPlus}
                 tone={content.success ? "success" : "danger"}
@@ -64,21 +63,18 @@ const UserNotification = ({ user, notif }) => {
                         ? `New users registered on ${content.new_user_date_registered}`
                         : `${readableDate(data.created_at)} • ${readableTime(data.created_at)}`
                 }
-            />
-            {content.success
-            ?
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sm:p-7">
-                <NewUserList list={users} showTitle={false} />
-            </div>
-            : (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <div className="text-gray-500 text-center py-10 space-y-3">
-                        <Btn onclick={() => downloadErrorBlob(content.error_blob, content.error_filename)}>Download Error File</Btn>
-                        <p className="text-[0.85em]">Since {readableDate(data.created_at)} {readableTime(data.created_at)}</p>
-                    </div>
-                </div>
-            )}
-        </div>
+            >
+                {content.success
+                    ? <NewUserList list={users} showTitle={false} />
+                    : (
+                        <Stack sx={{ alignItems: "center", gap: 1.5, py: 3, textAlign: "center" }}>
+                            <Typography sx={{ fontSize: "0.95rem", color: "text.primary" }}>
+                                Some accounts could not be created. The error file lists each row and why it failed.
+                            </Typography>
+                            <Btn onclick={() => downloadErrorBlob(content.error_blob, content.error_filename)}>Download Error File</Btn>
+                        </Stack>
+                    )}
+            </NotifDetailCard>
         </>
     )
 }

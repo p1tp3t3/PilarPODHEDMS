@@ -599,6 +599,19 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * The prefect's Action Log: every user's actions, on the same page as the
+     * super admin's (its table loads from /api/prefect/report/action-log).
+     */
+    public function prefectActionLogIndex()
+    {
+        return list_page('super-admin/report', [
+            'section' => 'action-log',
+            'action_log_list' => list_prop(fn () => self::getAllActionLogs()),
+            'school_years' => SchoolYearResource::collection(SchoolYear::orderByDesc('year')->get(['id', 'year'])),
+        ]);
+    }
+
     public function accountStatisticsPreview(Request $request)
     {
         return response()->json(self::buildAccountStatistics(

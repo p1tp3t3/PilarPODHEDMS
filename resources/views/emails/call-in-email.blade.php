@@ -1,6 +1,7 @@
 @extends('emails.layouts.formal', [
     'preheader' => 'You are requested to report to the Office of Student Affairs and Discipline.',
     'signatory' => $prefect_name,
+    'reference' => $reference ?? null,
 ])
 
 @section('subject', 'Office Call from the Prefect of Discipline')
@@ -13,7 +14,8 @@
 
     @include('emails.partials.notice', [
         'label' => 'Details',
-        'content' => nl2br(e($call_in_reason)),
+        // The message is the editor's HTML: as plain text, line by line.
+        'content' => nl2br(e(trim(html_entity_decode(strip_tags(preg_replace('#</p>\s*<p[^>]*>|<br\s*/?>#i', PHP_EOL, (string) $call_in_reason)))))),
     ])
 
     <p style="margin:0 0 14px;">

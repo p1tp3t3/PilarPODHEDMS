@@ -29,6 +29,8 @@ import {
     Clock,
     Filter,
     ScrollText,
+    HeartHandshake,
+    PhoneCall,
 } from "lucide-react"
 
 // Single source of truth for every role's sidebar navigation. Each entry is
@@ -108,7 +110,16 @@ export const sidebarPages = [
             { id: "violation-management/student-violations", href: "/violation-management/student-violations", icon: GraduationCap, label: "Student Violations" },
         ],
     },
-    { type: "link", id: "prefect/appointment", href: "/prefect/appointment", icon: Calendar, label: "Appointment", roles: ["sub_admin"] },
+    {
+        // The calendar, the call-ins sent, and the students already
+        // intervened (appointments, call-ins, referrals, complaints).
+        type: "dropdown", id: "prefect/appointment-menu", icon: Calendar, label: "Appointment", roles: ["sub_admin"],
+        items: [
+            { id: "prefect/appointment", href: "/prefect/appointment", icon: Calendar, label: "Calendar" },
+            { id: "prefect/call-ins", href: "/prefect/call-ins", icon: PhoneCall, label: "Call-In History" },
+            { id: "prefect/interventions", href: "/prefect/interventions", icon: HeartHandshake, label: "Interventions" },
+        ],
+    },
     { type: "link", id: "prefect/gatepass", href: "/prefect/gatepass", icon: DoorOpen, label: "Gate-Pass", roles: ["sub_admin"] },
     {
         type: "dropdown", id: "prefect/report", icon: BarChart3, label: "Reports", roles: ["sub_admin"],
@@ -121,6 +132,7 @@ export const sidebarPages = [
             { id: "report/appointment", href: "/prefect/report/appointment", icon: Calendar, label: "Appointment Report" },
             { id: "report/gatepass", href: "/prefect/report/gatepass", icon: DoorOpen, label: "Gate Pass Report" },
             { id: "report/analytics", href: "/prefect/report/analytics", icon: LineChart, label: "Analytical Report" },
+            { id: "report/action-log", href: "/prefect/report/action-log", icon: ScrollText, label: "Action Log" },
         ],
     },
 

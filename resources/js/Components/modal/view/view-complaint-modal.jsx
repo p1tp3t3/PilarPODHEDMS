@@ -21,7 +21,9 @@ import {
     ShieldAlert,
     Gavel,
     Repeat,
+    Users,
 } from "lucide-react"
+import InterveneBtn from "@/Components/button/intervene-btn"
 
 const ViewComplaintModal = (props) => {
     const [data, setData] = useState(null),
@@ -84,10 +86,17 @@ const when = (at) => `${readableDate(at)} (${readableTime(at)})`
 // later (e.g. once more evidence comes in). A revoke stops it.
 const stepsFor = (d) => {
     const steps = [stepAt("Reported", d.created_at, d.school_year_semester)]
+    // Rejected, then edited and resubmitted: that rejection (kept on the
+    // version that got it) and the resubmission.
+    const earlier = (d.revisions ?? []).find((r) => r.rejected_at)
+    if (earlier) steps.push(stepAt("Rejected", earlier.rejected_at, null, "failed", earlier.rejected_reason))
+    if (d.resubmitted_at) steps.push(stepAt("Resubmitted", d.resubmitted_at, null))
     if (d.rejected_at) steps.push(stepAt("Rejected", d.rejected_at, d.rejected_school_year_semester, "failed", d.rejected_reason))
     // Rejecting doesn't clear an earlier approval date, so while it's rejected
     // that date isn't an approval: show "Approved" as still possible.
-    const rejectedNow = d.complaint_status === "rejected"
+    // Pending (e.g. resubmitted) is waiting for the prefect: an earlier
+    // approval date isn't an approval now either.
+    const rejectedNow = d.complaint_status === "rejected" || d.complaint_status === "pending"
     if (d.confirmed_at && !rejectedNow) steps.push(stepAt("Approved", d.confirmed_at, d.confirmed_school_year_semester))
     else if (!d.revoked_at) steps.push(stepAhead("Approved", d.rejected_at ? "If the prefect reconsiders" : "Waiting for the prefect's review"))
     if (d.offense_issued_at) steps.push(stepAt("Resolved", d.offense_issued_at, d.resolved_school_year_semester))
@@ -98,6 +107,8 @@ const stepsFor = (d) => {
 
 const Body = ({ data, usr }) => {
     const isPrefect = usePage().props.auth?.user?.role === 'sub_admin'
+    // No violation verdict yet (InterveneBtn shows for the Prefect only).
+    const beforeVerdict = ["pending", "ongoing"].includes(data.complaint_status)
     const evidences = safeParseArray(data.complaint_evidences)
     const contextAnalysis = safeParseArray(data.context_analysis)
     const complainantName = toTitleCase(data.user != null ? data.user.profile?.first_name : data.complainant_name)
@@ -121,13 +132,17 @@ const Body = ({ data, usr }) => {
                 {/* Progress: done steps and the ones still ahead */}
                 <Timeline steps={stepsFor(data)} />
 
-                {data.edited_at && data.revisions?.length > 0 && (() => {
-                    const previous = data.revisions[0]
+                {/* Every earlier version, newest first (the audit trail): each one
+                    as it was, with its evidence (kept in previous_evidences/) and,
+                    when it was rejected and then resubmitted, why. */}
+                {(data.revisions ?? []).map((previous, idx, all) => {
                     const previousSubjects = safeParseArray(previous.subjects)
                     const previousEvidences = safeParseArray(previous.complaint_evidences)
+                    const label = `Previous Version ${all.length - idx}`
                     return (
-                        <Section icon={History} title="Previous Version (Before Edit)" tone="amber">
+                        <Section key={previous.id ?? idx} icon={History} title={previous.rejected_at ? `${label} (Rejected, Before Resubmitting)` : `${label} (Before Edit)`} tone="amber">
                             <Stack sx={{ gap: 1.5 }}>
+                                {previous.rejected_at && <Field label="Rejected because">{previous.rejected_reason || "No reason given"}</Field>}
                                 <Field label="Incident">{previous.incident ? toTitleCase(previous.incident) : '—'}</Field>
                                 <Field label="Subject(s)">
                                     {previousSubjects.length !== 0
@@ -145,12 +160,12 @@ const Body = ({ data, usr }) => {
                                         srcOf={(file) => `/complaint/${data.encrypted_id}/previous-evidence/${file}`} />
                                 </Box>}
                                 <Typography sx={{ fontSize: "0.75em", color: "text.disabled" }}>
-                                    Edited on {when(data.edited_at)}
+                                    {previous.rejected_at ? "Resubmitted" : "Edited"} on {when(previous.created_at)}
                                 </Typography>
                             </Stack>
                         </Section>
                     )
-                })()}
+                })}
 
 
                 {data.complaint_status === 'revoked' &&
@@ -160,18 +175,29 @@ const Body = ({ data, usr }) => {
                     </Typography>
                 </Section>}
 
-                <People rows={[
-                    {
-                        label: `Subject${data.complaintSubject?.length > 1 ? `s (${data.complaintSubject.length})` : ""}`,
-                        content: <PersonList
-                            data={data.subject}
-                            data_list={data.complaintSubject != null ? data.complaintSubject : null}
-                            emptyLabel="No subject on record."
-                            // Student data privacy: only the prefect can open a subject's profile.
-                            linkable={isPrefect} />,
-                    },
-                    data.prefect && { label: "Filed by the Prefect", content: <Text>{prefectName(data.prefect)}</Text> },
-                ]} />
+                <Section icon={Users} title={`Subject${data.complaintSubject?.length > 1 ? `s (${data.complaintSubject.length})` : ""}`}>
+                    <PersonList
+                        data={data.subject}
+                        data_list={data.complaintSubject != null ? data.complaintSubject : null}
+                        emptyLabel="No subject on record."
+                        // Student data privacy: only the prefect can open a subject's profile.
+                        linkable={isPrefect}
+                        // Before the verdict (pending / ongoing): the Prefect can
+                        // already set an appointment with the student.
+                        action={beforeVerdict ? (u) => u?.role === "student" && (
+                            <InterveneBtn
+                                student={u}
+                                violationIds={data.violation?.id ? [data.violation.id] : []}
+                                reason={`<p>Consultation with the Prefect of Discipline regarding complaint #${data.complaint_number}.</p>`}
+                                // Kept on the appointment: a Complaint intervention.
+                                extraPayload={{ complaint_id: data.encrypted_id }}
+                            />
+                        ) : undefined} />
+                </Section>
+
+                {data.prefect && <People rows={[
+                    { label: "Filed by the Prefect", content: <Text>{prefectName(data.prefect)}</Text> },
+                ]} />}
 
                 <Section icon={ClipboardList} title="Incident Reported">
                     <Typography sx={{ fontSize: "0.875rem", color: "text.primary" }}>{toTitleCase(data.violation?.violation_name)}</Typography>

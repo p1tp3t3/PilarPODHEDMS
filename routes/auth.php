@@ -222,6 +222,8 @@ Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(functi
     Route::get('/prefect/intervention/violation-options', [\App\Http\Controllers\Modules\Violation\InterventionViolationController::class, 'options']);
     Route::post('/prefect/referral/{id}/related-violations', [\App\Http\Controllers\Modules\Violation\InterventionViolationController::class, 'syncReferral']);
     Route::get('/prefect/call-in/history', [NotificationController::class, 'callInHistory']);
+    // Whether the student came for a call-in (present / absent).
+    Route::post('/prefect/call-in/{id}/attendance', [NotificationController::class, 'markCallInAttendance']);
     Route::post('/prefect/violation/risk/notify', [NotificationController::class, 'notifyFacultyProgramHead']);
     Route::post('/prefect/violation/create', [ViolationController::class, 'store']);
 
@@ -233,6 +235,8 @@ Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(functi
     Route::post('/prefect/absent-form/verify/{id}/cancel', [AbsentFormController::class, 'cancelAbsentForm']);
     Route::post('/prefect/absent-form/create', [AbsentFormController::class, 'prefectStore']);
     Route::get('/prefect/appointment', [AppointmentController::class, 'index']);
+    // The call-in history: its own page (Appointment menu), same component.
+    Route::get('/prefect/call-ins', [AppointmentController::class, 'index'])->defaults('section', 'call-ins');
 
     Route::post('/prefect/gatepass/verify/{id}/confirm', [GatePassController::class, 'approveGatePassRequest']);
     Route::post('/prefect/gatepass/verify/{id}/cancel', [GatePassController::class, 'disapproveGatePassRequest']);
@@ -250,6 +254,12 @@ Route::middleware(['role:sub_admin', 'activate', 'user-activity'])->group(functi
     // Reports is a sidebar group of pages (one per report type, plus the
     // analytics, saved filters and generated reports pages).
     Route::get('/prefect/report', fn () => redirect('/prefect/report/incident'));
+    // Every appointment, call-in and referral, with the violation(s) each addresses.
+    Route::get('/prefect/interventions', [\App\Http\Controllers\Modules\Violation\InterventionController::class, 'index']);
+    // The dashboard's "This Week" tab: the students intervened this week.
+    Route::get('/prefect/interventions/this-week', [\App\Http\Controllers\Modules\Violation\InterventionController::class, 'thisWeek']);
+    // Every user's action log: the same page as the super admin's (read only).
+    Route::get('/prefect/report/action-log', [ReportController::class, 'prefectActionLogIndex']);
     Route::get('/prefect/report/{section}', [ReportController::class, 'index'])->whereIn('section', ['incident', 'violation', 'tardy', 'appointment', 'gatepass', 'analytics', 'saved-filters', 'generated']);
     Route::post('/prefect/analytic-report/generate', [ReportController::class, 'generateAnalyticReport']);
     Route::get('/prefect/analytics/preview', [ReportController::class, 'analyticsPreview']);

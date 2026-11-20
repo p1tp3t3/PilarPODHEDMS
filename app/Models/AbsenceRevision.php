@@ -17,6 +17,9 @@ class AbsenceRevision extends Model
         'date_from',
         'date_to',
         'evidences',
+        // The rejection this version got before it was resubmitted.
+        'rejected_reason',
+        'rejected_at',
         'created_at',
     ];
 

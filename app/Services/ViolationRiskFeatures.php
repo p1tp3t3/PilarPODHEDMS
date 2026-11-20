@@ -424,7 +424,7 @@ class ViolationRiskFeatures
         // Interventions, per student and per violation they address (only
         // ones linked to a violation in intervention_violations count): an
         // appointment the student attended, a referral of the student that
-        // was approved, an office call that was confirmed.
+        // was approved, an office call the student came to (present).
         $interventions = [];
         $add = function ($rows) use (&$interventions) {
             foreach ($rows as $r) {
@@ -433,16 +433,19 @@ class ViolationRiskFeatures
                 }
             }
         };
-        $linked = fn ($q, $type, $idColumn) => $q->join('intervention_violations as iv', function ($j) use ($type, $idColumn) {
-            $j->on('iv.intervention_id', '=', $idColumn)->where('iv.intervention_type', '=', $type);
+        // A link counts only for the student it names (a referral's students
+        // are each referred about their own violations).
+        $linked = fn ($q, $type, $idColumn, $studentColumn) => $q->join('intervention_violations as iv', function ($j) use ($type, $idColumn, $studentColumn) {
+            $j->on('iv.intervention_id', '=', $idColumn)->where('iv.intervention_type', '=', $type)
+                ->on('iv.student_id', '=', $studentColumn);
         });
-        $add($linked(DB::table('appointment as a'), 'appointment', 'a.id')->whereIn('a.user_id', $students)
+        $add($linked(DB::table('appointment as a'), 'appointment', 'a.id', 'a.user_id')->whereIn('a.user_id', $students)
             ->where('a.appointment_status', 'accepted')->where('a.attendance_status', 'present')
             ->selectRaw('a.user_id AS student_id, iv.violation_id, a.date_time_appoint AS at')->get());
-        $add($linked(DB::table('referral_referred_student as rs')->join('referral as r', 'r.id', '=', 'rs.referral_id'), 'referral', 'r.id')
+        $add($linked(DB::table('referral_referred_student as rs')->join('referral as r', 'r.id', '=', 'rs.referral_id'), 'referral', 'r.id', 'rs.student_id')
             ->whereIn('rs.student_id', $students)->whereNotNull('r.confirmed_at')->whereNull('r.revoked_at')
             ->selectRaw('rs.student_id, iv.violation_id, r.confirmed_at AS at')->get());
-        $add($linked(DB::table('call_in as ci'), 'call_in', 'ci.id')->whereIn('ci.student_id', $students)->whereNotNull('ci.confirmed_at')
+        $add($linked(DB::table('call_in as ci'), 'call_in', 'ci.id', 'ci.student_id')->whereIn('ci.student_id', $students)->where('ci.attendance_status', 'present')
             ->selectRaw('ci.student_id, iv.violation_id, ci.confirmed_at AS at')->get());
 
         $enrollments = [];

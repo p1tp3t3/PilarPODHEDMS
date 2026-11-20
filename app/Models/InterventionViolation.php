@@ -46,13 +46,42 @@ class InterventionViolation extends Model
         return DB::table('violation')->whereIn('id', $ids)->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
     }
 
-    /** Replaces an intervention's linked violations with $violationIds. */
-    public static function sync(string $type, int $interventionId, array $violationIds): void
+    /**
+     * Replaces the violations an intervention addresses for one student
+     * (an appointment's or office call's student, or one referred student).
+     */
+    public static function sync(string $type, int $interventionId, int $studentId, array $violationIds): void
     {
-        self::where('intervention_type', $type)->where('intervention_id', $interventionId)->delete();
+        self::where('intervention_type', $type)->where('intervention_id', $interventionId)
+            ->where('student_id', $studentId)->delete();
         foreach (array_unique($violationIds) as $violationId) {
-            self::create(['intervention_type' => $type, 'intervention_id' => $interventionId, 'violation_id' => (int) $violationId]);
+            self::create([
+                'intervention_type' => $type,
+                'intervention_id' => $interventionId,
+                'student_id' => $studentId,
+                'violation_id' => (int) $violationId,
+            ]);
         }
+    }
+
+    /**
+     * The violations an intervention addresses, per student:
+     * [student id => [{id, name}, ...]] (a referral's referred students).
+     *
+     * @return array<int, array<int, array{id: int, name: string}>>
+     */
+    public static function linkedByStudent(string $type, int $interventionId): array
+    {
+        return DB::table('intervention_violations as iv')
+            ->join('violation as v', 'v.id', '=', 'iv.violation_id')
+            ->where('iv.intervention_type', $type)
+            ->where('iv.intervention_id', $interventionId)
+            ->whereNotNull('iv.student_id')
+            ->orderBy('v.violation_name')
+            ->get(['iv.student_id', 'v.id', 'v.violation_name as name'])
+            ->groupBy('student_id')
+            ->map(fn ($rows) => $rows->map(fn ($r) => ['id' => (int) $r->id, 'name' => $r->name])->values()->all())
+            ->all();
     }
 
     /**
@@ -73,6 +102,7 @@ class InterventionViolation extends Model
             ->where('iv.intervention_type', $type)
             ->whereIn('iv.intervention_id', $ids)
             ->orderBy('v.violation_name')
+            ->distinct()
             ->get(['iv.intervention_id', 'v.id', 'v.violation_name as name'])
             ->groupBy('intervention_id')
             ->map(fn ($rows) => $rows->map(fn ($r) => ['id' => (int) $r->id, 'name' => $r->name])->values()->all())
@@ -99,7 +129,8 @@ class InterventionViolation extends Model
     }
 
     /**
-     * The violations linked to an intervention, as [{id, name}].
+     * The violations linked to an intervention (each once, for any of its
+     * students), as [{id, name}].
      *
      * @return array<int, array{id: int, name: string}>
      */
@@ -110,6 +141,7 @@ class InterventionViolation extends Model
             ->where('iv.intervention_type', $type)
             ->where('iv.intervention_id', $interventionId)
             ->orderBy('v.violation_name')
+            ->distinct()
             ->get(['v.id', 'v.violation_name as name'])
             ->map(fn ($r) => ['id' => (int) $r->id, 'name' => $r->name])
             ->all();

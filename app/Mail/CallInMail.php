@@ -16,12 +16,14 @@ class CallInMail extends Mailable
     /**
      * Create a new message instance.
      */
-    public $prefect_name, $student_name, $call_in_reason;
+    public $prefect_name, $student_name, $call_in_reason, $reference;
     public function __construct($data)
     {
         $this->prefect_name = $data['prefect'];
         $this->student_name = $data['student'];
         $this->call_in_reason = $data['reason'];
+        // The call-in's reference number (shown under the subject).
+        $this->reference = $data['reference'] ?? null;
     }
 
     /**

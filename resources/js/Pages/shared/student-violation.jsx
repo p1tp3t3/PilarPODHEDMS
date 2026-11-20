@@ -71,6 +71,9 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
         {isPrefect && (
           <AppointmentModal
             label="Set Appointment"
+            // Opened by the verdict card's Intervene button.
+            title="Intervene"
+            subtitle={"Set an appointment with the student to talk about their violation(s)."}
             close={appointOpen}
             closeModal={setAppointOpen}
             pd={["px-5", "py-7"]}
@@ -101,7 +104,7 @@ const StudentViolation = (props, { user = demoProps.user, student = demoProps.st
                                 violation_list={props.violations}
                                 model_inputs={props.model_inputs}
                                 violation_timelines={props.violation_timelines}
-                                // Set Appointment sits in the verdict card,
+                                // Intervene (Set Appointment) sits in the verdict card,
                                 // for the prefect, when it says "Likely".
                                 onAppoint={isPrefect ? (violationId) => { setAppointViolation(violationId ?? null); setAppointOpen(true) } : null}
                             />
@@ -632,7 +635,8 @@ const BehaviourAnalysis = ({ studentId, violation_list, model_inputs, violation_
 };
 
 // The verdict banner: the result in its tone and what it is about, the
-// main reason for it, (for the prefect, when "Likely") Set Appointment, and
+// main reason for it, (for the prefect, when "Likely") Intervene (sets an
+// appointment), and
 // a strip of the key facts from the record.
 const VerdictCard = ({ prediction, likely, violation, mainReason, facts = [], onAppoint }) => {
   const tone = likely ? "red" : "green"
@@ -656,7 +660,7 @@ const VerdictCard = ({ prediction, likely, violation, mainReason, facts = [], on
         </Box>
         {onAppoint && (
           <Box sx={{ flexShrink: 0 }}>
-            <Btn onclick={onAppoint} icon={<CalendarPlus size={19} />}>Set Appointment</Btn>
+            <Btn onclick={onAppoint} icon={<CalendarPlus size={19} />}>Intervene</Btn>
           </Box>
         )}
       </Stack>

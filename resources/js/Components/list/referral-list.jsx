@@ -1,3 +1,4 @@
+import EditsLeft from "@/Components/other/edits-left"
 import { DataGrid } from "@/Components/other/data-grid"
 import StatusPill from "@/Components/list/status-pill";
 import Box from "@mui/material/Box"
@@ -268,7 +269,8 @@ const ReferralList = ({ style, list = null, type, events, viewReferral, viewOnly
                             </ActionBtn>
                         )}
 
-                        {isOwner && isPending && !row.raw?.edited_at && (
+                        {/* Pending: up to 3 edits, and how many are left. */}
+                        {isOwner && isPending && (row.raw?.edits_left ?? 3) > 0 && (
                             <ActionBtn
                                 className="bg-green-600 hover:bg-green-700"
                                 onClick={() => events("edit", row.id)}
@@ -276,6 +278,7 @@ const ReferralList = ({ style, list = null, type, events, viewReferral, viewOnly
                                 Edit
                             </ActionBtn>
                         )}
+                        {isOwner && isPending && <EditsLeft left={row.raw?.edits_left} />}
 
                         {canRevoke && (
                             <ActionBtn

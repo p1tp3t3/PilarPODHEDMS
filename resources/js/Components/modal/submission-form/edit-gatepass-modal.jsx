@@ -1,3 +1,5 @@
+import EditsLeft, { editsLeftSentence } from "@/Components/other/edits-left"
+import { reloadListData } from "@/others/hooks/use-list-data"
 import UpModal from "../up-modal"
 import RichTextEditor from "@/Components/input/rich-text-editor"
 import FormButton from "@/Components/button/button"
@@ -29,7 +31,7 @@ const EditGatePassModal = (props) => {
         setError("")
 
         showWarningModal(
-            "Save Changes To This Gate Pass Request? You Will Not Be Able To Edit It Again.",
+            `Save Changes To This Gate Pass Request? ${editsLeftSentence(props.data?.edits_left)}`,
             "Save Changes",
             "Cancel",
             () => {
@@ -44,6 +46,8 @@ const EditGatePassModal = (props) => {
         showOutputModal("Gate Pass Updated Successfully", "s", () => {
             props.reload(false)
             props.closeModal(false)
+            // Refresh the table(s) behind it to show the change.
+            reloadListData()
             router.reload({ only: ["latest_gatepass"] })
         })
     }
@@ -64,7 +68,11 @@ const EditGatePassModal = (props) => {
         >
             <div className="w-full">
                 <div className="pt-2 pb-3 text-[1.1em] sm:text-[1.2em]">
-                    <h1><b>Edit Your Gate Pass Request</b></h1>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h1><b>Edit Your Gate Pass Request</b></h1>
+                        {/* How many edits remain (up to 3 while pending). */}
+                        <EditsLeft left={props.data?.edits_left} />
+                    </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="grid gap-3">

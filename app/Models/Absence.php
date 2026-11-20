@@ -6,13 +6,14 @@ use App\Models\Concerns\HasDerivedSchoolYearSemester;
 use App\Models\Concerns\HasRecordAccess;
 use App\Models\Concerns\HasDocumentPdf;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Concerns\LimitsEdits;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Absence extends Model
 {
-    use HasFactory, HasDerivedSchoolYearSemester, HasDocumentPdf, HasRecordAccess;
+    use HasFactory, HasDerivedSchoolYearSemester, HasDocumentPdf, HasRecordAccess, LimitsEdits;
 
     protected function documentFolder(): string
     {
@@ -77,7 +78,7 @@ class Absence extends Model
     // Always load who filed it on someone's behalf, so every list/table
     // can show "Filed By (Prefect)" without each query having to ask.
     protected $with = ['prefect.profile'];
-    protected $fillable = ['form_number', 'student_id', 'prefect_id', 'reason', 'evidences', 'note', 'rejected_reason', 'rejected_at', 'confirmed_at', 'edited_at', 'revoked_at', 'date_from', 'date_to', 'archived_at'];
+    protected $fillable = ['form_number', 'student_id', 'prefect_id', 'reason', 'evidences', 'note', 'rejected_reason', 'rejected_at', 'confirmed_at', 'edited_at', 'resubmitted_at', 'revoked_at', 'date_from', 'date_to', 'archived_at'];
 
     public $timestamps = false;
 

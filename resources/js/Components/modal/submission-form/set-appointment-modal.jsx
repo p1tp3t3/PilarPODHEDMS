@@ -1,3 +1,5 @@
+import { reloadListData } from "@/others/hooks/use-list-data"
+import RemoveBtn from "@/Components/button/remove-btn"
 import UpModal from "../up-modal"
 import FormTextfield from "@/Components/input/form-input"
 import RichTextEditor from "@/Components/input/rich-text-editor"
@@ -10,7 +12,6 @@ import ProfilePic from "../../other/profile-pic"
 import { AppointmentService } from "@/others/services/appointment-service"
 import Swal from "sweetalert2"
 import withReactContent from "sweetalert2-react-content"
-import { X } from "lucide-react"
 import { Validator } from "@/others/classes/validator"
 import RelatedViolationsField from "@/Components/input/related-violations-field"
 
@@ -121,7 +122,8 @@ const AppointmentModal = (props) => {
             'Cancel',
             () => {
                 props.reload(true, 'text-wait', label2 + '. Please Wait')
-                const payload = showRelated ? { ...appoint, related_violations: JSON.stringify(relatedViolations) } : appoint
+                // extraPayload: e.g. the complaint it is set from (Intervene).
+                const payload = { ...(showRelated ? { ...appoint, related_violations: JSON.stringify(relatedViolations) } : appoint), ...(isResched ? {} : props.extraPayload) }
                 AppointmentService.schedule(isResched, props.appointmentId, payload, isResched ? props.setData : ()=>{}, success, error)
             }
         )
@@ -157,6 +159,8 @@ const AppointmentModal = (props) => {
             () => {
                 props.reload(false)
                 props.closeModal(false)
+                // Refresh the table(s) behind it to show the change.
+                reloadListData()
             }
         )
     }
@@ -183,8 +187,11 @@ const AppointmentModal = (props) => {
             <div className="w-full">
                 <form method="post" onSubmit={handleSubmit}>
                     <div className="grid gap-3">
-                        <div className="text-[1.2em] pb-5">
-                            <h1><b>{props.label}</b></h1>
+                        {/* `title` / `subtitle`: what the form is for when opened
+                            from elsewhere (Intervene); `label` still decides the mode. */}
+                        <div className={props.subtitle ? "pb-3" : "text-[1.2em] pb-5"}>
+                            <h1 className={props.subtitle ? "text-[1.2em]" : undefined}><b>{props.title ?? props.label}</b></h1>
+                            {props.subtitle && <p className="text-[0.85em] text-gray-500 mt-1">{props.subtitle}</p>}
                         </div>
                         {locked &&
                         <AppointedUser
@@ -297,17 +304,7 @@ const AppointmentModal = (props) => {
 const AppointedUser = (props) => {
     return (
         <div className="grid relative">
-            {props.unselect &&
-            <div className="absolute">
-                <button
-                    type="button"
-                    className="bg-gray-300 relative top-[-0.3rem] z-[5] w-[1.2rem] h-[1.2rem] rounded-full text-[0.8em]"
-                    onClick={(props.unselect != null) ? () => props.unselect() : ()=>{}}
-                >
-                    <X size={12} />
-                </button>
-            </div>}
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
                 <div>
                     <ProfilePic
                         activeBorderColor='border-white border-[3px]'
@@ -320,6 +317,8 @@ const AppointedUser = (props) => {
                     {/* Students: program and year level; parents: their role. */}
                     <h1 className="text-[0.9em]">{props.user ? showUserType(props.user, true) : toTitleCase(props.user_type)}</h1>
                 </div>
+                {/* Remove: the same ✕ as a window's close button. */}
+                {props.unselect && <RemoveBtn onClick={() => props.unselect()} />}
             </div>
         </div>
     )

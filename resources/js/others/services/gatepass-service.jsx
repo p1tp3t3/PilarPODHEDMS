@@ -12,6 +12,12 @@ export const GatePassService = {
         const api = new APIRequest(`/gatepass/${id}`, "get", {}, setter);
         api.fetchData();
     },
+    // One gate pass for its notification page: the record, or '' when it
+    // can't be found (deleted, or not this user's to see).
+    getGatePassRecord(id, setter) {
+        const api = new APIRequest(`/gatepass/${id}`, "get", {}, (d) => setter((Array.isArray(d) ? d[0] : d) || ''), () => {}, () => setter(''));
+        api.fetchData();
+    },
     verify(action, id, status, setter, success, error) {
         const api = new APIRequest(`/prefect/gatepass/verify/${id}/${action}`, "post", status, setter, success, error);
         api.fetchData();

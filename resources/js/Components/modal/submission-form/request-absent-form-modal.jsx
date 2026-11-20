@@ -1,3 +1,4 @@
+import { reloadListData } from "@/others/hooks/use-list-data"
 import UpModal from "../up-modal";
 import { showWarningModal, showOutputModal, toTitleCase, getProfilePic } from "../../../others/function";
 import SearchUserBar from "@/Components/input/search-user-bar";
@@ -113,6 +114,8 @@ const Body = ({ id, reload, issue = false, onIssued }) => {
         if (issue) setStudent(null);
         // Closes the modal and refreshes the list behind it (issue or request).
         onIssued?.();
+        // Refresh the table(s) behind it to show the change.
+        reloadListData()
         setData((prev) => ({
       ...prev,
           date_from: "",

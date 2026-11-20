@@ -77,7 +77,6 @@ class ProcessGatePassExpirationNotificationJob implements ShouldQueue
     {
         $expires = Carbon::parse($gatePass->date_expiration);
         $message = 'Your gate pass will expire on '.$expires->format('F j, Y').' at '.$expires->format('g:i A').'.';
-        $user = $gatePass->user;
 
         return [
             'notif_type' => 'gatepass',
@@ -87,16 +86,6 @@ class ProcessGatePassExpirationNotificationJob implements ShouldQueue
                 'sender_message' => $message,
                 'receiver_message' => $message,
                 'id' => $gatePass->id,
-                'first_name' => $user?->profile?->first_name,
-                'last_name' => $user?->profile?->last_name,
-                'profile_picture' => $user?->profile?->profile_picture,
-                'user_type' => $user?->role,
-                'name' => $user?->program?->code,
-                'reason' => $gatePass->reason,
-                'allow_to' => $gatePass->allow_to,
-                'confirmed_at' => $gatePass->confirmed_at,
-                'date_expiration' => $gatePass->date_expiration,
-                'created_at' => $gatePass->created_at,
             ]),
             'read_since' => null,
         ];

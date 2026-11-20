@@ -58,6 +58,9 @@ class WatchListService
             + array_intersect_key((array) $r, array_flip(ViolationRiskFeatures::FEATURES))
         )->values()->all();
 
+        // The batch can take up to 45 s (PHP stops a request after 30 s).
+        set_time_limit(90);
+
         try {
             $response = Http::withoutVerifying()
                 ->withHeaders(['Authorization' => 'Bearer '.config('services.python_api.key')])

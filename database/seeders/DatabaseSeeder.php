@@ -32,6 +32,11 @@ class DatabaseSeeder extends Seeder
             AbsenceSeeder::class,
             AppointmentSeeder::class,
             GatePassSeeder::class,
+            // After the complaints, referrals, absent forms and appointments
+            // they build on: what the Prefect did for students (Interventions)
+            // and the edit / resubmission history (Previous Version sections).
+            InterventionSeeder::class,
+            RevisionSeeder::class,
         ]);
         $this->command->info('Database seeded successfully.');
     }

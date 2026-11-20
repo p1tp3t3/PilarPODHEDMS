@@ -1,3 +1,4 @@
+import { reloadListData } from "@/others/hooks/use-list-data"
 import UpModal from "../up-modal"
 import { useState } from "react"
 import RichTextEditor from "@/Components/input/rich-text-editor"
@@ -61,6 +62,8 @@ const IssueGatePassModal = (props) => {
                         showOutputModal("Gate Pass Issued Successfully", "s", () => {
                             props.reload(false)
                             props.closeModal(false)
+                            // Refresh the table(s) behind it to show the change.
+                            reloadListData()
                             reset()
                             props.onIssued?.()
                         })

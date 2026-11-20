@@ -30,6 +30,8 @@ class StoreAppointmentRequest extends FormRequest
             'reason' => 'nullable|string',
             // JSON array of violation ids (multipart form).
             'related_violations' => 'nullable|string|max:2000',
+            // Set from a complaint's Intervene button (decrypted by the middleware).
+            'complaint_id' => 'nullable|integer|exists:complaint,id',
         ];
     }
 }

@@ -32,7 +32,11 @@ class ComplaintFactory extends Factory
     public function definition(): array
     {
         $violation = Violation::inRandomOrder()->first();
-        $complainant = User::inRandomOrder()->first();
+        // Someone who can file a complaint (the Complaint page's roles, or
+        // the Prefect from their own page); never the System Admin.
+        $complainant = User::whereRole(['student', 'program_head', 'faculty', 'non_teaching_staff', 'parent', 'sub_admin'])
+            ->inRandomOrder()->first();
+        $byPrefect = $complainant?->role === 'sub_admin';
 
         $createdAt = $this->faker->dateTimeBetween('-1 year', 'now');
         $confirmedAt = Carbon::parse($createdAt)->addDays(rand(1, 5));
@@ -40,7 +44,16 @@ class ComplaintFactory extends Factory
         // analysis and the violation-history views have anything to work
         // with, so a low resolved share left most students with too little
         // data to produce a meaningful/varied prediction.
-        $status = $this->faker->randomElement(['pending', 'ongoing', 'ongoing', 'resolved', 'resolved', 'resolved', 'resolved', 'rejected']);
+        // The Prefect's own complaint is approved as it's filed (ongoing,
+        // ComplaintController::store()): never pending or rejected.
+        $status = $byPrefect
+            ? $this->faker->randomElement(['ongoing', 'resolved', 'resolved'])
+            : $this->faker->randomElement(['pending', 'ongoing', 'ongoing', 'resolved', 'resolved', 'resolved', 'resolved', 'rejected']);
+        // A rejection happens while it's still pending, so it was never approved.
+        $rejectedAt = $status === 'rejected' ? Carbon::parse($createdAt)->addDays(rand(1, 5)) : null;
+        if ($byPrefect) {
+            $confirmedAt = Carbon::parse($createdAt);
+        }
         $resolvedAt = $status === 'resolved' ? Carbon::parse($confirmedAt)->addDays(rand(1, 10)) : null;
 
         // Matches the real "{MMDDYY}{daily-seq}" format from
@@ -59,8 +72,8 @@ class ComplaintFactory extends Factory
             // matches the real resolve flow (ViolationController::multipleViolationStore()).
             'incident_summary' => $status === 'resolved' ? $this->faker->sentence(10) : null,
             'rejected_reason' => $status === 'rejected' ? $this->faker->sentence(8) : null,
-            'rejected_at' => $status === 'rejected' ? $confirmedAt : null,
-            'confirmed_at' => $status !== 'pending' ? $confirmedAt : null,
+            'rejected_at' => $rejectedAt,
+            'confirmed_at' => in_array($status, ['ongoing', 'resolved'], true) ? $confirmedAt : null,
             'complaint_status' => $status,
             'resolved_at' => $resolvedAt,
             // offense_issued_at is what the real resolve flow
@@ -69,7 +82,11 @@ class ComplaintFactory extends Factory
             // stat reads — mirror resolved_at here so seeded resolved
             // complaints display that stat too.
             'offense_issued_at' => $resolvedAt,
-            'archived_at' => in_array($status, ['resolved', 'rejected']) ? Carbon::parse($confirmedAt)->addYears(5) : null,
+            'archived_at' => match ($status) {
+                'resolved' => Carbon::parse($confirmedAt)->addYears(5),
+                'rejected' => Carbon::parse($rejectedAt)->addYears(5),
+                default => null,
+            },
             'created_at' => $createdAt,
         ];
     }
@@ -81,6 +98,26 @@ class ComplaintFactory extends Factory
     {
         return $this->state(fn () => [
             'prefect_id' => $prefectId ?? User::whereRole('sub_admin')->inRandomOrder()->value('id'),
+        ]);
+    }
+
+    /**
+     * A complaint still waiting for the Prefect: not approved, rejected,
+     * resolved or archived, and no case number yet (an edit is only
+     * possible then).
+     */
+    public function pending(): static
+    {
+        return $this->state(fn () => [
+            'complaint_status' => 'pending',
+            'case_number' => null,
+            'incident_summary' => null,
+            'rejected_reason' => null,
+            'rejected_at' => null,
+            'confirmed_at' => null,
+            'resolved_at' => null,
+            'offense_issued_at' => null,
+            'archived_at' => null,
         ]);
     }
 

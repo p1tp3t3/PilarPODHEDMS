@@ -654,6 +654,9 @@ class ViolationController extends Controller
      */
     public function recommendViolationAction(Request $request)
     {
+        // Gemini: up to 3 tries of 60 s each (PHP stops a request after 30 s).
+        set_time_limit(240);
+
         return self::geminiRecommendation($request);
     }
 
@@ -847,6 +850,8 @@ class ViolationController extends Controller
         $request->validate([
             'model_input' => 'required|array',
         ]);
+        // Wait as long as the call may take (PHP stops a request after 30 s).
+        set_time_limit($timeout + 30);
 
         try {
             $response = Http::withoutVerifying()

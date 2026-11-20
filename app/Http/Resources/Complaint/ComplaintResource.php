@@ -37,6 +37,10 @@ class ComplaintResource extends BaseResource
             'rejected_at' => $this->rejected_at,
             'revoked_at' => $this->revoked_at,
             'edited_at' => $this->edited_at,
+            // Edits left while pending (up to 3; LimitsEdits).
+            'edits_left' => $this->resource->editsLeft(),
+            // Edited and resubmitted after a rejection (once).
+            'resubmitted_at' => $this->resubmitted_at,
             'confirmed_at' => $this->confirmed_at,
             'complaint_status' => $this->complaint_status,
             'resolved_at' => $this->resolved_at,

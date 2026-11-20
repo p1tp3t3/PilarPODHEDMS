@@ -3,7 +3,7 @@ import { useMarkNotificationRead } from "@/others/hooks/use-mark-notification-re
 import ViewComplaintModal from "@/Components/modal/view/view-complaint-modal"
 import { ComplaintService } from "@/others/services/complaint-service"
 import { AlertTriangle } from "lucide-react"
-import NotifDetailCard, { NotifEmptyState, NotifLoadingState, useNotifRecord } from "@/Components/other/notif-detail-card"
+import { NotifRecordCard, NotifEmptyState, NotifLoadingState, useNotifRecord } from "@/Components/other/notif-detail-card"
 import { Head } from "@inertiajs/react"
 
 const ComplaintNotification = (props) => {
@@ -17,9 +17,9 @@ const ComplaintNotification = (props) => {
             ?
             (data != '')
             ?
-            <NotifDetailCard icon={AlertTriangle} tone="default" title="Complaint">
+            <NotifRecordCard>
                 <ViewComplaintModal.Body data={data} usr={props.auth.user} />
-            </NotifDetailCard>
+            </NotifRecordCard>
             :
             <NotifEmptyState icon={AlertTriangle} message="No Complaint Found" />
             :

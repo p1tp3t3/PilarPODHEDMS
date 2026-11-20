@@ -489,15 +489,22 @@ class ProfileController extends Controller
 
     public function getPicture($query)
     {
-        $response = Http::withHeaders([
-            'Authorization' => env('PEXELS_API_KEY'),
-        ])->get('https://api.pexels.com/v1/search', [
-            'query' => $query,
-            'per_page' => 15,
-            'page' => 1,
-        ]);
+        // No pictures (instead of an error) when the service is slow or down.
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => env('PEXELS_API_KEY'),
+            ])->timeout(10)->get('https://api.pexels.com/v1/search', [
+                'query' => $query,
+                'per_page' => 15,
+                'page' => 1,
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('Picture search failed', ['error' => $e->getMessage()]);
 
-        return $response->json();
+            return ['photos' => []];
+        }
+
+        return $response->json() ?? ['photos' => []];
     }
 
     public function generatePicture($username, $userFolder, $photo, $seed = true)

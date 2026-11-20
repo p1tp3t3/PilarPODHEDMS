@@ -1,3 +1,4 @@
+import { reloadListData } from "@/others/hooks/use-list-data"
 import UpModal from "../up-modal";
 import FormTextfield from "@/Components/input/form-input";
 import RichTextEditor from "@/Components/input/rich-text-editor";
@@ -143,6 +144,8 @@ const IssueViolationModal2 = (props) => {
             showOutputModal("Complaint Resolved Successfully", "s", () => {
               props.reload(false);
               props.closeModal(false);
+              // Refresh the table(s) behind it to show the change.
+              reloadListData()
             });
           },
           (err) => {

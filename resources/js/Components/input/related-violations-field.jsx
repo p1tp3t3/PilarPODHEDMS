@@ -110,9 +110,12 @@ const RelatedViolationsField = ({ studentIds = [], value = [], onChange, disable
                     />
                 )}
             />
-            <Typography sx={{ fontSize: "0.72rem", color: "text.secondary", lineHeight: 1.5 }}>
-                {helper ?? "The violation(s) this addresses. It then counts as an intervention for them in the early-intervention predictor; leave empty if it is about something else."}
-            </Typography>
+            {/* helper={false}: no help line (the form explains it once). */}
+            {helper !== false && (
+                <Typography sx={{ fontSize: "0.72rem", color: "text.secondary", lineHeight: 1.5 }}>
+                    {helper ?? "Choose the violation(s) this is about. Leave it blank if it is not about one of the student's violations. It is then recorded as help given to the student for those violations."}
+                </Typography>
+            )}
         </div>
     )
 }
