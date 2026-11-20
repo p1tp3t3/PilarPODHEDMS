@@ -89,13 +89,14 @@ const ImageCropper = ({ preview, onCropped, setPreview }) => {
     const handleCrop = () => {
         const c = cropper()
         if (!c) return
-        const croppedDataUrl = c.getCroppedCanvas({
+        const croppedCanvas = c.getCroppedCanvas({
             width: 600,
             height: 600,
             fillColor: '#fff',
             imageSmoothingQuality: 'high',
-        }).toDataURL('image/jpeg', 0.92)
-        onCropped?.(croppedDataUrl)
+        })
+        if (!croppedCanvas) return
+        onCropped?.(croppedCanvas.toDataURL('image/jpeg', 0.92))
     }
 
     if (!image) return null

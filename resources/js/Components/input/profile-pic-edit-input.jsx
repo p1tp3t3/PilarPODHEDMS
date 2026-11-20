@@ -18,15 +18,15 @@ const ProfilePicEdit = ({
 }) => {
     const [finalPic, setFinalPic] = useState(null)
 
-    const handleCropped = async (croppedDataUrl) => {
-        const name = await base64ToFileName(croppedDataUrl, 'profile');
+    const handleCropped = (croppedDataUrl) => {
+        const name = base64ToFileName(croppedDataUrl, 'profile');
         const file = base64ToFile(croppedDataUrl, name)
 
         setFinalPic(croppedDataUrl)
         setPreview(null)
         profileChange(file)
     };
-    const base64ToFileName = async (base64, prefix = "file") => {
+    const base64ToFileName = (base64, prefix = "file") => {
         const mimeMatch = base64.match(/^data:(.*?);base64,/);
         let extension = "bin";
 
@@ -35,14 +35,7 @@ const ProfilePicEdit = ({
             extension = mime.split("/")[1];
         }
 
-        const base64Content = base64.split(",")[1];
-        const buffer = Uint8Array.from(atob(base64Content), c => c.charCodeAt(0));
-
-        const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-
-        return `${prefix}_${hashHex.slice(0, 16)}.${extension}`;
+        return `${prefix}_${Date.now()}.${extension}`;
     }
 
     return (
